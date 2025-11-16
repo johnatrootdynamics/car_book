@@ -1,0 +1,2 @@
+-- Bootstrap migration (reserved for early tweaks if needed)
+-- No-op by design; leaving here to pin version 1.

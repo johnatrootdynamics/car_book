@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS service_events (
+  service_id          BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  vin                 CHAR(17) NOT NULL,
+  date                DATE NOT NULL,
+  odometer            INT UNSIGNED NULL,
+  unit_system         ENUM('mi','km') NOT NULL DEFAULT 'mi',
+  service_type        ENUM('oil','tires','brakes','coolant','battery','inspection','scheduled','repair','recall','warranty','other') NOT NULL DEFAULT 'other',
+  description         TEXT NULL,
+  total_cost          DECIMAL(10,2) NULL,
+  currency            CHAR(3) NOT NULL DEFAULT 'USD',
+  shop_id             BIGINT UNSIGNED NULL,
+  attachments_json    JSON NULL,
+  created_by_user_id  BIGINT UNSIGNED NOT NULL,
+  visibility          ENUM('public','link','private') NOT NULL DEFAULT 'public',
+  created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sv_vin    FOREIGN KEY (vin) REFERENCES vehicles(vin),
+  CONSTRAINT fk_sv_user   FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
+  INDEX idx_sv_vin_date (vin, date),
+  INDEX idx_sv_vin_odo  (vin, odometer),
+  INDEX idx_sv_user     (created_by_user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

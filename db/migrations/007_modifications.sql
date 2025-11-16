@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS modifications (
+  mod_id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  vin                 CHAR(17) NOT NULL,
+  date                DATE NULL,
+  odometer            INT UNSIGNED NULL,
+  unit_system         ENUM('mi','km') NOT NULL DEFAULT 'mi',
+  category            ENUM('engine','transmission','suspension','brakes','wheels_tires','exhaust','intake','tune','interior','audio','cosmetic','aero','lighting','other') NOT NULL DEFAULT 'other',
+  title               VARCHAR(128) NOT NULL,
+  description         TEXT NULL,
+  total_cost          DECIMAL(10,2) NULL,
+  currency            CHAR(3) NOT NULL DEFAULT 'USD',
+  installed_by        VARCHAR(128) NULL,
+  attachments_json    JSON NULL,
+  created_by_user_id  BIGINT UNSIGNED NOT NULL,
+  visibility          ENUM('public','link','private') NOT NULL DEFAULT 'public',
+  created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_mod_vin FOREIGN KEY (vin) REFERENCES vehicles(vin),
+  CONSTRAINT fk_mod_user FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
+  INDEX idx_mod_vin_date (vin, date),
+  INDEX idx_mod_user (created_by_user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
