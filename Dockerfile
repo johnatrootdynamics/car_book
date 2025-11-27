@@ -1,4 +1,4 @@
-# Use an appropriate base imagee
+# Use an appropriate base imageei
 FROM python:3.11.2
 EXPOSE 80
 ENV TZ="America/New_York"
