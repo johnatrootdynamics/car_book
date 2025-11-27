@@ -32,4 +32,4 @@ RUN pip3 install flask
 
 
 # Run the application:
-CMD ["python3", "car_book/app.py"]
+CMD ["python3", "app.py"]
