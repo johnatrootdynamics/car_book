@@ -13,7 +13,7 @@ RUN mkdir /app
 ADD https://www.google.com /time.now
 RUN git clone https://github.com/johnatrootdynamics/carbook /app
 WORKDIR /app
-RUN ls
+RUN ls /app
 #RUN mkdir static/uploads
 ENV VIRTUAL_ENV=/opt/venv
 COPY * /opt/venv/
