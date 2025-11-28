@@ -10,13 +10,5 @@ RUN mkdir /app
 RUN git clone https://github.com/johnatrootdynamics/carbook /app
 
 WORKDIR /app
-
-# Create virtual environment
-ENV VIRTUAL_ENV=/opt/venv
-RUN python3 -m venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-# Install dependencies
-RUN echo "Listing directory during build:" && ls -al /app
-# Start the app
+RUN pip3 install flask
 CMD ["python3", "app.py"]
