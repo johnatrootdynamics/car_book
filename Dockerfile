@@ -10,7 +10,7 @@ RUN apt update -y && apt install -y python3-venv git
 RUN mkdir -p /app
 
 # Clone the repository into /app
-RUN git clone https://github.com/johnatrootdynamics/carbook /app
+RUN git clone https://github.com/johnatrootdynamics/car_book /app
 
 # Set working directory
 WORKDIR /app
