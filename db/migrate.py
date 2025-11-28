@@ -26,7 +26,7 @@ def _connect(db=None):
 def _ensure_database():
     conn = _connect(db=None)
     cur = conn.cursor()
-    cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}` CHARACTER SET utf8_general_ci COLLATE utf8_general_ci_0900_ai_ci")
+    cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}` CHARACTER SET utf8_general_ci COLLATE utf8_general_ci")
     conn.commit()
     cur.close()
     conn.close()
