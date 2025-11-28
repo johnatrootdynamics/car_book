@@ -8,7 +8,7 @@ VALUES (
   'sampledriver',
   'sampledriver@example.com',
   '555-000-0000',
-  '$2b$12$abcdefghijklmnopqrstuv1234567890abcdefghijklmnopqrstuv', -- placeholder hash
+  '$2b$12$X2PHJi4hd8h1UTZL5O9sXeZrj12DUu2GaMnFGXA0d0ejfqmVUzx6W', -- placeholder hash
   'user'
 );
 
