@@ -19,4 +19,4 @@ CREATE TABLE IF NOT EXISTS service_events (
   INDEX idx_sv_vin_date (vin, date),
   INDEX idx_sv_vin_odo  (vin, odometer),
   INDEX idx_sv_user     (created_by_user_id, created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

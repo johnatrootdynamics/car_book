@@ -12,4 +12,4 @@ CREATE TABLE IF NOT EXISTS ownerships (
   CONSTRAINT fk_own_user FOREIGN KEY (owner_user_id) REFERENCES users(user_id),
   INDEX idx_vin_dates (vin, start_at, end_at),
   INDEX idx_owner (owner_user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

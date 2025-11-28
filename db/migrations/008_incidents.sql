@@ -25,4 +25,4 @@ CREATE TABLE IF NOT EXISTS incidents (
 
   UNIQUE KEY uq_provider_event (provider_name, provider_event_id),
   INDEX idx_inc_vin_date (vin, date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
