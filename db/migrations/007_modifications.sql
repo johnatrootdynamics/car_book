@@ -19,4 +19,4 @@ CREATE TABLE IF NOT EXISTS modifications (
   CONSTRAINT fk_mod_user FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
   INDEX idx_mod_vin_date (vin, date),
   INDEX idx_mod_user (created_by_user_id, created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4_unicode_520_ci;

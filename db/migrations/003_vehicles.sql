@@ -15,4 +15,4 @@ CREATE TABLE IF NOT EXISTS vehicles (
   first_seen_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_vehicle_year_make_model (model_year, make, model)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4_unicode_520_ci;

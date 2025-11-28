@@ -9,4 +9,4 @@ CREATE TABLE IF NOT EXISTS ownership_parties (
   CONSTRAINT fk_op_own FOREIGN KEY (ownership_id) REFERENCES ownerships(ownership_id),
   CONSTRAINT fk_op_user FOREIGN KEY (user_id) REFERENCES users(user_id),
   UNIQUE KEY uq_party (ownership_id, user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4_unicode_520_ci;
