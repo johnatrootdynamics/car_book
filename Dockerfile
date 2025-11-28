@@ -8,7 +8,7 @@ RUN apt update -y && apt install -y python3-venv git
 
 # Create app directory
 RUN mkdir -p /app
-
+ADD https://www.google.com /time.now 
 # Clone the repository into /app
 RUN git clone https://github.com/johnatrootdynamics/car_book /app
 
