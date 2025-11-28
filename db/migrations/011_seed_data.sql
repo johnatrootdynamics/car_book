@@ -75,7 +75,7 @@ INSERT INTO service_events (
   120000,
   'mi',
   'oil',
-  'Oil and filter change; cabin filter replaced.',
+  'Oil and filter change cabin filter replaced.',
   89.99,
   'USD',
   NULL,
