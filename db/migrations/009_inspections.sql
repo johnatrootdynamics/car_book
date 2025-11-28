@@ -16,4 +16,4 @@ CREATE TABLE IF NOT EXISTS inspections (
   CONSTRAINT fk_insp_vin FOREIGN KEY (vin) REFERENCES vehicles(vin),
   CONSTRAINT fk_insp_user FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
   INDEX idx_insp_vin_date (vin, date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4_unicode_520_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8_general_ci;

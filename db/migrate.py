@@ -26,7 +26,7 @@ def _connect(db=None):
 def _ensure_database():
     conn = _connect(db=None)
     cur = conn.cursor()
-    cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}` CHARACTER SET utf8mb4_unicode_520_ci COLLATE utf8mb4_unicode_520_ci_0900_ai_ci")
+    cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DB_NAME}` CHARACTER SET utf8_general_ci COLLATE utf8_general_ci_0900_ai_ci")
     conn.commit()
     cur.close()
     conn.close()
@@ -37,7 +37,7 @@ def _ensure_schema_migrations(cur):
         CREATE TABLE IF NOT EXISTS schema_migrations (
             version INT PRIMARY KEY,
             applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4_unicode_520_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8_general_ci
         """
     )
 
