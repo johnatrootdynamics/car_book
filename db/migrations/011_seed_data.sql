@@ -112,7 +112,7 @@ INSERT INTO incidents (
   'mi',
   'collision',
   'minor',
-  'Minor rear bumper collision; bumper cover repainted.',
+  'Minor rear bumper collision bumper cover repainted.',
   650.00,
   'USD',
   NULL,
