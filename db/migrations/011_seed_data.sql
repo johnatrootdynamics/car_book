@@ -8,7 +8,7 @@ VALUES (
   'sampledriver',
   'sampledriver@example.com',
   '555-000-0000',
-  '$2b$12$X2PHJi4hd8h1UTZL5O9sXeZrj12DUu2GaMnFGXA0d0ejfqmVUzx6W', -- placeholder hash
+  '$2b$12$X2PHJi4hd8h1UTZL5O9sXeZrj12DUu2GaMnFGXA0d0ejfqmVUzx6W',
   'user'
 );
 
@@ -34,8 +34,16 @@ INSERT INTO vehicles (
   NOW()
 );
 
-INSERT INTO ownerships (vin, owner_user_id, start_at, end_at, is_primary, acquisition_type, proof_doc_url, created_at)
-VALUES (
+INSERT INTO ownerships (
+  vin,
+  owner_user_id,
+  start_at,
+  end_at,
+  is_primary,
+  acquisition_type,
+  proof_doc_url,
+  created_at
+) VALUES (
   'WBAEV53412KM12345',
   @sample_user_id,
   '2020-01-01',
@@ -47,9 +55,20 @@ VALUES (
 );
 
 INSERT INTO service_events (
-  vin, date, odometer, unit_system, service_type, description,
-  total_cost, currency, shop_id, attachments_json,
-  created_by_user_id, visibility, created_at, updated_at
+  vin,
+  date,
+  odometer,
+  unit_system,
+  service_type,
+  description,
+  total_cost,
+  currency,
+  shop_id,
+  attachments_json,
+  created_by_user_id,
+  visibility,
+  created_at,
+  updated_at
 ) VALUES (
   'WBAEV53412KM12345',
   '2024-06-15',
@@ -68,11 +87,24 @@ INSERT INTO service_events (
 );
 
 INSERT INTO incidents (
-  vin, date, odometer, unit_system, type, severity, description,
-  total_cost, currency, attachments_json,
-  created_by_user_id, visibility,
-  provider_name, provider_event_id, provider_first_seen_at, raw_payload_json,
-  created_at, updated_at
+  vin,
+  date,
+  odometer,
+  unit_system,
+  type,
+  severity,
+  description,
+  total_cost,
+  currency,
+  attachments_json,
+  created_by_user_id,
+  visibility,
+  provider_name,
+  provider_event_id,
+  provider_first_seen_at,
+  raw_payload_json,
+  created_at,
+  updated_at
 ) VALUES (
   'WBAEV53412KM12345',
   '2023-03-10',
@@ -94,8 +126,12 @@ INSERT INTO incidents (
   NOW()
 );
 
-INSERT INTO vehicle_scores (vin, score, components_json, computed_at)
-VALUES (
+INSERT INTO vehicle_scores (
+  vin,
+  score,
+  components_json,
+  computed_at
+) VALUES (
   'WBAEV53412KM12345',
   82,
   '{"maintenance": 25, "inspections": 10, "incidents": -5, "mileage": -3, "ownership": 5}',
