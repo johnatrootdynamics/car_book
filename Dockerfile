@@ -17,8 +17,7 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Install dependencies
-RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
-
+RUN echo "Listing directory during build:" && ls -al /app
 # Start the app
 CMD ["python", "app.py"]
