@@ -1,28 +1,18 @@
-FROM python:3.11-slim
+FROM python:3.10
 
-# Expose Flask port
-EXPOSE 80
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
-# Install needed system packages
-RUN apt update -y && apt install -y python3-venv git
+COPY requirements.txt .
 
-# Create app directory
-RUN mkdir -p /app
-ADD https://www.google.com /time.now 
-# Clone the repository into /app
-RUN git clone https://github.com/johnatrootdynamics/car_book /app
-
-# Set working directory
-WORKDIR /app
-
-# Create virtual environment
-ENV VIRTUAL_ENV=/opt/venv
-RUN python3 -m venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-# Install Python dependencies inside the virtual environment
+# install python dependencies
 RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+RUN export FLASK_APP=run.py
 
-# Run the application
-CMD ["python", "app.py"]
+
+COPY . .
+
+# gunicorn
+CMD ["gunicorn", "--config", "gunicorn-cfg.py", "run:app"]
