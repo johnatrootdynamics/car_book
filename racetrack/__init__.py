@@ -10,8 +10,9 @@ from sqlalchemy import create_engine
 from sqlalchemy import inspect
 from sqlalchemy import text
 from sqlalchemy.engine.url import make_url
+from werkzeug.security import generate_password_hash
 
-from .models import db, Employee, User
+from .models import db, Employee, Track, User
 
 
 login_manager = LoginManager()
@@ -151,10 +152,35 @@ def create_app():
         else:
             app.logger.error("Schema initialization ran but required tables are still missing.")
 
+    def ensure_schema_with_models():
+        db.create_all()
+
+        demo_track = Track.query.filter_by(name="Demo Speedway").first()
+        if not demo_track:
+            demo_track = Track(name="Demo Speedway", city="Austin", state="TX")
+            db.session.add(demo_track)
+            db.session.flush()
+
+        demo_employee = Employee.query.filter_by(email="employee@track.local").first()
+        if not demo_employee:
+            demo_employee = Employee(
+                track_id=demo_track.id,
+                full_name="Demo Employee",
+                email="employee@track.local",
+                password_hash=generate_password_hash("ChangeMe123!"),
+            )
+            db.session.add(demo_employee)
+
+        db.session.commit()
+
     with app.app_context():
         try:
             ensure_database_exists()
-            run_init_sql_if_needed()
+            try:
+                run_init_sql_if_needed()
+            except Exception:
+                app.logger.exception("init.sql execution failed; falling back to ORM schema creation.")
+            ensure_schema_with_models()
         except Exception as exc:
             app.logger.exception("Automatic schema initialization failed: %s", exc)
 
@@ -191,7 +217,11 @@ def create_app():
         if not g.schema_ready:
             try:
                 ensure_database_exists()
-                run_init_sql_if_needed()
+                try:
+                    run_init_sql_if_needed()
+                except Exception:
+                    current_app.logger.exception("init.sql recovery failed; using ORM fallback.")
+                ensure_schema_with_models()
                 inspector = inspect(db.engine)
                 existing = set(inspector.get_table_names())
                 g.schema_ready = required_tables.issubset(existing)
