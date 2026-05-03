@@ -8,8 +8,8 @@ from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy import inspect
+from sqlalchemy import text
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.exc import OperationalError
 
 from .models import db, Employee, User
 
@@ -85,6 +85,28 @@ def create_app():
     app.register_blueprint(user_bp)
     app.register_blueprint(employee_bp)
 
+    def ensure_database_exists():
+        db_url = make_url(app.config["SQLALCHEMY_DATABASE_URI"])
+        db_name = db_url.database
+        if not db_name:
+            raise RuntimeError("DATABASE_URL must include a database name")
+
+        server_url = db_url.set(database=None)
+        bootstrap_engine = create_engine(server_url)
+        try:
+            with bootstrap_engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "CREATE DATABASE IF NOT EXISTS `"
+                        + db_name
+                        + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                    )
+                )
+        finally:
+            bootstrap_engine.dispose()
+
+        db.engine.dispose()
+
     def run_init_sql_if_needed():
         required_tables = {
             "users",
@@ -94,29 +116,8 @@ def create_app():
             "events",
             "event_registrations",
         }
-        try:
-            inspector = inspect(db.engine)
-            existing = set(inspector.get_table_names())
-        except OperationalError as exc:
-            original = getattr(exc, "orig", None)
-            error_code = original.args[0] if getattr(original, "args", None) else None
-            if error_code != 1049:
-                raise
-
-            db_url = make_url(app.config["SQLALCHEMY_DATABASE_URI"])
-            db_name = db_url.database
-            if not db_name:
-                raise
-
-            server_url = db_url.set(database=None)
-            bootstrap_engine = create_engine(server_url)
-            with bootstrap_engine.begin() as conn:
-                conn.exec_driver_sql(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-            bootstrap_engine.dispose()
-            db.engine.dispose()
-
-            inspector = inspect(db.engine)
-            existing = set(inspector.get_table_names())
+        inspector = inspect(db.engine)
+        existing = set(inspector.get_table_names())
 
         if required_tables.issubset(existing):
             app.logger.info("Database schema already present.")
@@ -151,6 +152,7 @@ def create_app():
 
     with app.app_context():
         try:
+            ensure_database_exists()
             run_init_sql_if_needed()
         except Exception as exc:
             app.logger.exception("Automatic schema initialization failed: %s", exc)
