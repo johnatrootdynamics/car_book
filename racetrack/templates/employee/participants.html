@@ -9,13 +9,23 @@
   {% if registrations %}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Driver</th><th>Email</th><th>Car</th><th>Signed Up</th></tr></thead>
+        <thead><tr><th>Driver</th><th>Email</th><th>Car</th><th>Check-in Code</th><th>Inspection</th><th>Signed Up</th></tr></thead>
         <tbody>
           {% for reg in registrations %}
             <tr>
               <td>{{ reg.user.first_name }} {{ reg.user.last_name }}</td>
               <td>{{ reg.user.email }}</td>
               <td>{{ reg.car.car_year }} {{ reg.car.make }} {{ reg.car.model }}</td>
+              <td><code>{{ reg.checkin_code }}</code></td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.inspect_registration', event_id=event.id, registration_id=reg.id) }}">
+                  {% if reg.id in inspections %}
+                    {{ 'Pass' if inspections[reg.id].passed else 'Needs Work' }}
+                  {% else %}
+                    Inspect
+                  {% endif %}
+                </a>
+              </td>
               <td>{{ reg.created_at }}</td>
             </tr>
           {% endfor %}

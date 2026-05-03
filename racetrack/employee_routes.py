@@ -1,13 +1,13 @@
 import os
 from uuid import uuid4
 
-from flask import Blueprint, current_app, flash, redirect, render_template, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 from sqlalchemy import func
 
-from .forms import EventForm, TrackProfileForm
-from .models import Event, EventRegistration, Track, db
+from .forms import EventForm, InspectionForm, InspectionRuleForm, TrackProfileForm
+from .models import Event, EventRegistration, Inspection, InspectionItem, InspectionRule, Track, db
 
 
 employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
@@ -44,12 +44,20 @@ def dashboard():
     )
     signup_counts = {event_id: count for event_id, count in signup_counts_raw}
     profile_form = TrackProfileForm(obj=track)
+    rule_form = InspectionRuleForm()
+    rules = (
+        InspectionRule.query.filter_by(track_id=current_user.track_id)
+        .order_by(InspectionRule.sort_order.asc(), InspectionRule.id.asc())
+        .all()
+    )
     return render_template(
         "employee/dashboard.html",
         events=events,
         track=track,
         signup_counts=signup_counts,
         profile_form=profile_form,
+        rule_form=rule_form,
+        rules=rules,
     )
 
 
@@ -142,4 +150,176 @@ def participants(event_id):
         .order_by(EventRegistration.created_at.asc())
         .all()
     )
-    return render_template("employee/participants.html", event=event, registrations=regs)
+    inspections = {
+        inspection.event_registration_id: inspection
+        for inspection in Inspection.query.join(
+            EventRegistration,
+            EventRegistration.id == Inspection.event_registration_id,
+        )
+        .filter(EventRegistration.event_id == event.id)
+        .all()
+    }
+    return render_template(
+        "employee/participants.html",
+        event=event,
+        registrations=regs,
+        inspections=inspections,
+    )
+
+
+@employee_bp.route("/inspection-rules", methods=["POST"])
+@login_required
+def add_inspection_rule():
+    guard = require_employee()
+    if guard:
+        return guard
+    form = InspectionRuleForm()
+    if form.validate_on_submit():
+        max_order = (
+            db.session.query(func.max(InspectionRule.sort_order))
+            .filter_by(track_id=current_user.track_id)
+            .scalar()
+            or 0
+        )
+        rule = InspectionRule(
+            track_id=current_user.track_id,
+            rule_text=form.rule_text.data.strip(),
+            active=True,
+            sort_order=max_order + 1,
+        )
+        db.session.add(rule)
+        db.session.commit()
+        flash("Inspection rule added.", "success")
+    else:
+        flash("Could not add rule.", "error")
+    return redirect(url_for("employee.dashboard"))
+
+
+@employee_bp.route("/inspection-rules/<int:rule_id>/toggle", methods=["POST"])
+@login_required
+def toggle_inspection_rule(rule_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    rule = InspectionRule.query.filter_by(id=rule_id, track_id=current_user.track_id).first_or_404()
+    rule.active = not rule.active
+    db.session.commit()
+    flash("Inspection rule updated.", "success")
+    return redirect(url_for("employee.dashboard"))
+
+
+@employee_bp.route("/inspection-rules/<int:rule_id>/delete", methods=["POST"])
+@login_required
+def delete_inspection_rule(rule_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    rule = InspectionRule.query.filter_by(id=rule_id, track_id=current_user.track_id).first_or_404()
+    db.session.delete(rule)
+    db.session.commit()
+    flash("Inspection rule deleted.", "success")
+    return redirect(url_for("employee.dashboard"))
+
+
+def _load_registration_for_track(event_id, registration_id):
+    return (
+        EventRegistration.query.join(Event, Event.id == EventRegistration.event_id)
+        .filter(
+            EventRegistration.id == registration_id,
+            EventRegistration.event_id == event_id,
+            Event.track_id == current_user.track_id,
+        )
+        .first_or_404()
+    )
+
+
+@employee_bp.route("/events/<int:event_id>/inspections")
+@login_required
+def inspection_lookup(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=current_user.track_id).first_or_404()
+    code = request.args.get("code", "").strip().upper()
+    registration = None
+    if code:
+        registration = EventRegistration.query.filter_by(
+            event_id=event.id, checkin_code=code
+        ).first()
+        if not registration:
+            flash("No signup found for that scan code in this event.", "error")
+    return render_template(
+        "employee/inspection_lookup.html",
+        event=event,
+        code=code,
+        registration=registration,
+    )
+
+
+@employee_bp.route("/events/<int:event_id>/inspections/<int:registration_id>", methods=["GET", "POST"])
+@login_required
+def inspect_registration(event_id, registration_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    registration = _load_registration_for_track(event_id, registration_id)
+    rules = (
+        InspectionRule.query.filter_by(track_id=current_user.track_id, active=True)
+        .order_by(InspectionRule.sort_order.asc(), InspectionRule.id.asc())
+        .all()
+    )
+    if not rules:
+        flash("Create inspection rules before inspecting cars.", "error")
+        return redirect(url_for("employee.dashboard"))
+
+    inspection = Inspection.query.filter_by(event_registration_id=registration.id).first()
+    form = InspectionForm(obj=inspection)
+
+    existing_map = {}
+    if inspection:
+        existing_map = {item.inspection_rule_id: item.checked for item in inspection.items}
+
+    if request.method == "POST" and form.validate_on_submit():
+        if not inspection:
+            inspection = Inspection(
+                event_registration_id=registration.id,
+                inspected_by_employee_id=current_user.id,
+            )
+            db.session.add(inspection)
+            db.session.flush()
+        else:
+            inspection.inspected_by_employee_id = current_user.id
+
+        for rule in rules:
+            field_name = f"rule_{rule.id}"
+            checked = request.form.get(field_name) == "on"
+            item = InspectionItem.query.filter_by(
+                inspection_id=inspection.id,
+                inspection_rule_id=rule.id,
+            ).first()
+            if not item:
+                item = InspectionItem(
+                    inspection_id=inspection.id,
+                    inspection_rule_id=rule.id,
+                    checked=checked,
+                )
+                db.session.add(item)
+            else:
+                item.checked = checked
+
+        all_checked = all(request.form.get(f"rule_{rule.id}") == "on" for rule in rules)
+        inspection.passed = all_checked
+        inspection.notes = form.notes.data.strip() if form.notes.data else None
+        db.session.commit()
+        flash("Inspection saved.", "success")
+        return redirect(url_for("employee.participants", event_id=event_id))
+
+    return render_template(
+        "employee/inspection_form.html",
+        registration=registration,
+        event=registration.event,
+        rules=rules,
+        existing_map=existing_map,
+        form=form,
+        inspection=inspection,
+    )

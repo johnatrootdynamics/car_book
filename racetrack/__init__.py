@@ -117,6 +117,9 @@ def create_app():
             "employees",
             "events",
             "event_registrations",
+            "inspection_rules",
+            "inspections",
+            "inspection_items",
         }
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -154,6 +157,27 @@ def create_app():
 
     def ensure_schema_with_models():
         db.create_all()
+
+        with db.engine.begin() as conn:
+            conn.exec_driver_sql(
+                "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checkin_code VARCHAR(64) NULL"
+            )
+
+        with db.engine.begin() as conn:
+            conn.exec_driver_sql(
+                "UPDATE event_registrations SET checkin_code = CONCAT('EV', event_id, '-', UPPER(SUBSTRING(MD5(CONCAT(id, event_id, user_id, car_id)), 1, 6))) WHERE checkin_code IS NULL OR checkin_code = ''"
+            )
+
+        with db.engine.begin() as conn:
+            conn.exec_driver_sql(
+                "ALTER TABLE event_registrations MODIFY COLUMN checkin_code VARCHAR(64) NOT NULL"
+            )
+            try:
+                conn.exec_driver_sql(
+                    "CREATE UNIQUE INDEX idx_event_registrations_checkin_code ON event_registrations (checkin_code)"
+                )
+            except Exception:
+                pass
 
         demo_track = Track.query.filter_by(name="Demo Speedway").first()
         if not demo_track:
@@ -207,6 +231,9 @@ def create_app():
             "employees",
             "events",
             "event_registrations",
+            "inspection_rules",
+            "inspections",
+            "inspection_items",
         }
         try:
             inspector = inspect(db.engine)

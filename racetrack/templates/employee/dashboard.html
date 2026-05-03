@@ -29,6 +29,42 @@
 </section>
 
 <section class="card">
+  <h3>Technical Inspection Rules</h3>
+  <form method="post" action="{{ url_for('employee.add_inspection_rule') }}" class="form-grid">
+    {{ rule_form.hidden_tag() }}
+    <label>Rule / Condition {{ rule_form.rule_text() }}</label>
+    {{ rule_form.submit(class_='btn') }}
+  </form>
+  {% if rules %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Condition</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for rule in rules %}
+          <tr>
+            <td>{{ rule.rule_text }}</td>
+            <td>{{ 'Active' if rule.active else 'Inactive' }}</td>
+            <td>
+              <form method="post" action="{{ url_for('employee.toggle_inspection_rule', rule_id=rule.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary btn-sm">{{ 'Disable' if rule.active else 'Enable' }}</button>
+              </form>
+              <form method="post" action="{{ url_for('employee.delete_inspection_rule', rule_id=rule.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm danger-btn">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No rules yet. Add rules for inspectors to use at this track.</p>
+  {% endif %}
+</section>
+
+<section class="card">
   <h3>Track Events</h3>
   {% if events %}
     <div class="table-wrap">
@@ -41,6 +77,7 @@
             <td>{{ event.event_date }}</td>
             <td>{{ signup_counts.get(event.id, 0) }}</td>
             <td>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.inspection_lookup', event_id=event.id) }}">Inspect</a>
               <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.participants', event_id=event.id) }}">Participants</a>
               <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
               <form method="post" action="{{ url_for('employee.event_delete', event_id=event.id) }}" class="inline">

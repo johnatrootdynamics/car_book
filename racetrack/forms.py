@@ -2,7 +2,7 @@ from datetime import date
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
-from wtforms import DateField, PasswordField, SelectField, StringField, SubmitField
+from wtforms import BooleanField, DateField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length, ValidationError
 
 
@@ -68,3 +68,19 @@ class TrackProfileForm(FlaskForm):
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
     )
     submit = SubmitField("Save Track Profile")
+
+
+class InspectionRuleForm(FlaskForm):
+    rule_text = StringField("Condition", validators=[DataRequired(), Length(max=255)])
+    submit = SubmitField("Add Rule")
+
+
+class InspectionForm(FlaskForm):
+    notes = TextAreaField("Inspector Notes", validators=[Length(max=500)])
+    submit = SubmitField("Save Inspection")
+
+    def set_rule_fields(self, rules):
+        for rule in rules:
+            field_name = f"rule_{rule.id}"
+            if not hasattr(self, field_name):
+                setattr(self, field_name, BooleanField(rule.rule_text))

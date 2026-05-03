@@ -1,3 +1,5 @@
+import secrets
+
 from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
@@ -6,6 +8,14 @@ from .models import Car, Event, EventRegistration, db
 
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
+
+
+def _generate_checkin_code(event_id):
+    while True:
+        code = f"EV{event_id}-{secrets.token_hex(3).upper()}"
+        exists = EventRegistration.query.filter_by(checkin_code=code).first()
+        if not exists:
+            return code
 
 
 def require_user():
@@ -127,7 +137,12 @@ def signup_event(event_id):
         if not selected_car:
             flash("Invalid car selected.", "error")
             return redirect(url_for("user.dashboard"))
-        reg = EventRegistration(event_id=event.id, user_id=current_user.id, car_id=selected_car.id)
+        reg = EventRegistration(
+            event_id=event.id,
+            user_id=current_user.id,
+            car_id=selected_car.id,
+            checkin_code=_generate_checkin_code(event.id),
+        )
         db.session.add(reg)
         db.session.commit()
         flash("Signed up successfully.", "success")

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Vehicle Inspection</h2>
+  <p>
+    {{ event.event_name }} • {{ registration.user.first_name }} {{ registration.user.last_name }} •
+    {{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}
+  </p>
+  <p>Check-in Code: <code>{{ registration.checkin_code }}</code></p>
+</section>
+
+<section class="card">
+  <form method="post" class="form-grid">
+    {{ form.hidden_tag() }}
+    {% for rule in rules %}
+      <label class="check-row">
+        <input type="checkbox" name="rule_{{ rule.id }}" {% if existing_map.get(rule.id) %}checked{% endif %}>
+        <span>{{ rule.rule_text }}</span>
+      </label>
+    {% endfor %}
+    <label>Inspector Notes {{ form.notes() }}</label>
+    {{ form.submit(class_='btn') }}
+  </form>
+  {% if inspection %}
+    <p class="inspection-status">
+      Current Status:
+      <strong>{{ 'PASSED' if inspection.passed else 'NOT PASSED' }}</strong>
+    </p>
+  {% endif %}
+</section>
+{% endblock %}

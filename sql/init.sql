@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS event_registrations (
   event_id INT NOT NULL,
   user_id INT NOT NULL,
   car_id INT NOT NULL,
+  checkin_code VARCHAR(64) NOT NULL UNIQUE,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_event_reg_event FOREIGN KEY (event_id) REFERENCES events(id)
     ON DELETE CASCADE ON UPDATE CASCADE,
@@ -74,6 +75,43 @@ CREATE TABLE IF NOT EXISTS event_registrations (
   CONSTRAINT uniq_event_user_signup UNIQUE (event_id, user_id),
   INDEX idx_event_reg_user (user_id),
   INDEX idx_event_reg_car (car_id)
+);
+
+CREATE TABLE IF NOT EXISTS inspection_rules (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  track_id INT NOT NULL,
+  rule_text VARCHAR(255) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_inspection_rules_track FOREIGN KEY (track_id) REFERENCES tracks(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS inspections (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  event_registration_id INT NOT NULL UNIQUE,
+  inspected_by_employee_id INT NOT NULL,
+  passed TINYINT(1) NOT NULL DEFAULT 0,
+  notes VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_inspections_registration FOREIGN KEY (event_registration_id) REFERENCES event_registrations(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_inspections_employee FOREIGN KEY (inspected_by_employee_id) REFERENCES employees(id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS inspection_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  inspection_id INT NOT NULL,
+  inspection_rule_id INT NOT NULL,
+  checked TINYINT(1) NOT NULL DEFAULT 0,
+  CONSTRAINT fk_inspection_items_inspection FOREIGN KEY (inspection_id) REFERENCES inspections(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_inspection_items_rule FOREIGN KEY (inspection_rule_id) REFERENCES inspection_rules(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT uniq_inspection_rule UNIQUE (inspection_id, inspection_rule_id)
 );
 
 INSERT INTO tracks (name, city, state)

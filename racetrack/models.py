@@ -51,6 +51,9 @@ class Track(db.Model):
 
     employees = db.relationship("Employee", backref="track")
     events = db.relationship("Event", backref="track")
+    inspection_rules = db.relationship(
+        "InspectionRule", backref="track", cascade="all, delete-orphan"
+    )
 
 
 class Employee(db.Model, UserMixin):
@@ -104,10 +107,63 @@ class EventRegistration(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
+    checkin_code = db.Column(db.String(64), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     car = db.relationship("Car")
 
     __table_args__ = (
         db.UniqueConstraint("event_id", "user_id", name="uniq_event_user_signup"),
+    )
+
+
+class InspectionRule(db.Model):
+    __tablename__ = "inspection_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    rule_text = db.Column(db.String(255), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Inspection(db.Model):
+    __tablename__ = "inspections"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_registration_id = db.Column(
+        db.Integer, db.ForeignKey("event_registrations.id"), nullable=False, unique=True
+    )
+    inspected_by_employee_id = db.Column(
+        db.Integer, db.ForeignKey("employees.id"), nullable=False
+    )
+    passed = db.Column(db.Boolean, nullable=False, default=False)
+    notes = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    registration = db.relationship("EventRegistration")
+    inspector = db.relationship("Employee")
+    items = db.relationship(
+        "InspectionItem", backref="inspection", cascade="all, delete-orphan"
+    )
+
+
+class InspectionItem(db.Model):
+    __tablename__ = "inspection_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inspection_id = db.Column(db.Integer, db.ForeignKey("inspections.id"), nullable=False)
+    inspection_rule_id = db.Column(
+        db.Integer, db.ForeignKey("inspection_rules.id"), nullable=False
+    )
+    checked = db.Column(db.Boolean, nullable=False, default=False)
+
+    rule = db.relationship("InspectionRule")
+
+    __table_args__ = (
+        db.UniqueConstraint("inspection_id", "inspection_rule_id", name="uniq_inspection_rule"),
     )

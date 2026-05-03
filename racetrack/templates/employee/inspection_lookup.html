@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Inspection Lookup</h2>
+  <p>{{ event.event_name }} • {{ event.track.name }} • {{ event.event_date }}</p>
+  <form method="get" class="form-grid narrow">
+    <label>Scan or Enter Check-in Code
+      <input type="text" name="code" value="{{ code }}" placeholder="EV123-ABCDEF">
+    </label>
+    <button type="submit" class="btn">Find Signup</button>
+  </form>
+</section>
+
+{% if registration %}
+<section class="card">
+  <h3>Matched Driver</h3>
+  <p>
+    {{ registration.user.first_name }} {{ registration.user.last_name }} •
+    {{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}
+  </p>
+  <a class="btn" href="{{ url_for('employee.inspect_registration', event_id=event.id, registration_id=registration.id) }}">Open Inspection</a>
+</section>
+{% endif %}
+{% endblock %}
