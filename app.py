@@ -48,7 +48,7 @@ def create_app():
         conn.close()
 
         html_parts = []
-        html_parts.append("<html><head><title>Car History Sample Data</title></head><body>")
+        html_parts.append("<html><head><title>Car History Sample Data kjhkjhkjhkjhkjh</title></head><body>")
         html_parts.append("<h1>Car History Sample Data hahahahahah</h1>")
 
         def section(title, rows):
