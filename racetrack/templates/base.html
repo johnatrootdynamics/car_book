@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RaceTrack Portal</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav-row">
+      <a href="{{ url_for('auth.home') }}" class="brand">RaceTrack Portal</a>
+      <nav>
+        {% if current_user.is_authenticated and is_user %}
+          <a href="{{ url_for('user.dashboard') }}">User Dashboard</a>
+        {% endif %}
+        {% if current_user.is_authenticated and is_employee %}
+          <a href="{{ url_for('employee.dashboard') }}">Employee Dashboard</a>
+        {% endif %}
+        {% if not current_user.is_authenticated %}
+          <a href="{{ url_for('auth.user_login') }}">User Login</a>
+          <a href="{{ url_for('auth.employee_login') }}">Employee Login</a>
+          <a href="{{ url_for('auth.user_register') }}">Register</a>
+        {% else %}
+          <a href="{{ url_for('auth.logout') }}">Logout</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <section class="flash-wrap">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </section>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

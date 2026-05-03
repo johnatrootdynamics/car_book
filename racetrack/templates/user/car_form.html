@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card narrow">
+  <h2>{{ title }}</h2>
+  <form method="post" class="form-grid">
+    {{ form.hidden_tag() }}
+    <label>Make {{ form.make() }}</label>
+    <label>Model {{ form.model() }}</label>
+    <label>Year {{ form.car_year() }}</label>
+    <label>Color {{ form.color() }}</label>
+    {{ form.submit(class_='btn') }}
+  </form>
+</section>
+{% endblock %}

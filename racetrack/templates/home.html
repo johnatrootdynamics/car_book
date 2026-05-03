@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card hero">
+  <h1>Track-Day Management for Drivers and Staff</h1>
+  <p>Create driver profiles, register cars, publish track events, and handle race-day signups in one place.</p>
+  <div class="hero-actions">
+    <a class="btn" href="{{ url_for('auth.user_register') }}">Create Driver Account</a>
+    <a class="btn btn-secondary" href="{{ url_for('auth.employee_login') }}">Employee Access</a>
+  </div>
+</section>
+{% endblock %}
