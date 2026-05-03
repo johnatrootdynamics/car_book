@@ -102,6 +102,7 @@ def create_app():
                         + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
                     )
                 )
+            app.logger.info("Ensured database '%s' exists on host '%s'.", db_name, db_url.host)
         finally:
             bootstrap_engine.dispose()
 
@@ -188,6 +189,14 @@ def create_app():
         except Exception:
             g.schema_ready = False
         if not g.schema_ready:
+            try:
+                ensure_database_exists()
+                run_init_sql_if_needed()
+                inspector = inspect(db.engine)
+                existing = set(inspector.get_table_names())
+                g.schema_ready = required_tables.issubset(existing)
+            except Exception as exc:
+                current_app.logger.exception("Automatic DB recovery attempt failed: %s", exc)
             current_app.logger.warning(
                 "Database schema missing. Automatic init is enabled; if it still fails, run your DB client with sql/init.sql manually."
             )

@@ -1,5 +1,6 @@
 from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required, login_user, logout_user
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .forms import LoginForm, UserRegistrationForm
@@ -49,11 +50,14 @@ def user_login():
         return redirect(url_for("user.dashboard" if current_user.account_type == "user" else "employee.dashboard"))
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data.lower().strip()).first()
-        if user and check_password_hash(user.password_hash, form.password.data):
-            login_user(user)
-            return redirect(url_for("user.dashboard"))
-        flash("Invalid credentials.", "error")
+        try:
+            user = User.query.filter_by(email=form.email.data.lower().strip()).first()
+            if user and check_password_hash(user.password_hash, form.password.data):
+                login_user(user)
+                return redirect(url_for("user.dashboard"))
+            flash("Invalid credentials.", "error")
+        except SQLAlchemyError:
+            flash("Database unavailable. Please try again shortly.", "error")
     return render_template("auth/login.html", form=form, title="User Login")
 
 
@@ -63,11 +67,14 @@ def employee_login():
         return redirect(url_for("user.dashboard" if current_user.account_type == "user" else "employee.dashboard"))
     form = LoginForm()
     if form.validate_on_submit():
-        employee = Employee.query.filter_by(email=form.email.data.lower().strip()).first()
-        if employee and check_password_hash(employee.password_hash, form.password.data):
-            login_user(employee)
-            return redirect(url_for("employee.dashboard"))
-        flash("Invalid credentials.", "error")
+        try:
+            employee = Employee.query.filter_by(email=form.email.data.lower().strip()).first()
+            if employee and check_password_hash(employee.password_hash, form.password.data):
+                login_user(employee)
+                return redirect(url_for("employee.dashboard"))
+            flash("Invalid credentials.", "error")
+        except SQLAlchemyError:
+            flash("Database unavailable. Please try again shortly.", "error")
     return render_template("auth/login.html", form=form, title="Employee Login")
 
 
