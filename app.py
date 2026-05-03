@@ -17,7 +17,7 @@ def create_app():
             # First-time experience: show a button to build the DB
             return (
                 "<html><head><title>Car History Setup</title></head><body>"
-                "<h1>Welcome to Car History</h1>"
+                "<h1>Welcome to Car Historyhahaah</h1>"
                 "<p>It looks like this is your first time running the app.</p>"
                 "<form method='post' action='/init'>"
                 "<button type='submit'>Build DB</button>"
@@ -49,7 +49,7 @@ def create_app():
 
         html_parts = []
         html_parts.append("<html><head><title>Car History Sample Data</title></head><body>")
-        html_parts.append("<h1>Car History Sample Data</h1>")
+        html_parts.append("<h1>Car History Sample Data hahahahahah</h1>")
 
         def section(title, rows):
             html_parts.append(f"<h2>{title}</h2>")
