@@ -52,6 +52,8 @@ nav a:hover { color: #fff; }
   cursor: pointer;
 }
 .btn-secondary { background: #334155; }
+.btn-sm { padding: 6px 10px; font-size: .85rem; }
+.danger-btn { background: #7f1d1d; }
 
 .form-grid { display: grid; gap: 10px; }
 .two-col { grid-template-columns: 1fr 1fr; }
