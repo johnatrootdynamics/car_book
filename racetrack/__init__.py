@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from flask import Flask
 from flask_login import LoginManager
@@ -34,10 +35,35 @@ def create_app():
     load_dotenv()
     app = Flask(__name__)
 
+    def normalize_database_url(raw_url):
+        if not raw_url:
+            return raw_url
+        cleaned = (
+            raw_url.replace("—", "-")
+            .replace("–", "-")
+            .replace("−", "-")
+            .replace("\u2011", "-")
+        )
+        parts = urlsplit(cleaned)
+        if not parts.hostname:
+            return cleaned
+        host = parts.hostname
+        userinfo = ""
+        if parts.username:
+            userinfo = parts.username
+            if parts.password:
+                userinfo = f"{userinfo}:{parts.password}"
+            userinfo = f"{userinfo}@"
+        port = f":{parts.port}" if parts.port else ""
+        netloc = f"{userinfo}{host}{port}"
+        return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+    app.config["SQLALCHEMY_DATABASE_URI"] = normalize_database_url(
+        os.getenv(
         "DATABASE_URL",
-        "mysql+pymysql://racetrack:CarDatabase123!%40%23@srv-captain—carbpokdb-db:3306/srv-captain--carbookdb-db",
+        "mysql+pymysql://racetrack:CarDatabase123!%40%23@srv-captain--carbpokdb-db:3306/srv-captain--carbookdb-db",
+    )
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "tracks")
