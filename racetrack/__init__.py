@@ -62,7 +62,7 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = normalize_database_url(
         os.getenv(
         "DATABASE_URL",
-        "mysql+pymysql://racetrack:CarDatabase123!%40%23@srv-captain--carbookdb-db:3306/srv-captain--carbookdb-db",
+        "mysql+pymysql://root:CarDatabase123!%40%23@srv-captain--carbookdb-db:3306/srv-captain--carbookdb-db",
     )
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
