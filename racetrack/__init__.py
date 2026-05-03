@@ -36,7 +36,7 @@ def create_app():
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
         "DATABASE_URL",
-        "mysql+pymysql://racetrack:racetrack@127.0.0.1:3306/racetrack",
+        "mysql+pymysql://racetrack:CarDatabase123!%40%23@srv-captain—carbpokdb-db:3306/srv-captain--carbookdb-db",
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "tracks")
