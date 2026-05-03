@@ -5,21 +5,21 @@ Flask site for:
 - Track employee event creation
 - Driver event signups
 
-## 1) Create MariaDB database + tables
+## Local run (no Docker)
+
+### 1) Initialize MariaDB schema
 
 ```bash
-mysql -u root -p < sql/init.sql
+mysql -u root < sql/init.sql
 ```
 
-If you already initialized the DB before this update, run:
+If needed for existing DBs:
 
 ```bash
-mysql -u root -p racetrack -e "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS layout_image_path VARCHAR(255) NULL;"
+mysql -u root srv-captain--carbookdb-db -e "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS layout_image_path VARCHAR(255) NULL;"
 ```
 
-If your DB user is not `racetrack`, update `.env`/environment to match.
-
-## 2) Install dependencies
+### 2) Install
 
 ```bash
 python3 -m venv .venv
@@ -27,27 +27,49 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 3) Configure environment
+### 3) Configure
 
 ```bash
 cp .env.example .env
-export $(grep -v '^#' .env | xargs)
 ```
 
-Or set env vars manually:
-- `SECRET_KEY`
-- `DATABASE_URL`
-
-## 4) Run app
+### 4) Run
 
 ```bash
 python app.py
 ```
 
+## Docker deployment
+
+### Start services
+
+```bash
+docker compose up -d --build
+```
+
+- App runs on `http://localhost:8000`
+- Webhook listener runs on `http://localhost:9000/github-webhook`
+
+## GitHub webhook auto-deploy (on every push)
+
+1) In your `.env`, set:
+
+```env
+WEBHOOK_SECRET=replace-with-random-secret
+TARGET_BRANCH=main
+```
+
+2) In GitHub repo settings:
+- **Payload URL**: `http://<your-server>:9000/github-webhook`
+- **Content type**: `application/json`
+- **Secret**: same as `WEBHOOK_SECRET`
+- **Events**: Just the `push` event
+
+3) On every push to `TARGET_BRANCH`, webhook service will:
+- verify HMAC signature
+- `git fetch` + hard reset to remote branch
+- rebuild and restart `app` with `docker compose up -d --build app`
+
 ## Demo employee login
 - Email: `employee@track.local`
 - Password: `ChangeMe123!`
-
-## Notes
-- App expects schema from `sql/init.sql`.
-- Driver accounts are self-registered in the UI.

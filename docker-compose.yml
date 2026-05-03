@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: carbook-app
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  webhook:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.webhook
+    container_name: carbook-webhook
+    environment:
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      TARGET_BRANCH: ${TARGET_BRANCH:-main}
+      REPO_DIR: /repo
+      DEPLOY_SCRIPT: /repo/deploy/deploy.sh
+    volumes:
+      - ./:/repo
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "9000:9000"
+    restart: unless-stopped
