@@ -158,6 +158,16 @@ th { color: var(--muted); font-weight: 600; }
   margin-top: 8px;
 }
 
+.comment-input {
+  min-width: 320px;
+  flex: 1;
+}
+
+.comment-submit {
+  padding: 6px 10px;
+  font-size: .8rem;
+}
+
 .comment-list {
   margin-top: 8px;
   margin-bottom: 8px;
@@ -243,6 +253,12 @@ th { color: var(--muted); font-weight: 600; }
 
 .event-tile-body {
   padding: 10px;
+}
+
+.event-signup-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .event-tile-body h4 {

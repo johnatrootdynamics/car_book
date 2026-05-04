@@ -20,6 +20,19 @@
           <h4>{{ event.event_name }}</h4>
           <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
           <p class="muted-line">{{ event_signup_counts.get(event.id, 0) }} drivers signed up</p>
+          {% if event.id in signups %}
+            <p class="muted-line"><code>{{ signups[event.id].checkin_code }}</code></p>
+            <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm">Cancel Signup</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
+              {{ signup_form.hidden_tag() }}
+              {{ signup_form.car_id() }}
+              {{ signup_form.submit(class_='btn btn-sm') }}
+            </form>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -51,8 +64,8 @@
 
         <form method="post" action="{{ url_for('user.add_comment', post_id=post.id) }}" class="inline-form">
           {{ comment_form.hidden_tag() }}
-          {{ comment_form.body(placeholder='Add a comment...') }}
-          {{ comment_form.submit(class_='btn btn-sm') }}
+          {{ comment_form.body(placeholder='Add a comment...', class_='comment-input') }}
+          {{ comment_form.submit(class_='btn btn-secondary comment-submit') }}
         </form>
       </div>
     {% endfor %}

@@ -63,6 +63,15 @@ def community():
     event_signup_counts = {
         event.id: EventRegistration.query.filter_by(event_id=event.id).count() for event in events
     }
+    user_cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
+    signups = {
+        reg.event_id: reg
+        for reg in EventRegistration.query.filter_by(user_id=current_user.id).all()
+    }
+    signup_form = EventSignupForm()
+    signup_form.car_id.choices = [
+        (car.id, f"{car.car_year} {car.make} {car.model}") for car in user_cars
+    ]
     comment_form = SocialCommentForm()
     return render_template(
         "user/community.html",
@@ -70,6 +79,8 @@ def community():
         cars=cars,
         events=events,
         event_signup_counts=event_signup_counts,
+        signups=signups,
+        signup_form=signup_form,
         comment_form=comment_form,
     )
 
