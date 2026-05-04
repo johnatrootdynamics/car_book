@@ -76,9 +76,14 @@ def send_driver_waiver(waiver_template_id):
         "localTemplateId": str(template.id),
     }
 
+    template_id_to_send = (template.boldsign_template_id or "").strip() or FORCED_BOLDSIGN_TEMPLATE_ID
+    if not template_id_to_send:
+        current_app.logger.error("No BoldSign template ID available for waiver send")
+        return redirect(url_for("waiver.driver_waivers"))
+
     try:
         send_result = send_waiver_from_template(
-            FORCED_BOLDSIGN_TEMPLATE_ID,
+            template_id_to_send,
             signer_name,
             current_user.email,
             redirect_url,

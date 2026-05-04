@@ -8,7 +8,17 @@ from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 
 from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackProfileForm
-from .models import Employee, Event, EventRegistration, Inspection, InspectionItem, InspectionRule, Track, db
+from .models import (
+    Employee,
+    Event,
+    EventRegistration,
+    Inspection,
+    InspectionItem,
+    InspectionRule,
+    Track,
+    TrackWaiverTemplate,
+    db,
+)
 from .services.boldsign_service import create_embedded_template_url
 
 
@@ -305,6 +315,23 @@ def waiver_template_builder():
                     title=f"{Track.query.get(active_track_id()).name} Waiver Template",
                 )
                 embedded_url = result.get("createUrl")
+                created_template_id = (result.get("templateId") or "").strip()
+                if created_template_id:
+                    existing = TrackWaiverTemplate.query.filter_by(
+                        track_id=active_track_id(),
+                        boldsign_template_id=created_template_id,
+                    ).first()
+                    if not existing:
+                        db.session.add(
+                            TrackWaiverTemplate(
+                                track_id=active_track_id(),
+                                title=f"Track Waiver {created_template_id[:8]}",
+                                boldsign_template_id=created_template_id,
+                                is_active=True,
+                                required_for_checkin=True,
+                            )
+                        )
+                        db.session.commit()
                 if not embedded_url:
                     flash("BoldSign did not return an embedded template URL.", "error")
                 else:
