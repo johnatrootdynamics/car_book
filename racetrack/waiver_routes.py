@@ -112,8 +112,6 @@ def send_driver_waiver(waiver_template_id):
         except Exception as exc:
             current_app.logger.warning("BoldSign embedded link fetch after send failed: %s", exc)
 
-    if waiver.signing_url:
-        return redirect(waiver.signing_url)
     return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=waiver.id))
 
 
@@ -132,7 +130,6 @@ def driver_sign_waiver(driver_waiver_id):
             if sign_url:
                 waiver.signing_url = sign_url
                 db.session.commit()
-                return redirect(sign_url)
         except Exception as exc:
             current_app.logger.warning("BoldSign embedded link refresh failed: %s", exc)
 

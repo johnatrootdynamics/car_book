@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from typing import Tuple
+from urllib.parse import urlencode
 
 import requests
 
@@ -55,11 +56,43 @@ def send_waiver_from_template(
 
 
 def get_embedded_signing_link(document_id, signer_email):
-    endpoint = f"{BOLDSIGN_API_BASE}/document/getEmbeddedSignLink"
-    payload = {"documentId": document_id, "signerEmail": signer_email}
-    response = requests.post(endpoint, headers=_headers(), data=json.dumps(payload), timeout=30)
+    query = urlencode({"documentId": document_id, "signerEmail": signer_email})
+    endpoint = f"{BOLDSIGN_API_BASE}/document/getEmbeddedSignLink?{query}"
+    response = requests.get(endpoint, headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"}, timeout=30)
     if not response.ok:
         logger.error("BoldSign embedded link failed: %s %s", response.status_code, response.text)
+        response.raise_for_status()
+    return response.json()
+
+
+def create_embedded_template_url(file_bytes, filename, redirect_url, title="Track Ops Waiver Template"):
+    endpoint = f"{BOLDSIGN_API_BASE}/template/createEmbeddedTemplateUrl"
+    files = {"Files": (filename, file_bytes, "application/pdf")}
+    data = {
+        "Title": title,
+        "DocumentTitle": title,
+        "ViewOption": "PreparePage",
+        "ShowToolbar": "true",
+        "ShowSaveButton": "true",
+        "ShowSendButton": "true",
+        "ShowPreviewButton": "true",
+        "ShowNavigationButtons": "true",
+        "AllowNewFiles": "true",
+        "AllowModifyFiles": "true",
+        "Roles[0][name]": "User",
+        "Roles[0][index]": "1",
+    }
+    if redirect_url:
+        data["RedirectUrl"] = redirect_url
+    response = requests.post(
+        endpoint,
+        headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"},
+        data=data,
+        files=files,
+        timeout=60,
+    )
+    if not response.ok:
+        logger.error("BoldSign embedded template create failed: %s %s", response.status_code, response.text)
         response.raise_for_status()
     return response.json()
 

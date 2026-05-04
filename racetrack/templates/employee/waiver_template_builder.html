@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Embedded Waiver Template Builder</h2>
+  <p>Upload a waiver PDF, then build fields and roles in the embedded BoldSign editor.</p>
+  <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Waiver PDF <input type="file" name="template_file" accept="application/pdf" required></label>
+    <button type="submit" class="btn">Open Template Builder</button>
+  </form>
+</section>
+
+{% if embedded_url %}
+<section class="card">
+  <h3>Template Editor</h3>
+  <div style="height:80vh;border:1px solid rgba(255,255,255,.2);border-radius:10px;overflow:hidden;">
+    <iframe src="{{ embedded_url }}" style="width:100%;height:100%;border:0;" title="BoldSign Embedded Template Builder"></iframe>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

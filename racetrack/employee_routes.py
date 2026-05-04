@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 
 from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackProfileForm
 from .models import Employee, Event, EventRegistration, Inspection, InspectionItem, InspectionRule, Track, db
+from .services.boldsign_service import create_embedded_template_url
 
 
 employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
@@ -278,6 +279,40 @@ def inspection_rules():
     rules = InspectionRule.query.filter_by(track_id=active_track_id()).order_by(InspectionRule.sort_order.asc(), InspectionRule.id.asc()).all()
     form = InspectionRuleForm()
     return render_template("employee/inspection_rules.html", rules=rules, form=form)
+
+
+@employee_bp.route("/waivers/template-builder", methods=["GET", "POST"])
+@login_required
+def waiver_template_builder():
+    guard = require_employee()
+    if guard:
+        return guard
+    embedded_url = None
+    if request.method == "POST":
+        upload = request.files.get("template_file")
+        if not upload or not upload.filename:
+            flash("Upload a PDF file to create an embedded template.", "error")
+        elif not upload.filename.lower().endswith(".pdf"):
+            flash("Only PDF files are supported for template creation.", "error")
+        else:
+            try:
+                file_bytes = upload.read()
+                redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('employee.waiver_template_builder')}"
+                result = create_embedded_template_url(
+                    file_bytes=file_bytes,
+                    filename=upload.filename,
+                    redirect_url=redirect_url,
+                    title=f"{Track.query.get(active_track_id()).name} Waiver Template",
+                )
+                embedded_url = result.get("createUrl")
+                if not embedded_url:
+                    flash("BoldSign did not return an embedded template URL.", "error")
+                else:
+                    flash("Embedded template editor loaded.", "success")
+            except Exception as exc:
+                current_app.logger.exception("Embedded template creation failed: %s", exc)
+                flash("Could not create embedded template link.", "error")
+    return render_template("employee/waiver_template_builder.html", embedded_url=embedded_url)
 
 
 def _load_registration_for_track(event_id, registration_id):
