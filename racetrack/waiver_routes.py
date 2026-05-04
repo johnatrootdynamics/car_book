@@ -16,6 +16,7 @@ waiver_bp = Blueprint("waiver", __name__)
 FORCED_BOLDSIGN_TEMPLATE_ID = os.getenv(
     "BOLDSIGN_FORCED_TEMPLATE_ID", "e5c8f024-64df-4bdc-9142-3a04c01a154a"
 )
+BOLDSIGN_SIGNER_ROLE = os.getenv("BOLDSIGN_SIGNER_ROLE", "User")
 
 
 def _require_user():
@@ -82,6 +83,7 @@ def send_driver_waiver(waiver_template_id):
             current_user.email,
             redirect_url,
             metadata,
+            signer_role=BOLDSIGN_SIGNER_ROLE,
         )
         waiver.boldsign_document_id = send_result.get("documentId") or send_result.get("id")
         waiver.boldsign_signer_email = current_user.email
@@ -101,6 +103,14 @@ def send_driver_waiver(waiver_template_id):
         db.session.commit()
         current_app.logger.exception("BoldSign send failed: %s", exc)
         return redirect(url_for("waiver.driver_waivers"))
+
+    if not waiver.signing_url and waiver.boldsign_document_id:
+        try:
+            sign_result = get_embedded_signing_link(waiver.boldsign_document_id, current_user.email)
+            waiver.signing_url = sign_result.get("signLink") or sign_result.get("url")
+            db.session.commit()
+        except Exception as exc:
+            current_app.logger.warning("BoldSign embedded link fetch after send failed: %s", exc)
 
     if waiver.signing_url:
         return redirect(waiver.signing_url)

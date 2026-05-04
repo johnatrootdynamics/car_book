@@ -25,11 +25,25 @@ def _headers():
     }
 
 
-def send_waiver_from_template(template_id, signer_name, signer_email, redirect_url, metadata):
+def send_waiver_from_template(
+    template_id,
+    signer_name,
+    signer_email,
+    redirect_url,
+    metadata,
+    signer_role="User",
+):
     endpoint = f"{BOLDSIGN_API_BASE}/template/send"
     payload = {
         "templateId": template_id,
-        "signerDetails": [{"name": signer_name, "emailAddress": signer_email, "signerType": "Signer"}],
+        "signerDetails": [
+            {
+                "name": signer_name,
+                "emailAddress": signer_email,
+                "signerType": "Signer",
+                "signerRole": signer_role,
+            }
+        ],
         "redirectUrl": redirect_url,
         "metadata": metadata or {},
     }

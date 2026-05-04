@@ -5,9 +5,13 @@
   <p>{{ waiver.waiver_template.title }} • Status: <strong>{{ waiver.status }}</strong></p>
 
   {% if waiver.signing_url %}
-    <div style="height: 75vh; border:1px solid rgba(255,255,255,.2); border-radius: 10px; overflow:hidden;">
-      <iframe src="{{ waiver.signing_url }}" style="width:100%;height:100%;border:0;" title="Waiver Signing"></iframe>
-    </div>
+    <p>You are being redirected to BoldSign to complete signing.</p>
+    <a class="btn" href="{{ waiver.signing_url }}">Continue to BoldSign</a>
+    <script>
+      window.setTimeout(function () {
+        window.location.href = {{ waiver.signing_url|tojson }};
+      }, 300);
+    </script>
   {% else %}
     <p>We could not load a signing link yet. Click below to generate a fresh link.</p>
     <form method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=waiver.waiver_template_id) }}" data-enhanced>
