@@ -51,7 +51,7 @@ def send_waiver_from_template(
         "DisableEmails": True,
     }
 
-    response = requests.post(endpoint, headers=_headers(), data=json.dumps(payload), timeout=30)
+    response = requests.post(endpoint, headers=_headers(), data=json.dumps(payload), timeout=12)
     if response.ok:
         return response.json()
 
@@ -73,7 +73,7 @@ def send_waiver_from_template(
         endpoint,
         headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"},
         data=form_payload,
-        timeout=30,
+        timeout=12,
     )
     if not response_form.ok:
         logger.error(
@@ -88,7 +88,7 @@ def send_waiver_from_template(
 def get_embedded_signing_link(document_id, signer_email):
     query = urlencode({"documentId": document_id, "signerEmail": signer_email})
     endpoint = f"{BOLDSIGN_API_BASE}/document/getEmbeddedSignLink?{query}"
-    response = requests.get(endpoint, headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"}, timeout=30)
+    response = requests.get(endpoint, headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"}, timeout=12)
     if not response.ok:
         logger.error("BoldSign embedded link failed: %s %s", response.status_code, response.text)
         response.raise_for_status()

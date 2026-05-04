@@ -141,13 +141,6 @@ def send_driver_waiver(waiver_template_id):
         waiver.status = "sent"
         waiver.sent_at = datetime.utcnow()
 
-        if waiver.boldsign_document_id:
-            try:
-                sign_result = get_embedded_signing_link(waiver.boldsign_document_id, current_user.email)
-                waiver.signing_url = sign_result.get("signLink") or sign_result.get("url")
-            except Exception as exc:
-                current_app.logger.warning("BoldSign embedded link fetch failed: %s", exc)
-
         db.session.commit()
     except Exception as exc:
         waiver.status = "failed"
