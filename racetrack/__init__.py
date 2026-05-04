@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.engine.url import make_url
 from werkzeug.security import generate_password_hash
 
-from .models import db, Employee, Track, User
+from .models import db, Employee, EnterpriseAdmin, Track, User
 
 
 login_manager = LoginManager()
@@ -32,6 +32,8 @@ def load_user(user_id):
         return User.query.get(object_id)
     if user_type == "employee":
         return Employee.query.get(object_id)
+    if user_type == "admin":
+        return EnterpriseAdmin.query.get(object_id)
     return None
 
 
@@ -78,11 +80,13 @@ def create_app():
     login_manager.init_app(app)
     csrf.init_app(app)
 
+    from .admin_routes import admin_bp
     from .auth import auth_bp
     from .employee_routes import employee_bp
     from .user_routes import user_bp
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(employee_bp)
 
@@ -120,6 +124,7 @@ def create_app():
             "inspection_rules",
             "inspections",
             "inspection_items",
+            "enterprise_admins",
         }
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -195,6 +200,15 @@ def create_app():
             )
             db.session.add(demo_employee)
 
+        demo_admin = EnterpriseAdmin.query.filter_by(email="admin@enterprise.local").first()
+        if not demo_admin:
+            demo_admin = EnterpriseAdmin(
+                full_name="Enterprise Admin",
+                email="admin@enterprise.local",
+                password_hash=generate_password_hash("ChangeMe123!"),
+            )
+            db.session.add(demo_admin)
+
         db.session.commit()
 
     with app.app_context():
@@ -215,6 +229,7 @@ def create_app():
         return {
             "is_user": getattr(current_user, "account_type", None) == "user",
             "is_employee": getattr(current_user, "account_type", None) == "employee",
+            "is_admin": getattr(current_user, "account_type", None) == "admin",
         }
 
     @app.before_request
@@ -234,6 +249,7 @@ def create_app():
             "inspection_rules",
             "inspections",
             "inspection_items",
+            "enterprise_admins",
         }
         try:
             inspector = inspect(db.engine)

@@ -20,10 +20,10 @@
               <td>{{ car.car_year }} {{ car.make }} {{ car.model }}</td>
               <td>{{ car.color or '-' }}</td>
               <td>
-                <a href="{{ url_for('user.car_edit', car_id=car.id) }}">Edit</a>
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('user.car_edit', car_id=car.id) }}">Edit</a>
                 <form method="post" action="{{ url_for('user.car_delete', car_id=car.id) }}" class="inline">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="link-btn danger">Delete</button>
+                  <button type="submit" class="btn btn-sm danger-btn">Delete</button>
                 </form>
               </td>
             </tr>

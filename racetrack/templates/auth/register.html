@@ -2,19 +2,13 @@
 {% block content %}
 <section class="card">
   <h2>Create Driver Account</h2>
-  <form method="post" class="form-grid two-col">
+  <form method="post" class="form-grid narrow">
     {{ form.hidden_tag() }}
-    <label>First Name {{ form.first_name() }}</label>
-    <label>Last Name {{ form.last_name() }}</label>
+    <label>Full Name {{ form.full_name() }}</label>
     <label>Email {{ form.email() }}</label>
     <label>Phone {{ form.phone() }}</label>
-    <label>Date of Birth {{ form.date_of_birth() }}</label>
-    <label>Street {{ form.street() }}</label>
-    <label>City {{ form.city() }}</label>
-    <label>State {{ form.state() }}</label>
-    <label>Postal Code {{ form.postal_code() }}</label>
     <label>Password {{ form.password() }}</label>
-    <div class="full">{{ form.submit(class_='btn') }}</div>
+    <div>{{ form.submit(class_='btn') }}</div>
   </form>
 </section>
 {% endblock %}

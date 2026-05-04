@@ -1,5 +1,3 @@
-from datetime import date
-
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from wtforms import BooleanField, DateField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
@@ -12,22 +10,15 @@ def validate_not_future(form, field):
 
 
 def validate_not_past(form, field):
+    from datetime import date
     if field.data and field.data < date.today():
         raise ValidationError("Event date cannot be in the past.")
 
 
 class UserRegistrationForm(FlaskForm):
-    first_name = StringField("First Name", validators=[DataRequired(), Length(max=100)])
-    last_name = StringField("Last Name", validators=[DataRequired(), Length(max=100)])
+    full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
-    phone = StringField("Phone", validators=[DataRequired(), Length(max=30)])
-    date_of_birth = DateField(
-        "Date of Birth", validators=[DataRequired(), validate_not_future], format="%Y-%m-%d"
-    )
-    street = StringField("Street", validators=[DataRequired(), Length(max=255)])
-    city = StringField("City", validators=[DataRequired(), Length(max=100)])
-    state = StringField("State", validators=[DataRequired(), Length(max=100)])
-    postal_code = StringField("Postal Code", validators=[DataRequired(), Length(max=20)])
+    phone = StringField("Phone", validators=[Length(max=30)])
     password = PasswordField("Password", validators=[DataRequired(), Length(min=8, max=255)])
     submit = SubmitField("Create Account")
 
@@ -68,6 +59,13 @@ class TrackProfileForm(FlaskForm):
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
     )
     submit = SubmitField("Save Track Profile")
+
+
+class EmployeeCreateForm(FlaskForm):
+    full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    password = PasswordField("Password", validators=[DataRequired(), Length(min=8, max=255)])
+    submit = SubmitField("Create Employee Account")
 
 
 class InspectionRuleForm(FlaskForm):

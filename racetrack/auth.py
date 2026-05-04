@@ -1,10 +1,12 @@
-from flask import Blueprint, flash, redirect, render_template, url_for
+from datetime import date
+
+from flask import Blueprint, flash, redirect, render_template, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .forms import LoginForm, UserRegistrationForm
-from .models import Employee, User, db
+from .models import Employee, EnterpriseAdmin, User, db
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -26,15 +28,15 @@ def user_register():
             flash("Email already registered.", "error")
             return render_template("auth/register.html", form=form)
         user = User(
-            first_name=form.first_name.data.strip(),
-            last_name=form.last_name.data.strip(),
+            first_name=form.full_name.data.strip().split(" ")[0],
+            last_name=" ".join(form.full_name.data.strip().split(" ")[1:]) or "-",
             email=form.email.data.lower().strip(),
-            phone=form.phone.data.strip(),
-            date_of_birth=form.date_of_birth.data,
-            street=form.street.data.strip(),
-            city=form.city.data.strip(),
-            state=form.state.data.strip(),
-            postal_code=form.postal_code.data.strip(),
+            phone=(form.phone.data or "").strip() or "N/A",
+            date_of_birth=date(1970, 1, 1),
+            street="N/A",
+            city="N/A",
+            state="N/A",
+            postal_code="N/A",
             password_hash=generate_password_hash(form.password.data),
         )
         db.session.add(user)
@@ -76,6 +78,26 @@ def employee_login():
         except SQLAlchemyError:
             flash("Database unavailable. Please try again shortly.", "error")
     return render_template("auth/login.html", form=form, title="Employee Login")
+
+
+@auth_bp.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if current_user.is_authenticated:
+        if current_user.account_type == "admin":
+            return redirect(url_for("admin.dashboard"))
+        return redirect(url_for("user.dashboard" if current_user.account_type == "user" else "employee.dashboard"))
+    form = LoginForm()
+    if form.validate_on_submit():
+        try:
+            admin = EnterpriseAdmin.query.filter_by(email=form.email.data.lower().strip()).first()
+            if admin and check_password_hash(admin.password_hash, form.password.data):
+                login_user(admin)
+                session.pop("impersonate_track_id", None)
+                return redirect(url_for("admin.dashboard"))
+            flash("Invalid credentials.", "error")
+        except SQLAlchemyError:
+            flash("Database unavailable. Please try again shortly.", "error")
+    return render_template("auth/login.html", form=form, title="Enterprise Admin Login")
 
 
 @auth_bp.route("/logout")

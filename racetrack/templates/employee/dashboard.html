@@ -6,7 +6,10 @@
       <h2>Employee Dashboard</h2>
       <p>{{ current_user.full_name }} • {{ track.name }}</p>
     </div>
-    <a class="btn" href="{{ url_for('employee.event_new') }}">Create Event</a>
+    <div class="actions-row">
+      <a class="btn btn-secondary" href="{{ url_for('employee.inspection_rules') }}">Inspection Rules</a>
+      <a class="btn" href="{{ url_for('employee.event_new') }}">Create Event</a>
+    </div>
   </div>
 </section>
 
@@ -29,39 +32,14 @@
 </section>
 
 <section class="card">
-  <h3>Technical Inspection Rules</h3>
-  <form method="post" action="{{ url_for('employee.add_inspection_rule') }}" class="form-grid">
-    {{ rule_form.hidden_tag() }}
-    <label>Rule / Condition {{ rule_form.rule_text() }}</label>
-    {{ rule_form.submit(class_='btn') }}
+  <h3>Create Employee Account</h3>
+  <form method="post" action="{{ url_for('employee.create_employee') }}" class="form-grid two-col">
+    {{ employee_form.hidden_tag() }}
+    <label>Full Name {{ employee_form.full_name() }}</label>
+    <label>Email {{ employee_form.email() }}</label>
+    <label>Password {{ employee_form.password() }}</label>
+    <div class="full">{{ employee_form.submit(class_='btn') }}</div>
   </form>
-  {% if rules %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Condition</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-          {% for rule in rules %}
-          <tr>
-            <td>{{ rule.rule_text }}</td>
-            <td>{{ 'Active' if rule.active else 'Inactive' }}</td>
-            <td>
-              <form method="post" action="{{ url_for('employee.toggle_inspection_rule', rule_id=rule.id) }}" class="inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-secondary btn-sm">{{ 'Disable' if rule.active else 'Enable' }}</button>
-              </form>
-              <form method="post" action="{{ url_for('employee.delete_inspection_rule', rule_id=rule.id) }}" class="inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm danger-btn">Delete</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p>No rules yet. Add rules for inspectors to use at this track.</p>
-  {% endif %}
 </section>
 
 <section class="card">

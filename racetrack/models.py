@@ -74,6 +74,23 @@ class Employee(db.Model, UserMixin):
         return f"employee:{self.id}"
 
 
+class EnterpriseAdmin(db.Model, UserMixin):
+    __tablename__ = "enterprise_admins"
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    @property
+    def account_type(self):
+        return "admin"
+
+    def get_id(self):
+        return f"admin:{self.id}"
+
+
 class Car(db.Model):
     __tablename__ = "cars"
 

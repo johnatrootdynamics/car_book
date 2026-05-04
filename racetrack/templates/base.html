@@ -17,9 +17,14 @@
         {% if current_user.is_authenticated and is_employee %}
           <a href="{{ url_for('employee.dashboard') }}">Employee Dashboard</a>
         {% endif %}
+        {% if current_user.is_authenticated and is_admin %}
+          <a href="{{ url_for('admin.dashboard') }}">Admin Dashboard</a>
+          <a href="{{ url_for('employee.dashboard') }}">Track View</a>
+        {% endif %}
         {% if not current_user.is_authenticated %}
           <a href="{{ url_for('auth.user_login') }}">User Login</a>
           <a href="{{ url_for('auth.employee_login') }}">Employee Login</a>
+          <a href="{{ url_for('auth.admin_login') }}">Admin Login</a>
           <a href="{{ url_for('auth.user_register') }}">Register</a>
         {% else %}
           <a href="{{ url_for('auth.logout') }}">Logout</a>

@@ -69,12 +69,13 @@ input, select {
 }
 
 .row-space { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.actions-row { display: inline-flex; gap: 8px; align-items: center; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 600; }
 
-.inline { display: inline; }
+.inline { display: inline-flex; align-items: center; gap: 6px; }
 .link-btn {
   border: 0;
   background: none;
