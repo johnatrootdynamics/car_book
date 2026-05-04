@@ -19,7 +19,7 @@
             <td>
               <form method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=t.id) }}" class="inline" data-enhanced>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm">Send Waiver</button>
+                <button type="submit" class="btn btn-sm">Sign Waiver</button>
               </form>
             </td>
           </tr>

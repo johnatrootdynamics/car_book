@@ -96,6 +96,8 @@ def send_driver_waiver(waiver_template_id):
         current_app.logger.exception("BoldSign send failed: %s", exc)
         return redirect(url_for("waiver.driver_waivers"))
 
+    if waiver.signing_url:
+        return redirect(waiver.signing_url)
     return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=waiver.id))
 
 
@@ -104,6 +106,20 @@ def send_driver_waiver(waiver_template_id):
 def driver_sign_waiver(driver_waiver_id):
     _require_user()
     waiver = DriverWaiver.query.filter_by(id=driver_waiver_id, driver_id=current_user.id).first_or_404()
+    if waiver.status == "signed":
+        return redirect(url_for("waiver.driver_waivers"))
+
+    if waiver.boldsign_document_id:
+        try:
+            sign_result = get_embedded_signing_link(waiver.boldsign_document_id, current_user.email)
+            sign_url = sign_result.get("signLink") or sign_result.get("url")
+            if sign_url:
+                waiver.signing_url = sign_url
+                db.session.commit()
+                return redirect(sign_url)
+        except Exception as exc:
+            current_app.logger.warning("BoldSign embedded link refresh failed: %s", exc)
+
     return render_template("driver/waiver_sign.html", waiver=waiver)
 
 
