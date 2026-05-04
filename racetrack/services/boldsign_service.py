@@ -85,8 +85,11 @@ def send_waiver_from_template(
     return response_form.json()
 
 
-def get_embedded_signing_link(document_id, signer_email):
-    query = urlencode({"documentId": document_id, "signerEmail": signer_email})
+def get_embedded_signing_link(document_id, signer_email, redirect_url=None):
+    params = {"documentId": document_id, "signerEmail": signer_email}
+    if redirect_url:
+        params["redirectUrl"] = redirect_url
+    query = urlencode(params)
     endpoint = f"{BOLDSIGN_API_BASE}/document/getEmbeddedSignLink?{query}"
     response = requests.get(endpoint, headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"}, timeout=12)
     if not response.ok:

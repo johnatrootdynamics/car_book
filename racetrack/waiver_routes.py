@@ -111,7 +111,7 @@ def send_driver_waiver(waiver_template_id):
         db.session.add(waiver)
         db.session.flush()
 
-    redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('waiver.driver_waivers')}"
+    redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('user.dashboard')}"
     signer_name = f"{current_user.first_name} {current_user.last_name}".strip()
     if not signer_name:
         signer_name = (getattr(current_user, "username", "") or current_user.email).strip()
@@ -150,7 +150,11 @@ def send_driver_waiver(waiver_template_id):
 
     if not waiver.signing_url and waiver.boldsign_document_id:
         try:
-            sign_result = get_embedded_signing_link(waiver.boldsign_document_id, current_user.email)
+            sign_result = get_embedded_signing_link(
+                waiver.boldsign_document_id,
+                current_user.email,
+                redirect_url=redirect_url,
+            )
             waiver.signing_url = sign_result.get("signLink") or sign_result.get("url")
             db.session.commit()
         except Exception as exc:
@@ -169,7 +173,12 @@ def driver_sign_waiver(driver_waiver_id):
 
     if waiver.boldsign_document_id:
         try:
-            sign_result = get_embedded_signing_link(waiver.boldsign_document_id, current_user.email)
+            redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('user.dashboard')}"
+            sign_result = get_embedded_signing_link(
+                waiver.boldsign_document_id,
+                current_user.email,
+                redirect_url=redirect_url,
+            )
             sign_url = sign_result.get("signLink") or sign_result.get("url")
             if sign_url:
                 waiver.signing_url = sign_url
