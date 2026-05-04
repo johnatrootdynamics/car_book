@@ -1,13 +1,17 @@
 import secrets
+import os
 
 from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
 from .forms import CarForm, EventSignupForm, SocialCommentForm
-from .models import Car, Event, EventRegistration, SocialComment, SocialPost, db
+from .models import Car, Event, EventRegistration, SocialComment, SocialPost, TrackWaiverTemplate, db
 
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
+FORCED_BOLDSIGN_TEMPLATE_ID = os.getenv(
+    "BOLDSIGN_FORCED_TEMPLATE_ID", "e5c8f024-64df-4bdc-9142-3a04c01a154a"
+)
 
 
 def _generate_car_qr_code():
@@ -213,11 +217,24 @@ def signup_event(event_id):
         db.session.add(post)
         db.session.commit()
 
-        from .models import DriverWaiver, TrackWaiverTemplate
+        from .models import DriverWaiver
 
         required_templates = TrackWaiverTemplate.query.filter_by(
             track_id=event.track_id, is_active=True, required_for_checkin=True
         ).all()
+        if not required_templates and FORCED_BOLDSIGN_TEMPLATE_ID:
+            fallback_template = TrackWaiverTemplate(
+                track_id=event.track_id,
+                title="Track Waiver",
+                boldsign_template_id=FORCED_BOLDSIGN_TEMPLATE_ID,
+                is_active=True,
+                required_for_checkin=True,
+            )
+            db.session.add(fallback_template)
+            db.session.flush()
+            required_templates = [fallback_template]
+
+        created_waiver_id = None
         for template in required_templates:
             exists = DriverWaiver.query.filter_by(
                 track_id=event.track_id,
@@ -226,16 +243,23 @@ def signup_event(event_id):
                 waiver_template_id=template.id,
             ).first()
             if not exists:
-                db.session.add(
-                    DriverWaiver(
-                        track_id=event.track_id,
-                        driver_id=current_user.id,
-                        event_id=event.id,
-                        waiver_template_id=template.id,
-                        status="not_sent",
-                    )
+                new_waiver = DriverWaiver(
+                    track_id=event.track_id,
+                    driver_id=current_user.id,
+                    event_id=event.id,
+                    waiver_template_id=template.id,
+                    status="not_sent",
                 )
+                db.session.add(new_waiver)
+                db.session.flush()
+                if created_waiver_id is None:
+                    created_waiver_id = new_waiver.id
+            elif created_waiver_id is None:
+                created_waiver_id = exists.id
         db.session.commit()
+        if created_waiver_id:
+            flash("Signed up successfully. Please sign the waiver to complete check-in.", "success")
+            return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
         flash("Signed up successfully.", "success")
     else:
         flash("Please choose a valid car.", "error")

@@ -79,7 +79,12 @@
               <td>
                 {% if event.id in signups %}
                   {% if ws != 'signed' and ws != 'not_required' %}
-                    <a class="btn btn-sm" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
+                    {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
+                    {% if ww %}
+                      <a class="btn btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
+                    {% else %}
+                      <a class="btn btn-sm" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
+                    {% endif %}
                   {% endif %}
                   <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
