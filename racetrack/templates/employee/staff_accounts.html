@@ -5,7 +5,7 @@
     <h2>Staff Accounts</h2>
     <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
   </div>
-  <form method="post" action="{{ url_for('employee.create_employee') }}" class="form-grid two-col">
+  <form method="post" action="{{ url_for('employee.create_employee') }}" class="form-grid two-col" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Full Name {{ form.full_name() }}</label>
     <label>Email {{ form.email() }}</label>

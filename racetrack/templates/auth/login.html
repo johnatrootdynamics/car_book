@@ -2,7 +2,7 @@
 {% block content %}
 <section class="card narrow">
   <h2>{{ title }}</h2>
-  <form method="post" class="form-grid">
+  <form method="post" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Email {{ form.email() }}</label>
     {% for error in form.email.errors %}<small class="field-error">{{ error }}</small>{% endfor %}

@@ -50,7 +50,10 @@ nav a:hover { color: #fff; }
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+  transition: transform .12s ease, opacity .12s ease;
 }
+.btn:hover { transform: translateY(-1px); }
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 .btn-secondary { background: #334155; }
 .btn-sm { padding: 6px 10px; font-size: .85rem; }
 .danger-btn { background: #7f1d1d; }
@@ -66,6 +69,23 @@ input, select {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   padding: 9px 10px;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #8ab4ff;
+  box-shadow: 0 0 0 2px rgba(138, 180, 255, 0.18);
+}
+
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 9px 10px;
+  resize: vertical;
+  min-height: 88px;
 }
 
 .row-space { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -155,17 +175,36 @@ th { color: var(--muted); font-weight: 600; }
 .inline-form {
   display: flex;
   gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
   margin-top: 8px;
 }
 
 .comment-input {
-  min-width: 320px;
+  min-width: 420px;
   flex: 1;
 }
 
 .comment-submit {
-  padding: 6px 10px;
+  padding: 5px 9px;
   font-size: .8rem;
+  line-height: 1;
+  height: 34px;
+}
+
+.field-meta {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  color: var(--muted);
+  font-size: .78rem;
+  margin-top: -4px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: .88rem;
+  margin-top: -2px;
 }
 
 .comment-list {

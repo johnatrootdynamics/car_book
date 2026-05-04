@@ -174,12 +174,24 @@ def create_app():
                 "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checkin_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS static_qr_code VARCHAR(64) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE cars ADD COLUMN IF NOT EXISTS static_qr_code VARCHAR(64) NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS thumbnail_image_path VARCHAR(255) NULL"
             )
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
-                "UPDATE event_registrations SET checkin_code = CONCAT('EV', event_id, '-', UPPER(SUBSTRING(MD5(CONCAT(id, event_id, user_id, car_id)), 1, 6))) WHERE checkin_code IS NULL OR checkin_code = ''"
+                "UPDATE users SET static_qr_code = CONCAT('DRV-', UPPER(SUBSTRING(MD5(CONCAT(id, email)), 1, 8))) WHERE static_qr_code IS NULL OR static_qr_code = ''"
+            )
+            conn.exec_driver_sql(
+                "UPDATE cars SET static_qr_code = CONCAT('CAR-', UPPER(SUBSTRING(MD5(CONCAT(id, user_id, make, model, car_year)), 1, 8))) WHERE static_qr_code IS NULL OR static_qr_code = ''"
+            )
+            conn.exec_driver_sql(
+                "UPDATE event_registrations er JOIN cars c ON c.id = er.car_id SET er.checkin_code = c.static_qr_code WHERE er.checkin_code IS NULL OR er.checkin_code = ''"
             )
 
         with db.engine.begin() as conn:
@@ -188,7 +200,23 @@ def create_app():
             )
             try:
                 conn.exec_driver_sql(
-                    "CREATE UNIQUE INDEX idx_event_registrations_checkin_code ON event_registrations (checkin_code)"
+                    "CREATE UNIQUE INDEX idx_users_static_qr_code ON users (static_qr_code)"
+                )
+            except Exception:
+                pass
+            try:
+                conn.exec_driver_sql(
+                    "CREATE UNIQUE INDEX idx_cars_static_qr_code ON cars (static_qr_code)"
+                )
+            except Exception:
+                pass
+            try:
+                conn.exec_driver_sql("DROP INDEX idx_event_registrations_checkin_code ON event_registrations")
+            except Exception:
+                pass
+            try:
+                conn.exec_driver_sql(
+                    "CREATE INDEX idx_event_registrations_checkin_code ON event_registrations (checkin_code)"
                 )
             except Exception:
                 pass

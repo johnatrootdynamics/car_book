@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_name VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
   phone VARCHAR(30) NOT NULL,
+  static_qr_code VARCHAR(64) NULL UNIQUE,
   date_of_birth DATE NOT NULL,
   street VARCHAR(255) NOT NULL,
   city VARCHAR(100) NOT NULL,
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS cars (
   model VARCHAR(100) NOT NULL,
   car_year INT NOT NULL,
   color VARCHAR(100) NULL,
+  static_qr_code VARCHAR(64) NULL UNIQUE,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_cars_user FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE ON UPDATE CASCADE
@@ -73,7 +75,7 @@ CREATE TABLE IF NOT EXISTS event_registrations (
   event_id INT NOT NULL,
   user_id INT NOT NULL,
   car_id INT NOT NULL,
-  checkin_code VARCHAR(64) NOT NULL UNIQUE,
+  checkin_code VARCHAR(64) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_event_reg_event FOREIGN KEY (event_id) REFERENCES events(id)
     ON DELETE CASCADE ON UPDATE CASCADE,
@@ -83,7 +85,8 @@ CREATE TABLE IF NOT EXISTS event_registrations (
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT uniq_event_user_signup UNIQUE (event_id, user_id),
   INDEX idx_event_reg_user (user_id),
-  INDEX idx_event_reg_car (car_id)
+  INDEX idx_event_reg_car (car_id),
+  INDEX idx_event_reg_checkin_code (checkin_code)
 );
 
 CREATE TABLE IF NOT EXISTS inspection_rules (

@@ -5,7 +5,7 @@
     <h2>Track Profile</h2>
     <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
   </div>
-  <form method="post" action="{{ url_for('employee.update_track') }}" enctype="multipart/form-data" class="form-grid two-col">
+  <form method="post" action="{{ url_for('employee.update_track') }}" enctype="multipart/form-data" class="form-grid two-col" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Track Name {{ form.name() }}</label>
     <label>City {{ form.city() }}</label>

@@ -1,4 +1,5 @@
 from datetime import date
+import secrets
 
 from flask import Blueprint, flash, redirect, render_template, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
@@ -10,6 +11,13 @@ from .models import Employee, EnterpriseAdmin, User, db
 
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _generate_user_qr_code():
+    while True:
+        code = f"DRV-{secrets.token_hex(4).upper()}"
+        if not User.query.filter_by(static_qr_code=code).first():
+            return code
 
 
 @auth_bp.route("/")
@@ -32,6 +40,7 @@ def user_register():
             last_name=" ".join(form.full_name.data.strip().split(" ")[1:]) or "-",
             email=form.email.data.lower().strip(),
             phone=(form.phone.data or "").strip() or "N/A",
+            static_qr_code=_generate_user_qr_code(),
             date_of_birth=date(1970, 1, 1),
             street="N/A",
             city="N/A",

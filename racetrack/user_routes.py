@@ -10,11 +10,10 @@ from .models import Car, Event, EventRegistration, SocialComment, SocialPost, db
 user_bp = Blueprint("user", __name__, url_prefix="/user")
 
 
-def _generate_checkin_code(event_id):
+def _generate_car_qr_code():
     while True:
-        code = f"EV{event_id}-{secrets.token_hex(3).upper()}"
-        exists = EventRegistration.query.filter_by(checkin_code=code).first()
-        if not exists:
+        code = f"CAR-{secrets.token_hex(4).upper()}"
+        if not Car.query.filter_by(static_qr_code=code).first():
             return code
 
 
@@ -102,6 +101,7 @@ def car_new():
             model=form.model.data.strip(),
             car_year=int(form.car_year.data),
             color=form.color.data.strip() if form.color.data else None,
+            static_qr_code=_generate_car_qr_code(),
         )
         db.session.add(car)
         db.session.commit()
@@ -179,11 +179,13 @@ def signup_event(event_id):
         if not selected_car:
             flash("Invalid car selected.", "error")
             return redirect(url_for("user.dashboard"))
+        if not selected_car.static_qr_code:
+            selected_car.static_qr_code = _generate_car_qr_code()
         reg = EventRegistration(
             event_id=event.id,
             user_id=current_user.id,
             car_id=selected_car.id,
-            checkin_code=_generate_checkin_code(event.id),
+            checkin_code=selected_car.static_qr_code,
         )
         db.session.add(reg)
         db.session.commit()

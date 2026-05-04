@@ -11,7 +11,7 @@
 </section>
 
 <section class="card">
-  <form method="post" action="{{ url_for('employee.add_inspection_rule') }}" class="form-grid">
+  <form method="post" action="{{ url_for('employee.add_inspection_rule') }}" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Rule / Condition {{ form.rule_text() }}</label>
     {{ form.submit(class_='btn') }}

@@ -15,6 +15,7 @@ class User(db.Model, UserMixin):
     last_name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
     phone = db.Column(db.String(30), nullable=False)
+    static_qr_code = db.Column(db.String(64), unique=True, nullable=True)
     date_of_birth = db.Column(db.Date, nullable=False)
     street = db.Column(db.String(255), nullable=False)
     city = db.Column(db.String(100), nullable=False)
@@ -104,6 +105,7 @@ class Car(db.Model):
     model = db.Column(db.String(100), nullable=False)
     car_year = db.Column(db.Integer, nullable=False)
     color = db.Column(db.String(100), nullable=True)
+    static_qr_code = db.Column(db.String(64), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -129,7 +131,7 @@ class EventRegistration(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
-    checkin_code = db.Column(db.String(64), nullable=False, unique=True)
+    checkin_code = db.Column(db.String(64), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     car = db.relationship("Car")

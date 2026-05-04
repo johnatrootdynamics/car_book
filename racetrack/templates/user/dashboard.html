@@ -13,12 +13,20 @@
   {% if cars %}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Car</th><th>Color</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Car</th><th>Color</th><th>Static QR Code</th><th>Actions</th></tr></thead>
         <tbody>
           {% for car in cars %}
             <tr>
               <td>{{ car.car_year }} {{ car.make }} {{ car.model }}</td>
               <td>{{ car.color or '-' }}</td>
+              <td>
+                {% if car.static_qr_code %}
+                  <code>{{ car.static_qr_code }}</code>
+                  <a class="btn btn-secondary btn-sm" target="_blank" href="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data={{ car.static_qr_code|urlencode }}">QR</a>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
               <td>
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('user.car_edit', car_id=car.id) }}">Edit</a>
                 <form method="post" action="{{ url_for('user.car_delete', car_id=car.id) }}" class="inline">

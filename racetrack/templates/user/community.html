@@ -62,9 +62,10 @@
           </div>
         {% endif %}
 
-        <form method="post" action="{{ url_for('user.add_comment', post_id=post.id) }}" class="inline-form">
+        <form method="post" action="{{ url_for('user.add_comment', post_id=post.id) }}" class="inline-form" data-enhanced data-comment-form>
           {{ comment_form.hidden_tag() }}
-          {{ comment_form.body(placeholder='Add a comment...', class_='comment-input') }}
+          {{ comment_form.body(placeholder='Add a comment...', class_='comment-input', rows='4', data_counter='comment-counter-' ~ post.id, data_autoresize='1') }}
+          <div class="field-meta" id="comment-counter-{{ post.id }}"></div>
           {{ comment_form.submit(class_='btn btn-secondary comment-submit') }}
         </form>
       </div>

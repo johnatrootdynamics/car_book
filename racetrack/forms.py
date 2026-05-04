@@ -92,5 +92,5 @@ class InspectionForm(FlaskForm):
 
 
 class SocialCommentForm(FlaskForm):
-    body = StringField("Comment", validators=[DataRequired(), Length(max=400)])
+    body = TextAreaField("Comment", validators=[DataRequired(), Length(max=400)])
     submit = SubmitField("Post")
