@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS events (
   track_id INT NOT NULL,
   event_name VARCHAR(200) NOT NULL,
   event_date DATE NOT NULL,
+  thumbnail_image_path VARCHAR(255) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_events_track FOREIGN KEY (track_id) REFERENCES tracks(id)
     ON DELETE CASCADE ON UPDATE CASCADE,

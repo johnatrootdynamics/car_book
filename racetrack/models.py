@@ -114,6 +114,7 @@ class Event(db.Model):
     track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
     event_name = db.Column(db.String(200), nullable=False)
     event_date = db.Column(db.Date, nullable=False)
+    thumbnail_image_path = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     registrations = db.relationship(

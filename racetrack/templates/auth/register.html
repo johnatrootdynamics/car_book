@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <h2>Create Driver Account</h2>
-  <form method="post" class="form-grid narrow">
+<section class="card register-shell">
+  <div class="register-intro">
+    <h2>Create Driver Account</h2>
+    <p>Join your local track community, sign up for events, and get inspection-ready with your unique check-in code.</p>
+  </div>
+  <form method="post" class="form-grid narrow register-form">
     {{ form.hidden_tag() }}
     <label>Full Name {{ form.full_name() }}</label>
     <label>Email {{ form.email() }}</label>

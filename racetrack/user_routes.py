@@ -59,11 +59,17 @@ def community():
         return guard
     posts = SocialPost.query.order_by(SocialPost.created_at.desc()).limit(100).all()
     cars = Car.query.order_by(Car.created_at.desc()).limit(100).all()
+    events = Event.query.order_by(Event.event_date.asc()).limit(24).all()
+    event_signup_counts = {
+        event.id: EventRegistration.query.filter_by(event_id=event.id).count() for event in events
+    }
     comment_form = SocialCommentForm()
     return render_template(
         "user/community.html",
         posts=posts,
         cars=cars,
+        events=events,
+        event_signup_counts=event_signup_counts,
         comment_form=comment_form,
     )
 

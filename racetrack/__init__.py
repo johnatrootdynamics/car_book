@@ -73,8 +73,10 @@ def create_app():
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "tracks")
+    app.config["EVENT_UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "events")
 
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    os.makedirs(app.config["EVENT_UPLOAD_FOLDER"], exist_ok=True)
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -170,6 +172,9 @@ def create_app():
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
                 "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checkin_code VARCHAR(64) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS thumbnail_image_path VARCHAR(255) NULL"
             )
 
         with db.engine.begin() as conn:

@@ -143,6 +143,14 @@ def event_new():
     form = EventForm()
     if form.validate_on_submit():
         event = Event(track_id=active_track_id(), event_name=form.event_name.data.strip(), event_date=form.event_date.data)
+        upload = form.thumbnail_image.data
+        if upload:
+            clean_name = secure_filename(upload.filename)
+            ext = os.path.splitext(clean_name)[1].lower()
+            new_name = f"event_{active_track_id()}_{uuid4().hex}{ext}"
+            out_path = os.path.join(current_app.config["EVENT_UPLOAD_FOLDER"], new_name)
+            upload.save(out_path)
+            event.thumbnail_image_path = f"uploads/events/{new_name}"
         db.session.add(event)
         db.session.commit()
         flash("Event created.", "success")
@@ -161,6 +169,14 @@ def event_edit(event_id):
     if form.validate_on_submit():
         event.event_name = form.event_name.data.strip()
         event.event_date = form.event_date.data
+        upload = form.thumbnail_image.data
+        if upload:
+            clean_name = secure_filename(upload.filename)
+            ext = os.path.splitext(clean_name)[1].lower()
+            new_name = f"event_{active_track_id()}_{uuid4().hex}{ext}"
+            out_path = os.path.join(current_app.config["EVENT_UPLOAD_FOLDER"], new_name)
+            upload.save(out_path)
+            event.thumbnail_image_path = f"uploads/events/{new_name}"
         db.session.commit()
         flash("Event updated.", "success")
         return redirect(url_for("employee.dashboard"))

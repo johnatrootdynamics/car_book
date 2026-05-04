@@ -38,6 +38,10 @@ class EventForm(FlaskForm):
     event_date = DateField(
         "Event Date", validators=[DataRequired(), validate_not_past], format="%Y-%m-%d"
     )
+    thumbnail_image = FileField(
+        "Event Thumbnail",
+        validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
+    )
     submit = SubmitField("Create Event")
 
 

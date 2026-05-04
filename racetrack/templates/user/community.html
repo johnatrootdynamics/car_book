@@ -6,7 +6,31 @@
 </section>
 
 <section class="card">
-  <h3>Event + Car Feed</h3>
+  <h3>Upcoming Events</h3>
+  {% if events %}
+    <div class="event-tile-grid">
+      {% for event in events %}
+      <div class="event-tile">
+        {% if event.thumbnail_image_path %}
+          <img src="{{ url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
+        {% else %}
+          <div class="event-fallback">{{ event.track.name }}</div>
+        {% endif %}
+        <div class="event-tile-body">
+          <h4>{{ event.event_name }}</h4>
+          <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+          <p class="muted-line">{{ event_signup_counts.get(event.id, 0) }} drivers signed up</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No upcoming events yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Signup Feed</h3>
   {% if posts %}
     {% for post in posts %}
       <div class="feed-post">
@@ -17,8 +41,9 @@
         {% if post.comments %}
           <div class="comment-list">
             {% for comment in post.comments %}
-              <div class="comment-item">
-                <strong>{{ comment.author.first_name }}</strong>: {{ comment.body }}
+              <div class="comment-item pop-comment">
+                <div class="comment-head">{{ comment.author.first_name }} {{ comment.author.last_name }}</div>
+                <div>{{ comment.body }}</div>
               </div>
             {% endfor %}
           </div>
