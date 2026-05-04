@@ -1,8 +1,11 @@
+import base64
 import hashlib
 import hmac
 import json
 import logging
 import os
+import time
+from typing import Tuple
 
 import requests
 
@@ -56,13 +59,61 @@ def download_signed_document(document_id):
     return response.content
 
 
-def verify_webhook_signature(raw_body, signature_header):
-    if not BOLDSIGN_WEBHOOK_SECRET or not signature_header:
-        return False
-    expected = hmac.new(
-        BOLDSIGN_WEBHOOK_SECRET.encode("utf-8"), raw_body, hashlib.sha256
-    ).hexdigest()
+def verify_webhook_signature_details(raw_body, signature_header) -> Tuple[bool, str]:
+    if not BOLDSIGN_WEBHOOK_SECRET:
+        return False, "missing_webhook_secret"
+    if not signature_header:
+        return False, "missing_signature_header"
+
     sent = signature_header.strip()
     if sent.startswith("sha256="):
         sent = sent.split("=", 1)[1]
-    return hmac.compare_digest(expected, sent)
+    if sent and "," not in sent:
+        expected_simple = hmac.new(
+            BOLDSIGN_WEBHOOK_SECRET.encode("utf-8"), raw_body, hashlib.sha256
+        ).hexdigest()
+        if hmac.compare_digest(expected_simple, sent):
+            return True, "ok_simple_sha256"
+
+    parsed = {"t": None, "signatures": []}
+    for part in signature_header.split(","):
+        item = part.strip()
+        if "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if key == "t":
+            try:
+                parsed["t"] = int(value)
+            except ValueError:
+                return False, "invalid_timestamp"
+        elif key in {"s0", "s1"}:
+            parsed["signatures"].append(value)
+
+    if parsed["t"] is None or not parsed["signatures"]:
+        return False, "missing_timestamp_or_signatures"
+
+    age = abs(int(time.time()) - parsed["t"])
+    if age > 300:
+        return False, "timestamp_out_of_window"
+
+    payload_to_sign = f"{parsed['t']}.".encode("utf-8") + raw_body
+    computed_hex = hmac.new(
+        BOLDSIGN_WEBHOOK_SECRET.encode("utf-8"), payload_to_sign, hashlib.sha256
+    ).hexdigest()
+    computed_b64 = base64.b64encode(
+        hmac.new(
+        BOLDSIGN_WEBHOOK_SECRET.encode("utf-8"), payload_to_sign, hashlib.sha256
+        ).digest()
+    ).decode("utf-8")
+    if any(hmac.compare_digest(computed_hex, sig) for sig in parsed["signatures"]):
+        return True, "ok_timestamped_sha256_hex"
+    if any(hmac.compare_digest(computed_b64, sig) for sig in parsed["signatures"]):
+        return True, "ok_timestamped_sha256_digest"
+    return False, "signature_mismatch"
+
+
+def verify_webhook_signature(raw_body, signature_header):
+    ok, _reason = verify_webhook_signature_details(raw_body, signature_header)
+    return ok

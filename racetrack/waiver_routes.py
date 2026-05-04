@@ -7,7 +7,7 @@ from .models import DriverWaiver, Event, EventRegistration, TrackWaiverTemplate,
 from .services.boldsign_service import (
     get_embedded_signing_link,
     send_waiver_from_template,
-    verify_webhook_signature,
+    verify_webhook_signature_details,
 )
 
 
@@ -110,7 +110,15 @@ def driver_sign_waiver(driver_waiver_id):
 def boldsign_webhook():
     raw_body = request.get_data()
     signature = request.headers.get("X-BoldSign-Signature", "")
-    if not verify_webhook_signature(raw_body, signature):
+    verified, verify_reason = verify_webhook_signature_details(raw_body, signature)
+    if not verified:
+        current_app.logger.warning(
+            "BoldSign webhook signature verification failed: reason=%s content_type=%s ua=%s has_sig=%s",
+            verify_reason,
+            request.headers.get("Content-Type", ""),
+            request.headers.get("User-Agent", ""),
+            bool(signature),
+        )
         return jsonify({"ok": False, "error": "invalid signature"}), 401
 
     payload = request.get_json(silent=True) or {}
