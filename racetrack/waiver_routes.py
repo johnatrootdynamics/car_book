@@ -6,6 +6,7 @@ from flask_login import current_user, login_required
 
 from .models import DriverWaiver, Event, EventRegistration, TrackWaiverTemplate, db
 from .services.boldsign_service import (
+    get_document_status,
     get_embedded_signing_link,
     send_waiver_from_template,
     verify_webhook_signature_details,
@@ -39,6 +40,51 @@ def driver_waivers():
         .all()
     )
     return render_template("driver/waivers.html", waivers=waivers, templates=templates)
+
+
+@waiver_bp.route("/driver/waivers/sync", methods=["POST"])
+@login_required
+def sync_driver_waivers():
+    _require_user()
+    waivers = DriverWaiver.query.filter_by(driver_id=current_user.id).all()
+    updated = 0
+    for waiver in waivers:
+        if not waiver.boldsign_document_id or waiver.status == "signed":
+            continue
+        try:
+            payload, status = get_document_status(waiver.boldsign_document_id)
+        except Exception as exc:
+            current_app.logger.warning(
+                "BoldSign status lookup failed for waiver_id=%s document_id=%s error=%s",
+                waiver.id,
+                waiver.boldsign_document_id,
+                exc,
+            )
+            continue
+
+        status_map = {
+            "sent": "sent",
+            "inprogress": "viewed",
+            "completed": "signed",
+            "declined": "declined",
+            "expired": "expired",
+            "revoked": "failed",
+            "failed": "failed",
+        }
+        mapped = status_map.get(status)
+        if mapped and mapped != waiver.status:
+            waiver.status = mapped
+            waiver.webhook_payload = payload
+            if mapped == "signed" and waiver.signed_at is None:
+                waiver.signed_at = datetime.utcnow()
+            if mapped == "viewed" and waiver.viewed_at is None:
+                waiver.viewed_at = datetime.utcnow()
+            updated += 1
+
+    if updated:
+        db.session.commit()
+        return redirect(url_for("waiver.driver_waivers"))
+    return redirect(url_for("waiver.driver_waivers"))
 
 
 @waiver_bp.route("/driver/waivers/<int:waiver_template_id>/send", methods=["POST"])

@@ -165,6 +165,36 @@ def list_templates(page=1, page_size=50):
     raise RuntimeError(f"BoldSign template list failed: {last_error or 'unknown error'}")
 
 
+def get_document_status(document_id):
+    endpoints = [
+        f"{BOLDSIGN_API_BASE}/document/properties?documentId={document_id}",
+        f"{BOLDSIGN_API_BASE}/document/details?documentId={document_id}",
+    ]
+    last_error = None
+    for endpoint in endpoints:
+        try:
+            response = requests.get(
+                endpoint,
+                headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"},
+                timeout=30,
+            )
+            if not response.ok:
+                last_error = f"{response.status_code} {response.text}"
+                continue
+            payload = response.json() or {}
+            status = (
+                payload.get("status")
+                or payload.get("documentStatus")
+                or payload.get("document", {}).get("status")
+                or ""
+            )
+            return payload, (status or "").lower()
+        except Exception as exc:
+            last_error = str(exc)
+            continue
+    raise RuntimeError(f"BoldSign document status lookup failed: {last_error or 'unknown error'}")
+
+
 def verify_webhook_signature_details(raw_body, signature_header) -> Tuple[bool, str]:
     if not BOLDSIGN_WEBHOOK_SECRET:
         return False, "missing_webhook_secret"

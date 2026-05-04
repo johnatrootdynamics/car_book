@@ -1,8 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <h2>Your Waivers</h2>
-  <p>Sign required waivers before check-in.</p>
+  <div class="row-space">
+    <div>
+      <h2>Your Waivers</h2>
+      <p>Sign required waivers before check-in.</p>
+    </div>
+    <form method="post" action="{{ url_for('waiver.sync_driver_waivers') }}" class="inline" data-enhanced>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm">Refresh Status</button>
+    </form>
+  </div>
 </section>
 
 <section class="card">
