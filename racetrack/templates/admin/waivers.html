@@ -10,7 +10,7 @@
   {% elif templates %}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Title</th><th>Template ID</th><th>Active</th><th>Required</th><th>Updated</th></tr></thead>
+        <thead><tr><th>Title</th><th>Template ID</th><th>Active</th><th>Required</th><th>Updated</th><th>Action</th></tr></thead>
         <tbody>
           {% for t in templates %}
             <tr>
@@ -19,6 +19,12 @@
               <td>{{ 'Yes' if t.is_active else 'No' }}</td>
               <td>{{ 'Yes' if t.required_for_checkin else 'No' }}</td>
               <td>{{ t.updated_at }}</td>
+              <td>
+                <form method="post" action="{{ url_for('admin.waivers_delete_template', template_id=t.id) }}" class="inline" data-enhanced>
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -26,6 +32,65 @@
     </div>
   {% else %}
     <p>No templates yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>BoldSign Account Templates</h3>
+  {% if not track_id %}
+    <p>Select a track to impersonate first from Admin Dashboard.</p>
+  {% elif boldsign_templates %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Title</th><th>Template ID</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for bt in boldsign_templates %}
+            <tr>
+              <td>{{ bt.title }}</td>
+              <td><code>{{ bt.template_id }}</code></td>
+              <td>
+                <a class="btn btn-sm" href="{{ url_for('admin.waivers_new', template_id=bt.template_id, title=bt.title) }}">Use Template</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No templates returned from BoldSign for this API key.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Driver Waiver Records</h3>
+  {% if not track_id %}
+    <p>Select a track to impersonate first from Admin Dashboard.</p>
+  {% elif waiver_records %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Driver</th><th>Template</th><th>Status</th><th>Document ID</th><th>Updated</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for w in waiver_records %}
+            <tr>
+              <td>{{ w.id }}</td>
+              <td>{{ w.driver.username or w.driver.email }}</td>
+              <td>{{ w.waiver_template.title }}</td>
+              <td><span class="badge badge-{{ w.status }}">{{ w.status|upper }}</span></td>
+              <td><code>{{ w.boldsign_document_id or '-' }}</code></td>
+              <td>{{ w.updated_at }}</td>
+              <td>
+                <form method="post" action="{{ url_for('admin.waivers_delete_record', waiver_id=w.id) }}" class="inline" data-enhanced>
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No driver waiver records for this track yet.</p>
   {% endif %}
 </section>
 {% endblock %}

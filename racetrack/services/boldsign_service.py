@@ -59,6 +59,35 @@ def download_signed_document(document_id):
     return response.content
 
 
+def list_templates(page=1, page_size=50):
+    endpoints = [
+        f"{BOLDSIGN_API_BASE}/template/list?page={page}&pageSize={page_size}",
+        f"{BOLDSIGN_API_BASE}/template/list",
+    ]
+    last_error = None
+    for endpoint in endpoints:
+        try:
+            response = requests.get(endpoint, headers=_headers(), timeout=30)
+            if not response.ok:
+                last_error = f"{response.status_code} {response.text}"
+                continue
+            payload = response.json() or {}
+            templates = payload.get("result") or payload.get("data") or payload.get("templates") or []
+            if isinstance(templates, dict):
+                templates = templates.get("items") or templates.get("results") or []
+            normalized = []
+            for item in templates:
+                template_id = item.get("templateId") or item.get("id")
+                title = item.get("title") or item.get("name") or template_id
+                if template_id:
+                    normalized.append({"template_id": template_id, "title": title})
+            return normalized
+        except Exception as exc:
+            last_error = str(exc)
+            continue
+    raise RuntimeError(f"BoldSign template list failed: {last_error or 'unknown error'}")
+
+
 def verify_webhook_signature_details(raw_body, signature_header) -> Tuple[bool, str]:
     if not BOLDSIGN_WEBHOOK_SECRET:
         return False, "missing_webhook_secret"

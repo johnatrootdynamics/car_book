@@ -1,8 +1,9 @@
-from flask import Blueprint, flash, redirect, render_template, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
 from .forms import TrackCreateForm, WaiverTemplateForm
-from .models import Track, TrackWaiverTemplate, db
+from .models import DriverWaiver, Track, TrackWaiverTemplate, db
+from .services.boldsign_service import list_templates
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -91,13 +92,31 @@ def waivers():
         return guard
     track_id = session.get("impersonate_track_id")
     templates = []
+    waiver_records = []
+    boldsign_templates = []
     if track_id:
         templates = (
             TrackWaiverTemplate.query.filter_by(track_id=track_id)
             .order_by(TrackWaiverTemplate.updated_at.desc())
             .all()
         )
-    return render_template("admin/waivers.html", templates=templates, track_id=track_id)
+        waiver_records = (
+            DriverWaiver.query.filter_by(track_id=track_id)
+            .order_by(DriverWaiver.updated_at.desc())
+            .limit(100)
+            .all()
+        )
+        try:
+            boldsign_templates = list_templates()
+        except Exception as exc:
+            flash(f"Could not load BoldSign templates: {exc}", "error")
+    return render_template(
+        "admin/waivers.html",
+        templates=templates,
+        waiver_records=waiver_records,
+        boldsign_templates=boldsign_templates,
+        track_id=track_id,
+    )
 
 
 @admin_bp.route("/waivers/new", methods=["GET", "POST"])
@@ -111,7 +130,20 @@ def waivers_new():
         flash("Select a track to impersonate first.", "error")
         return redirect(url_for("admin.dashboard"))
     form = WaiverTemplateForm()
+    if request.method == "GET":
+        pref_template_id = request.args.get("template_id", "").strip()
+        pref_title = request.args.get("title", "").strip()
+        if pref_template_id and not form.boldsign_template_id.data:
+            form.boldsign_template_id.data = pref_template_id
+        if pref_title and not form.title.data:
+            form.title.data = pref_title
     if form.validate_on_submit():
+        existing = TrackWaiverTemplate.query.filter_by(
+            track_id=track_id, boldsign_template_id=form.boldsign_template_id.data.strip()
+        ).first()
+        if existing:
+            flash("That BoldSign template is already linked for this track.", "error")
+            return render_template("admin/waivers_new.html", form=form)
         template = TrackWaiverTemplate(
             track_id=track_id,
             title=form.title.data.strip(),
@@ -124,3 +156,37 @@ def waivers_new():
         flash("Waiver template saved.", "success")
         return redirect(url_for("admin.waivers"))
     return render_template("admin/waivers_new.html", form=form)
+
+
+@admin_bp.route("/waivers/templates/<int:template_id>/delete", methods=["POST"])
+@login_required
+def waivers_delete_template(template_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    track_id = session.get("impersonate_track_id")
+    template = TrackWaiverTemplate.query.get_or_404(template_id)
+    if not track_id or template.track_id != track_id:
+        flash("Template does not belong to the impersonated track.", "error")
+        return redirect(url_for("admin.waivers"))
+    db.session.delete(template)
+    db.session.commit()
+    flash("Waiver template deleted.", "success")
+    return redirect(url_for("admin.waivers"))
+
+
+@admin_bp.route("/waivers/records/<int:waiver_id>/delete", methods=["POST"])
+@login_required
+def waivers_delete_record(waiver_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    track_id = session.get("impersonate_track_id")
+    waiver = DriverWaiver.query.get_or_404(waiver_id)
+    if not track_id or waiver.track_id != track_id:
+        flash("Waiver record does not belong to the impersonated track.", "error")
+        return redirect(url_for("admin.waivers"))
+    db.session.delete(waiver)
+    db.session.commit()
+    flash("Driver waiver record deleted.", "success")
+    return redirect(url_for("admin.waivers"))
