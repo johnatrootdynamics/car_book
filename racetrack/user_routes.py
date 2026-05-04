@@ -38,11 +38,16 @@ def dashboard():
     if guard:
         return guard
     cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
-    events = Event.query.order_by(Event.event_date.asc()).all()
     signups = {
         reg.event_id: reg
         for reg in EventRegistration.query.filter_by(user_id=current_user.id).all()
     }
+    events = (
+        Event.query.join(EventRegistration, EventRegistration.event_id == Event.id)
+        .filter(EventRegistration.user_id == current_user.id)
+        .order_by(Event.event_date.asc())
+        .all()
+    )
     form = EventSignupForm()
     form.car_id.choices = [(car.id, f"{car.car_year} {car.make} {car.model}") for car in cars]
     from .waiver_routes import get_required_waiver_status

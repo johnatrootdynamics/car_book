@@ -93,6 +93,10 @@ textarea {
 .row-space { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .actions-row { display: inline-flex; gap: 8px; align-items: center; }
 .table-wrap { overflow-x: auto; }
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.event-card { border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 14px; background: rgba(255,255,255,.02); }
+.event-card h4 { margin: 0 0 8px; }
+.event-card p { margin: 0 0 10px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 600; }

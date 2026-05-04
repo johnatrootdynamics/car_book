@@ -45,66 +45,42 @@
 </section>
 
 <section class="card">
-  <h3>Upcoming Events</h3>
+  <h3>Your Event Signups</h3>
   {% if events %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Event</th><th>Track</th><th>Date</th><th>Waiver</th><th>Check-in Code</th><th>Action</th></tr></thead>
-        <tbody>
-          {% for event in events %}
-            <tr>
-              <td>{{ event.event_name }}</td>
-              <td>{{ event.track.name }}</td>
-              <td>{{ event.event_date }}</td>
-              <td>
-                {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
-                {% if ws == 'signed' %}
-                  <span class="badge badge-signed">Waiver Signed</span>
-                {% elif ws == 'not_required' %}
-                  <span class="badge badge-viewed">Not Required</span>
-                {% elif ws in ['sent', 'viewed'] %}
-                  <span class="badge badge-viewed">Pending</span>
-                {% else %}
-                  <span class="badge badge-failed">Waiver Missing</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if event.id in signups %}
-                  <code>{{ signups[event.id].checkin_code }}</code>
-                  <a class="btn btn-secondary btn-sm" target="_blank" href="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data={{ signups[event.id].checkin_code|urlencode }}">QR</a>
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-              <td>
-                {% if event.id in signups %}
-                  {% if ws != 'signed' and ws != 'not_required' %}
-                    {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
-                    {% if ww %}
-                      <a class="btn btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
-                    {% else %}
-                      <a class="btn btn-sm" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
-                    {% endif %}
-                  {% endif %}
-                  <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-secondary">Cancel Signup</button>
-                  </form>
-                {% else %}
-                  <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="inline stack-sm">
-                    {{ signup_form.hidden_tag() }}
-                    {{ signup_form.car_id() }}
-                    {{ signup_form.submit(class_='btn') }}
-                  </form>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="grid-cards">
+      {% for event in events %}
+        {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
+        {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
+        <article class="event-card">
+          <h4>{{ event.event_name }}</h4>
+          <p>{{ event.event_date }} • {{ event.track.name }}</p>
+          <p>
+            {% if ws == 'signed' or ws == 'not_required' %}
+              <span class="badge badge-signed">Signed Up</span>
+            {% elif ws in ['sent', 'viewed'] %}
+              <span class="badge badge-viewed">Waiver Pending</span>
+            {% else %}
+              <span class="badge badge-failed">Needs Waiver</span>
+            {% endif %}
+          </p>
+          <div class="actions-row">
+            {% if ws != 'signed' and ws != 'not_required' %}
+              {% if ww %}
+                <a class="btn btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
+              {% else %}
+                <a class="btn btn-sm" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
+              {% endif %}
+            {% endif %}
+            <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm">Cancel</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
     </div>
   {% else %}
-    <p>No events published yet.</p>
+    <p>You have not signed up for any events yet.</p>
   {% endif %}
 </section>
 
