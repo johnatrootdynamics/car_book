@@ -243,3 +243,50 @@ class CommunityGroupMember(db.Model):
     __table_args__ = (
         db.UniqueConstraint("group_id", "user_id", name="uniq_group_member"),
     )
+
+
+class TrackWaiverTemplate(db.Model):
+    __tablename__ = "track_waiver_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    boldsign_template_id = db.Column(db.String(255), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    required_for_checkin = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    track = db.relationship("Track")
+
+
+class DriverWaiver(db.Model):
+    __tablename__ = "driver_waivers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    driver_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True)
+    waiver_template_id = db.Column(
+        db.Integer, db.ForeignKey("track_waiver_templates.id"), nullable=False
+    )
+    boldsign_document_id = db.Column(db.String(255), nullable=True)
+    boldsign_signer_email = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="not_sent")
+    signing_url = db.Column(db.Text, nullable=True)
+    signed_pdf_url = db.Column(db.Text, nullable=True)
+    webhook_payload = db.Column(db.JSON, nullable=True)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    viewed_at = db.Column(db.DateTime, nullable=True)
+    signed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    track = db.relationship("Track")
+    driver = db.relationship("User")
+    event = db.relationship("Event")
+    waiver_template = db.relationship("TrackWaiverTemplate")

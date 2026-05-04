@@ -10,6 +10,7 @@
       <a class="btn btn-secondary" href="{{ url_for('employee.track_profile') }}">Track Profile</a>
       <a class="btn btn-secondary" href="{{ url_for('employee.staff_accounts') }}">Staff Accounts</a>
       <a class="btn btn-secondary" href="{{ url_for('employee.inspection_rules') }}">Inspection Rules</a>
+      {% if is_admin %}<a class="btn btn-secondary" href="{{ url_for('admin.waivers') }}">Waivers</a>{% endif %}
       <a class="btn" href="{{ url_for('employee.event_new') }}">Create Event</a>
     </div>
   </div>

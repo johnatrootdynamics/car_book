@@ -65,6 +65,7 @@ def create_app():
         return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
+    app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "")
     app.config["SQLALCHEMY_DATABASE_URI"] = normalize_database_url(
         os.getenv(
         "DATABASE_URL",
@@ -86,11 +87,14 @@ def create_app():
     from .auth import auth_bp
     from .employee_routes import employee_bp
     from .user_routes import user_bp
+    from .waiver_routes import waiver_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(employee_bp)
+    app.register_blueprint(waiver_bp)
+    csrf.exempt(app.view_functions["waiver.boldsign_webhook"])
 
     def ensure_database_exists():
         db_url = make_url(app.config["SQLALCHEMY_DATABASE_URI"])
@@ -131,6 +135,8 @@ def create_app():
             "social_comments",
             "community_groups",
             "community_group_members",
+            "track_waiver_templates",
+            "driver_waivers",
         }
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -174,9 +180,6 @@ def create_app():
                 "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checkin_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL"
-            )
-            conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS static_qr_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
@@ -184,6 +187,9 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS thumbnail_image_path VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL"
             )
 
         with db.engine.begin() as conn:
@@ -304,6 +310,8 @@ def create_app():
             "social_comments",
             "community_groups",
             "community_group_members",
+            "track_waiver_templates",
+            "driver_waivers",
         }
         try:
             inspector = inspect(db.engine)

@@ -175,6 +175,48 @@ CREATE TABLE IF NOT EXISTS community_group_members (
   CONSTRAINT uniq_group_member UNIQUE (group_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS track_waiver_templates (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  track_id INT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  boldsign_template_id VARCHAR(255) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  required_for_checkin TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_waiver_templates_track FOREIGN KEY (track_id) REFERENCES tracks(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS driver_waivers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  track_id INT NOT NULL,
+  driver_id INT NOT NULL,
+  event_id INT NULL,
+  waiver_template_id INT NOT NULL,
+  boldsign_document_id VARCHAR(255) NULL,
+  boldsign_signer_email VARCHAR(255) NULL,
+  status ENUM('not_sent','sent','viewed','signed','declined','expired','failed') NOT NULL DEFAULT 'not_sent',
+  signing_url TEXT NULL,
+  signed_pdf_url TEXT NULL,
+  webhook_payload JSON NULL,
+  sent_at DATETIME NULL,
+  viewed_at DATETIME NULL,
+  signed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_driver_waivers_track FOREIGN KEY (track_id) REFERENCES tracks(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_driver_waivers_driver FOREIGN KEY (driver_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_driver_waivers_event FOREIGN KEY (event_id) REFERENCES events(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_driver_waivers_template FOREIGN KEY (waiver_template_id) REFERENCES track_waiver_templates(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX idx_driver_waivers_document_id (boldsign_document_id),
+  INDEX idx_driver_waivers_status (status)
+);
+
 INSERT INTO tracks (name, city, state)
 VALUES ('Demo Speedway', 'Austin', 'TX')
 ON DUPLICATE KEY UPDATE name = VALUES(name);

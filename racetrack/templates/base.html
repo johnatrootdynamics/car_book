@@ -16,6 +16,7 @@
       <nav>
         {% if current_user.is_authenticated and is_user %}
           <a href="{{ url_for('user.dashboard') }}">User Dashboard</a>
+          <a href="{{ url_for('waiver.driver_waivers') }}">Waivers</a>
           <a href="{{ url_for('user.community') }}">Community</a>
         {% endif %}
         {% if current_user.is_authenticated and is_employee %}
@@ -23,6 +24,8 @@
         {% endif %}
         {% if current_user.is_authenticated and is_admin %}
           <a href="{{ url_for('admin.dashboard') }}">Admin Dashboard</a>
+          <a href="{{ url_for('admin.waivers') }}">Waivers</a>
+          <a href="{{ url_for('waiver.waiver_debug') }}">Waiver Debug</a>
           <a href="{{ url_for('employee.dashboard') }}">Track View</a>
         {% endif %}
         {% if not current_user.is_authenticated %}

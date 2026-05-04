@@ -18,7 +18,16 @@
     {{ registration.user.first_name }} {{ registration.user.last_name }} •
     {{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}
   </p>
-  <a class="btn" href="{{ url_for('employee.inspect_registration', event_id=event.id, registration_id=registration.id) }}">Open Inspection</a>
+  {% if waiver_ctx and waiver_ctx.status == 'signed' %}
+    <span class="badge badge-signed">Waiver Signed</span>
+    <a class="btn" href="{{ url_for('employee.inspect_registration', event_id=event.id, registration_id=registration.id) }}">Open Inspection</a>
+  {% elif waiver_ctx and waiver_ctx.status == 'not_required' %}
+    <span class="badge badge-viewed">Waiver Not Required</span>
+    <a class="btn" href="{{ url_for('employee.inspect_registration', event_id=event.id, registration_id=registration.id) }}">Open Inspection</a>
+  {% else %}
+    <span class="badge badge-failed">Waiver Missing</span>
+    <a class="btn btn-secondary" href="{{ url_for('waiver.driver_waivers') }}">Driver Waivers</a>
+  {% endif %}
 </section>
 {% endif %}
 {% endblock %}

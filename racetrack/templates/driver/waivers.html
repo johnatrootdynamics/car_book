@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Your Waivers</h2>
+  <p>Sign required waivers before check-in.</p>
+</section>
+
+<section class="card">
+  <h3>Required Templates</h3>
+  {% if templates %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Title</th><th>Track</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for t in templates %}
+          <tr>
+            <td>{{ t.title }}</td>
+            <td>{{ t.track.name }}</td>
+            <td>
+              <form method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=t.id) }}" class="inline" data-enhanced>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm">Send Waiver</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No active templates.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Waiver Records</h3>
+  {% if waivers %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Template</th><th>Event</th><th>Status</th><th>Sent</th><th>Signed</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for w in waivers %}
+          <tr>
+            <td>{{ w.waiver_template.title }}</td>
+            <td>{{ w.event.event_name if w.event else '-' }}</td>
+            <td>
+              <span class="badge badge-{{ w.status }}">{{ w.status|upper }}</span>
+            </td>
+            <td>{{ w.sent_at or '-' }}</td>
+            <td>{{ w.signed_at or '-' }}</td>
+            <td>
+              {% if w.status != 'signed' %}
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=w.id) }}">Sign</a>
+              {% endif %}
+              {% if w.signed_pdf_url %}
+                <a class="btn btn-sm" href="{{ w.signed_pdf_url }}" target="_blank">PDF</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No waiver records yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,8 +1,8 @@
 from flask import Blueprint, flash, redirect, render_template, session, url_for
 from flask_login import current_user, login_required
 
-from .forms import TrackCreateForm
-from .models import Track, db
+from .forms import TrackCreateForm, WaiverTemplateForm
+from .models import Track, TrackWaiverTemplate, db
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -81,3 +81,46 @@ def clear_impersonation():
     session.pop("impersonate_track_id", None)
     flash("Impersonation cleared.", "success")
     return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/waivers")
+@login_required
+def waivers():
+    guard = require_admin()
+    if guard:
+        return guard
+    track_id = session.get("impersonate_track_id")
+    templates = []
+    if track_id:
+        templates = (
+            TrackWaiverTemplate.query.filter_by(track_id=track_id)
+            .order_by(TrackWaiverTemplate.updated_at.desc())
+            .all()
+        )
+    return render_template("admin/waivers.html", templates=templates, track_id=track_id)
+
+
+@admin_bp.route("/waivers/new", methods=["GET", "POST"])
+@login_required
+def waivers_new():
+    guard = require_admin()
+    if guard:
+        return guard
+    track_id = session.get("impersonate_track_id")
+    if not track_id:
+        flash("Select a track to impersonate first.", "error")
+        return redirect(url_for("admin.dashboard"))
+    form = WaiverTemplateForm()
+    if form.validate_on_submit():
+        template = TrackWaiverTemplate(
+            track_id=track_id,
+            title=form.title.data.strip(),
+            boldsign_template_id=form.boldsign_template_id.data.strip(),
+            is_active=bool(form.is_active.data),
+            required_for_checkin=bool(form.required_for_checkin.data),
+        )
+        db.session.add(template)
+        db.session.commit()
+        flash("Waiver template saved.", "success")
+        return redirect(url_for("admin.waivers"))
+    return render_template("admin/waivers_new.html", form=form)

@@ -95,3 +95,13 @@ class InspectionForm(FlaskForm):
 class SocialCommentForm(FlaskForm):
     body = TextAreaField("Comment", validators=[DataRequired(), Length(max=400)])
     submit = SubmitField("Post")
+
+
+class WaiverTemplateForm(FlaskForm):
+    title = StringField("Waiver Title", validators=[DataRequired(), Length(max=255)])
+    boldsign_template_id = StringField(
+        "BoldSign Template ID", validators=[DataRequired(), Length(max=255)]
+    )
+    is_active = BooleanField("Active", default=True)
+    required_for_checkin = BooleanField("Required for check-in", default=True)
+    submit = SubmitField("Save Template")

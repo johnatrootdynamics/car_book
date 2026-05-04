@@ -210,7 +210,19 @@ def participants(event_id):
         .filter(EventRegistration.event_id == event.id)
         .all()
     }
-    return render_template("employee/participants.html", event=event, registrations=regs, inspections=inspections)
+    from .waiver_routes import get_required_waiver_status
+
+    waiver_status = {}
+    for reg in regs:
+        status, waiver = get_required_waiver_status(event.track_id, reg.user_id, event.id)
+        waiver_status[reg.id] = {"status": status, "waiver": waiver}
+    return render_template(
+        "employee/participants.html",
+        event=event,
+        registrations=regs,
+        inspections=inspections,
+        waiver_status=waiver_status,
+    )
 
 
 @employee_bp.route("/inspection-rules", methods=["POST"])
@@ -293,7 +305,13 @@ def inspection_lookup(event_id):
         registration = EventRegistration.query.filter_by(event_id=event.id, checkin_code=code).first()
         if not registration:
             flash("No signup found for that scan code in this event.", "error")
-    return render_template("employee/inspection_lookup.html", event=event, code=code, registration=registration)
+    waiver_ctx = None
+    if registration:
+        from .waiver_routes import get_required_waiver_status
+
+        status, waiver = get_required_waiver_status(event.track_id, registration.user_id, event.id)
+        waiver_ctx = {"status": status, "waiver": waiver}
+    return render_template("employee/inspection_lookup.html", event=event, code=code, registration=registration, waiver_ctx=waiver_ctx)
 
 
 @employee_bp.route("/events/<int:event_id>/inspections/<int:registration_id>", methods=["GET", "POST"])

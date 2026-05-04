@@ -3,6 +3,7 @@
 <section class="card">
   <h2>Enterprise Admin Dashboard</h2>
   <p>Select a track to impersonate and operate employee tools for support.</p>
+  <p><a class="btn btn-secondary btn-sm" href="{{ url_for('admin.waivers') }}">Manage Waiver Templates</a></p>
   {% if impersonating_track_id %}
     <form method="post" action="{{ url_for('admin.clear_impersonation') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

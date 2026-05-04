@@ -49,13 +49,25 @@
   {% if events %}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Event</th><th>Track</th><th>Date</th><th>Check-in Code</th><th>Action</th></tr></thead>
+        <thead><tr><th>Event</th><th>Track</th><th>Date</th><th>Waiver</th><th>Check-in Code</th><th>Action</th></tr></thead>
         <tbody>
           {% for event in events %}
             <tr>
               <td>{{ event.event_name }}</td>
               <td>{{ event.track.name }}</td>
               <td>{{ event.event_date }}</td>
+              <td>
+                {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
+                {% if ws == 'signed' %}
+                  <span class="badge badge-signed">Waiver Signed</span>
+                {% elif ws == 'not_required' %}
+                  <span class="badge badge-viewed">Not Required</span>
+                {% elif ws in ['sent', 'viewed'] %}
+                  <span class="badge badge-viewed">Pending</span>
+                {% else %}
+                  <span class="badge badge-failed">Waiver Missing</span>
+                {% endif %}
+              </td>
               <td>
                 {% if event.id in signups %}
                   <code>{{ signups[event.id].checkin_code }}</code>
@@ -66,6 +78,9 @@
               </td>
               <td>
                 {% if event.id in signups %}
+                  {% if ws != 'signed' and ws != 'not_required' %}
+                    <a class="btn btn-sm" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
+                  {% endif %}
                   <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-secondary">Cancel Signup</button>
@@ -85,6 +100,38 @@
     </div>
   {% else %}
     <p>No events published yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Waivers</h3>
+  {% if waivers %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Waiver</th><th>Event</th><th>Status</th><th>Sent</th><th>Signed</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for waiver in waivers %}
+          <tr>
+            <td>{{ waiver.waiver_template.title }}</td>
+            <td>{{ waiver.event.event_name if waiver.event else '-' }}</td>
+            <td><span class="badge badge-{{ waiver.status }}">{{ waiver.status|upper }}</span></td>
+            <td>{{ waiver.sent_at or '-' }}</td>
+            <td>{{ waiver.signed_at or '-' }}</td>
+            <td>
+              {% if waiver.status != 'signed' %}
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=waiver.id) }}">Sign</a>
+              {% endif %}
+              {% if waiver.signed_pdf_url %}
+                <a class="btn btn-sm" href="{{ waiver.signed_pdf_url }}" target="_blank">PDF</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No waivers yet.</p>
   {% endif %}
 </section>
 {% endblock %}

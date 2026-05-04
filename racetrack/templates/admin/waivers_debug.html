@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>BoldSign Debug</h2>
+  <p>Recent waiver records and statuses.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Driver</th><th>Doc ID</th><th>Status</th><th>Updated</th></tr></thead>
+      <tbody>
+      {% for w in waivers %}
+        <tr>
+          <td>{{ w.id }}</td>
+          <td>@{{ w.driver.username or ('driver' ~ w.driver.id) }}</td>
+          <td><code>{{ w.boldsign_document_id or '-' }}</code></td>
+          <td>{{ w.status }}</td>
+          <td>{{ w.updated_at }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

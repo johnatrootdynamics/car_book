@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card narrow">
+  <h2>New Waiver Template</h2>
+  <form method="post" class="form-grid" data-enhanced>
+    {{ form.hidden_tag() }}
+    <label>Waiver Title {{ form.title() }}</label>
+    <label>BoldSign Template ID {{ form.boldsign_template_id() }}</label>
+    <label class="check-row">{{ form.is_active() }} <span>Active</span></label>
+    <label class="check-row">{{ form.required_for_checkin() }} <span>Required for check-in</span></label>
+    {{ form.submit(class_='btn') }}
+  </form>
+</section>
+{% endblock %}

@@ -41,12 +41,25 @@ def dashboard():
     }
     form = EventSignupForm()
     form.car_id.choices = [(car.id, f"{car.car_year} {car.make} {car.model}") for car in cars]
+    from .waiver_routes import get_required_waiver_status
+
+    waiver_by_event = {}
+    for event in events:
+        status, waiver = get_required_waiver_status(event.track_id, current_user.id, event.id)
+        waiver_by_event[event.id] = {"status": status, "waiver": waiver}
+
+    waivers = []
+    for item in waiver_by_event.values():
+        if item.get("waiver"):
+            waivers.append(item["waiver"])
     return render_template(
         "user/dashboard.html",
         cars=cars,
         events=events,
         signups=signups,
         signup_form=form,
+        waiver_by_event=waiver_by_event,
+        waivers=waivers,
     )
 
 
@@ -198,6 +211,30 @@ def signup_event(event_id):
             body=f"Driving: {selected_car.car_year} {selected_car.make} {selected_car.model}",
         )
         db.session.add(post)
+        db.session.commit()
+
+        from .models import DriverWaiver, TrackWaiverTemplate
+
+        required_templates = TrackWaiverTemplate.query.filter_by(
+            track_id=event.track_id, is_active=True, required_for_checkin=True
+        ).all()
+        for template in required_templates:
+            exists = DriverWaiver.query.filter_by(
+                track_id=event.track_id,
+                driver_id=current_user.id,
+                event_id=event.id,
+                waiver_template_id=template.id,
+            ).first()
+            if not exists:
+                db.session.add(
+                    DriverWaiver(
+                        track_id=event.track_id,
+                        driver_id=current_user.id,
+                        event_id=event.id,
+                        waiver_template_id=template.id,
+                        status="not_sent",
+                    )
+                )
         db.session.commit()
         flash("Signed up successfully.", "success")
     else:
