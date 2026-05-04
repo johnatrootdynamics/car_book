@@ -13,6 +13,9 @@ from .services.boldsign_service import (
 
 
 waiver_bp = Blueprint("waiver", __name__)
+FORCED_BOLDSIGN_TEMPLATE_ID = os.getenv(
+    "BOLDSIGN_FORCED_TEMPLATE_ID", "e5c8f024-64df-4bdc-9142-3a04c01a154a"
+)
 
 
 def _require_user():
@@ -63,15 +66,18 @@ def send_driver_waiver(waiver_template_id):
 
     redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('waiver.driver_waivers')}"
     signer_name = f"{current_user.first_name} {current_user.last_name}".strip()
+    if not signer_name:
+        signer_name = (getattr(current_user, "username", "") or current_user.email).strip()
     metadata = {
         "driverWaiverId": str(waiver.id),
         "trackId": str(template.track_id),
         "driverId": str(current_user.id),
+        "localTemplateId": str(template.id),
     }
 
     try:
         send_result = send_waiver_from_template(
-            template.boldsign_template_id,
+            FORCED_BOLDSIGN_TEMPLATE_ID,
             signer_name,
             current_user.email,
             redirect_url,
