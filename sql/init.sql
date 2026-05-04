@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(50) NULL UNIQUE,
   email VARCHAR(255) NOT NULL UNIQUE,
   phone VARCHAR(30) NOT NULL,
+  driver_class CHAR(1) NOT NULL DEFAULT 'C',
   static_qr_code VARCHAR(64) NULL UNIQUE,
   date_of_birth DATE NOT NULL,
   street VARCHAR(255) NOT NULL,

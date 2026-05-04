@@ -192,10 +192,16 @@ def create_app():
             conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL"
             )
+            conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS driver_class CHAR(1) NOT NULL DEFAULT 'C'"
+            )
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
                 "UPDATE users SET username = LOWER(SUBSTRING_INDEX(email, '@', 1)) WHERE username IS NULL OR username = ''"
+            )
+            conn.exec_driver_sql(
+                "UPDATE users SET driver_class = 'C' WHERE driver_class IS NULL OR driver_class NOT IN ('A','B','C')"
             )
             conn.exec_driver_sql(
                 "UPDATE users u JOIN (SELECT id, CONCAT(LOWER(SUBSTRING_INDEX(email, '@', 1)), '-', id) AS fallback_username FROM users) x ON x.id = u.id SET u.username = x.fallback_username WHERE u.username IN (SELECT t.username FROM (SELECT username FROM users GROUP BY username HAVING COUNT(*) > 1) t)"

@@ -14,33 +14,6 @@
 </section>
 
 <section class="card">
-  <h3>Required Templates</h3>
-  {% if templates %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Title</th><th>Track</th><th>Action</th></tr></thead>
-        <tbody>
-        {% for t in templates %}
-          <tr>
-            <td>{{ t.title }}</td>
-            <td>{{ t.track.name }}</td>
-            <td>
-              <form method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=t.id) }}" class="inline" data-enhanced>
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm">Sign Waiver</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p>No active templates.</p>
-  {% endif %}
-</section>
-
-<section class="card">
   <h3>Waiver Records</h3>
   {% if waivers %}
     <div class="table-wrap">

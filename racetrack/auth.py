@@ -46,6 +46,7 @@ def user_register():
             username=normalized_username,
             email=form.email.data.lower().strip(),
             phone=(form.phone.data or "").strip() or "N/A",
+            driver_class=(form.driver_class.data or "C").strip().upper(),
             static_qr_code=_generate_user_qr_code(),
             date_of_birth=date(1970, 1, 1),
             street="N/A",

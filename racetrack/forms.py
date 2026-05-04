@@ -16,6 +16,12 @@ class UserRegistrationForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
     phone = StringField("Phone", validators=[Length(max=30)])
+    driver_class = SelectField(
+        "Class",
+        choices=[("A", "A"), ("B", "B"), ("C", "C")],
+        validators=[DataRequired()],
+        default="C",
+    )
     password = PasswordField("Password", validators=[DataRequired(), Length(min=8, max=255)])
     submit = SubmitField("Create Account")
 
