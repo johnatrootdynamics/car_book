@@ -1,16 +1,12 @@
+from datetime import date
+
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from wtforms import BooleanField, DateField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length, ValidationError
 
 
-def validate_not_future(form, field):
-    if field.data and field.data > date.today():
-        raise ValidationError("Date cannot be in the future.")
-
-
 def validate_not_past(form, field):
-    from datetime import date
     if field.data and field.data < date.today():
         raise ValidationError("Event date cannot be in the past.")
 
@@ -68,6 +64,13 @@ class EmployeeCreateForm(FlaskForm):
     submit = SubmitField("Create Employee Account")
 
 
+class TrackCreateForm(FlaskForm):
+    name = StringField("Track Name", validators=[DataRequired(), Length(max=200)])
+    city = StringField("City", validators=[DataRequired(), Length(max=100)])
+    state = StringField("State", validators=[DataRequired(), Length(max=100)])
+    submit = SubmitField("Create Track")
+
+
 class InspectionRuleForm(FlaskForm):
     rule_text = StringField("Condition", validators=[DataRequired(), Length(max=255)])
     submit = SubmitField("Add Rule")
@@ -82,3 +85,8 @@ class InspectionForm(FlaskForm):
             field_name = f"rule_{rule.id}"
             if not hasattr(self, field_name):
                 setattr(self, field_name, BooleanField(rule.rule_text))
+
+
+class SocialCommentForm(FlaskForm):
+    body = StringField("Comment", validators=[DataRequired(), Length(max=400)])
+    submit = SubmitField("Post")

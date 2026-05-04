@@ -3,8 +3,8 @@ import secrets
 from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
-from .forms import CarForm, EventSignupForm
-from .models import Car, Event, EventRegistration, db
+from .forms import CarForm, EventSignupForm, SocialCommentForm
+from .models import Car, Event, EventRegistration, SocialComment, SocialPost, db
 
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
@@ -51,6 +51,23 @@ def dashboard():
     )
 
 
+@user_bp.route("/community")
+@login_required
+def community():
+    guard = require_user()
+    if guard:
+        return guard
+    posts = SocialPost.query.order_by(SocialPost.created_at.desc()).limit(100).all()
+    cars = Car.query.order_by(Car.created_at.desc()).limit(100).all()
+    comment_form = SocialCommentForm()
+    return render_template(
+        "user/community.html",
+        posts=posts,
+        cars=cars,
+        comment_form=comment_form,
+    )
+
+
 @user_bp.route("/cars/new", methods=["GET", "POST"])
 @login_required
 def car_new():
@@ -70,6 +87,14 @@ def car_new():
             color=form.color.data.strip() if form.color.data else None,
         )
         db.session.add(car)
+        db.session.commit()
+        post = SocialPost(
+            user_id=current_user.id,
+            post_type="car_spotlight",
+            title=f"{current_user.first_name} added a car",
+            body=f"{car.car_year} {car.make} {car.model}" + (f" ({car.color})" if car.color else ""),
+        )
+        db.session.add(post)
         db.session.commit()
         flash("Car added.", "success")
         return redirect(url_for("user.dashboard"))
@@ -145,6 +170,16 @@ def signup_event(event_id):
         )
         db.session.add(reg)
         db.session.commit()
+        post = SocialPost(
+            user_id=current_user.id,
+            event_id=event.id,
+            event_registration_id=reg.id,
+            post_type="event_signup",
+            title=f"{current_user.first_name} signed up for {event.event_name}",
+            body=f"Driving: {selected_car.car_year} {selected_car.make} {selected_car.model}",
+        )
+        db.session.add(post)
+        db.session.commit()
         flash("Signed up successfully.", "success")
     else:
         flash("Please choose a valid car.", "error")
@@ -158,7 +193,32 @@ def cancel_signup(event_id):
     if guard:
         return guard
     reg = EventRegistration.query.filter_by(event_id=event_id, user_id=current_user.id).first_or_404()
+    post = SocialPost.query.filter_by(event_registration_id=reg.id).first()
+    if post:
+        db.session.delete(post)
     db.session.delete(reg)
     db.session.commit()
     flash("Signup canceled.", "success")
     return redirect(url_for("user.dashboard"))
+
+
+@user_bp.route("/community/posts/<int:post_id>/comment", methods=["POST"])
+@login_required
+def add_comment(post_id):
+    guard = require_user()
+    if guard:
+        return guard
+    post = SocialPost.query.get_or_404(post_id)
+    form = SocialCommentForm()
+    if form.validate_on_submit():
+        comment = SocialComment(
+            post_id=post.id,
+            user_id=current_user.id,
+            body=form.body.data.strip(),
+        )
+        db.session.add(comment)
+        db.session.commit()
+        flash("Comment added.", "success")
+    else:
+        flash("Comment is required.", "error")
+    return redirect(url_for("user.community"))

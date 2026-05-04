@@ -12,6 +12,17 @@
 </section>
 
 <section class="card">
+  <h3>Create Track</h3>
+  <form method="post" action="{{ url_for('admin.create_track') }}" class="form-grid two-col">
+    {{ create_form.hidden_tag() }}
+    <label>Track Name {{ create_form.name() }}</label>
+    <label>City {{ create_form.city() }}</label>
+    <label>State {{ create_form.state() }}</label>
+    <div class="full">{{ create_form.submit(class_='btn') }}</div>
+  </form>
+</section>
+
+<section class="card">
   <div class="table-wrap">
     <table>
       <thead><tr><th>Track</th><th>Location</th><th>Action</th></tr></thead>

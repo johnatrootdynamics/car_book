@@ -125,6 +125,10 @@ def create_app():
             "inspections",
             "inspection_items",
             "enterprise_admins",
+            "social_posts",
+            "social_comments",
+            "community_groups",
+            "community_group_members",
         }
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -250,6 +254,10 @@ def create_app():
             "inspections",
             "inspection_items",
             "enterprise_admins",
+            "social_posts",
+            "social_comments",
+            "community_groups",
+            "community_group_members",
         }
         try:
             inspector = inspect(db.engine)

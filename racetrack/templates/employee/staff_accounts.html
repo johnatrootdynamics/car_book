@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="row-space">
+    <h2>Staff Accounts</h2>
+    <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
+  </div>
+  <form method="post" action="{{ url_for('employee.create_employee') }}" class="form-grid two-col">
+    {{ form.hidden_tag() }}
+    <label>Full Name {{ form.full_name() }}</label>
+    <label>Email {{ form.email() }}</label>
+    <label>Password {{ form.password() }}</label>
+    <div class="full">{{ form.submit(class_='btn') }}</div>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Existing Staff</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Created</th></tr></thead>
+      <tbody>
+      {% for member in staff %}
+        <tr>
+          <td>{{ member.full_name }}</td>
+          <td>{{ member.email }}</td>
+          <td>{{ member.created_at }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

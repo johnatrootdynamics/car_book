@@ -51,16 +51,34 @@ def dashboard():
         .all()
     )
     signup_counts = {event_id: count for event_id, count in signup_counts_raw}
-    profile_form = TrackProfileForm(obj=track)
-    employee_form = EmployeeCreateForm()
     return render_template(
         "employee/dashboard.html",
         events=events,
         track=track,
         signup_counts=signup_counts,
-        profile_form=profile_form,
-        employee_form=employee_form,
     )
+
+
+@employee_bp.route("/track-profile", methods=["GET"])
+@login_required
+def track_profile():
+    guard = require_employee()
+    if guard:
+        return guard
+    track = Track.query.get_or_404(active_track_id())
+    form = TrackProfileForm(obj=track)
+    return render_template("employee/track_profile.html", track=track, form=form)
+
+
+@employee_bp.route("/staff-accounts", methods=["GET"])
+@login_required
+def staff_accounts():
+    guard = require_employee()
+    if guard:
+        return guard
+    form = EmployeeCreateForm()
+    staff = Employee.query.filter_by(track_id=active_track_id()).order_by(Employee.created_at.desc()).all()
+    return render_template("employee/staff_accounts.html", form=form, staff=staff)
 
 
 @employee_bp.route("/track", methods=["POST"])

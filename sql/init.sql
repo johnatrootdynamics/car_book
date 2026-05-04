@@ -122,6 +122,54 @@ CREATE TABLE IF NOT EXISTS inspection_items (
   CONSTRAINT uniq_inspection_rule UNIQUE (inspection_id, inspection_rule_id)
 );
 
+CREATE TABLE IF NOT EXISTS social_posts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  event_id INT NULL,
+  event_registration_id INT NULL UNIQUE,
+  post_type VARCHAR(30) NOT NULL DEFAULT 'event_signup',
+  title VARCHAR(200) NOT NULL,
+  body VARCHAR(600) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_social_posts_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_social_posts_event FOREIGN KEY (event_id) REFERENCES events(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_social_posts_registration FOREIGN KEY (event_registration_id) REFERENCES event_registrations(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS social_comments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  post_id INT NOT NULL,
+  user_id INT NOT NULL,
+  body VARCHAR(400) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_social_comments_post FOREIGN KEY (post_id) REFERENCES social_posts(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_social_comments_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS community_groups (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL UNIQUE,
+  description VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS community_group_members (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  group_id INT NOT NULL,
+  user_id INT NOT NULL,
+  joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_group_members_group FOREIGN KEY (group_id) REFERENCES community_groups(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_group_members_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT uniq_group_member UNIQUE (group_id, user_id)
+);
+
 INSERT INTO tracks (name, city, state)
 VALUES ('Demo Speedway', 'Austin', 'TX')
 ON DUPLICATE KEY UPDATE name = VALUES(name);

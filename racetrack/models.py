@@ -30,6 +30,10 @@ class User(db.Model, UserMixin):
     registrations = db.relationship(
         "EventRegistration", backref="user", cascade="all, delete-orphan"
     )
+    social_posts = db.relationship("SocialPost", backref="author", cascade="all, delete-orphan")
+    social_comments = db.relationship(
+        "SocialComment", backref="author", cascade="all, delete-orphan"
+    )
 
     @property
     def account_type(self):
@@ -183,4 +187,55 @@ class InspectionItem(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint("inspection_id", "inspection_rule_id", name="uniq_inspection_rule"),
+    )
+
+
+class SocialPost(db.Model):
+    __tablename__ = "social_posts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True)
+    event_registration_id = db.Column(
+        db.Integer, db.ForeignKey("event_registrations.id"), nullable=True, unique=True
+    )
+    post_type = db.Column(db.String(30), nullable=False, default="event_signup")
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.String(600), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    event = db.relationship("Event")
+    registration = db.relationship("EventRegistration")
+    comments = db.relationship("SocialComment", backref="post", cascade="all, delete-orphan")
+
+
+class SocialComment(db.Model):
+    __tablename__ = "social_comments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("social_posts.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    body = db.Column(db.String(400), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommunityGroup(db.Model):
+    __tablename__ = "community_groups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=True, nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommunityGroupMember(db.Model):
+    __tablename__ = "community_group_members"
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("community_groups.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("group_id", "user_id", name="uniq_group_member"),
     )

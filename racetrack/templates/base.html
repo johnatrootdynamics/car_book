@@ -13,6 +13,7 @@
       <nav>
         {% if current_user.is_authenticated and is_user %}
           <a href="{{ url_for('user.dashboard') }}">User Dashboard</a>
+          <a href="{{ url_for('user.community') }}">Community</a>
         {% endif %}
         {% if current_user.is_authenticated and is_employee %}
           <a href="{{ url_for('employee.dashboard') }}">Employee Dashboard</a>

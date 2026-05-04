@@ -1,7 +1,8 @@
 from flask import Blueprint, flash, redirect, render_template, session, url_for
 from flask_login import current_user, login_required
 
-from .models import Track
+from .forms import TrackCreateForm
+from .models import Track, db
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -25,11 +26,38 @@ def dashboard():
         return guard
     tracks = Track.query.order_by(Track.name.asc()).all()
     impersonating_track_id = session.get("impersonate_track_id")
+    create_form = TrackCreateForm()
     return render_template(
         "admin/dashboard.html",
         tracks=tracks,
         impersonating_track_id=impersonating_track_id,
+        create_form=create_form,
     )
+
+
+@admin_bp.route("/tracks/new", methods=["POST"])
+@login_required
+def create_track():
+    guard = require_admin()
+    if guard:
+        return guard
+    form = TrackCreateForm()
+    if form.validate_on_submit():
+        existing = Track.query.filter_by(name=form.name.data.strip()).first()
+        if existing:
+            flash("Track name already exists.", "error")
+        else:
+            track = Track(
+                name=form.name.data.strip(),
+                city=form.city.data.strip(),
+                state=form.state.data.strip(),
+            )
+            db.session.add(track)
+            db.session.commit()
+            flash("Track created.", "success")
+    else:
+        flash("Could not create track.", "error")
+    return redirect(url_for("admin.dashboard"))
 
 
 @admin_bp.route("/impersonate/<int:track_id>", methods=["POST"])

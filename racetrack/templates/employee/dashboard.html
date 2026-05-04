@@ -7,39 +7,12 @@
       <p>{{ current_user.full_name }} • {{ track.name }}</p>
     </div>
     <div class="actions-row">
+      <a class="btn btn-secondary" href="{{ url_for('employee.track_profile') }}">Track Profile</a>
+      <a class="btn btn-secondary" href="{{ url_for('employee.staff_accounts') }}">Staff Accounts</a>
       <a class="btn btn-secondary" href="{{ url_for('employee.inspection_rules') }}">Inspection Rules</a>
       <a class="btn" href="{{ url_for('employee.event_new') }}">Create Event</a>
     </div>
   </div>
-</section>
-
-<section class="card">
-  <h3>Track Profile</h3>
-  <form method="post" action="{{ url_for('employee.update_track') }}" enctype="multipart/form-data" class="form-grid two-col">
-    {{ profile_form.hidden_tag() }}
-    <label>Track Name {{ profile_form.name() }}</label>
-    <label>City {{ profile_form.city() }}</label>
-    <label>State {{ profile_form.state() }}</label>
-    <label>Layout Image {{ profile_form.layout_image() }}</label>
-    <div class="full">{{ profile_form.submit(class_='btn') }}</div>
-  </form>
-  {% if track.layout_image_path %}
-    <div class="track-layout-preview">
-      <p>Current Layout</p>
-      <img src="{{ url_for('static', filename=track.layout_image_path) }}" alt="Track layout image">
-    </div>
-  {% endif %}
-</section>
-
-<section class="card">
-  <h3>Create Employee Account</h3>
-  <form method="post" action="{{ url_for('employee.create_employee') }}" class="form-grid two-col">
-    {{ employee_form.hidden_tag() }}
-    <label>Full Name {{ employee_form.full_name() }}</label>
-    <label>Email {{ employee_form.email() }}</label>
-    <label>Password {{ employee_form.password() }}</label>
-    <div class="full">{{ employee_form.submit(class_='btn') }}</div>
-  </form>
 </section>
 
 <section class="card">

@@ -135,6 +135,57 @@ th { color: var(--muted); font-weight: 600; }
   color: var(--muted);
 }
 
+.feed-post {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.feed-post h4 {
+  margin: 0 0 6px;
+}
+
+.muted-line {
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.comment-list {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.comment-item {
+  padding: 6px 8px;
+  border-left: 2px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.car-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.car-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.compact-note h3,
+.compact-note p {
+  margin: 0;
+}
+
 @media (max-width: 800px) {
   .two-col { grid-template-columns: 1fr; }
   .nav-row { flex-direction: column; align-items: flex-start; gap: 8px; }
