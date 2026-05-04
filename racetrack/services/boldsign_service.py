@@ -34,19 +34,21 @@ def send_waiver_from_template(
     metadata,
     signer_role="User",
 ):
-    endpoint = f"{BOLDSIGN_API_BASE}/template/send"
+    query = urlencode({"templateId": template_id})
+    endpoint = f"{BOLDSIGN_API_BASE}/template/send?{query}"
     payload = {
-        "templateId": template_id,
-        "signerDetails": [
+        "Roles": [
             {
-                "name": signer_name,
-                "emailAddress": signer_email,
-                "signerType": "Signer",
-                "signerRole": signer_role,
+                "RoleIndex": 1,
+                "SignerName": signer_name,
+                "SignerEmail": signer_email,
+                "SignerType": "Signer",
+                "SignerRole": signer_role,
             }
         ],
-        "redirectUrl": redirect_url,
-        "metadata": metadata or {},
+        "RedirectUrl": redirect_url,
+        "Metadata": metadata or {},
+        "DisableEmails": True,
     }
 
     response = requests.post(endpoint, headers=_headers(), data=json.dumps(payload), timeout=30)
@@ -56,12 +58,13 @@ def send_waiver_from_template(
     logger.warning("BoldSign template/send JSON attempt failed: %s %s", response.status_code, response.text)
 
     form_payload = {
-        "TemplateId": template_id,
         "RedirectUrl": redirect_url,
-        "SignerDetails[0][Name]": signer_name,
-        "SignerDetails[0][EmailAddress]": signer_email,
-        "SignerDetails[0][SignerType]": "Signer",
-        "SignerDetails[0][SignerRole]": signer_role,
+        "Roles[0][RoleIndex]": "1",
+        "Roles[0][SignerName]": signer_name,
+        "Roles[0][SignerEmail]": signer_email,
+        "Roles[0][SignerType]": "Signer",
+        "Roles[0][SignerRole]": signer_role,
+        "DisableEmails": "true",
     }
     if metadata:
         form_payload["Metadata"] = json.dumps(metadata)
