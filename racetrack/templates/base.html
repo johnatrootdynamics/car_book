@@ -16,6 +16,7 @@
       <nav>
         {% if current_user.is_authenticated and is_user %}
           <a href="{{ url_for('user.dashboard') }}">User Dashboard</a>
+          <a href="{{ url_for('user.tracks_directory') }}">Tracks</a>
           <a href="{{ url_for('waiver.driver_waivers') }}">Waivers</a>
           <a href="{{ url_for('user.community') }}">Community</a>
         {% endif %}

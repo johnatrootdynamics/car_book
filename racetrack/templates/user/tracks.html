@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="row-space">
+    <div>
+      <h2>Track Directory</h2>
+      <p>Subscribe to tracks to discover their events.</p>
+    </div>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.dashboard') }}">Back to Dashboard</a>
+  </div>
+  <form method="get" class="inline-form" data-enhanced>
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by track, city, state">
+    <button type="submit" class="btn btn-sm">Search</button>
+  </form>
+</section>
+
+<section class="card">
+  {% if tracks %}
+    <div class="event-tile-grid">
+      {% for track in tracks %}
+      <div class="event-tile">
+        <div class="event-fallback">{{ track.state }}</div>
+        <div class="event-tile-body">
+          <h4>{{ track.name }}</h4>
+          <p class="muted-line">{{ track.city }}, {{ track.state }}</p>
+          {% if track.id in subscribed_track_ids %}
+            <form method="post" action="{{ url_for('user.unsubscribe_track', track_id=track.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm">Unsubscribe</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('user.subscribe_track', track_id=track.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm">Subscribe</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No tracks found.</p>
+  {% endif %}
+</section>
+{% endblock %}

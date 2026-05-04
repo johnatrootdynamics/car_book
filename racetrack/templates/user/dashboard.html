@@ -45,25 +45,33 @@
 </section>
 
 <section class="card">
-  <h3>Your Event Signups</h3>
+  <div class="row-space">
+    <h3>Your Event Signups</h3>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.tracks_directory') }}">Track Directory</a>
+  </div>
   {% if events %}
-    <div class="grid-cards">
+    <div class="event-tile-grid">
       {% for event in events %}
         {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
         {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
-        <article class="event-card">
-          <h4>{{ event.event_name }}</h4>
-          <p>{{ event.event_date }} • {{ event.track.name }}</p>
-          <p>
-            {% if ws == 'signed' or ws == 'not_required' %}
-              <span class="badge badge-signed">Signed Up</span>
-            {% elif ws in ['sent', 'viewed'] %}
-              <span class="badge badge-viewed">Waiver Pending</span>
-            {% else %}
-              <span class="badge badge-failed">Needs Waiver</span>
-            {% endif %}
-          </p>
-          <div class="actions-row">
+        <div class="event-tile">
+          {% if event.thumbnail_image_path %}
+            <img src="{{ url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
+          {% else %}
+            <div class="event-fallback">{{ event.track.name }}</div>
+          {% endif %}
+          <div class="event-tile-body">
+            <h4>{{ event.event_name }}</h4>
+            <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+            <p>
+              {% if ws == 'signed' or ws == 'not_required' %}
+                <span class="badge badge-signed">Signed Up</span>
+              {% elif ws in ['sent', 'viewed'] %}
+                <span class="badge badge-viewed">Waiver Pending</span>
+              {% else %}
+                <span class="badge badge-failed">Needs Waiver</span>
+              {% endif %}
+            </p>
             {% if ws != 'signed' and ws != 'not_required' %}
               {% if ww %}
                 <a class="btn btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
@@ -76,11 +84,43 @@
               <button type="submit" class="btn btn-secondary btn-sm">Cancel</button>
             </form>
           </div>
-        </article>
+        </div>
       {% endfor %}
     </div>
   {% else %}
     <p>You have not signed up for any events yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Events From Subscribed Tracks</h3>
+  {% if subscribed_events %}
+    <div class="event-tile-grid">
+      {% for event in subscribed_events %}
+      <div class="event-tile">
+        {% if event.thumbnail_image_path %}
+          <img src="{{ url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
+        {% else %}
+          <div class="event-fallback">{{ event.track.name }}</div>
+        {% endif %}
+        <div class="event-tile-body">
+          <h4>{{ event.event_name }}</h4>
+          <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+          {% if event.id in signups %}
+            <span class="badge badge-viewed">Already Signed Up</span>
+          {% else %}
+            <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
+              {{ signup_form.hidden_tag() }}
+              {{ signup_form.car_id() }}
+              {{ signup_form.submit(class_='btn btn-sm') }}
+            </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>Subscribe to tracks to see their events here.</p>
   {% endif %}
 </section>
 

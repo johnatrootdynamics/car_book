@@ -135,6 +135,7 @@ def create_app():
             "social_comments",
             "community_groups",
             "community_group_members",
+            "track_subscriptions",
             "track_waiver_templates",
             "driver_waivers",
         }
@@ -310,6 +311,7 @@ def create_app():
             "social_comments",
             "community_groups",
             "community_group_members",
+            "track_subscriptions",
             "track_waiver_templates",
             "driver_waivers",
         }

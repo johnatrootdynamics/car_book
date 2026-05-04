@@ -36,6 +36,9 @@ class User(db.Model, UserMixin):
     social_comments = db.relationship(
         "SocialComment", backref="author", cascade="all, delete-orphan"
     )
+    track_subscriptions = db.relationship(
+        "TrackSubscription", backref="user", cascade="all, delete-orphan"
+    )
 
     @property
     def account_type(self):
@@ -59,6 +62,9 @@ class Track(db.Model):
     events = db.relationship("Event", backref="track")
     inspection_rules = db.relationship(
         "InspectionRule", backref="track", cascade="all, delete-orphan"
+    )
+    subscriptions = db.relationship(
+        "TrackSubscription", backref="track", cascade="all, delete-orphan"
     )
 
 
@@ -242,6 +248,19 @@ class CommunityGroupMember(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint("group_id", "user_id", name="uniq_group_member"),
+    )
+
+
+class TrackSubscription(db.Model):
+    __tablename__ = "track_subscriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("track_id", "user_id", name="uniq_track_subscription"),
     )
 
 

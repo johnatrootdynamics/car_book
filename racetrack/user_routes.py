@@ -1,11 +1,21 @@
 import secrets
 import os
 
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from .forms import CarForm, EventSignupForm, SocialCommentForm
-from .models import Car, Event, EventRegistration, SocialComment, SocialPost, TrackWaiverTemplate, db
+from .models import (
+    Car,
+    Event,
+    EventRegistration,
+    SocialComment,
+    SocialPost,
+    Track,
+    TrackSubscription,
+    TrackWaiverTemplate,
+    db,
+)
 
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
@@ -57,6 +67,19 @@ def dashboard():
         status, waiver = get_required_waiver_status(event.track_id, current_user.id, event.id)
         waiver_by_event[event.id] = {"status": status, "waiver": waiver}
 
+    subscribed_track_ids = {
+        item.track_id
+        for item in TrackSubscription.query.filter_by(user_id=current_user.id).all()
+    }
+    subscribed_events = []
+    if subscribed_track_ids:
+        subscribed_events = (
+            Event.query.filter(Event.track_id.in_(subscribed_track_ids))
+            .order_by(Event.event_date.asc())
+            .limit(24)
+            .all()
+        )
+
     waivers = []
     for item in waiver_by_event.values():
         if item.get("waiver"):
@@ -69,7 +92,62 @@ def dashboard():
         signup_form=form,
         waiver_by_event=waiver_by_event,
         waivers=waivers,
+        subscribed_events=subscribed_events,
+        subscribed_track_ids=subscribed_track_ids,
     )
+
+
+@user_bp.route("/tracks")
+@login_required
+def tracks_directory():
+    guard = require_user()
+    if guard:
+        return guard
+    q = (request.args.get("q") or "").strip()
+    query = Track.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter((Track.name.ilike(like)) | (Track.city.ilike(like)) | (Track.state.ilike(like)))
+    tracks = query.order_by(Track.name.asc()).all()
+    subscribed_track_ids = {
+        item.track_id
+        for item in TrackSubscription.query.filter_by(user_id=current_user.id).all()
+    }
+    return render_template(
+        "user/tracks.html",
+        tracks=tracks,
+        q=q,
+        subscribed_track_ids=subscribed_track_ids,
+    )
+
+
+@user_bp.route("/tracks/<int:track_id>/subscribe", methods=["POST"])
+@login_required
+def subscribe_track(track_id):
+    guard = require_user()
+    if guard:
+        return guard
+    Track.query.get_or_404(track_id)
+    existing = TrackSubscription.query.filter_by(track_id=track_id, user_id=current_user.id).first()
+    if not existing:
+        db.session.add(TrackSubscription(track_id=track_id, user_id=current_user.id))
+        db.session.commit()
+        flash("Track subscribed.", "success")
+    return redirect(url_for("user.tracks_directory"))
+
+
+@user_bp.route("/tracks/<int:track_id>/unsubscribe", methods=["POST"])
+@login_required
+def unsubscribe_track(track_id):
+    guard = require_user()
+    if guard:
+        return guard
+    existing = TrackSubscription.query.filter_by(track_id=track_id, user_id=current_user.id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        flash("Track unsubscribed.", "success")
+    return redirect(url_for("user.tracks_directory"))
 
 
 @user_bp.route("/community")

@@ -175,6 +175,18 @@ CREATE TABLE IF NOT EXISTS community_group_members (
   CONSTRAINT uniq_group_member UNIQUE (group_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS track_subscriptions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  track_id INT NOT NULL,
+  user_id INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_track_subscriptions_track FOREIGN KEY (track_id) REFERENCES tracks(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_track_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT uniq_track_subscription UNIQUE (track_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS track_waiver_templates (
   id INT AUTO_INCREMENT PRIMARY KEY,
   track_id INT NOT NULL,
