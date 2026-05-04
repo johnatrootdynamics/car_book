@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -110,14 +111,23 @@ def driver_sign_waiver(driver_waiver_id):
 def boldsign_webhook():
     raw_body = request.get_data()
     signature = request.headers.get("X-BoldSign-Signature", "")
-    verified, verify_reason = verify_webhook_signature_details(raw_body, signature)
+    token_header = request.headers.get("X-Webhook-Token", "")
+    webhook_secret = os.getenv("BOLDSIGN_WEBHOOK_SECRET", "")
+
+    if webhook_secret and token_header and token_header == webhook_secret:
+        verified = True
+        verify_reason = "ok_custom_header_token"
+    else:
+        verified, verify_reason = verify_webhook_signature_details(raw_body, signature)
+
     if not verified:
         current_app.logger.warning(
-            "BoldSign webhook signature verification failed: reason=%s content_type=%s ua=%s has_sig=%s",
+            "BoldSign webhook verification failed: reason=%s content_type=%s ua=%s has_sig=%s has_token=%s",
             verify_reason,
             request.headers.get("Content-Type", ""),
             request.headers.get("User-Agent", ""),
             bool(signature),
+            bool(token_header),
         )
         return jsonify({"ok": False, "error": "invalid signature"}), 401
 
