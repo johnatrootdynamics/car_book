@@ -171,6 +171,9 @@ def driver_sign_waiver(driver_waiver_id):
     if waiver.status == "signed":
         return redirect(url_for("waiver.driver_waivers"))
 
+    if waiver.signing_url:
+        return redirect(waiver.signing_url)
+
     if waiver.boldsign_document_id:
         try:
             redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('user.dashboard')}"
@@ -183,6 +186,7 @@ def driver_sign_waiver(driver_waiver_id):
             if sign_url:
                 waiver.signing_url = sign_url
                 db.session.commit()
+                return redirect(sign_url)
         except Exception as exc:
             current_app.logger.warning("BoldSign embedded link refresh failed: %s", exc)
 
