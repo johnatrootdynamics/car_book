@@ -20,6 +20,7 @@ from .models import (
     db,
 )
 from .services.boldsign_service import create_embedded_template_url
+from .services.boldsign_service import delete_template as boldsign_delete_template
 
 
 employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
@@ -339,7 +340,39 @@ def waiver_template_builder():
             except Exception as exc:
                 current_app.logger.exception("Embedded template creation failed: %s", exc)
                 flash("Could not create embedded template link.", "error")
-    return render_template("employee/waiver_template_builder.html", embedded_url=embedded_url)
+    templates = (
+        TrackWaiverTemplate.query.filter_by(track_id=active_track_id())
+        .order_by(TrackWaiverTemplate.updated_at.desc())
+        .all()
+    )
+    return render_template(
+        "employee/waiver_template_builder.html",
+        embedded_url=embedded_url,
+        templates=templates,
+    )
+
+
+@employee_bp.route("/waivers/templates/<int:template_id>/delete", methods=["POST"])
+@login_required
+def waiver_template_delete(template_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    template = TrackWaiverTemplate.query.filter_by(id=template_id, track_id=active_track_id()).first_or_404()
+    try:
+        if template.boldsign_template_id:
+            boldsign_delete_template(template.boldsign_template_id)
+    except Exception as exc:
+        current_app.logger.warning(
+            "BoldSign template delete failed for template_id=%s boldsign_template_id=%s error=%s",
+            template.id,
+            template.boldsign_template_id,
+            exc,
+        )
+    db.session.delete(template)
+    db.session.commit()
+    flash("Waiver template deleted.", "success")
+    return redirect(url_for("employee.waiver_template_builder"))
 
 
 def _load_registration_for_track(event_id, registration_id):

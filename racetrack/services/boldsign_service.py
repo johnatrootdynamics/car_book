@@ -195,6 +195,24 @@ def get_document_status(document_id):
     raise RuntimeError(f"BoldSign document status lookup failed: {last_error or 'unknown error'}")
 
 
+def delete_template(template_id):
+    endpoint = f"{BOLDSIGN_API_BASE}/template/delete?templateId={template_id}"
+    response = requests.delete(
+        endpoint,
+        headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"},
+        timeout=12,
+    )
+    if not response.ok:
+        logger.error("BoldSign template delete failed: %s %s", response.status_code, response.text)
+        response.raise_for_status()
+    if response.content:
+        try:
+            return response.json()
+        except Exception:
+            return {"ok": True}
+    return {"ok": True}
+
+
 def verify_webhook_signature_details(raw_body, signature_header) -> Tuple[bool, str]:
     if not BOLDSIGN_WEBHOOK_SECRET:
         return False, "missing_webhook_secret"

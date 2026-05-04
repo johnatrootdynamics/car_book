@@ -18,4 +18,33 @@
   </div>
 </section>
 {% endif %}
+
+<section class="card">
+  <h3>Track Waiver Templates</h3>
+  {% if templates %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Title</th><th>BoldSign Template ID</th><th>Required</th><th>Active</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for t in templates %}
+            <tr>
+              <td>{{ t.title }}</td>
+              <td><code>{{ t.boldsign_template_id }}</code></td>
+              <td>{{ 'Yes' if t.required_for_checkin else 'No' }}</td>
+              <td>{{ 'Yes' if t.is_active else 'No' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('employee.waiver_template_delete', template_id=t.id) }}" class="inline" data-enhanced>
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm danger-btn">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No templates linked to this track yet.</p>
+  {% endif %}
+</section>
 {% endblock %}
