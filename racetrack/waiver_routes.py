@@ -166,12 +166,37 @@ def boldsign_webhook():
         return jsonify({"ok": False, "error": "invalid signature"}), 401
 
     payload = request.get_json(silent=True) or {}
-    event_type = (payload.get("eventType") or "").lower()
-    document_id = payload.get("documentId") or payload.get("document", {}).get("documentId")
+    event_type = (
+        payload.get("eventType")
+        or payload.get("event")
+        or payload.get("type")
+        or payload.get("eventName")
+        or ""
+    ).lower()
+    document_id = (
+        payload.get("documentId")
+        or payload.get("document", {}).get("documentId")
+        or payload.get("data", {}).get("documentId")
+    )
     signer_email = payload.get("signer", {}).get("emailAddress") or payload.get("signerEmail")
 
-    waiver = DriverWaiver.query.filter_by(boldsign_document_id=document_id).first()
+    waiver = None
+    if document_id:
+        waiver = DriverWaiver.query.filter_by(boldsign_document_id=document_id).first()
     if not waiver:
+        metadata = payload.get("metadata") or payload.get("data", {}).get("metadata") or {}
+        waiver_id = metadata.get("driverWaiverId") or metadata.get("driver_waiver_id")
+        if waiver_id:
+            try:
+                waiver = DriverWaiver.query.filter_by(id=int(waiver_id)).first()
+            except (TypeError, ValueError):
+                waiver = None
+    if not waiver:
+        current_app.logger.warning(
+            "BoldSign webhook received but waiver not matched: event_type=%s document_id=%s",
+            event_type,
+            document_id,
+        )
         return jsonify({"ok": True, "matched": False}), 200
 
     status_map = {
@@ -179,6 +204,8 @@ def boldsign_webhook():
         "documentdelivered": "sent",
         "documentviewed": "viewed",
         "documentcompleted": "signed",
+        "documentsigned": "signed",
+        "completed": "signed",
         "documentdeclined": "declined",
         "documentexpired": "expired",
         "documentfailed": "failed",
