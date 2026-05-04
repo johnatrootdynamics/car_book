@@ -7,6 +7,7 @@
   </div>
   <form method="post" class="form-grid narrow register-form" data-enhanced>
     {{ form.hidden_tag() }}
+    <label>Username {{ form.username() }}</label>
     <label>Full Name {{ form.full_name() }}</label>
     <label>Email {{ form.email() }}</label>
     <label>Phone {{ form.phone() }}</label>

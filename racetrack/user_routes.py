@@ -108,7 +108,7 @@ def car_new():
         post = SocialPost(
             user_id=current_user.id,
             post_type="car_spotlight",
-            title=f"{current_user.first_name} added a car",
+            title=f"@{current_user.username} added a car",
             body=f"{car.car_year} {car.make} {car.model}" + (f" ({car.color})" if car.color else ""),
         )
         db.session.add(post)
@@ -194,7 +194,7 @@ def signup_event(event_id):
             event_id=event.id,
             event_registration_id=reg.id,
             post_type="event_signup",
-            title=f"{current_user.first_name} signed up for {event.event_name}",
+            title=f"@{current_user.username} signed up for {event.event_name}",
             body=f"Driving: {selected_car.car_year} {selected_car.make} {selected_car.model}",
         )
         db.session.add(post)

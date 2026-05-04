@@ -31,6 +31,11 @@ def user_register():
         return redirect(url_for("user.dashboard" if current_user.account_type == "user" else "employee.dashboard"))
     form = UserRegistrationForm()
     if form.validate_on_submit():
+        normalized_username = form.username.data.strip().lower()
+        existing_username = User.query.filter_by(username=normalized_username).first()
+        if existing_username:
+            flash("Username already taken.", "error")
+            return render_template("auth/register.html", form=form)
         existing = User.query.filter_by(email=form.email.data.lower()).first()
         if existing:
             flash("Email already registered.", "error")
@@ -38,6 +43,7 @@ def user_register():
         user = User(
             first_name=form.full_name.data.strip().split(" ")[0],
             last_name=" ".join(form.full_name.data.strip().split(" ")[1:]) or "-",
+            username=normalized_username,
             email=form.email.data.lower().strip(),
             phone=(form.phone.data or "").strip() or "N/A",
             static_qr_code=_generate_user_qr_code(),

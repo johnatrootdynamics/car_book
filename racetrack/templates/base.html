@@ -3,13 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>RaceTrack Portal</title>
+  <title>Track Ops</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header class="topbar">
     <div class="container nav-row">
-      <a href="{{ url_for('auth.home') }}" class="brand">RaceTrack Portal</a>
+      <a href="{{ url_for('auth.home') }}" class="brand-wrap">
+        <span class="brand">Track Ops</span>
+        <span class="subbrand">A Root Dynamics product</span>
+      </a>
       <nav>
         {% if current_user.is_authenticated and is_user %}
           <a href="{{ url_for('user.dashboard') }}">User Dashboard</a>

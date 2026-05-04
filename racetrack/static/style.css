@@ -26,6 +26,8 @@ body {
 .topbar { position: sticky; top: 0; backdrop-filter: blur(8px); background: rgba(0,0,0,0.25); border-bottom: 1px solid var(--border); }
 .nav-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; }
 .brand { color: #fff; text-decoration: none; font-weight: 800; letter-spacing: .3px; }
+.brand-wrap { text-decoration: none; display: flex; flex-direction: column; gap: 2px; }
+.subbrand { color: var(--muted); font-size: .74rem; letter-spacing: .2px; }
 nav a { color: var(--muted); text-decoration: none; margin-left: 14px; }
 nav a:hover { color: #fff; }
 

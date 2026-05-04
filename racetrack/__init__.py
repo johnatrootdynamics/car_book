@@ -174,6 +174,9 @@ def create_app():
                 "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checkin_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS static_qr_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
@@ -184,6 +187,12 @@ def create_app():
             )
 
         with db.engine.begin() as conn:
+            conn.exec_driver_sql(
+                "UPDATE users SET username = LOWER(SUBSTRING_INDEX(email, '@', 1)) WHERE username IS NULL OR username = ''"
+            )
+            conn.exec_driver_sql(
+                "UPDATE users u JOIN (SELECT id, CONCAT(LOWER(SUBSTRING_INDEX(email, '@', 1)), '-', id) AS fallback_username FROM users) x ON x.id = u.id SET u.username = x.fallback_username WHERE u.username IN (SELECT t.username FROM (SELECT username FROM users GROUP BY username HAVING COUNT(*) > 1) t)"
+            )
             conn.exec_driver_sql(
                 "UPDATE users SET static_qr_code = CONCAT('DRV-', UPPER(SUBSTRING(MD5(CONCAT(id, email)), 1, 8))) WHERE static_qr_code IS NULL OR static_qr_code = ''"
             )
@@ -202,6 +211,10 @@ def create_app():
                 conn.exec_driver_sql(
                     "CREATE UNIQUE INDEX idx_users_static_qr_code ON users (static_qr_code)"
                 )
+            except Exception:
+                pass
+            try:
+                conn.exec_driver_sql("CREATE UNIQUE INDEX idx_users_username ON users (username)")
             except Exception:
                 pass
             try:

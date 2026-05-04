@@ -48,14 +48,14 @@
     {% for post in posts %}
       <div class="feed-post">
         <h4>{{ post.title }}</h4>
-        <p class="muted-line">By {{ post.author.first_name }} {{ post.author.last_name }} • {{ post.created_at }}</p>
+        <p class="muted-line">By @{{ post.author.username or ('driver' ~ post.author.id) }} • {{ post.created_at }}</p>
         {% if post.body %}<p>{{ post.body }}</p>{% endif %}
 
         {% if post.comments %}
           <div class="comment-list">
             {% for comment in post.comments %}
               <div class="comment-item pop-comment">
-                <div class="comment-head">{{ comment.author.first_name }} {{ comment.author.last_name }}</div>
+                <div class="comment-head">@{{ comment.author.username or ('driver' ~ comment.author.id) }}</div>
                 <div>{{ comment.body }}</div>
               </div>
             {% endfor %}
@@ -82,7 +82,7 @@
       {% for car in cars %}
         <div class="car-item">
           <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
-          <p class="muted-line">Owner: {{ car.owner.first_name }} {{ car.owner.last_name }}</p>
+          <p class="muted-line">Owner: @{{ car.owner.username or ('driver' ~ car.owner.id) }}</p>
           <p class="muted-line">Color: {{ car.color or 'N/A' }}</p>
         </div>
       {% endfor %}

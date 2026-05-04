@@ -12,6 +12,7 @@ def validate_not_past(form, field):
 
 
 class UserRegistrationForm(FlaskForm):
+    username = StringField("Username", validators=[DataRequired(), Length(min=3, max=50)])
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
     phone = StringField("Phone", validators=[Length(max=30)])
