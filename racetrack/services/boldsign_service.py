@@ -48,11 +48,38 @@ def send_waiver_from_template(
         "redirectUrl": redirect_url,
         "metadata": metadata or {},
     }
+
     response = requests.post(endpoint, headers=_headers(), data=json.dumps(payload), timeout=30)
-    if not response.ok:
-        logger.error("BoldSign send failed: %s %s", response.status_code, response.text)
-        response.raise_for_status()
-    return response.json()
+    if response.ok:
+        return response.json()
+
+    logger.warning("BoldSign template/send JSON attempt failed: %s %s", response.status_code, response.text)
+
+    form_payload = {
+        "TemplateId": template_id,
+        "RedirectUrl": redirect_url,
+        "SignerDetails[0][Name]": signer_name,
+        "SignerDetails[0][EmailAddress]": signer_email,
+        "SignerDetails[0][SignerType]": "Signer",
+        "SignerDetails[0][SignerRole]": signer_role,
+    }
+    if metadata:
+        form_payload["Metadata"] = json.dumps(metadata)
+
+    response_form = requests.post(
+        endpoint,
+        headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"},
+        data=form_payload,
+        timeout=30,
+    )
+    if not response_form.ok:
+        logger.error(
+            "BoldSign send failed after JSON+form attempts: json=%s form=%s",
+            response.text,
+            response_form.text,
+        )
+        response_form.raise_for_status()
+    return response_form.json()
 
 
 def get_embedded_signing_link(document_id, signer_email):
