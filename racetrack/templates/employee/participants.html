@@ -15,9 +15,9 @@
             <tr>
               <td>{{ reg.user.first_name }} {{ reg.user.last_name }}</td>
               <td>
-                <form method="post" action="{{ url_for('employee.update_driver_class', track_id=event.track_id, user_id=reg.user_id) }}" class="inline">
+                <form method="post" action="{{ url_for('employee.update_driver_class', track_id=event.track_id, user_id=reg.user_id) }}" class="inline driver-class-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <select name="driver_class">
+                  <select name="driver_class" class="driver-class-select">
                     {% set active_class = class_by_user.get(reg.user_id, 'C') %}
                     <option value="A" {% if active_class == 'A' %}selected{% endif %}>A</option>
                     <option value="B" {% if active_class == 'B' %}selected{% endif %}>B</option>
