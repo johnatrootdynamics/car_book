@@ -3,6 +3,12 @@
 <section class="card">
   <h2>Driver Dashboard</h2>
   <p>@{{ current_user.username or ('driver' ~ current_user.id) }} • {{ current_user.email }}</p>
+  <p>
+    <span class="driver-class-pill driver-class-{{ current_user.driver_class }}">
+      Driver Class <strong>{{ current_user.driver_class }}</strong>
+      {% if current_user.driver_class == 'A' %}(Advanced){% elif current_user.driver_class == 'B' %}(Intermediate){% else %}(Novice){% endif %}
+    </span>
+  </p>
 </section>
 
 <section class="card">

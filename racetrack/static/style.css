@@ -226,6 +226,39 @@ th { color: var(--muted); font-weight: 600; }
 .badge-not_sent { background: rgba(148,163,184,.18); color: #cbd5e1; border: 1px solid rgba(148,163,184,.35); }
 .badge-declined, .badge-expired, .badge-failed { background: rgba(239,68,68,.18); color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
 
+.driver-class-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.driver-class-pill strong {
+  font-size: 1.05rem;
+}
+
+.driver-class-A {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.driver-class-B {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.driver-class-C {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
 .comment-list {
   margin-top: 8px;
   margin-bottom: 8px;

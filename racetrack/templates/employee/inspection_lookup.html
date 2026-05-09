@@ -18,6 +18,12 @@
     {{ registration.user.first_name }} {{ registration.user.last_name }} •
     {{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}
   </p>
+  <p>
+    <span class="driver-class-pill driver-class-{{ registration.user.driver_class }}">
+      Driver Class <strong>{{ registration.user.driver_class }}</strong>
+      {% if registration.user.driver_class == 'A' %}(Advanced){% elif registration.user.driver_class == 'B' %}(Intermediate){% else %}(Novice){% endif %}
+    </span>
+  </p>
   {% if waiver_ctx and waiver_ctx.status == 'signed' %}
     <span class="badge badge-signed">Waiver Signed</span>
     <a class="btn" href="{{ url_for('employee.inspect_registration', event_id=event.id, registration_id=registration.id) }}">Open Inspection</a>

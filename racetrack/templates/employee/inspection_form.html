@@ -6,6 +6,12 @@
     {{ event.event_name }} • {{ registration.user.first_name }} {{ registration.user.last_name }} •
     {{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}
   </p>
+  <p>
+    <span class="driver-class-pill driver-class-{{ registration.user.driver_class }}">
+      Driver Class <strong>{{ registration.user.driver_class }}</strong>
+      {% if registration.user.driver_class == 'A' %}(Advanced){% elif registration.user.driver_class == 'B' %}(Intermediate){% else %}(Novice){% endif %}
+    </span>
+  </p>
   <p>Check-in Code: <code>{{ registration.checkin_code }}</code></p>
 </section>
 
