@@ -3,12 +3,17 @@
 <section class="card">
   <h2>Driver Dashboard</h2>
   <p>@{{ current_user.username or ('driver' ~ current_user.id) }} • {{ current_user.email }}</p>
-  <p>
-    <span class="driver-class-pill driver-class-{{ current_user.driver_class }}">
-      Driver Class <strong>{{ current_user.driver_class }}</strong>
-      {% if current_user.driver_class == 'A' %}(Advanced){% elif current_user.driver_class == 'B' %}(Intermediate){% else %}(Novice){% endif %}
-    </span>
-  </p>
+  {% if track_classes %}
+    <div class="actions-row" style="flex-wrap:wrap; margin-top:8px;">
+      {% for tc in track_classes %}
+        <span class="driver-class-pill driver-class-{{ tc.driver_class }}">
+          {{ tc.track.name }} <strong>{{ tc.driver_class }}</strong>
+        </span>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted-line">Your class starts at C for each new track and is updated by track staff.</p>
+  {% endif %}
 </section>
 
 <section class="card">

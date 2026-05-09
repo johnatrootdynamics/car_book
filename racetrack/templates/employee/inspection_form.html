@@ -7,9 +7,10 @@
     {{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}
   </p>
   <p>
-    <span class="driver-class-pill driver-class-{{ registration.user.driver_class }}">
-      Driver Class <strong>{{ registration.user.driver_class }}</strong>
-      {% if registration.user.driver_class == 'A' %}(Advanced){% elif registration.user.driver_class == 'B' %}(Intermediate){% else %}(Novice){% endif %}
+    {% set dc = track_class.driver_class if track_class else 'C' %}
+    <span class="driver-class-pill driver-class-{{ dc }}">
+      Driver Class <strong>{{ dc }}</strong>
+      {% if dc == 'A' %}(Advanced){% elif dc == 'B' %}(Intermediate){% else %}(Novice){% endif %}
     </span>
   </p>
   <p>Check-in Code: <code>{{ registration.checkin_code }}</code></p>

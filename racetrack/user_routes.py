@@ -12,6 +12,7 @@ from .models import (
     SocialComment,
     SocialPost,
     Track,
+    TrackDriverClass,
     TrackSubscription,
     TrackWaiverTemplate,
     db,
@@ -71,6 +72,12 @@ def dashboard():
         item.track_id
         for item in TrackSubscription.query.filter_by(user_id=current_user.id).all()
     }
+    track_classes = (
+        TrackDriverClass.query.join(Track, Track.id == TrackDriverClass.track_id)
+        .filter(TrackDriverClass.user_id == current_user.id)
+        .order_by(Track.name.asc())
+        .all()
+    )
     subscribed_events = []
     if subscribed_track_ids:
         subscribed_events = (
@@ -94,6 +101,7 @@ def dashboard():
         waivers=waivers,
         subscribed_events=subscribed_events,
         subscribed_track_ids=subscribed_track_ids,
+        track_classes=track_classes,
     )
 
 
@@ -131,6 +139,9 @@ def subscribe_track(track_id):
     existing = TrackSubscription.query.filter_by(track_id=track_id, user_id=current_user.id).first()
     if not existing:
         db.session.add(TrackSubscription(track_id=track_id, user_id=current_user.id))
+        track_class = TrackDriverClass.query.filter_by(track_id=track_id, user_id=current_user.id).first()
+        if not track_class:
+            db.session.add(TrackDriverClass(track_id=track_id, user_id=current_user.id, driver_class="C"))
         db.session.commit()
         flash("Track subscribed.", "success")
     return redirect(url_for("user.tracks_directory"))
@@ -288,6 +299,13 @@ def signup_event(event_id):
             checkin_code=selected_car.static_qr_code,
         )
         db.session.add(reg)
+        track_class = TrackDriverClass.query.filter_by(
+            track_id=event.track_id, user_id=current_user.id
+        ).first()
+        if not track_class:
+            db.session.add(
+                TrackDriverClass(track_id=event.track_id, user_id=current_user.id, driver_class="C")
+            )
         db.session.commit()
         post = SocialPost(
             user_id=current_user.id,

@@ -40,6 +40,9 @@ class User(db.Model, UserMixin):
     track_subscriptions = db.relationship(
         "TrackSubscription", backref="user", cascade="all, delete-orphan"
     )
+    track_classes = db.relationship(
+        "TrackDriverClass", backref="user", cascade="all, delete-orphan"
+    )
 
     @property
     def account_type(self):
@@ -66,6 +69,9 @@ class Track(db.Model):
     )
     subscriptions = db.relationship(
         "TrackSubscription", backref="track", cascade="all, delete-orphan"
+    )
+    driver_classes = db.relationship(
+        "TrackDriverClass", backref="track", cascade="all, delete-orphan"
     )
 
 
@@ -262,6 +268,26 @@ class TrackSubscription(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint("track_id", "user_id", name="uniq_track_subscription"),
+    )
+
+
+class TrackDriverClass(db.Model):
+    __tablename__ = "track_driver_classes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    driver_class = db.Column(db.String(1), nullable=False, default="C")
+    updated_by_employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    updated_by = db.relationship("Employee")
+
+    __table_args__ = (
+        db.UniqueConstraint("track_id", "user_id", name="uniq_track_driver_class"),
     )
 
 

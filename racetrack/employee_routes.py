@@ -16,6 +16,7 @@ from .models import (
     InspectionItem,
     InspectionRule,
     Track,
+    TrackDriverClass,
     TrackWaiverTemplate,
     db,
 )
@@ -45,6 +46,15 @@ def active_track_id():
     if current_user.account_type == "admin":
         return int(session.get("impersonate_track_id"))
     return current_user.track_id
+
+
+def _get_or_create_track_driver_class(track_id, user_id):
+    record = TrackDriverClass.query.filter_by(track_id=track_id, user_id=user_id).first()
+    if not record:
+        record = TrackDriverClass(track_id=track_id, user_id=user_id, driver_class="C")
+        db.session.add(record)
+        db.session.flush()
+    return record
 
 
 @employee_bp.route("/dashboard")
@@ -225,16 +235,44 @@ def participants(event_id):
     from .waiver_routes import get_required_waiver_status
 
     waiver_status = {}
+    class_by_user = {}
     for reg in regs:
         status, waiver = get_required_waiver_status(event.track_id, reg.user_id, event.id)
         waiver_status[reg.id] = {"status": status, "waiver": waiver}
+        class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
+    db.session.commit()
     return render_template(
         "employee/participants.html",
         event=event,
         registrations=regs,
         inspections=inspections,
         waiver_status=waiver_status,
+        class_by_user=class_by_user,
     )
+
+
+@employee_bp.route("/tracks/<int:track_id>/drivers/<int:user_id>/class", methods=["POST"])
+@login_required
+def update_driver_class(track_id, user_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    if track_id != active_track_id():
+        flash("You can only update classes for your track.", "error")
+        return redirect(url_for("employee.dashboard"))
+
+    selected = (request.form.get("driver_class") or "").strip().upper()
+    if selected not in {"A", "B", "C"}:
+        flash("Invalid class selected.", "error")
+        return redirect(request.referrer or url_for("employee.dashboard"))
+
+    record = _get_or_create_track_driver_class(track_id, user_id)
+    record.driver_class = selected
+    if current_user.account_type == "employee":
+        record.updated_by_employee_id = current_user.id
+    db.session.commit()
+    flash("Driver class updated.", "success")
+    return redirect(request.referrer or url_for("employee.dashboard"))
 
 
 @employee_bp.route("/inspection-rules", methods=["POST"])
@@ -406,7 +444,18 @@ def inspection_lookup(event_id):
 
         status, waiver = get_required_waiver_status(event.track_id, registration.user_id, event.id)
         waiver_ctx = {"status": status, "waiver": waiver}
-    return render_template("employee/inspection_lookup.html", event=event, code=code, registration=registration, waiver_ctx=waiver_ctx)
+    track_class = None
+    if registration:
+        track_class = _get_or_create_track_driver_class(event.track_id, registration.user_id)
+        db.session.commit()
+    return render_template(
+        "employee/inspection_lookup.html",
+        event=event,
+        code=code,
+        registration=registration,
+        waiver_ctx=waiver_ctx,
+        track_class=track_class,
+    )
 
 
 @employee_bp.route("/events/<int:event_id>/inspections/<int:registration_id>", methods=["GET", "POST"])
@@ -445,10 +494,13 @@ def inspect_registration(event_id, registration_id):
         flash("Inspection saved.", "success")
         return redirect(url_for("employee.participants", event_id=event_id))
 
+    track_class = _get_or_create_track_driver_class(registration.event.track_id, registration.user_id)
+    db.session.commit()
     return render_template(
         "employee/inspection_form.html",
         registration=registration,
         event=registration.event,
+        track_class=track_class,
         rules=rules,
         existing_map=existing_map,
         form=form,

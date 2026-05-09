@@ -136,6 +136,7 @@ def create_app():
             "community_groups",
             "community_group_members",
             "track_subscriptions",
+            "track_driver_classes",
             "track_waiver_templates",
             "driver_waivers",
         }
@@ -202,6 +203,15 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "UPDATE users SET driver_class = 'C' WHERE driver_class IS NULL OR driver_class NOT IN ('A','B','C')"
+            )
+            conn.exec_driver_sql(
+                "UPDATE track_driver_classes SET driver_class = 'C' WHERE driver_class IS NULL OR driver_class NOT IN ('A','B','C')"
+            )
+            conn.exec_driver_sql(
+                "INSERT IGNORE INTO track_driver_classes (track_id, user_id, driver_class, created_at, updated_at) SELECT DISTINCT e.track_id, er.user_id, CASE WHEN u.driver_class IN ('A','B','C') THEN u.driver_class ELSE 'C' END, NOW(), NOW() FROM event_registrations er JOIN events e ON e.id = er.event_id JOIN users u ON u.id = er.user_id"
+            )
+            conn.exec_driver_sql(
+                "INSERT IGNORE INTO track_driver_classes (track_id, user_id, driver_class, created_at, updated_at) SELECT ts.track_id, ts.user_id, CASE WHEN u.driver_class IN ('A','B','C') THEN u.driver_class ELSE 'C' END, NOW(), NOW() FROM track_subscriptions ts JOIN users u ON u.id = ts.user_id"
             )
             conn.exec_driver_sql(
                 "UPDATE users u JOIN (SELECT id, CONCAT(LOWER(SUBSTRING_INDEX(email, '@', 1)), '-', id) AS fallback_username FROM users) x ON x.id = u.id SET u.username = x.fallback_username WHERE u.username IN (SELECT t.username FROM (SELECT username FROM users GROUP BY username HAVING COUNT(*) > 1) t)"
@@ -318,6 +328,7 @@ def create_app():
             "community_groups",
             "community_group_members",
             "track_subscriptions",
+            "track_driver_classes",
             "track_waiver_templates",
             "driver_waivers",
         }
