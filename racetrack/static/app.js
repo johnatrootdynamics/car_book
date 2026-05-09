@@ -54,9 +54,65 @@ function setupCommentValidation() {
   })
 }
 
+function setupLandingFlow() {
+  const landing = document.querySelector("[data-landing-page]")
+  if (!landing) return
+
+  const links = Array.from(landing.querySelectorAll(".flow-link"))
+  const sections = Array.from(landing.querySelectorAll("[data-flow-section]"))
+  if (links.length === 0 || sections.length === 0) return
+
+  links.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      const href = link.getAttribute("href")
+      if (!href || !href.startsWith("#")) return
+      const target = document.querySelector(href)
+      if (!target) return
+      event.preventDefault()
+      target.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  })
+
+  const setActive = (id) => {
+    links.forEach((link) => {
+      const active = link.getAttribute("href") === `#${id}`
+      link.classList.toggle("is-active", active)
+    })
+  }
+
+  const sectionObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        if (entry.target.id) setActive(entry.target.id)
+      })
+    },
+    { rootMargin: "-35% 0px -52% 0px", threshold: 0.2 }
+  )
+
+  const revealObserver = new IntersectionObserver(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        entry.target.classList.add("is-visible")
+        observer.unobserve(entry.target)
+      })
+    },
+    { threshold: 0.12 }
+  )
+
+  sections.forEach((section) => {
+    sectionObserver.observe(section)
+    revealObserver.observe(section)
+  })
+
+  setActive("overview")
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupEnhancedForms()
   setupCounters()
   setupAutoResizeTextareas()
   setupCommentValidation()
+  setupLandingFlow()
 })
