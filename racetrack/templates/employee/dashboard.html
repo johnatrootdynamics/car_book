@@ -9,7 +9,6 @@
     <div class="actions-row">
       <a class="btn btn-secondary" href="{{ url_for('employee.track_profile') }}">Track Profile</a>
       <a class="btn btn-secondary" href="{{ url_for('employee.staff_accounts') }}">Staff Accounts</a>
-      {% if upcoming_events %}<a class="btn btn-secondary" href="{{ url_for('employee.run_groups', event_id=upcoming_events[0].id) }}">Run Groups</a>{% endif %}
       <a class="btn btn-secondary" href="{{ url_for('employee.inspection_rules') }}">Inspection Rules</a>
       <a class="btn btn-secondary" href="{{ url_for('employee.waiver_template_builder') }}">Waiver Builder</a>
       {% if is_admin %}<a class="btn btn-secondary" href="{{ url_for('admin.waivers') }}">Waivers</a>{% endif %}
