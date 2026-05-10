@@ -317,8 +317,6 @@ def event_detail(event_id):
     assignments = {}
     participants = []
     class_by_user = {}
-    inspection_registration = None
-    inspection_waiver_ctx = None
 
     if view == "run_groups":
         groups = RunGroup.query.filter_by(event_id=event.id).order_by(RunGroup.name.asc()).all()
@@ -349,18 +347,6 @@ def event_detail(event_id):
             class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
         db.session.commit()
 
-    if view == "inspect":
-        code = (request.args.get("code") or "").strip().upper()
-        if code:
-            inspection_registration = EventRegistration.query.filter_by(event_id=event.id, checkin_code=code).first()
-            if inspection_registration:
-                from .waiver_routes import get_required_waiver_status
-
-                status, waiver = get_required_waiver_status(event.track_id, inspection_registration.user_id, event.id)
-                inspection_waiver_ctx = {"status": status, "waiver": waiver}
-            else:
-                flash("No signup found for that scan code in this event.", "error")
-
     return render_template(
         "employee/event_detail.html",
         event=event,
@@ -372,8 +358,6 @@ def event_detail(event_id):
         assignments=assignments,
         participants=participants,
         class_by_user=class_by_user,
-        inspection_registration=inspection_registration,
-        inspection_waiver_ctx=inspection_waiver_ctx,
     )
 
 
@@ -573,11 +557,27 @@ def inspect_search(event_id):
             (User.first_name.ilike(like))
             | (User.last_name.ilike(like))
             | (User.username.ilike(like)),
+            
         )
         .order_by(User.first_name.asc(), User.last_name.asc())
         .limit(15)
         .all()
     )
+
+    code_rows = (
+        EventRegistration.query.filter(
+            EventRegistration.event_id == event.id,
+            EventRegistration.checkin_code.ilike(like),
+        )
+        .order_by(EventRegistration.created_at.asc())
+        .limit(15)
+        .all()
+    )
+
+    reg_map = {reg.id: reg for reg in rows}
+    for reg in code_rows:
+        reg_map[reg.id] = reg
+    rows = list(reg_map.values())
 
     from .waiver_routes import get_required_waiver_status
 
