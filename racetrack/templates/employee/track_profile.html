@@ -16,7 +16,7 @@
   {% if track.layout_image_path %}
     <div class="track-layout-preview">
       <p>Current Layout</p>
-      <img src="{{ url_for('static', filename=track.layout_image_path) }}" alt="Track layout image">
+      <img src="{{ track.layout_image_path if track.layout_image_path.startswith('http') else url_for('static', filename=track.layout_image_path) }}" alt="Track layout image">
     </div>
   {% endif %}
 </section>

@@ -67,7 +67,7 @@
         {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
         <div class="event-tile">
           {% if event.thumbnail_image_path %}
-            <img src="{{ url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
+            <img src="{{ event.thumbnail_image_path if event.thumbnail_image_path.startswith('http') else url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
           {% else %}
             <div class="event-fallback">{{ event.event_name }}</div>
           {% endif %}
@@ -110,7 +110,7 @@
       {% for event in subscribed_events %}
       <div class="event-tile">
         {% if event.thumbnail_image_path %}
-          <img src="{{ url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
+          <img src="{{ event.thumbnail_image_path if event.thumbnail_image_path.startswith('http') else url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
         {% else %}
           <div class="event-fallback">{{ event.event_name }}</div>
         {% endif %}

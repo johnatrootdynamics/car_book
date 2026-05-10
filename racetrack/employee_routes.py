@@ -1,6 +1,3 @@
-import os
-from uuid import uuid4
-
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
@@ -23,6 +20,7 @@ from .models import (
 )
 from .services.boldsign_service import create_embedded_template_url
 from .services.boldsign_service import delete_template as boldsign_delete_template
+from .services.storage_service import upload_public_image
 
 
 employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
@@ -119,11 +117,15 @@ def update_track():
         upload = form.layout_image.data
         if upload:
             clean_name = secure_filename(upload.filename)
-            ext = os.path.splitext(clean_name)[1].lower()
-            new_name = f"track_{track.id}_{uuid4().hex}{ext}"
-            out_path = os.path.join(current_app.config["UPLOAD_FOLDER"], new_name)
-            upload.save(out_path)
-            track.layout_image_path = f"uploads/tracks/{new_name}"
+            upload.filename = clean_name
+            track.layout_image_path = upload_public_image(
+                upload,
+                bucket=current_app.config["S3_BUCKET"],
+                endpoint_url=current_app.config["S3_ENDPOINT_URL"],
+                access_key=current_app.config["S3_ACCESS_KEY"],
+                secret_key=current_app.config["S3_SECRET_KEY"],
+                key_prefix=f"tracks/{track.id}",
+            )
         db.session.commit()
         flash("Track profile updated.", "success")
     else:
@@ -169,11 +171,15 @@ def event_new():
         upload = form.thumbnail_image.data
         if upload:
             clean_name = secure_filename(upload.filename)
-            ext = os.path.splitext(clean_name)[1].lower()
-            new_name = f"event_{active_track_id()}_{uuid4().hex}{ext}"
-            out_path = os.path.join(current_app.config["EVENT_UPLOAD_FOLDER"], new_name)
-            upload.save(out_path)
-            event.thumbnail_image_path = f"uploads/events/{new_name}"
+            upload.filename = clean_name
+            event.thumbnail_image_path = upload_public_image(
+                upload,
+                bucket=current_app.config["S3_BUCKET"],
+                endpoint_url=current_app.config["S3_ENDPOINT_URL"],
+                access_key=current_app.config["S3_ACCESS_KEY"],
+                secret_key=current_app.config["S3_SECRET_KEY"],
+                key_prefix=f"events/{active_track_id()}",
+            )
         db.session.add(event)
         db.session.commit()
         flash("Event created.", "success")
@@ -195,11 +201,15 @@ def event_edit(event_id):
         upload = form.thumbnail_image.data
         if upload:
             clean_name = secure_filename(upload.filename)
-            ext = os.path.splitext(clean_name)[1].lower()
-            new_name = f"event_{active_track_id()}_{uuid4().hex}{ext}"
-            out_path = os.path.join(current_app.config["EVENT_UPLOAD_FOLDER"], new_name)
-            upload.save(out_path)
-            event.thumbnail_image_path = f"uploads/events/{new_name}"
+            upload.filename = clean_name
+            event.thumbnail_image_path = upload_public_image(
+                upload,
+                bucket=current_app.config["S3_BUCKET"],
+                endpoint_url=current_app.config["S3_ENDPOINT_URL"],
+                access_key=current_app.config["S3_ACCESS_KEY"],
+                secret_key=current_app.config["S3_SECRET_KEY"],
+                key_prefix=f"events/{active_track_id()}",
+            )
         db.session.commit()
         flash("Event updated.", "success")
         return redirect(url_for("employee.dashboard"))

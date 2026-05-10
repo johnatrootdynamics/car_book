@@ -73,11 +73,10 @@ def create_app():
     )
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "tracks")
-    app.config["EVENT_UPLOAD_FOLDER"] = os.path.join(app.root_path, "static", "uploads", "events")
-
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-    os.makedirs(app.config["EVENT_UPLOAD_FOLDER"], exist_ok=True)
+    app.config["S3_ENDPOINT_URL"] = os.getenv("S3_ENDPOINT_URL", "https://s3.root-dynamics.com")
+    app.config["S3_BUCKET"] = os.getenv("S3_BUCKET", "trackops")
+    app.config["S3_ACCESS_KEY"] = os.getenv("S3_ACCESS_KEY", "123456")
+    app.config["S3_SECRET_KEY"] = os.getenv("S3_SECRET_KEY", "7890")
 
     db.init_app(app)
     login_manager.init_app(app)
