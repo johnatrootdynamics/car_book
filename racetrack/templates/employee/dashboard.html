@@ -9,6 +9,7 @@
     <div class="actions-row">
       <a class="btn btn-secondary" href="{{ url_for('employee.track_profile') }}">Track Profile</a>
       <a class="btn btn-secondary" href="{{ url_for('employee.staff_accounts') }}">Staff Accounts</a>
+      {% if upcoming_events %}<a class="btn btn-secondary" href="{{ url_for('employee.run_groups', event_id=upcoming_events[0].id) }}">Run Groups</a>{% endif %}
       <a class="btn btn-secondary" href="{{ url_for('employee.inspection_rules') }}">Inspection Rules</a>
       <a class="btn btn-secondary" href="{{ url_for('employee.waiver_template_builder') }}">Waiver Builder</a>
       {% if is_admin %}<a class="btn btn-secondary" href="{{ url_for('admin.waivers') }}">Waivers</a>{% endif %}
@@ -31,6 +32,7 @@
             <td>{{ signup_counts.get(event.id, 0) }}</td>
             <td>
               <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.inspection_lookup', event_id=event.id) }}">Inspect</a>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.run_groups', event_id=event.id) }}">Run Groups</a>
               <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.participants', event_id=event.id) }}">Participants</a>
               <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
               <form method="post" action="{{ url_for('employee.event_delete', event_id=event.id) }}" class="inline">
@@ -63,6 +65,7 @@
               <td>{{ signup_counts.get(event.id, 0) }}</td>
               <td>
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.inspection_lookup', event_id=event.id) }}">Inspect</a>
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.run_groups', event_id=event.id) }}">Run Groups</a>
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.participants', event_id=event.id) }}">Participants</a>
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
               </td>

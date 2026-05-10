@@ -14,6 +14,8 @@ from .models import (
     Inspection,
     InspectionItem,
     InspectionRule,
+    RunGroup,
+    RunGroupAssignment,
     Track,
     TrackDriverClass,
     TrackWaiverTemplate,
@@ -278,6 +280,182 @@ def participants(event_id):
         waiver_status=waiver_status,
         class_by_user=class_by_user,
     )
+
+
+@employee_bp.route("/events/<int:event_id>/run-groups")
+@login_required
+def run_groups(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    query = (request.args.get("q") or "").strip().lower()
+
+    groups = (
+        RunGroup.query.filter_by(event_id=event.id)
+        .order_by(RunGroup.is_active.desc(), RunGroup.name.asc())
+        .all()
+    )
+    registrations = (
+        EventRegistration.query.filter_by(event_id=event.id)
+        .order_by(EventRegistration.created_at.asc())
+        .all()
+    )
+
+    class_by_user = {}
+    for reg in registrations:
+        class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
+
+    assignments = {
+        item.event_registration_id: item.run_group_id
+        for item in RunGroupAssignment.query.join(
+            RunGroup, RunGroup.id == RunGroupAssignment.run_group_id
+        )
+        .filter(RunGroup.event_id == event.id)
+        .all()
+    }
+    db.session.commit()
+
+    if query:
+        registrations = [
+            reg
+            for reg in registrations
+            if query in f"{reg.user.first_name} {reg.user.last_name}".lower()
+            or query in (reg.user.email or "").lower()
+            or query in (reg.user.username or "").lower()
+        ]
+
+    return render_template(
+        "employee/run_groups.html",
+        event=event,
+        groups=groups,
+        registrations=registrations,
+        assignments=assignments,
+        class_by_user=class_by_user,
+        q=query,
+    )
+
+
+@employee_bp.route("/events/<int:event_id>/run-groups/new", methods=["POST"])
+@login_required
+def run_group_new(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash("Run group name is required.", "error")
+        return redirect(url_for("employee.run_groups", event_id=event.id))
+    exists = RunGroup.query.filter_by(event_id=event.id, name=name).first()
+    if exists:
+        flash("Run group name already exists for this event.", "error")
+        return redirect(url_for("employee.run_groups", event_id=event.id))
+    db.session.add(RunGroup(event_id=event.id, name=name, is_active=True))
+    db.session.commit()
+    flash("Run group created.", "success")
+    return redirect(url_for("employee.run_groups", event_id=event.id))
+
+
+@employee_bp.route("/events/<int:event_id>/run-groups/<int:group_id>/rename", methods=["POST"])
+@login_required
+def run_group_rename(event_id, group_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    group = RunGroup.query.filter_by(id=group_id, event_id=event.id).first_or_404()
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash("Run group name is required.", "error")
+        return redirect(url_for("employee.run_groups", event_id=event.id))
+    group.name = name
+    db.session.commit()
+    flash("Run group renamed.", "success")
+    return redirect(url_for("employee.run_groups", event_id=event.id))
+
+
+@employee_bp.route("/events/<int:event_id>/run-groups/<int:group_id>/toggle", methods=["POST"])
+@login_required
+def run_group_toggle(event_id, group_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    group = RunGroup.query.filter_by(id=group_id, event_id=event.id).first_or_404()
+    group.is_active = not group.is_active
+    db.session.commit()
+    flash("Run group updated.", "success")
+    return redirect(url_for("employee.run_groups", event_id=event.id))
+
+
+@employee_bp.route("/events/<int:event_id>/run-groups/assign", methods=["POST"])
+@login_required
+def run_group_assign(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    registration_id = request.form.get("registration_id", type=int)
+    group_id = request.form.get("group_id", type=int)
+
+    registration = EventRegistration.query.filter_by(id=registration_id, event_id=event.id).first_or_404()
+    existing = RunGroupAssignment.query.filter_by(event_registration_id=registration.id).first()
+    if group_id:
+        group = RunGroup.query.filter_by(id=group_id, event_id=event.id).first_or_404()
+        if existing:
+            existing.run_group_id = group.id
+        else:
+            db.session.add(
+                RunGroupAssignment(run_group_id=group.id, event_registration_id=registration.id)
+            )
+        flash("Driver assigned to run group.", "success")
+    else:
+        if existing:
+            db.session.delete(existing)
+        flash("Driver removed from run group.", "success")
+    db.session.commit()
+    return redirect(url_for("employee.run_groups", event_id=event.id))
+
+
+@employee_bp.route("/events/<int:event_id>/run-groups/generate", methods=["POST"])
+@login_required
+def run_group_generate(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    force = request.form.get("force") == "1"
+
+    default_names = ["A", "B", "C"]
+    group_by_name = {
+        group.name: group
+        for group in RunGroup.query.filter_by(event_id=event.id).all()
+    }
+    for name in default_names:
+        if name not in group_by_name:
+            group = RunGroup(event_id=event.id, name=name, is_active=True)
+            db.session.add(group)
+            db.session.flush()
+            group_by_name[name] = group
+
+    registrations = EventRegistration.query.filter_by(event_id=event.id).all()
+    for reg in registrations:
+        driver_class = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
+        target_group = group_by_name.get(driver_class) or group_by_name["C"]
+        existing = RunGroupAssignment.query.filter_by(event_registration_id=reg.id).first()
+        if existing and not force:
+            continue
+        if existing:
+            existing.run_group_id = target_group.id
+        else:
+            db.session.add(
+                RunGroupAssignment(run_group_id=target_group.id, event_registration_id=reg.id)
+            )
+
+    db.session.commit()
+    flash("Run groups generated from driver classes.", "success")
+    return redirect(url_for("employee.run_groups", event_id=event.id))
 
 
 @employee_bp.route("/tracks/<int:track_id>/drivers/search")

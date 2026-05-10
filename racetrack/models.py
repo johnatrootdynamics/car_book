@@ -138,6 +138,9 @@ class Event(db.Model):
     registrations = db.relationship(
         "EventRegistration", backref="event", cascade="all, delete-orphan"
     )
+    run_groups = db.relationship(
+        "RunGroup", backref="event", cascade="all, delete-orphan"
+    )
 
 
 class EventRegistration(db.Model):
@@ -151,6 +154,9 @@ class EventRegistration(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     car = db.relationship("Car")
+    run_group_assignment = db.relationship(
+        "RunGroupAssignment", backref="registration", uselist=False, cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         db.UniqueConstraint("event_id", "user_id", name="uniq_event_user_signup"),
@@ -290,6 +296,44 @@ class TrackDriverClass(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint("track_id", "user_id", name="uniq_track_driver_class"),
+    )
+
+
+class RunGroup(db.Model):
+    __tablename__ = "run_groups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    assignments = db.relationship(
+        "RunGroupAssignment", backref="run_group", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("event_id", "name", name="uniq_run_group_name_per_event"),
+    )
+
+
+class RunGroupAssignment(db.Model):
+    __tablename__ = "run_group_assignments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_group_id = db.Column(db.Integer, db.ForeignKey("run_groups.id"), nullable=False)
+    event_registration_id = db.Column(
+        db.Integer, db.ForeignKey("event_registrations.id"), nullable=False
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "event_registration_id", name="uniq_registration_run_group_assignment"
+        ),
     )
 
 

@@ -164,6 +164,8 @@ def create_app():
             "community_group_members",
             "track_subscriptions",
             "track_driver_classes",
+            "run_groups",
+            "run_group_assignments",
             "track_waiver_templates",
             "driver_waivers",
         }
@@ -381,6 +383,8 @@ def create_app():
             "community_group_members",
             "track_subscriptions",
             "track_driver_classes",
+            "run_groups",
+            "run_group_assignments",
             "track_waiver_templates",
             "driver_waivers",
         }
