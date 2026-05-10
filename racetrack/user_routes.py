@@ -220,13 +220,14 @@ def car_new():
         if upload and getattr(upload, "filename", ""):
             upload.filename = secure_filename(upload.filename)
             car.image_url = upload_public_image(
-                upload,
-                bucket=current_app.config["S3_BUCKET"],
-                endpoint_url=current_app.config["S3_ENDPOINT_URL"],
-                access_key=current_app.config["S3_ACCESS_KEY"],
-                secret_key=current_app.config["S3_SECRET_KEY"],
-                key_prefix=f"cars/{current_user.id}",
-            )
+            upload,
+            bucket=current_app.config["S3_BUCKET"],
+            endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+            access_key=current_app.config["S3_ACCESS_KEY"],
+            secret_key=current_app.config["S3_SECRET_KEY"],
+            key_prefix=f"cars/{current_user.id}",
+            public_base_url=current_app.config["S3_PUBLIC_BASE_URL"],
+        )
         db.session.add(car)
         db.session.commit()
         post = SocialPost(
@@ -262,13 +263,14 @@ def car_edit(car_id):
         if upload and getattr(upload, "filename", ""):
             upload.filename = secure_filename(upload.filename)
             car.image_url = upload_public_image(
-                upload,
-                bucket=current_app.config["S3_BUCKET"],
-                endpoint_url=current_app.config["S3_ENDPOINT_URL"],
-                access_key=current_app.config["S3_ACCESS_KEY"],
-                secret_key=current_app.config["S3_SECRET_KEY"],
-                key_prefix=f"cars/{current_user.id}",
-            )
+            upload,
+            bucket=current_app.config["S3_BUCKET"],
+            endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+            access_key=current_app.config["S3_ACCESS_KEY"],
+            secret_key=current_app.config["S3_SECRET_KEY"],
+            key_prefix=f"cars/{current_user.id}",
+            public_base_url=current_app.config["S3_PUBLIC_BASE_URL"],
+        )
         db.session.commit()
         flash("Car updated.", "success")
         return redirect(url_for("user.dashboard"))

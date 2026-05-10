@@ -74,6 +74,12 @@ def create_app():
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["S3_ENDPOINT_URL"] = os.getenv("S3_ENDPOINT_URL", "https://s3.root-dynamics.com")
+    app.config["S3_API_ENDPOINT_URL"] = os.getenv(
+        "S3_API_ENDPOINT_URL", "https://s3-api.root-dynamics.com"
+    )
+    app.config["S3_PUBLIC_BASE_URL"] = os.getenv(
+        "S3_PUBLIC_BASE_URL", app.config["S3_ENDPOINT_URL"]
+    )
     app.config["S3_BUCKET"] = os.getenv("S3_BUCKET", "trackops")
     app.config["S3_ACCESS_KEY"] = os.getenv("S3_ACCESS_KEY", "")
     app.config["S3_SECRET_KEY"] = os.getenv("S3_SECRET_KEY", "")

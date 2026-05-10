@@ -4,7 +4,15 @@ import boto3
 from botocore.client import Config
 
 
-def upload_public_image(file_storage, bucket, endpoint_url, access_key, secret_key, key_prefix):
+def upload_public_image(
+    file_storage,
+    bucket,
+    endpoint_url,
+    access_key,
+    secret_key,
+    key_prefix,
+    public_base_url=None,
+):
     clean_name = (file_storage.filename or "upload.bin").strip().replace(" ", "_")
     object_key = f"{key_prefix}/{uuid4().hex}_{clean_name}"
 
@@ -24,4 +32,5 @@ def upload_public_image(file_storage, bucket, endpoint_url, access_key, secret_k
         ExtraArgs={"ContentType": file_storage.mimetype or "application/octet-stream"},
     )
 
-    return f"{endpoint_url.rstrip('/')}/{bucket}/{object_key}"
+    base_url = (public_base_url or endpoint_url).rstrip("/")
+    return f"{base_url}/{bucket}/{object_key}"
