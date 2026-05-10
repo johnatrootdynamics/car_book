@@ -282,6 +282,42 @@ def participants(event_id):
     )
 
 
+@employee_bp.route("/events/<int:event_id>")
+@login_required
+def event_detail(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+
+    regs = EventRegistration.query.filter_by(event_id=event.id).order_by(EventRegistration.created_at.asc()).all()
+
+    signup_by_day = (
+        db.session.query(func.date(EventRegistration.created_at), func.count(EventRegistration.id))
+        .filter(EventRegistration.event_id == event.id)
+        .group_by(func.date(EventRegistration.created_at))
+        .order_by(func.date(EventRegistration.created_at).asc())
+        .all()
+    )
+    signup_trend = [{"day": str(day), "count": count} for day, count in signup_by_day]
+
+    class_counts = {"A": 0, "B": 0, "C": 0}
+    for reg in regs:
+        dc = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
+        if dc not in class_counts:
+            class_counts[dc] = 0
+        class_counts[dc] += 1
+    db.session.commit()
+
+    return render_template(
+        "employee/event_detail.html",
+        event=event,
+        total_signups=len(regs),
+        signup_trend=signup_trend,
+        class_counts=class_counts,
+    )
+
+
 @employee_bp.route("/events/<int:event_id>/run-groups")
 @login_required
 def run_groups(event_id):

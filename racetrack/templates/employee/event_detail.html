@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="row-space">
+    <div>
+      <h2>{{ event.event_name }}</h2>
+      <p>{{ event.track.name }} • {{ event.event_date }}</p>
+    </div>
+    <div class="actions-row">
+      <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
+      <a class="btn btn-secondary" href="{{ url_for('employee.run_groups', event_id=event.id) }}">Run Groups</a>
+      <a class="btn btn-secondary" href="{{ url_for('employee.participants', event_id=event.id) }}">Participants</a>
+      <a class="btn btn-secondary" href="{{ url_for('employee.inspection_lookup', event_id=event.id) }}">Inspect</a>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Signups Over Time</h3>
+  {% if signup_trend %}
+    {% set max_count = signup_trend|map(attribute='count')|max %}
+    <div class="form-grid">
+      {% for point in signup_trend %}
+        <div>
+          <div class="row-space"><span>{{ point.day }}</span><strong>{{ point.count }}</strong></div>
+          <div style="height:8px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;">
+            <div style="height:100%;width:{{ (point.count / max_count * 100) if max_count else 0 }}%;background:linear-gradient(135deg,var(--accent),var(--accent2));"></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No signups yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Driver Class Breakdown</h3>
+  <div class="actions-row" style="flex-wrap:wrap; gap:14px;">
+    <span class="driver-class-pill driver-class-A">Class A <strong>{{ class_counts.get('A', 0) }}</strong></span>
+    <span class="driver-class-pill driver-class-B">Class B <strong>{{ class_counts.get('B', 0) }}</strong></span>
+    <span class="driver-class-pill driver-class-C">Class C <strong>{{ class_counts.get('C', 0) }}</strong></span>
+    <span class="badge badge-viewed">Total {{ total_signups }}</span>
+  </div>
+</section>
+{% endblock %}
