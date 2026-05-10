@@ -361,6 +361,7 @@ def signup_event(event_id):
             required_templates = [fallback_template]
 
         created_waiver_id = None
+        needs_waiver_action = False
         for template in required_templates:
             exists = DriverWaiver.query.filter_by(
                 track_id=event.track_id,
@@ -378,12 +379,15 @@ def signup_event(event_id):
                 )
                 db.session.add(new_waiver)
                 db.session.flush()
+                needs_waiver_action = True
                 if created_waiver_id is None:
                     created_waiver_id = new_waiver.id
-            elif created_waiver_id is None:
-                created_waiver_id = exists.id
+            elif exists.status != "signed":
+                needs_waiver_action = True
+                if created_waiver_id is None:
+                    created_waiver_id = exists.id
         db.session.commit()
-        if created_waiver_id:
+        if needs_waiver_action and created_waiver_id:
             flash("Signed up successfully. Please sign the waiver to complete check-in.", "success")
             return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
         flash("Signed up successfully.", "success")
