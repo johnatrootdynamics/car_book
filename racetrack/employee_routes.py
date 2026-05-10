@@ -236,15 +236,21 @@ def participants(event_id):
 
     waiver_status = {}
     class_by_user = {}
+    driver_rows = []
+    seen_users = set()
     for reg in regs:
         status, waiver = get_required_waiver_status(event.track_id, reg.user_id, event.id)
         waiver_status[reg.id] = {"status": status, "waiver": waiver}
         class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
+        if reg.user_id not in seen_users:
+            seen_users.add(reg.user_id)
+            driver_rows.append(reg)
     db.session.commit()
     return render_template(
         "employee/participants.html",
         event=event,
         registrations=regs,
+        driver_rows=driver_rows,
         inspections=inspections,
         waiver_status=waiver_status,
         class_by_user=class_by_user,
