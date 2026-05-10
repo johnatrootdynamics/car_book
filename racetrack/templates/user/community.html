@@ -14,7 +14,7 @@
         {% if event.thumbnail_image_path %}
           <img src="{{ url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
         {% else %}
-          <div class="event-fallback">{{ event.track.name }}</div>
+          <div class="event-fallback">{{ event.event_name }}</div>
         {% endif %}
         <div class="event-tile-body">
           <h4>{{ event.event_name }}</h4>
