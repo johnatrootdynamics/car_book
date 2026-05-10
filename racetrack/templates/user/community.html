@@ -64,7 +64,7 @@
               posted an update
             {% endif %}
           </span>
-          <span class="feed-time">{{ post.created_at }}</span>
+          <span class="feed-time">{{ post.created_at.strftime('%B %-d, %Y') if post.created_at else '' }}</span>
         </div>
 
         {% if post.comments %}
