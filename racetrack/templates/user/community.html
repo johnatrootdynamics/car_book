@@ -22,7 +22,6 @@
           <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
           <p class="muted-line">{{ event_signup_counts.get(event.id, 0) }} drivers signed up</p>
           {% if event.id in signups %}
-            <p class="muted-line"><code>{{ signups[event.id].checkin_code }}</code></p>
             <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-secondary btn-sm">Cancel Signup</button>
