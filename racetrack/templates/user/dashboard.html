@@ -105,7 +105,21 @@
 </section>
 
 <section class="card">
-  <h3>Events From Subscribed Tracks</h3>
+  <div class="row-space">
+    <h3>Events From Subscribed Tracks</h3>
+    {% if subscribed_tracks %}
+      <form method="get" class="inline">
+        <label class="inline">Track
+          <select name="track_id" onchange="this.form.submit()">
+            <option value="">All Tracks</option>
+            {% for track in subscribed_tracks %}
+              <option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+    {% endif %}
+  </div>
   {% if subscribed_events %}
     <div class="event-tile-grid">
       {% for event in subscribed_events %}
@@ -138,7 +152,11 @@
       {% endfor %}
     </div>
   {% else %}
-    <p>Subscribe to tracks to see their events here.</p>
+    {% if subscribed_tracks %}
+      <p>No upcoming events for this track yet.</p>
+    {% else %}
+      <p>Subscribe to tracks to see their events here.</p>
+    {% endif %}
   {% endif %}
 </section>
 

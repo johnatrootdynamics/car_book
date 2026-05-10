@@ -78,6 +78,16 @@ def dashboard():
         item.track_id
         for item in TrackSubscription.query.filter_by(user_id=current_user.id).all()
     }
+    selected_track_id = request.args.get("track_id", type=int)
+    if selected_track_id is not None and selected_track_id not in subscribed_track_ids:
+        selected_track_id = None
+    subscribed_tracks = []
+    if subscribed_track_ids:
+        subscribed_tracks = (
+            Track.query.filter(Track.id.in_(subscribed_track_ids))
+            .order_by(Track.name.asc())
+            .all()
+        )
     track_classes = (
         TrackDriverClass.query.join(Track, Track.id == TrackDriverClass.track_id)
         .filter(TrackDriverClass.user_id == current_user.id)
@@ -87,15 +97,13 @@ def dashboard():
     track_class_by_track_id = {item.track_id: item.driver_class for item in track_classes}
     subscribed_events = []
     if subscribed_track_ids:
-        subscribed_events = (
-            Event.query.filter(
-                Event.track_id.in_(subscribed_track_ids),
-                Event.event_date >= date.today(),
-            )
-            .order_by(Event.event_date.asc())
-            .limit(24)
-            .all()
+        event_query = Event.query.filter(
+            Event.track_id.in_(subscribed_track_ids),
+            Event.event_date >= date.today(),
         )
+        if selected_track_id:
+            event_query = event_query.filter(Event.track_id == selected_track_id)
+        subscribed_events = event_query.order_by(Event.event_date.asc()).limit(24).all()
 
     waivers = []
     for item in waiver_by_event.values():
@@ -110,6 +118,8 @@ def dashboard():
         waiver_by_event=waiver_by_event,
         waivers=waivers,
         subscribed_events=subscribed_events,
+        subscribed_tracks=subscribed_tracks,
+        selected_track_id=selected_track_id,
         subscribed_track_ids=subscribed_track_ids,
         track_class_by_track_id=track_class_by_track_id,
     )
