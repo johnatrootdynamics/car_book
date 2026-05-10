@@ -7,17 +7,6 @@
 </section>
 
 <section class="card">
-  <h3>Quick Class Manager</h3>
-  <div class="class-search" data-class-search data-search-url="{{ url_for('employee.search_track_drivers', track_id=event.track_id) }}" data-csrf-token="{{ csrf_token() }}">
-    <label>Find driver by name, username, or email
-      <input type="text" class="class-search-input" placeholder="Start typing to search drivers..." autocomplete="off">
-    </label>
-    <p class="hint">Type at least 2 characters to search. This works across your whole track, not just this event.</p>
-    <div class="class-search-results"></div>
-  </div>
-</section>
-
-<section class="card">
   <h3>Participant Details</h3>
   {% if registrations %}
     <div class="table-wrap">
