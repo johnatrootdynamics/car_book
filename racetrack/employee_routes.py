@@ -383,9 +383,9 @@ def run_group_toggle(event_id, group_id):
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
     group = RunGroup.query.filter_by(id=group_id, event_id=event.id).first_or_404()
-    group.is_active = not group.is_active
+    db.session.delete(group)
     db.session.commit()
-    flash("Run group updated.", "success")
+    flash("Run group deleted.", "success")
     return redirect(url_for("employee.run_groups", event_id=event.id))
 
 

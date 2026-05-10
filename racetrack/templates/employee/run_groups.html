@@ -86,7 +86,7 @@
           </form>
           <form method="post" action="{{ url_for('employee.run_group_toggle', event_id=event.id, group_id=group.id) }}" class="inline" style="margin-top:8px;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-sm">{{ 'Deactivate' if group.is_active else 'Activate' }}</button>
+            <button type="submit" class="btn btn-sm danger-btn">Delete Group</button>
           </form>
         </article>
       {% endfor %}
