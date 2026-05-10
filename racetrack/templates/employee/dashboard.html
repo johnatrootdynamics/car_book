@@ -18,13 +18,13 @@
 </section>
 
 <section class="card">
-  <h3>Track Events</h3>
-  {% if events %}
+  <h3>Upcoming Events</h3>
+  {% if upcoming_events %}
     <div class="table-wrap">
       <table>
         <thead><tr><th>Name</th><th>Date</th><th>Drivers</th><th>Actions</th></tr></thead>
         <tbody>
-          {% for event in events %}
+          {% for event in upcoming_events %}
           <tr>
             <td>{{ event.event_name }}</td>
             <td>{{ event.event_date }}</td>
@@ -44,8 +44,37 @@
       </table>
     </div>
   {% else %}
-    <p>No events yet.</p>
+    <p>No upcoming events.</p>
   {% endif %}
+</section>
+
+<section class="card">
+  <details>
+    <summary>Past Events ({{ past_events|length }})</summary>
+    {% if past_events %}
+      <div class="table-wrap" style="margin-top:10px;">
+        <table>
+          <thead><tr><th>Name</th><th>Date</th><th>Drivers</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for event in past_events %}
+            <tr>
+              <td>{{ event.event_name }}</td>
+              <td>{{ event.event_date }}</td>
+              <td>{{ signup_counts.get(event.id, 0) }}</td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.inspection_lookup', event_id=event.id) }}">Inspect</a>
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.participants', event_id=event.id) }}">Participants</a>
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted-line">No past events.</p>
+    {% endif %}
+  </details>
 </section>
 
 <section class="card">

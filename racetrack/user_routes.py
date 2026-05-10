@@ -1,5 +1,6 @@
 import secrets
 import os
+from datetime import date
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -57,7 +58,10 @@ def dashboard():
     }
     events = (
         Event.query.join(EventRegistration, EventRegistration.event_id == Event.id)
-        .filter(EventRegistration.user_id == current_user.id)
+        .filter(
+            EventRegistration.user_id == current_user.id,
+            Event.event_date >= date.today(),
+        )
         .order_by(Event.event_date.asc())
         .all()
     )
@@ -84,7 +88,10 @@ def dashboard():
     subscribed_events = []
     if subscribed_track_ids:
         subscribed_events = (
-            Event.query.filter(Event.track_id.in_(subscribed_track_ids))
+            Event.query.filter(
+                Event.track_id.in_(subscribed_track_ids),
+                Event.event_date >= date.today(),
+            )
             .order_by(Event.event_date.asc())
             .limit(24)
             .all()
@@ -173,6 +180,7 @@ def community():
     posts = SocialPost.query.order_by(SocialPost.created_at.desc()).limit(100).all()
     cars = Car.query.order_by(Car.created_at.desc()).limit(100).all()
     events = Event.query.order_by(Event.event_date.asc()).limit(24).all()
+    events = [event for event in events if event.event_date >= date.today()]
     event_signup_counts = {
         event.id: EventRegistration.query.filter_by(event_id=event.id).count() for event in events
     }
@@ -300,6 +308,9 @@ def signup_event(event_id):
     if guard:
         return guard
     event = Event.query.get_or_404(event_id)
+    if event.event_date < date.today():
+        flash("Cannot sign up for past events.", "error")
+        return redirect(url_for("user.dashboard"))
     if EventRegistration.query.filter_by(event_id=event.id, user_id=current_user.id).first():
         flash("Already signed up for this event.", "error")
         return redirect(url_for("user.dashboard"))

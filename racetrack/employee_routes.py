@@ -1,3 +1,5 @@
+from datetime import date
+
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
@@ -63,7 +65,22 @@ def dashboard():
     if guard:
         return guard
     track = Track.query.get_or_404(active_track_id())
-    events = Event.query.filter_by(track_id=active_track_id()).order_by(Event.event_date.asc()).all()
+    upcoming_events = (
+        Event.query.filter(
+            Event.track_id == active_track_id(),
+            Event.event_date >= date.today(),
+        )
+        .order_by(Event.event_date.asc())
+        .all()
+    )
+    past_events = (
+        Event.query.filter(
+            Event.track_id == active_track_id(),
+            Event.event_date < date.today(),
+        )
+        .order_by(Event.event_date.desc())
+        .all()
+    )
     signup_counts_raw = (
         db.session.query(EventRegistration.event_id, func.count(EventRegistration.id))
         .join(Event, Event.id == EventRegistration.event_id)
@@ -74,7 +91,8 @@ def dashboard():
     signup_counts = {event_id: count for event_id, count in signup_counts_raw}
     return render_template(
         "employee/dashboard.html",
-        events=events,
+        upcoming_events=upcoming_events,
+        past_events=past_events,
         track=track,
         signup_counts=signup_counts,
     )
