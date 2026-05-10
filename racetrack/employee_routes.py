@@ -1,7 +1,7 @@
 import os
 from uuid import uuid4
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash
@@ -18,6 +18,7 @@ from .models import (
     Track,
     TrackDriverClass,
     TrackWaiverTemplate,
+    User,
     db,
 )
 from .services.boldsign_service import create_embedded_template_url
@@ -236,25 +237,63 @@ def participants(event_id):
 
     waiver_status = {}
     class_by_user = {}
-    driver_rows = []
-    seen_users = set()
     for reg in regs:
         status, waiver = get_required_waiver_status(event.track_id, reg.user_id, event.id)
         waiver_status[reg.id] = {"status": status, "waiver": waiver}
         class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
-        if reg.user_id not in seen_users:
-            seen_users.add(reg.user_id)
-            driver_rows.append(reg)
     db.session.commit()
     return render_template(
         "employee/participants.html",
         event=event,
         registrations=regs,
-        driver_rows=driver_rows,
         inspections=inspections,
         waiver_status=waiver_status,
         class_by_user=class_by_user,
     )
+
+
+@employee_bp.route("/tracks/<int:track_id>/drivers/search")
+@login_required
+def search_track_drivers(track_id):
+    guard = require_employee()
+    if guard:
+        return jsonify({"ok": False, "error": "unauthorized"}), 403
+    if track_id != active_track_id():
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"ok": True, "drivers": []}), 200
+
+    like = f"%{q}%"
+    rows = (
+        TrackDriverClass.query.join(User, User.id == TrackDriverClass.user_id)
+        .filter(
+            TrackDriverClass.track_id == track_id,
+            (User.first_name.ilike(like))
+            | (User.last_name.ilike(like))
+            | (User.email.ilike(like))
+            | (User.username.ilike(like)),
+        )
+        .order_by(User.first_name.asc(), User.last_name.asc())
+        .limit(20)
+        .all()
+    )
+
+    payload = []
+    for item in rows:
+        full_name = f"{item.user.first_name} {item.user.last_name}".strip()
+        payload.append(
+            {
+                "user_id": item.user_id,
+                "name": full_name,
+                "email": item.user.email,
+                "driver_class": item.driver_class,
+                "update_url": url_for("employee.update_driver_class", track_id=track_id, user_id=item.user_id),
+            }
+        )
+
+    return jsonify({"ok": True, "drivers": payload}), 200
 
 
 @employee_bp.route("/tracks/<int:track_id>/drivers/<int:user_id>/class", methods=["POST"])

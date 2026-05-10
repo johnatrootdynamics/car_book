@@ -8,39 +8,13 @@
 
 <section class="card">
   <h3>Quick Class Manager</h3>
-  {% if driver_rows %}
-    <div class="class-manager-grid">
-      {% for reg in driver_rows %}
-        {% set active_class = class_by_user.get(reg.user_id, 'C') %}
-        <article class="class-manager-card">
-          <div class="class-manager-head">
-            <strong>{{ reg.user.first_name }} {{ reg.user.last_name }}</strong>
-            <span class="driver-class-pill driver-class-{{ active_class }}">Current: {{ active_class }}</span>
-          </div>
-          <p class="muted-line">{{ reg.user.email }}</p>
-          <div class="class-actions">
-            <form method="post" action="{{ url_for('employee.update_driver_class', track_id=event.track_id, user_id=reg.user_id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="driver_class" value="A">
-              <button type="submit" class="btn btn-sm {% if active_class == 'A' %}class-btn-active class-A{% else %}btn-secondary{% endif %}">Set A</button>
-            </form>
-            <form method="post" action="{{ url_for('employee.update_driver_class', track_id=event.track_id, user_id=reg.user_id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="driver_class" value="B">
-              <button type="submit" class="btn btn-sm {% if active_class == 'B' %}class-btn-active class-B{% else %}btn-secondary{% endif %}">Set B</button>
-            </form>
-            <form method="post" action="{{ url_for('employee.update_driver_class', track_id=event.track_id, user_id=reg.user_id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="driver_class" value="C">
-              <button type="submit" class="btn btn-sm {% if active_class == 'C' %}class-btn-active class-C{% else %}btn-secondary{% endif %}">Set C</button>
-            </form>
-          </div>
-        </article>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p>No participants yet.</p>
-  {% endif %}
+  <div class="class-search" data-class-search data-search-url="{{ url_for('employee.search_track_drivers', track_id=event.track_id) }}" data-csrf-token="{{ csrf_token() }}">
+    <label>Find driver by name, username, or email
+      <input type="text" class="class-search-input" placeholder="Start typing to search drivers..." autocomplete="off">
+    </label>
+    <p class="hint">Type at least 2 characters to search. This works across your whole track, not just this event.</p>
+    <div class="class-search-results"></div>
+  </div>
 </section>
 
 <section class="card">

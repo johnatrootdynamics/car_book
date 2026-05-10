@@ -135,6 +135,19 @@ th { color: var(--muted); font-weight: 600; }
   gap: 12px;
 }
 
+.class-search {
+  display: grid;
+  gap: 10px;
+}
+
+.class-search-input {
+  max-width: 520px;
+}
+
+.class-search-results {
+  min-height: 24px;
+}
+
 .class-manager-card {
   border: 1px solid var(--border);
   border-radius: 12px;
