@@ -236,6 +236,31 @@ function setupProfilePhotoUpload() {
   })
 }
 
+function setupLiveTrackSearch() {
+  const form = document.querySelector("[data-live-track-search]")
+  if (!form) return
+
+  const input = form.querySelector("[data-track-search-input]")
+  const cards = Array.from(document.querySelectorAll("[data-track-card]"))
+  const empty = document.querySelector("[data-track-search-empty]")
+  if (!input || cards.length === 0) return
+
+  const filter = () => {
+    const q = input.value.trim().toLowerCase()
+    let visibleCount = 0
+    cards.forEach((card) => {
+      const haystack = card.getAttribute("data-track-search-text") || ""
+      const show = q.length === 0 || haystack.includes(q)
+      card.style.display = show ? "" : "none"
+      if (show) visibleCount += 1
+    })
+    if (empty) empty.style.display = visibleCount === 0 ? "block" : "none"
+  }
+
+  input.addEventListener("input", filter)
+  filter()
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupEnhancedForms()
   setupCounters()
@@ -245,4 +270,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupDriverClassSearch()
   setupSidebarToggle()
   setupProfilePhotoUpload()
+  setupLiveTrackSearch()
 })

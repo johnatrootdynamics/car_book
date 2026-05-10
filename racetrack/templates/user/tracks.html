@@ -8,17 +8,16 @@
     </div>
     <a class="btn btn-secondary btn-sm" href="{{ url_for('user.dashboard') }}">Back to Dashboard</a>
   </div>
-  <form method="get" class="inline-form" data-enhanced>
-    <input type="text" name="q" value="{{ q }}" placeholder="Search by track, city, state">
-    <button type="submit" class="btn btn-sm">Search</button>
+  <form method="get" class="inline-form" data-live-track-search>
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by track, city, state" data-track-search-input>
   </form>
 </section>
 
 <section class="card">
   {% if tracks %}
-    <div class="event-tile-grid">
+    <div class="event-tile-grid" data-track-search-grid>
       {% for track in tracks %}
-      <div class="event-tile">
+      <div class="event-tile" data-track-card data-track-search-text="{{ (track.name ~ ' ' ~ track.city ~ ' ' ~ track.state)|lower }}">
         {% if track.layout_image_path %}
           {% set track_image = asset_url(track.layout_image_path) %}
           {% if track_image %}<img src="{{ track_image }}" alt="{{ track.name }} layout">{% endif %}
@@ -43,6 +42,7 @@
       </div>
       {% endfor %}
     </div>
+    <p class="muted-line" data-track-search-empty style="display:none; margin-top:10px;">No tracks found.</p>
   {% else %}
     <p>No tracks found.</p>
   {% endif %}
