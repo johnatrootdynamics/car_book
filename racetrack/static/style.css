@@ -376,7 +376,8 @@ th { color: var(--muted); font-weight: 600; }
 }
 
 .comment-input {
-  min-width: 420px;
+  min-width: 0;
+  width: 100%;
   flex: 1;
 }
 
