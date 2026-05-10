@@ -81,8 +81,12 @@ def create_app():
         "S3_PUBLIC_BASE_URL", app.config["S3_ENDPOINT_URL"]
     )
     app.config["S3_BUCKET"] = os.getenv("S3_BUCKET", "trackops")
-    app.config["S3_ACCESS_KEY"] = os.getenv("S3_ACCESS_KEY", "")
-    app.config["S3_SECRET_KEY"] = os.getenv("S3_SECRET_KEY", "")
+    app.config["S3_ACCESS_KEY"] = os.getenv(
+        "S3_ACCESS_KEY", os.getenv("S3_USERNAME", "")
+    )
+    app.config["S3_SECRET_KEY"] = os.getenv(
+        "S3_SECRET_KEY", os.getenv("S3_PASSWORD", "")
+    )
 
     db.init_app(app)
     login_manager.init_app(app)
