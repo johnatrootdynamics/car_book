@@ -222,12 +222,11 @@ def car_new():
             car.image_url = upload_public_image(
             upload,
             bucket=current_app.config["S3_BUCKET"],
-            endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
-            access_key=current_app.config["S3_ACCESS_KEY"],
-            secret_key=current_app.config["S3_SECRET_KEY"],
-            key_prefix=f"cars/{current_user.id}",
-            public_base_url=current_app.config["S3_PUBLIC_BASE_URL"],
-        )
+                endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+                access_key=current_app.config["S3_ACCESS_KEY"],
+                secret_key=current_app.config["S3_SECRET_KEY"],
+                key_prefix=f"cars/{current_user.id}",
+            )
         db.session.add(car)
         db.session.commit()
         post = SocialPost(
@@ -265,12 +264,11 @@ def car_edit(car_id):
             car.image_url = upload_public_image(
             upload,
             bucket=current_app.config["S3_BUCKET"],
-            endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
-            access_key=current_app.config["S3_ACCESS_KEY"],
-            secret_key=current_app.config["S3_SECRET_KEY"],
-            key_prefix=f"cars/{current_user.id}",
-            public_base_url=current_app.config["S3_PUBLIC_BASE_URL"],
-        )
+                endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+                access_key=current_app.config["S3_ACCESS_KEY"],
+                secret_key=current_app.config["S3_SECRET_KEY"],
+                key_prefix=f"cars/{current_user.id}",
+            )
         db.session.commit()
         flash("Car updated.", "success")
         return redirect(url_for("user.dashboard"))

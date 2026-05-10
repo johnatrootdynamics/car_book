@@ -13,6 +13,7 @@ from sqlalchemy.engine.url import make_url
 from werkzeug.security import generate_password_hash
 
 from .models import db, Employee, EnterpriseAdmin, Track, User
+from .services.storage_service import build_presigned_read_url
 
 
 login_manager = LoginManager()
@@ -77,15 +78,32 @@ def create_app():
     app.config["S3_API_ENDPOINT_URL"] = os.getenv(
         "S3_API_ENDPOINT_URL", "https://s3-api.root-dynamics.com"
     )
-    app.config["S3_PUBLIC_BASE_URL"] = os.getenv(
-        "S3_PUBLIC_BASE_URL", app.config["S3_ENDPOINT_URL"]
-    )
     app.config["S3_BUCKET"] = os.getenv("S3_BUCKET", "trackops")
-    app.config["S3_ACCESS_KEY"] = os.getenv(
-        "S3_ACCESS_KEY", os.getenv("S3_USERNAME", "")
+    app.config["S3_ACCESS_KEY"] = (
+        os.getenv("S3_ACCESS_KEY")
+        or os.getenv("S3_USERNAME")
+        or os.getenv("MINIO_ACCESS_KEY")
+        or os.getenv("MINIO_ROOT_USER")
+        or ""
     )
-    app.config["S3_SECRET_KEY"] = os.getenv(
-        "S3_SECRET_KEY", os.getenv("S3_PASSWORD", "")
+    app.config["S3_SECRET_KEY"] = (
+        os.getenv("S3_SECRET_KEY")
+        or os.getenv("S3_PASSWORD")
+        or os.getenv("MINIO_SECRET_KEY")
+        or os.getenv("MINIO_ROOT_PASSWORD")
+        or ""
+    )
+    app.config["S3_READ_ACCESS_KEY"] = (
+        os.getenv("S3_READ_ACCESS_KEY")
+        or os.getenv("S3_READ_USERNAME")
+        or os.getenv("MINIO_READ_ACCESS_KEY")
+        or ""
+    )
+    app.config["S3_READ_SECRET_KEY"] = (
+        os.getenv("S3_READ_SECRET_KEY")
+        or os.getenv("S3_READ_PASSWORD")
+        or os.getenv("MINIO_READ_SECRET_KEY")
+        or ""
     )
 
     db.init_app(app)
@@ -310,11 +328,30 @@ def create_app():
     @app.context_processor
     def inject_roles():
         from flask_login import current_user
+        from flask import url_for
+
+        def asset_url(stored_value):
+            if not stored_value:
+                return None
+            if stored_value.startswith("uploads/"):
+                return url_for("static", filename=stored_value)
+            read_key = app.config.get("S3_READ_ACCESS_KEY")
+            read_secret = app.config.get("S3_READ_SECRET_KEY")
+            if read_key and read_secret:
+                return build_presigned_read_url(
+                    stored_value,
+                    bucket=app.config["S3_BUCKET"],
+                    endpoint_url=app.config["S3_API_ENDPOINT_URL"],
+                    access_key=read_key,
+                    secret_key=read_secret,
+                )
+            return None
 
         return {
             "is_user": getattr(current_user, "account_type", None) == "user",
             "is_employee": getattr(current_user, "account_type", None) == "employee",
             "is_admin": getattr(current_user, "account_type", None) == "admin",
+            "asset_url": asset_url,
         }
 
     @app.before_request

@@ -14,9 +14,10 @@
     <div class="full">{{ form.submit(class_='btn') }}</div>
   </form>
   {% if track.layout_image_path %}
+    {% set track_layout_url = asset_url(track.layout_image_path) %}
     <div class="track-layout-preview">
       <p>Current Layout</p>
-      <img src="{{ track.layout_image_path if track.layout_image_path.startswith('http') else url_for('static', filename=track.layout_image_path) }}" alt="Track layout image">
+      {% if track_layout_url %}<img src="{{ track_layout_url }}" alt="Track layout image">{% endif %}
     </div>
   {% endif %}
 </section>

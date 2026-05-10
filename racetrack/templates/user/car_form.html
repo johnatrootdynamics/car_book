@@ -13,8 +13,9 @@
       <span class="field-error">{{ form.image.errors[0] }}</span>
     {% endif %}
     {% if car and car.image_url %}
+      {% set car_image = asset_url(car.image_url) %}
       <div class="track-layout-preview">
-        <img src="{{ car.image_url if car.image_url.startswith('http') else url_for('static', filename=car.image_url) }}" alt="Car photo">
+        {% if car_image %}<img src="{{ car_image }}" alt="Car photo">{% endif %}
       </div>
     {% endif %}
     {{ form.submit(class_='btn') }}

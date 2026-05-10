@@ -31,7 +31,8 @@
               <td>{{ car.car_year }} {{ car.make }} {{ car.model }}</td>
               <td>
                 {% if car.image_url %}
-                  <img class="car-thumb" src="{{ car.image_url if car.image_url.startswith('http') else url_for('static', filename=car.image_url) }}" alt="{{ car.make }} {{ car.model }}">
+                  {% set car_image = asset_url(car.image_url) %}
+                  {% if car_image %}<img class="car-thumb" src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% endif %}
                 {% else %}
                   -
                 {% endif %}
@@ -74,7 +75,8 @@
         {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
         <div class="event-tile">
           {% if event.thumbnail_image_path %}
-            <img src="{{ event.thumbnail_image_path if event.thumbnail_image_path.startswith('http') else url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
+            {% set event_image = asset_url(event.thumbnail_image_path) %}
+            {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
           {% else %}
             <div class="event-fallback">{{ event.event_name }}</div>
           {% endif %}
@@ -117,7 +119,8 @@
       {% for event in subscribed_events %}
       <div class="event-tile">
         {% if event.thumbnail_image_path %}
-          <img src="{{ event.thumbnail_image_path if event.thumbnail_image_path.startswith('http') else url_for('static', filename=event.thumbnail_image_path) }}" alt="{{ event.event_name }} thumbnail">
+          {% set event_image = asset_url(event.thumbnail_image_path) %}
+          {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
         {% else %}
           <div class="event-fallback">{{ event.event_name }}</div>
         {% endif %}

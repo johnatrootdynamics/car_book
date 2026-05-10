@@ -125,7 +125,6 @@ def update_track():
                 access_key=current_app.config["S3_ACCESS_KEY"],
                 secret_key=current_app.config["S3_SECRET_KEY"],
                 key_prefix=f"tracks/{track.id}",
-                public_base_url=current_app.config["S3_PUBLIC_BASE_URL"],
             )
         db.session.commit()
         flash("Track profile updated.", "success")
@@ -180,7 +179,6 @@ def event_new():
                 access_key=current_app.config["S3_ACCESS_KEY"],
                 secret_key=current_app.config["S3_SECRET_KEY"],
                 key_prefix=f"events/{active_track_id()}",
-                public_base_url=current_app.config["S3_PUBLIC_BASE_URL"],
             )
         db.session.add(event)
         db.session.commit()
@@ -211,7 +209,6 @@ def event_edit(event_id):
                 access_key=current_app.config["S3_ACCESS_KEY"],
                 secret_key=current_app.config["S3_SECRET_KEY"],
                 key_prefix=f"events/{active_track_id()}",
-                public_base_url=current_app.config["S3_PUBLIC_BASE_URL"],
             )
         db.session.commit()
         flash("Event updated.", "success")
