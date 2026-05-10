@@ -32,6 +32,7 @@
             <div class="event-fallback">{{ car.make }}</div>
           {% endif %}
           <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('user.car_edit', car_id=car.id) }}">Edit Profile</a>
         </div>
       {% endfor %}
     </div>
