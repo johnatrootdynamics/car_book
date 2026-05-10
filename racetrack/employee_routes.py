@@ -552,8 +552,10 @@ def inspect_search(event_id):
     like = f"%{q}%"
     rows = (
         EventRegistration.query.join(User, User.id == EventRegistration.user_id)
+        .outerjoin(Inspection, Inspection.event_registration_id == EventRegistration.id)
         .filter(
             EventRegistration.event_id == event.id,
+            ((Inspection.id.is_(None)) | (Inspection.passed.is_(False))),
             (User.first_name.ilike(like))
             | (User.last_name.ilike(like))
             | (User.username.ilike(like)),
@@ -565,8 +567,11 @@ def inspect_search(event_id):
     )
 
     code_rows = (
-        EventRegistration.query.filter(
+        EventRegistration.query.outerjoin(
+            Inspection, Inspection.event_registration_id == EventRegistration.id
+        ).filter(
             EventRegistration.event_id == event.id,
+            ((Inspection.id.is_(None)) | (Inspection.passed.is_(False))),
             EventRegistration.checkin_code.ilike(like),
         )
         .order_by(EventRegistration.created_at.asc())
