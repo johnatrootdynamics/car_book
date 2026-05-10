@@ -115,6 +115,37 @@ def dashboard():
     )
 
 
+@user_bp.route("/profile-photo", methods=["POST"])
+@login_required
+def update_profile_photo():
+    guard = require_user()
+    if guard:
+        return guard
+
+    upload = request.files.get("profile_image")
+    if not upload or not getattr(upload, "filename", ""):
+        flash("Please select an image to upload.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    ext = upload.filename.rsplit(".", 1)[-1].lower() if "." in upload.filename else ""
+    if ext not in {"jpg", "jpeg", "png", "webp"}:
+        flash("Profile image must be jpg, jpeg, png, or webp.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    upload.filename = secure_filename(upload.filename)
+    current_user.profile_image_url = upload_public_image(
+        upload,
+        bucket=current_app.config["S3_BUCKET"],
+        endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+        access_key=current_app.config["S3_ACCESS_KEY"],
+        secret_key=current_app.config["S3_SECRET_KEY"],
+        key_prefix=f"profiles/{current_user.id}",
+    )
+    db.session.commit()
+    flash("Profile photo updated.", "success")
+    return redirect(url_for("user.dashboard"))
+
+
 @user_bp.route("/tracks")
 @login_required
 def tracks_directory():

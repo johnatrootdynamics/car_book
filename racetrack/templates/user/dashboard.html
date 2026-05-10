@@ -1,8 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <h2>Driver Dashboard</h2>
-  <p>@{{ current_user.username or ('driver' ~ current_user.id) }} • {{ current_user.email }}</p>
+  <div class="profile-head">
+    <form method="post" action="{{ url_for('user.update_profile_photo') }}" enctype="multipart/form-data" class="profile-photo-form" data-profile-photo-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="file" name="profile_image" accept="image/png,image/jpeg,image/webp" class="profile-photo-input" data-profile-photo-input>
+      <button type="button" class="profile-photo-btn" data-profile-photo-trigger aria-label="Update profile photo">
+        {% if current_user.profile_image_url %}
+          {% set profile_img = asset_url(current_user.profile_image_url) %}
+          {% if profile_img %}
+            <img class="profile-photo" src="{{ profile_img }}" alt="Profile photo">
+          {% else %}
+            <span class="profile-photo-fallback">{{ (current_user.first_name or 'D')[0] }}</span>
+          {% endif %}
+        {% else %}
+          <span class="profile-photo-fallback">{{ (current_user.first_name or 'D')[0] }}</span>
+        {% endif %}
+      </button>
+    </form>
+    <div>
+      <h2>Driver Dashboard</h2>
+      <p>@{{ current_user.username or ('driver' ~ current_user.id) }} • {{ current_user.email }}</p>
+    </div>
+  </div>
   <p class="muted-line">Your class starts at C for each new track and is updated by track staff.</p>
 </section>
 

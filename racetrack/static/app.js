@@ -214,6 +214,20 @@ function setupSidebarToggle() {
   })
 }
 
+function setupProfilePhotoUpload() {
+  const form = document.querySelector("[data-profile-photo-form]")
+  if (!form) return
+  const trigger = form.querySelector("[data-profile-photo-trigger]")
+  const input = form.querySelector("[data-profile-photo-input]")
+  if (!trigger || !input) return
+
+  trigger.addEventListener("click", () => input.click())
+  input.addEventListener("change", () => {
+    if (!input.files || input.files.length === 0) return
+    form.submit()
+  })
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupEnhancedForms()
   setupCounters()
@@ -222,4 +236,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupLandingFlow()
   setupDriverClassSearch()
   setupSidebarToggle()
+  setupProfilePhotoUpload()
 })

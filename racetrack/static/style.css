@@ -345,6 +345,49 @@ th { color: var(--muted); font-weight: 600; }
   margin-top: -2px;
 }
 
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-photo-form {
+  margin: 0;
+}
+
+.profile-photo-input {
+  display: none;
+}
+
+.profile-photo-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.profile-photo {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.38);
+}
+
+.profile-photo-fallback {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  background: linear-gradient(135deg, #1d4ed8, #0f766e);
+  color: #fff;
+}
+
 .badge {
   display: inline-block;
   padding: 4px 8px;

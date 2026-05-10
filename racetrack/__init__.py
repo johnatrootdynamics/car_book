@@ -226,6 +226,9 @@ def create_app():
             conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS driver_class CHAR(1) NOT NULL DEFAULT 'C'"
             )
+            conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR(500) NULL"
+            )
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(

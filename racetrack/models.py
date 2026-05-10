@@ -17,6 +17,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(255), unique=True, nullable=False)
     phone = db.Column(db.String(30), nullable=False)
     driver_class = db.Column(db.String(1), nullable=False, default="C")
+    profile_image_url = db.Column(db.String(500), nullable=True)
     static_qr_code = db.Column(db.String(64), unique=True, nullable=True)
     date_of_birth = db.Column(db.Date, nullable=False)
     street = db.Column(db.String(255), nullable=False)
