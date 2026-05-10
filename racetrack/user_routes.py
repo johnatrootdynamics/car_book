@@ -80,6 +80,7 @@ def dashboard():
         .order_by(Track.name.asc())
         .all()
     )
+    track_class_by_track_id = {item.track_id: item.driver_class for item in track_classes}
     subscribed_events = []
     if subscribed_track_ids:
         subscribed_events = (
@@ -103,7 +104,7 @@ def dashboard():
         waivers=waivers,
         subscribed_events=subscribed_events,
         subscribed_track_ids=subscribed_track_ids,
-        track_classes=track_classes,
+        track_class_by_track_id=track_class_by_track_id,
     )
 
 

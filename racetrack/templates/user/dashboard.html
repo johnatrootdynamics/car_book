@@ -3,17 +3,7 @@
 <section class="card">
   <h2>Driver Dashboard</h2>
   <p>@{{ current_user.username or ('driver' ~ current_user.id) }} • {{ current_user.email }}</p>
-  {% if track_classes %}
-    <div class="actions-row" style="flex-wrap:wrap; margin-top:8px;">
-      {% for tc in track_classes %}
-        <span class="driver-class-pill driver-class-{{ tc.driver_class }}">
-          {{ tc.track.name }} <strong>{{ tc.driver_class }}</strong>
-        </span>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p class="muted-line">Your class starts at C for each new track and is updated by track staff.</p>
-  {% endif %}
+  <p class="muted-line">Your class starts at C for each new track and is updated by track staff.</p>
 </section>
 
 <section class="card">
@@ -51,6 +41,7 @@
         {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
         {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
         <div class="event-tile">
+          {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
           {% if event.thumbnail_image_path %}
             {% set event_image = asset_url(event.thumbnail_image_path) %}
             {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
@@ -60,6 +51,7 @@
           {% else %}
             <div class="event-fallback">{{ event.event_name }}</div>
           {% endif %}
+          <span class="event-class-overlay">Class {{ current_class }}</span>
           <div class="event-tile-body">
             <h4>{{ event.event_name }}</h4>
             <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
@@ -98,6 +90,7 @@
     <div class="event-tile-grid">
       {% for event in subscribed_events %}
       <div class="event-tile">
+        {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
         {% if event.thumbnail_image_path %}
           {% set event_image = asset_url(event.thumbnail_image_path) %}
           {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
@@ -113,6 +106,7 @@
           {% if event.id in signups %}
             <span class="badge badge-viewed">Already Signed Up</span>
           {% else %}
+            <p class="muted-line">Current track class: <strong>{{ current_class }}</strong></p>
             <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
               {{ signup_form.hidden_tag() }}
               {{ signup_form.car_id() }}

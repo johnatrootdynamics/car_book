@@ -485,6 +485,7 @@ th { color: var(--muted); font-weight: 600; }
   border-radius: 12px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.04);
+  position: relative;
 }
 
 .event-tile img {
@@ -502,6 +503,20 @@ th { color: var(--muted); font-weight: 600; }
   justify-content: center;
   background: linear-gradient(135deg, #1e293b, #334155);
   color: #dbeafe;
+  font-weight: 700;
+}
+
+.event-class-overlay {
+  position: absolute;
+  left: 10px;
+  top: 98px;
+  z-index: 2;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(2, 6, 23, 0.82);
+  color: #dbeafe;
+  font-size: 0.76rem;
   font-weight: 700;
 }
 
