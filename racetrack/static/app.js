@@ -196,6 +196,24 @@ function setupDriverClassSearch() {
   })
 }
 
+function setupSidebarToggle() {
+  const toggle = document.querySelector("[data-sidebar-toggle]")
+  const overlay = document.querySelector("[data-sidebar-overlay]")
+  if (!toggle || !overlay) return
+
+  const closeSidebar = () => document.body.classList.remove("sidebar-open")
+
+  toggle.addEventListener("click", () => {
+    document.body.classList.toggle("sidebar-open")
+  })
+
+  overlay.addEventListener("click", closeSidebar)
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 960) closeSidebar()
+  })
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupEnhancedForms()
   setupCounters()
@@ -203,4 +221,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupCommentValidation()
   setupLandingFlow()
   setupDriverClassSearch()
+  setupSidebarToggle()
 })
