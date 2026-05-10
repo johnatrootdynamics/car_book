@@ -325,9 +325,9 @@ th { color: var(--muted); font-weight: 600; }
 }
 
 .feed-time {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 500;
+  color: #c9d6ec;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .author-avatar,
