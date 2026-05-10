@@ -100,6 +100,46 @@ def dashboard():
     )
 
 
+@employee_bp.route("/events")
+@login_required
+def events_index():
+    guard = require_employee()
+    if guard:
+        return guard
+    track = Track.query.get_or_404(active_track_id())
+    upcoming_events = (
+        Event.query.filter(
+            Event.track_id == active_track_id(),
+            Event.event_date >= date.today(),
+        )
+        .order_by(Event.event_date.asc())
+        .all()
+    )
+    past_events = (
+        Event.query.filter(
+            Event.track_id == active_track_id(),
+            Event.event_date < date.today(),
+        )
+        .order_by(Event.event_date.desc())
+        .all()
+    )
+    signup_counts_raw = (
+        db.session.query(EventRegistration.event_id, func.count(EventRegistration.id))
+        .join(Event, Event.id == EventRegistration.event_id)
+        .filter(Event.track_id == active_track_id())
+        .group_by(EventRegistration.event_id)
+        .all()
+    )
+    signup_counts = {event_id: count for event_id, count in signup_counts_raw}
+    return render_template(
+        "employee/events_index.html",
+        track=track,
+        upcoming_events=upcoming_events,
+        past_events=past_events,
+        signup_counts=signup_counts,
+    )
+
+
 @employee_bp.route("/track-profile", methods=["GET"])
 @login_required
 def track_profile():
