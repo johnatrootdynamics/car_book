@@ -9,30 +9,17 @@
   </div>
 </section>
 
-<section class="card">
+<section id="employee-events" class="card">
   <h3>Upcoming Events</h3>
   {% if upcoming_events %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Name</th><th>Date</th><th>Drivers</th><th>Actions</th></tr></thead>
-        <tbody>
-          {% for event in upcoming_events %}
-          <tr>
-            <td>{{ event.event_name }}</td>
-            <td>{{ event.event_date }}</td>
-            <td>{{ signup_counts.get(event.id, 0) }}</td>
-            <td>
-              <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open</a>
-              <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
-              <form method="post" action="{{ url_for('employee.event_delete', event_id=event.id) }}" class="inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm danger-btn">Delete</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="grid-cards">
+      {% for event in upcoming_events[:6] %}
+        <article class="event-card">
+          <h4>{{ event.event_name }}</h4>
+          <p>{{ event.event_date }} • {{ signup_counts.get(event.id, 0) }} drivers</p>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open Event</a>
+        </article>
+      {% endfor %}
     </div>
   {% else %}
     <p>No upcoming events.</p>

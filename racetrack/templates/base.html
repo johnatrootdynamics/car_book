@@ -26,6 +26,7 @@
         {% endif %}
         {% if current_user.is_authenticated and is_employee %}
           <a href="{{ url_for('employee.dashboard') }}">Employee Dashboard</a>
+          <a href="{{ url_for('employee.dashboard') }}#employee-events">Events</a>
           <a href="{{ url_for('employee.track_profile') }}">Track Profile</a>
           <a href="{{ url_for('employee.staff_accounts') }}">Staff Accounts</a>
           <a href="{{ url_for('employee.inspection_rules') }}">Inspection Rules</a>
