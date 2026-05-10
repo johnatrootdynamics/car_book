@@ -1,8 +1,9 @@
 import secrets
 import os
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from werkzeug.utils import secure_filename
 
 from .forms import CarForm, EventSignupForm, SocialCommentForm
 from .models import (
@@ -17,6 +18,7 @@ from .models import (
     TrackWaiverTemplate,
     db,
 )
+from .services.storage_service import upload_public_image
 
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
@@ -205,7 +207,7 @@ def car_new():
     if form.validate_on_submit():
         if not form.car_year.data.isdigit():
             flash("Car year must be numeric.", "error")
-            return render_template("user/car_form.html", form=form, title="Add Car")
+            return render_template("user/car_form.html", form=form, title="Add Car", car=None)
         car = Car(
             user_id=current_user.id,
             make=form.make.data.strip(),
@@ -214,6 +216,17 @@ def car_new():
             color=form.color.data.strip() if form.color.data else None,
             static_qr_code=_generate_car_qr_code(),
         )
+        upload = form.image.data
+        if upload and getattr(upload, "filename", ""):
+            upload.filename = secure_filename(upload.filename)
+            car.image_url = upload_public_image(
+                upload,
+                bucket=current_app.config["S3_BUCKET"],
+                endpoint_url=current_app.config["S3_ENDPOINT_URL"],
+                access_key=current_app.config["S3_ACCESS_KEY"],
+                secret_key=current_app.config["S3_SECRET_KEY"],
+                key_prefix=f"cars/{current_user.id}",
+            )
         db.session.add(car)
         db.session.commit()
         post = SocialPost(
@@ -226,7 +239,7 @@ def car_new():
         db.session.commit()
         flash("Car added.", "success")
         return redirect(url_for("user.dashboard"))
-    return render_template("user/car_form.html", form=form, title="Add Car")
+    return render_template("user/car_form.html", form=form, title="Add Car", car=None)
 
 
 @user_bp.route("/cars/<int:car_id>/edit", methods=["GET", "POST"])
@@ -240,15 +253,26 @@ def car_edit(car_id):
     if form.validate_on_submit():
         if not form.car_year.data.isdigit():
             flash("Car year must be numeric.", "error")
-            return render_template("user/car_form.html", form=form, title="Edit Car")
+            return render_template("user/car_form.html", form=form, title="Edit Car", car=car)
         car.make = form.make.data.strip()
         car.model = form.model.data.strip()
         car.car_year = int(form.car_year.data)
         car.color = form.color.data.strip() if form.color.data else None
+        upload = form.image.data
+        if upload and getattr(upload, "filename", ""):
+            upload.filename = secure_filename(upload.filename)
+            car.image_url = upload_public_image(
+                upload,
+                bucket=current_app.config["S3_BUCKET"],
+                endpoint_url=current_app.config["S3_ENDPOINT_URL"],
+                access_key=current_app.config["S3_ACCESS_KEY"],
+                secret_key=current_app.config["S3_SECRET_KEY"],
+                key_prefix=f"cars/{current_user.id}",
+            )
         db.session.commit()
         flash("Car updated.", "success")
         return redirect(url_for("user.dashboard"))
-    return render_template("user/car_form.html", form=form, title="Edit Car")
+    return render_template("user/car_form.html", form=form, title="Edit Car", car=car)
 
 
 @user_bp.route("/cars/<int:car_id>/delete", methods=["POST"])

@@ -2,12 +2,21 @@
 {% block content %}
 <section class="card narrow">
   <h2>{{ title }}</h2>
-  <form method="post" class="form-grid" data-enhanced>
+  <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Make {{ form.make() }}</label>
     <label>Model {{ form.model() }}</label>
     <label>Year {{ form.car_year() }}</label>
     <label>Color {{ form.color() }}</label>
+    <label>Car Photo {{ form.image() }}</label>
+    {% if form.image.errors %}
+      <span class="field-error">{{ form.image.errors[0] }}</span>
+    {% endif %}
+    {% if car and car.image_url %}
+      <div class="track-layout-preview">
+        <img src="{{ car.image_url if car.image_url.startswith('http') else url_for('static', filename=car.image_url) }}" alt="Car photo">
+      </div>
+    {% endif %}
     {{ form.submit(class_='btn') }}
   </form>
 </section>

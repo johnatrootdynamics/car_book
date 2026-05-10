@@ -414,6 +414,24 @@ th { color: var(--muted); font-weight: 600; }
   padding: 10px;
 }
 
+.car-thumb {
+  width: 68px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: block;
+}
+
+.car-thumb-large {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
 .compact-note h3,
 .compact-note p {
   margin: 0;

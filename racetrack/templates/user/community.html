@@ -81,6 +81,9 @@
     <div class="car-grid">
       {% for car in cars %}
         <div class="car-item">
+          {% if car.image_url %}
+            <img class="car-thumb-large" src="{{ car.image_url if car.image_url.startswith('http') else url_for('static', filename=car.image_url) }}" alt="{{ car.make }} {{ car.model }} photo">
+          {% endif %}
           <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
           <p class="muted-line">Owner: @{{ car.owner.username or ('driver' ~ car.owner.id) }}</p>
           <p class="muted-line">Color: {{ car.color or 'N/A' }}</p>

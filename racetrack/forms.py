@@ -31,6 +31,10 @@ class CarForm(FlaskForm):
     model = StringField("Model", validators=[DataRequired(), Length(max=100)])
     car_year = StringField("Year", validators=[DataRequired(), Length(max=4)])
     color = StringField("Color", validators=[Length(max=100)])
+    image = FileField(
+        "Car Photo",
+        validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
+    )
     submit = SubmitField("Save Car")
 
 

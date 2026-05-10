@@ -119,6 +119,7 @@ class Car(db.Model):
     model = db.Column(db.String(100), nullable=False)
     car_year = db.Column(db.Integer, nullable=False)
     color = db.Column(db.String(100), nullable=True)
+    image_url = db.Column(db.String(500), nullable=True)
     static_qr_code = db.Column(db.String(64), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

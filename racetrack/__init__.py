@@ -187,6 +187,9 @@ def create_app():
                 "ALTER TABLE cars ADD COLUMN IF NOT EXISTS static_qr_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE cars ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS thumbnail_image_path VARCHAR(255) NULL"
             )
             conn.exec_driver_sql(

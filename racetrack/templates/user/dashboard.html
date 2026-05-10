@@ -24,11 +24,18 @@
   {% if cars %}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Car</th><th>Color</th><th>Static QR Code</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Car</th><th>Photo</th><th>Color</th><th>Static QR Code</th><th>Actions</th></tr></thead>
         <tbody>
           {% for car in cars %}
             <tr>
               <td>{{ car.car_year }} {{ car.make }} {{ car.model }}</td>
+              <td>
+                {% if car.image_url %}
+                  <img class="car-thumb" src="{{ car.image_url if car.image_url.startswith('http') else url_for('static', filename=car.image_url) }}" alt="{{ car.make }} {{ car.model }}">
+                {% else %}
+                  -
+                {% endif %}
+              </td>
               <td>{{ car.color or '-' }}</td>
               <td>
                 {% if car.static_qr_code %}
