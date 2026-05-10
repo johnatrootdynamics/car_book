@@ -11,7 +11,7 @@
   {% if registrations %}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Driver</th><th>Class</th><th>Email</th><th>Car</th><th>Waiver</th><th>Check-in Code</th><th>Inspection</th><th>Signed Up</th></tr></thead>
+        <thead><tr><th>Driver</th><th>Class</th><th>Email</th><th>Car</th><th>Waiver</th><th>Check-in Code</th><th>Inspection Status</th><th>Inspection</th><th>Signed Up</th></tr></thead>
         <tbody>
           {% for reg in registrations %}
             <tr>
@@ -33,6 +33,17 @@
                 {% endif %}
               </td>
               <td><code>{{ reg.checkin_code }}</code></td>
+              <td>
+                {% if reg.id in inspections %}
+                  {% if inspections[reg.id].passed %}
+                    <span class="badge badge-signed">Passed</span>
+                  {% else %}
+                    <span class="badge badge-failed">Needs Work</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge badge-not_sent">Not Started</span>
+                {% endif %}
+              </td>
               <td>
                 {% if ws == 'signed' or ws == 'not_required' %}
                   <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.inspect_registration', event_id=event.id, registration_id=reg.id) }}">
