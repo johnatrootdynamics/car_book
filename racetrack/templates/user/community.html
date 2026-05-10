@@ -49,14 +49,30 @@
     {% for post in posts %}
       <div class="feed-post">
         <h4>{{ post.title }}</h4>
-        <p class="muted-line">By @{{ post.author.username or ('driver' ~ post.author.id) }} • {{ post.created_at }}</p>
+        {% set post_author_image = asset_url(post.author.profile_image_url) if post.author.profile_image_url else None %}
+        <p class="muted-line author-line">
+          {% if post_author_image %}
+            <img class="author-avatar" src="{{ post_author_image }}" alt="{{ post.author.username or ('driver' ~ post.author.id) }} avatar">
+          {% else %}
+            <span class="author-avatar-fallback">{{ (post.author.username or 'D')[0]|upper }}</span>
+          {% endif %}
+          <span>By @{{ post.author.username or ('driver' ~ post.author.id) }} • {{ post.created_at }}</span>
+        </p>
         {% if post.body %}<p>{{ post.body }}</p>{% endif %}
 
         {% if post.comments %}
           <div class="comment-list">
             {% for comment in post.comments %}
               <div class="comment-item pop-comment">
-                <div class="comment-head">@{{ comment.author.username or ('driver' ~ comment.author.id) }}</div>
+                {% set comment_author_image = asset_url(comment.author.profile_image_url) if comment.author.profile_image_url else None %}
+                <div class="comment-head author-line">
+                  {% if comment_author_image %}
+                    <img class="author-avatar" src="{{ comment_author_image }}" alt="{{ comment.author.username or ('driver' ~ comment.author.id) }} avatar">
+                  {% else %}
+                    <span class="author-avatar-fallback">{{ (comment.author.username or 'D')[0]|upper }}</span>
+                  {% endif %}
+                  <span>@{{ comment.author.username or ('driver' ~ comment.author.id) }}</span>
+                </div>
                 <div>{{ comment.body }}</div>
               </div>
             {% endfor %}
@@ -87,7 +103,15 @@
             {% if car_image %}<img class="car-thumb-large" src="{{ car_image }}" alt="{{ car.make }} {{ car.model }} photo">{% endif %}
           {% endif %}
           <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
-          <p class="muted-line">Owner: @{{ car.owner.username or ('driver' ~ car.owner.id) }}</p>
+          {% set owner_image = asset_url(car.owner.profile_image_url) if car.owner.profile_image_url else None %}
+          <p class="muted-line author-line">
+            {% if owner_image %}
+              <img class="author-avatar" src="{{ owner_image }}" alt="{{ car.owner.username or ('driver' ~ car.owner.id) }} avatar">
+            {% else %}
+              <span class="author-avatar-fallback">{{ (car.owner.username or 'D')[0]|upper }}</span>
+            {% endif %}
+            <span>Owner: @{{ car.owner.username or ('driver' ~ car.owner.id) }}</span>
+          </p>
           <p class="muted-line">Color: {{ car.color or 'N/A' }}</p>
         </div>
       {% endfor %}
