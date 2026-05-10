@@ -77,6 +77,9 @@
           {% if event.thumbnail_image_path %}
             {% set event_image = asset_url(event.thumbnail_image_path) %}
             {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
+          {% elif event.track.layout_image_path %}
+            {% set track_image = asset_url(event.track.layout_image_path) %}
+            {% if track_image %}<img src="{{ track_image }}" alt="{{ event.track.name }} layout">{% endif %}
           {% else %}
             <div class="event-fallback">{{ event.event_name }}</div>
           {% endif %}
@@ -121,6 +124,9 @@
         {% if event.thumbnail_image_path %}
           {% set event_image = asset_url(event.thumbnail_image_path) %}
           {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
+        {% elif event.track.layout_image_path %}
+          {% set track_image = asset_url(event.track.layout_image_path) %}
+          {% if track_image %}<img src="{{ track_image }}" alt="{{ event.track.name }} layout">{% endif %}
         {% else %}
           <div class="event-fallback">{{ event.event_name }}</div>
         {% endif %}

@@ -19,7 +19,12 @@
     <div class="event-tile-grid">
       {% for track in tracks %}
       <div class="event-tile">
-        <div class="event-fallback">{{ track.name }}</div>
+        {% if track.layout_image_path %}
+          {% set track_image = asset_url(track.layout_image_path) %}
+          {% if track_image %}<img src="{{ track_image }}" alt="{{ track.name }} layout">{% endif %}
+        {% else %}
+          <div class="event-fallback">{{ track.name }}</div>
+        {% endif %}
         <div class="event-tile-body">
           <h4>{{ track.name }}</h4>
           <p class="muted-line">{{ track.city }}, {{ track.state }}</p>
