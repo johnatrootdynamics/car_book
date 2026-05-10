@@ -22,41 +22,18 @@
     <a class="btn" href="{{ url_for('user.car_new') }}">Add Car</a>
   </div>
   {% if cars %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Car</th><th>Photo</th><th>Color</th><th>Static QR Code</th><th>Actions</th></tr></thead>
-        <tbody>
-          {% for car in cars %}
-            <tr>
-              <td>{{ car.car_year }} {{ car.make }} {{ car.model }}</td>
-              <td>
-                {% if car.image_url %}
-                  {% set car_image = asset_url(car.image_url) %}
-                  {% if car_image %}<img class="car-thumb" src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% endif %}
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-              <td>{{ car.color or '-' }}</td>
-              <td>
-                {% if car.static_qr_code %}
-                  <code>{{ car.static_qr_code }}</code>
-                  <a class="btn btn-secondary btn-sm" target="_blank" href="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data={{ car.static_qr_code|urlencode }}">QR</a>
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-              <td>
-                <a class="btn btn-secondary btn-sm" href="{{ url_for('user.car_edit', car_id=car.id) }}">Edit</a>
-                <form method="post" action="{{ url_for('user.car_delete', car_id=car.id) }}" class="inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm danger-btn">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="car-grid">
+      {% for car in cars %}
+        <div class="car-item">
+          {% if car.image_url %}
+            {% set car_image = asset_url(car.image_url) %}
+            {% if car_image %}<img class="car-thumb-large" src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% endif %}
+          {% else %}
+            <div class="event-fallback">{{ car.make }}</div>
+          {% endif %}
+          <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
+        </div>
+      {% endfor %}
     </div>
   {% else %}
     <p>No cars yet.</p>
