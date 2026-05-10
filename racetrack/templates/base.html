@@ -7,13 +7,13 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <header class="topbar">
-    <div class="container nav-row">
+  <div class="app-shell">
+    <aside class="sidebar">
       <a href="{{ url_for('auth.home') }}" class="brand-wrap">
         <span class="brand">Track Ops</span>
         <span class="subbrand">A Root Dynamics product</span>
       </a>
-      <nav>
+      <nav class="side-nav">
         {% if current_user.is_authenticated and is_user %}
           <a href="{{ url_for('user.dashboard') }}">User Dashboard</a>
           <a href="{{ url_for('user.tracks_directory') }}">Tracks</a>
@@ -38,22 +38,24 @@
           <a href="{{ url_for('auth.logout') }}">Logout</a>
         {% endif %}
       </nav>
-    </div>
-  </header>
+    </aside>
 
-  <main class="container main-content">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <section class="flash-wrap">
-          {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        </section>
-      {% endif %}
-    {% endwith %}
+    <main class="main-content-wrap">
+      <div class="container main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <section class="flash-wrap">
+              {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+              {% endfor %}
+            </section>
+          {% endif %}
+        {% endwith %}
 
-    {% block content %}{% endblock %}
-  </main>
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
