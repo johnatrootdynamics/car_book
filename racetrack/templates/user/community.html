@@ -48,17 +48,24 @@
   {% if posts %}
     {% for post in posts %}
       <div class="feed-post">
-        <h4>{{ post.title }}</h4>
         {% set post_author_image = asset_url(post.author.profile_image_url) if post.author.profile_image_url else None %}
-        <p class="muted-line author-line">
+        <div class="author-line feed-headline">
           {% if post_author_image %}
             <img class="author-avatar" src="{{ post_author_image }}" alt="{{ post.author.username or ('driver' ~ post.author.id) }} avatar">
           {% else %}
             <span class="author-avatar-fallback">{{ (post.author.username or 'D')[0]|upper }}</span>
           {% endif %}
-          <span>By @{{ post.author.username or ('driver' ~ post.author.id) }} • {{ post.created_at }}</span>
-        </p>
-        {% if post.body %}<p>{{ post.body }}</p>{% endif %}
+          <span>
+            @{{ post.author.username or ('driver' ~ post.author.id) }}
+            {% if post.post_type == 'event_signup' %}
+              joined an event
+            {% elif post.post_type == 'car_spotlight' %}
+              added a car
+            {% else %}
+              posted an update
+            {% endif %}
+          </span>
+        </div>
 
         {% if post.comments %}
           <div class="comment-list">

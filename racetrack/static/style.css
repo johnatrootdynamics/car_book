@@ -316,6 +316,11 @@ th { color: var(--muted); font-weight: 600; }
   gap: 8px;
 }
 
+.feed-headline {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
 .author-avatar,
 .author-avatar-fallback {
   width: 36px;
