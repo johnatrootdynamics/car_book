@@ -79,6 +79,14 @@
     {% endif %}
   {% elif view == 'inspect' %}
     <h3>Inspection Lookup</h3>
+    <div class="class-search" data-inspect-name-search data-search-url="{{ url_for('employee.inspect_search', event_id=event.id) }}">
+      <label>Find driver by name
+        <input type="text" class="class-search-input" placeholder="Start typing driver name..." autocomplete="off" data-inspect-name-input>
+      </label>
+      <p class="hint">Type at least 2 characters. Results update as you type.</p>
+      <div class="class-search-results" data-inspect-name-results></div>
+    </div>
+
     <form method="get" class="form-grid narrow">
       <input type="hidden" name="view" value="inspect">
       <label>Scan or Enter Check-in Code

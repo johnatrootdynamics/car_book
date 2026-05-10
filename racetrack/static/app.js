@@ -261,6 +261,63 @@ function setupLiveTrackSearch() {
   filter()
 }
 
+function setupInspectionNameSearch() {
+  const root = document.querySelector("[data-inspect-name-search]")
+  if (!root) return
+
+  const input = root.querySelector("[data-inspect-name-input]")
+  const results = root.querySelector("[data-inspect-name-results]")
+  const searchUrl = root.getAttribute("data-search-url")
+  if (!input || !results || !searchUrl) return
+
+  const render = (rows) => {
+    results.innerHTML = ""
+    if (!rows.length) {
+      const p = document.createElement("p")
+      p.className = "muted-line"
+      p.textContent = "No matching drivers."
+      results.appendChild(p)
+      return
+    }
+
+    const grid = document.createElement("div")
+    grid.className = "class-manager-grid"
+    rows.forEach((row) => {
+      const card = document.createElement("article")
+      card.className = "class-manager-card"
+      card.innerHTML = `
+        <div class="class-manager-head"><strong>${row.driver_name}</strong><span class="muted-line">@${row.username}</span></div>
+        <p class="muted-line">${row.car}</p>
+        <p class="muted-line">Code: <code>${row.checkin_code}</code></p>
+        ${row.waiver_ok ? `<a class="btn btn-sm" href="${row.inspect_url}">Open Inspection</a>` : `<span class="badge badge-failed">Waiver Missing</span>`}
+      `
+      grid.appendChild(card)
+    })
+    results.appendChild(grid)
+  }
+
+  let timer = null
+  input.addEventListener("input", () => {
+    const q = input.value.trim()
+    if (timer) clearTimeout(timer)
+    if (q.length < 2) {
+      results.innerHTML = ""
+      return
+    }
+    timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`${searchUrl}?q=${encodeURIComponent(q)}`, {
+          headers: { Accept: "application/json" },
+        })
+        const data = await response.json()
+        render(data.rows || [])
+      } catch (error) {
+        results.innerHTML = '<p class="flash flash-error">Lookup failed. Try again.</p>'
+      }
+    }, 180)
+  })
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupEnhancedForms()
   setupCounters()
@@ -271,4 +328,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSidebarToggle()
   setupProfilePhotoUpload()
   setupLiveTrackSearch()
+  setupInspectionNameSearch()
 })

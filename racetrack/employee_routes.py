@@ -553,6 +553,54 @@ def run_group_generate(event_id):
     return redirect(url_for("employee.run_groups", event_id=event.id))
 
 
+@employee_bp.route("/events/<int:event_id>/inspect-search")
+@login_required
+def inspect_search(event_id):
+    guard = require_employee()
+    if guard:
+        return jsonify({"ok": False, "error": "unauthorized"}), 403
+
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"ok": True, "rows": []}), 200
+
+    like = f"%{q}%"
+    rows = (
+        EventRegistration.query.join(User, User.id == EventRegistration.user_id)
+        .filter(
+            EventRegistration.event_id == event.id,
+            (User.first_name.ilike(like))
+            | (User.last_name.ilike(like))
+            | (User.username.ilike(like)),
+        )
+        .order_by(User.first_name.asc(), User.last_name.asc())
+        .limit(15)
+        .all()
+    )
+
+    from .waiver_routes import get_required_waiver_status
+
+    payload = []
+    for reg in rows:
+        waiver_status, _ = get_required_waiver_status(event.track_id, reg.user_id, event.id)
+        payload.append(
+            {
+                "registration_id": reg.id,
+                "driver_name": f"{reg.user.first_name} {reg.user.last_name}".strip(),
+                "username": reg.user.username or f"driver{reg.user.id}",
+                "car": f"{reg.car.car_year} {reg.car.make} {reg.car.model}",
+                "checkin_code": reg.checkin_code,
+                "waiver_ok": waiver_status in {"signed", "not_required"},
+                "inspect_url": url_for(
+                    "employee.inspect_registration", event_id=event.id, registration_id=reg.id
+                ),
+            }
+        )
+
+    return jsonify({"ok": True, "rows": payload}), 200
+
+
 @employee_bp.route("/tracks/<int:track_id>/drivers/search")
 @login_required
 def search_track_drivers(track_id):
