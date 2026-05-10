@@ -318,10 +318,10 @@ th { color: var(--muted); font-weight: 600; }
 
 .author-avatar,
 .author-avatar-fallback {
-  width: 25px;
-  height: 25px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
-  flex: 0 0 25px;
+  flex: 0 0 30px;
 }
 
 .author-avatar {
