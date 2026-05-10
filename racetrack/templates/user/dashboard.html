@@ -135,35 +135,4 @@
   {% endif %}
 </section>
 
-<section class="card">
-  <h3>Waivers</h3>
-  {% if waivers %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Waiver</th><th>Event</th><th>Status</th><th>Sent</th><th>Signed</th><th>Action</th></tr></thead>
-        <tbody>
-          {% for waiver in waivers %}
-          <tr>
-            <td>{{ waiver.waiver_template.title }}</td>
-            <td>{{ waiver.event.event_name if waiver.event else '-' }}</td>
-            <td><span class="badge badge-{{ waiver.status }}">{{ waiver.status|upper }}</span></td>
-            <td>{{ waiver.sent_at or '-' }}</td>
-            <td>{{ waiver.signed_at or '-' }}</td>
-            <td>
-              {% if waiver.status != 'signed' %}
-                <a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=waiver.id) }}">Sign</a>
-              {% endif %}
-              {% if waiver.signed_pdf_url %}
-                <a class="btn btn-sm" href="{{ waiver.signed_pdf_url }}" target="_blank">PDF</a>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p>No waivers yet.</p>
-  {% endif %}
-</section>
 {% endblock %}
