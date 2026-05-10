@@ -19,44 +19,45 @@
       </button>
     </form>
     <div>
-      <h2>Driver Dashboard</h2>
-      <p>@{{ current_user.username or ('driver' ~ current_user.id) }} • {{ current_user.email }}</p>
+      <h2>@{{ current_user.username or ('driver' ~ current_user.id) }}</h2>
     </div>
   </div>
-  <p class="muted-line">Your class starts at C for each new track and is updated by track staff.</p>
 </section>
 
-<section class="card">
-  <div class="row-space">
-    <h3>Your Cars</h3>
-    <a class="btn" href="{{ url_for('user.car_new') }}">Add Car</a>
-  </div>
-  {% if cars %}
-    <div class="car-grid">
-      {% for car in cars %}
-        <a class="car-item car-tile-link" href="{{ url_for('user.car_edit', car_id=car.id) }}">
-          {% if car.image_url %}
-            {% set car_image = asset_url(car.image_url) %}
-            {% if car_image %}<img class="car-thumb-large" src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% endif %}
-          {% else %}
-            <div class="event-fallback">{{ car.make }}</div>
-          {% endif %}
-          <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
-        </a>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p>No cars yet.</p>
-  {% endif %}
+<section class="card collapsible-card">
+  <details>
+    <summary>
+      <span>Your Cars</span>
+      <a class="btn btn-sm" href="{{ url_for('user.car_new') }}">Add Car</a>
+    </summary>
+    {% if cars %}
+      <div class="car-grid collapsible-body">
+        {% for car in cars %}
+          <a class="car-item car-tile-link" href="{{ url_for('user.car_edit', car_id=car.id) }}">
+            {% if car.image_url %}
+              {% set car_image = asset_url(car.image_url) %}
+              {% if car_image %}<img class="car-thumb-large" src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% endif %}
+            {% else %}
+              <div class="event-fallback">{{ car.make }}</div>
+            {% endif %}
+            <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="collapsible-body">No cars yet.</p>
+    {% endif %}
+  </details>
 </section>
 
-<section class="card">
-  <div class="row-space">
-    <h3>Your Event Signups</h3>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.tracks_directory') }}">Track Directory</a>
-  </div>
-  {% if events %}
-    <div class="event-tile-grid">
+<section class="card collapsible-card">
+  <details>
+    <summary>
+      <span>Your Event Signups</span>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.tracks_directory') }}">Track Directory</a>
+    </summary>
+    {% if events %}
+      <div class="event-tile-grid collapsible-body">
       {% for event in events %}
         {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
         {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
@@ -98,30 +99,32 @@
           </div>
         </div>
       {% endfor %}
-    </div>
-  {% else %}
-    <p>You have not signed up for any events yet.</p>
-  {% endif %}
+      </div>
+    {% else %}
+      <p class="collapsible-body">You have not signed up for any events yet.</p>
+    {% endif %}
+  </details>
 </section>
 
-<section class="card">
-  <div class="row-space">
-    <h3>Events From Subscribed Tracks</h3>
-    {% if subscribed_tracks %}
-      <form method="get" class="inline">
-        <label class="inline">Track
-          <select name="track_id" onchange="this.form.submit()">
-            <option value="">All Tracks</option>
-            {% for track in subscribed_tracks %}
-              <option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>
-            {% endfor %}
-          </select>
-        </label>
-      </form>
-    {% endif %}
-  </div>
-  {% if subscribed_events %}
-    <div class="event-tile-grid">
+<section class="card collapsible-card">
+  <details>
+    <summary>
+      <span>Events From Subscribed Tracks</span>
+      {% if subscribed_tracks %}
+        <form method="get" class="inline" onclick="event.stopPropagation()">
+          <label class="inline">Track
+            <select name="track_id" onchange="this.form.submit()">
+              <option value="">All Tracks</option>
+              {% for track in subscribed_tracks %}
+                <option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </form>
+      {% endif %}
+    </summary>
+    {% if subscribed_events %}
+      <div class="event-tile-grid collapsible-body">
       {% for event in subscribed_events %}
       <div class="event-tile">
         {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
@@ -150,14 +153,15 @@
         </div>
       </div>
       {% endfor %}
-    </div>
-  {% else %}
-    {% if subscribed_tracks %}
-      <p>No upcoming events for this track yet.</p>
+      </div>
     {% else %}
-      <p>Subscribe to tracks to see their events here.</p>
+      {% if subscribed_tracks %}
+        <p class="collapsible-body">No upcoming events for this track yet.</p>
+      {% else %}
+        <p class="collapsible-body">Subscribe to tracks to see their events here.</p>
+      {% endif %}
     {% endif %}
-  {% endif %}
+  </details>
 </section>
 
 {% endblock %}
