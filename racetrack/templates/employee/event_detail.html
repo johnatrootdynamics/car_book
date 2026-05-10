@@ -1,136 +1,133 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="row-space">
-    <div>
-      <h2>{{ event.event_name }}</h2>
-      <p>{{ event.track.name }} • {{ event.event_date }}</p>
-    </div>
-    <div class="actions-row">
-      <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
-      <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}">Analytics</a>
-      <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='run_groups') }}">Run Groups</a>
-      <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}">Participants</a>
-      <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}">Inspect</a>
-    </div>
+<section class="card event-shell">
+  <aside class="event-nav">
+    <h2>{{ event.event_name }}</h2>
+    <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+    <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}">Analytics</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='run_groups') }}">Run Groups</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}">Participants</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}">Inspect</a>
+  </aside>
+  <div>
+    <section class="card">
+      {% if view == 'run_groups' %}
+        <h3>Run Group Assignments</h3>
+        {% if participants %}
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Driver</th><th>Car</th><th>Class</th><th>Run Group</th></tr></thead>
+              <tbody>
+                {% for reg in participants %}
+                  {% set assigned_group_id = assignments.get(reg.id) %}
+                  <tr>
+                    <td>{{ reg.user.first_name }} {{ reg.user.last_name }}</td>
+                    <td>{{ reg.car.car_year }} {{ reg.car.make }} {{ reg.car.model }}</td>
+                    <td><span class="driver-class-pill driver-class-{{ class_by_user.get(reg.user_id, 'C') }}">{{ class_by_user.get(reg.user_id, 'C') }}</span></td>
+                    <td>
+                      <form method="post" action="{{ url_for('employee.run_group_assign', event_id=event.id) }}" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="registration_id" value="{{ reg.id }}">
+                        <select name="group_id">
+                          <option value="">Unassigned</option>
+                          {% for group in groups %}
+                            <option value="{{ group.id }}" {% if assigned_group_id == group.id %}selected{% endif %}>{{ group.name }}</option>
+                          {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-secondary btn-sm">Save</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <form method="post" action="{{ url_for('employee.run_group_generate', event_id=event.id) }}" class="inline" style="margin-top:10px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm">Generate Groups from Driver Class</button>
+          </form>
+        {% else %}
+          <p>No participants yet.</p>
+        {% endif %}
+      {% elif view == 'participants' %}
+        <h3>Participants</h3>
+        {% if participants %}
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Driver</th><th>Email</th><th>Car</th><th>Class</th><th>Inspection</th><th>Actions</th></tr></thead>
+              <tbody>
+                {% for reg in participants %}
+                  <tr>
+                    <td>{{ reg.user.first_name }} {{ reg.user.last_name }}</td>
+                    <td>{{ reg.user.email }}</td>
+                    <td>{{ reg.car.car_year }} {{ reg.car.make }} {{ reg.car.model }}</td>
+                    <td><span class="driver-class-pill driver-class-{{ class_by_user.get(reg.user_id, 'C') }}">{{ class_by_user.get(reg.user_id, 'C') }}</span></td>
+                    <td>
+                      {% if reg.id in inspections %}
+                        {% if inspections[reg.id].passed %}
+                          <span class="badge badge-signed">Passed</span>
+                        {% else %}
+                          <span class="badge badge-failed">Needs Work</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="badge badge-not_sent">Not Started</span>
+                      {% endif %}
+                    </td>
+                    <td><a class="btn btn-secondary btn-sm" href="{{ url_for('employee.participants', event_id=event.id) }}">Full View</a></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p>No participants yet.</p>
+        {% endif %}
+      {% elif view == 'inspect' %}
+        <h3>Inspection Lookup</h3>
+        <div class="class-search" data-inspect-name-search data-search-url="{{ url_for('employee.inspect_search', event_id=event.id) }}">
+          <label>Find driver by name or check-in code
+            <input type="text" class="class-search-input" placeholder="Start typing name or code..." autocomplete="off" data-inspect-name-input>
+          </label>
+          <p class="hint">Type at least 2 characters. Results update as you type.</p>
+          <div class="class-search-results" data-inspect-name-results></div>
+        </div>
+      {% else %}
+        <h3>Event Analytics</h3>
+        <p class="muted-line">Use the left menu to switch tools without leaving this page.</p>
+      {% endif %}
+    </section>
+
+    {% if view == 'analytics' %}
+      <section class="card">
+        <h3>Signups Over Time</h3>
+        {% if signup_trend %}
+          {% set max_count = signup_trend|map(attribute='count')|max %}
+          <div class="form-grid">
+            {% for point in signup_trend %}
+              <div>
+                <div class="row-space"><span>{{ point.day }}</span><strong>{{ point.count }}</strong></div>
+                <div style="height:8px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;">
+                  <div style="height:100%;width:{{ (point.count / max_count * 100) if max_count else 0 }}%;background:linear-gradient(135deg,var(--accent),var(--accent2));"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p>No signups yet.</p>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <h3>Driver Class Breakdown</h3>
+        <div class="actions-row" style="flex-wrap:wrap; gap:14px;">
+          <span class="driver-class-pill driver-class-A">Class A <strong>{{ class_counts.get('A', 0) }}</strong></span>
+          <span class="driver-class-pill driver-class-B">Class B <strong>{{ class_counts.get('B', 0) }}</strong></span>
+          <span class="driver-class-pill driver-class-C">Class C <strong>{{ class_counts.get('C', 0) }}</strong></span>
+          <span class="badge badge-viewed">Total {{ total_signups }}</span>
+        </div>
+      </section>
+    {% endif %}
   </div>
 </section>
-
-<section class="card">
-  {% if view == 'run_groups' %}
-    <h3>Run Group Assignments</h3>
-    {% if participants %}
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Driver</th><th>Car</th><th>Class</th><th>Run Group</th></tr></thead>
-          <tbody>
-            {% for reg in participants %}
-              {% set assigned_group_id = assignments.get(reg.id) %}
-              <tr>
-                <td>{{ reg.user.first_name }} {{ reg.user.last_name }}</td>
-                <td>{{ reg.car.car_year }} {{ reg.car.make }} {{ reg.car.model }}</td>
-                <td><span class="driver-class-pill driver-class-{{ class_by_user.get(reg.user_id, 'C') }}">{{ class_by_user.get(reg.user_id, 'C') }}</span></td>
-                <td>
-                  <form method="post" action="{{ url_for('employee.run_group_assign', event_id=event.id) }}" class="inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="registration_id" value="{{ reg.id }}">
-                    <select name="group_id">
-                      <option value="">Unassigned</option>
-                      {% for group in groups %}
-                        <option value="{{ group.id }}" {% if assigned_group_id == group.id %}selected{% endif %}>{{ group.name }}</option>
-                      {% endfor %}
-                    </select>
-                    <button type="submit" class="btn btn-secondary btn-sm">Save</button>
-                  </form>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <form method="post" action="{{ url_for('employee.run_group_generate', event_id=event.id) }}" class="inline" style="margin-top:10px;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-sm">Generate Groups from Driver Class</button>
-      </form>
-    {% else %}
-      <p>No participants yet.</p>
-    {% endif %}
-  {% elif view == 'participants' %}
-    <h3>Participants</h3>
-    {% if participants %}
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Driver</th><th>Email</th><th>Car</th><th>Class</th><th>Inspection</th><th>Actions</th></tr></thead>
-          <tbody>
-            {% for reg in participants %}
-              <tr>
-                <td>{{ reg.user.first_name }} {{ reg.user.last_name }}</td>
-                <td>{{ reg.user.email }}</td>
-                <td>{{ reg.car.car_year }} {{ reg.car.make }} {{ reg.car.model }}</td>
-                <td><span class="driver-class-pill driver-class-{{ class_by_user.get(reg.user_id, 'C') }}">{{ class_by_user.get(reg.user_id, 'C') }}</span></td>
-                <td>
-                  {% if reg.id in inspections %}
-                    {% if inspections[reg.id].passed %}
-                      <span class="badge badge-signed">Passed</span>
-                    {% else %}
-                      <span class="badge badge-failed">Needs Work</span>
-                    {% endif %}
-                  {% else %}
-                    <span class="badge badge-not_sent">Not Started</span>
-                  {% endif %}
-                </td>
-                <td><a class="btn btn-secondary btn-sm" href="{{ url_for('employee.participants', event_id=event.id) }}">Full View</a></td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <p>No participants yet.</p>
-    {% endif %}
-  {% elif view == 'inspect' %}
-    <h3>Inspection Lookup</h3>
-    <div class="class-search" data-inspect-name-search data-search-url="{{ url_for('employee.inspect_search', event_id=event.id) }}">
-      <label>Find driver by name or check-in code
-        <input type="text" class="class-search-input" placeholder="Start typing name or code..." autocomplete="off" data-inspect-name-input>
-      </label>
-      <p class="hint">Type at least 2 characters. Results update as you type.</p>
-      <div class="class-search-results" data-inspect-name-results></div>
-    </div>
-  {% else %}
-    <h3>Event Analytics</h3>
-    <p class="muted-line">Use the tabs above to switch tools without leaving this page.</p>
-  {% endif %}
-</section>
-
-{% if view == 'analytics' %}
-  <section class="card">
-    <h3>Signups Over Time</h3>
-    {% if signup_trend %}
-      {% set max_count = signup_trend|map(attribute='count')|max %}
-      <div class="form-grid">
-        {% for point in signup_trend %}
-          <div>
-            <div class="row-space"><span>{{ point.day }}</span><strong>{{ point.count }}</strong></div>
-            <div style="height:8px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;">
-              <div style="height:100%;width:{{ (point.count / max_count * 100) if max_count else 0 }}%;background:linear-gradient(135deg,var(--accent),var(--accent2));"></div>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p>No signups yet.</p>
-    {% endif %}
-  </section>
-
-  <section class="card">
-    <h3>Driver Class Breakdown</h3>
-    <div class="actions-row" style="flex-wrap:wrap; gap:14px;">
-      <span class="driver-class-pill driver-class-A">Class A <strong>{{ class_counts.get('A', 0) }}</strong></span>
-      <span class="driver-class-pill driver-class-B">Class B <strong>{{ class_counts.get('B', 0) }}</strong></span>
-      <span class="driver-class-pill driver-class-C">Class C <strong>{{ class_counts.get('C', 0) }}</strong></span>
-      <span class="badge badge-viewed">Total {{ total_signups }}</span>
-    </div>
-  </section>
-{% endif %}
 {% endblock %}

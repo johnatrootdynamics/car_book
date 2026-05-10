@@ -662,6 +662,29 @@ th { color: var(--muted); font-weight: 600; }
   margin-top: 8px;
 }
 
+.event-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.event-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.event-nav h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+@media (max-width: 960px) {
+  .event-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
 .event-tile-body h4 {
   margin: 0 0 6px;
 }
