@@ -8,11 +8,21 @@
     </div>
     <div class="actions-row">
       <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
-      <a class="btn btn-secondary" href="{{ url_for('employee.run_groups', event_id=event.id) }}">Run Groups</a>
-      <a class="btn btn-secondary" href="{{ url_for('employee.participants', event_id=event.id) }}">Participants</a>
-      <a class="btn btn-secondary" href="{{ url_for('employee.inspection_lookup', event_id=event.id) }}">Inspect</a>
+      <a class="btn btn-secondary" href="{{ url_for('employee.run_groups', event_id=event.id) }}" target="event_ops_frame">Run Groups</a>
+      <a class="btn btn-secondary" href="{{ url_for('employee.participants', event_id=event.id) }}" target="event_ops_frame">Participants</a>
+      <a class="btn btn-secondary" href="{{ url_for('employee.inspection_lookup', event_id=event.id) }}" target="event_ops_frame">Inspect</a>
     </div>
   </div>
+</section>
+
+<section class="card">
+  <h3>Event Operations</h3>
+  <iframe
+    name="event_ops_frame"
+    title="Event Operations"
+    src="{{ url_for('employee.run_groups', event_id=event.id) }}"
+    style="width:100%; min-height: 880px; border:1px solid rgba(255,255,255,.16); border-radius:12px; background:#0b1020;"
+  ></iframe>
 </section>
 
 <section class="card">
