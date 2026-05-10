@@ -317,6 +317,7 @@ def event_detail(event_id):
     assignments = {}
     participants = []
     class_by_user = {}
+    inspections = {}
 
     if view == "run_groups":
         groups = RunGroup.query.filter_by(event_id=event.id).order_by(RunGroup.name.asc()).all()
@@ -343,6 +344,14 @@ def event_detail(event_id):
             .order_by(EventRegistration.created_at.asc())
             .all()
         )
+        inspections = {
+            inspection.event_registration_id: inspection
+            for inspection in Inspection.query.join(
+                EventRegistration, EventRegistration.id == Inspection.event_registration_id
+            )
+            .filter(EventRegistration.event_id == event.id)
+            .all()
+        }
         for reg in participants:
             class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
         db.session.commit()
@@ -358,6 +367,7 @@ def event_detail(event_id):
         assignments=assignments,
         participants=participants,
         class_by_user=class_by_user,
+        inspections=inspections,
     )
 
 
