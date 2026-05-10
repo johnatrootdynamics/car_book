@@ -28,7 +28,7 @@ body {
   display: inline-block;
   position: fixed;
   top: 12px;
-  left: 12px;
+  left: 276px;
   z-index: 80;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -84,7 +84,19 @@ body.sidebar-collapsed .main-content-wrap {
   width: 100%;
 }
 
+body.sidebar-collapsed .sidebar-toggle {
+  left: 12px;
+}
+
 @media (max-width: 960px) {
+  .sidebar-toggle {
+    left: 12px;
+  }
+
+  body.sidebar-open .sidebar-toggle {
+    left: 220px;
+  }
+
   .sidebar {
     position: fixed;
     left: 0;
