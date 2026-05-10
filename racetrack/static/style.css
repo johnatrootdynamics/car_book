@@ -317,8 +317,17 @@ th { color: var(--muted); font-weight: 600; }
 }
 
 .feed-headline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   margin-bottom: 8px;
   font-weight: 600;
+}
+
+.feed-time {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
 .author-avatar,
