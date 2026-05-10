@@ -25,7 +25,7 @@ body {
 .container { width: min(1100px, 92vw); margin: 0 auto; }
 .app-shell { display: flex; min-height: 100vh; }
 .sidebar-toggle {
-  display: none;
+  display: inline-block;
   position: fixed;
   top: 12px;
   left: 12px;
@@ -74,11 +74,17 @@ body {
 .side-nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.06); border-color: var(--border); }
 
 .main-content-wrap { flex: 1; min-width: 0; }
-.main-content { padding: 24px 0 38px; }
+.main-content { padding: 64px 0 38px; }
+
+body.sidebar-collapsed .sidebar {
+  transform: translateX(-100%);
+}
+
+body.sidebar-collapsed .main-content-wrap {
+  width: 100%;
+}
 
 @media (max-width: 960px) {
-  .sidebar-toggle { display: inline-block; }
-
   .sidebar {
     position: fixed;
     left: 0;
@@ -92,10 +98,6 @@ body {
 
   body.sidebar-open .sidebar-overlay {
     display: block;
-  }
-
-  .main-content {
-    padding-top: 60px;
   }
 }
 .card {

@@ -201,16 +201,24 @@ function setupSidebarToggle() {
   const overlay = document.querySelector("[data-sidebar-overlay]")
   if (!toggle || !overlay) return
 
-  const closeSidebar = () => document.body.classList.remove("sidebar-open")
+  const isMobile = () => window.innerWidth <= 960
+
+  const closeMobileSidebar = () => document.body.classList.remove("sidebar-open")
 
   toggle.addEventListener("click", () => {
-    document.body.classList.toggle("sidebar-open")
+    if (isMobile()) {
+      document.body.classList.toggle("sidebar-open")
+      document.body.classList.remove("sidebar-collapsed")
+    } else {
+      document.body.classList.toggle("sidebar-collapsed")
+      document.body.classList.remove("sidebar-open")
+    }
   })
 
-  overlay.addEventListener("click", closeSidebar)
+  overlay.addEventListener("click", closeMobileSidebar)
 
   window.addEventListener("resize", () => {
-    if (window.innerWidth > 960) closeSidebar()
+    if (!isMobile()) document.body.classList.remove("sidebar-open")
   })
 }
 
