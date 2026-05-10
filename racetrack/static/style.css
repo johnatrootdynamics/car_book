@@ -30,12 +30,20 @@ body {
   top: 12px;
   left: 276px;
   z-index: 80;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: rgba(3, 8, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 95, 31, 0.9), rgba(255, 31, 87, 0.9));
   color: #fff;
-  padding: 8px 12px;
+  padding: 8px 14px;
   font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+
+.sidebar-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
 }
 
 .sidebar-overlay {
