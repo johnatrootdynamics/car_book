@@ -200,6 +200,40 @@ th { color: var(--muted); font-weight: 600; }
   text-decoration: underline;
 }
 
+.events-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.events-table thead th {
+  background: rgba(15, 23, 42, 0.8);
+  color: #dbeafe;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.events-table tbody tr {
+  transition: background .12s ease;
+}
+
+.events-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.events-table td,
+.events-table th {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.events-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 .inline { display: inline-flex; align-items: center; gap: 6px; }
 .driver-class-form { flex-wrap: nowrap; }
 .driver-class-select {

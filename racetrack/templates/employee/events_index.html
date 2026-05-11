@@ -14,7 +14,7 @@
   <h3>Upcoming Events</h3>
   {% if upcoming_events %}
     <div class="table-wrap">
-      <table>
+      <table class="events-table">
         <thead><tr><th>Name</th><th>Date</th><th>Drivers</th><th>Actions</th></tr></thead>
         <tbody>
           {% for event in upcoming_events %}
@@ -44,7 +44,7 @@
     <summary>Past Events ({{ past_events|length }})</summary>
     {% if past_events %}
       <div class="table-wrap" style="margin-top:10px;">
-        <table>
+        <table class="events-table">
           <thead><tr><th>Name</th><th>Date</th><th>Drivers</th><th>Actions</th></tr></thead>
           <tbody>
             {% for event in past_events %}
