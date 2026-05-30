@@ -1,370 +1,111 @@
-{% extends "base.html" %}
-{% block content %}
-<style>
-  .lp {
-    display: grid;
-    gap: 28px;
-    scroll-behavior: smooth;
-  }
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Track Ops</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="mk-body">
+  <header class="mk-topbar">
+    <div class="mk-wrap mk-nav">
+      <a class="mk-brand-wrap" href="{{ url_for('auth.home') }}">
+        <span class="mk-brand">Track Ops</span>
+        <span class="mk-subbrand">A Root Dynamics product</span>
+      </a>
+      <nav class="mk-links">
+        <a href="{{ url_for('auth.user_login') }}">Driver Login</a>
+        <a href="{{ url_for('auth.employee_login') }}">Employee Login</a>
+        <a href="{{ url_for('auth.admin_login') }}">Admin Login</a>
+        <a href="{{ url_for('auth.user_register') }}">Register</a>
+      </nav>
+    </div>
+  </header>
 
-  .lp-flow {
-    position: sticky;
-    top: 72px;
-    z-index: 20;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 10px;
-    border-radius: 14px;
-    background: rgba(4, 8, 18, 0.76);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(8px);
-  }
-
-  .flow-link {
-    color: #c5d7f5;
-    text-decoration: none;
-    font-size: 0.88rem;
-    padding: 7px 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.04);
-    transition: background .16s ease, color .16s ease, border-color .16s ease;
-  }
-
-  .flow-link:hover,
-  .flow-link.is-active {
-    color: #fff;
-    border-color: rgba(96, 165, 250, 0.7);
-    background: rgba(37, 99, 235, 0.32);
-  }
-
-  .lp-section {
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 22px;
-    padding: 62px 42px;
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
-    scroll-margin-top: 132px;
-  }
-
-  .lp-hero {
-    background:
-      radial-gradient(900px 500px at 5% 0%, rgba(56, 189, 248, 0.16), transparent 52%),
-      radial-gradient(800px 460px at 95% 8%, rgba(249, 115, 22, 0.14), transparent 56%),
-      linear-gradient(150deg, #060913, #0d152a 48%, #111827);
-  }
-
-  .lp-problem {
-    background: linear-gradient(145deg, #0c1428, #121b30);
-  }
-
-  .lp-features {
-    background: linear-gradient(150deg, #081022, #0e172c);
-  }
-
-  .lp-how {
-    background:
-      linear-gradient(145deg, rgba(59, 130, 246, 0.12), rgba(239, 68, 68, 0.08)),
-      linear-gradient(150deg, #0c1326, #131c31);
-  }
-
-  .lp-audience {
-    background: linear-gradient(150deg, #091124, #111a2f);
-  }
-
-  .lp-community {
-    background:
-      radial-gradient(700px 420px at 90% 10%, rgba(249, 115, 22, 0.14), transparent 60%),
-      linear-gradient(150deg, #111827, #1a1525);
-  }
-
-  .lp-final {
-    background: linear-gradient(135deg, #172554, #1e293b 40%, #7f1d1d 100%);
-  }
-
-  .landing-title {
-    font-size: clamp(2rem, 4vw, 3.2rem);
-    line-height: 1.03;
-    margin: 0 0 16px;
-    letter-spacing: -0.02em;
-  }
-
-  .lp-kicker {
-    margin: 0 0 14px;
-    color: #d5e4fb;
-    font-size: 1.12rem;
-    max-width: 760px;
-    line-height: 1.55;
-  }
-
-  .landing-sub {
-    margin: 0 0 22px;
-    color: #bfd0ef;
-    max-width: 760px;
-    line-height: 1.6;
-  }
-
-  .hero-grid {
-    display: grid;
-    gap: 20px;
-    grid-template-columns: 1.2fr .9fr;
-    align-items: start;
-  }
-
-  .hero-kpi {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 16px;
-    padding: 24px;
-    backdrop-filter: blur(6px);
-  }
-
-  .hero-kpi h3 {
-    margin: 0 0 10px;
-    font-size: 1.22rem;
-  }
-
-  .kpi-list { margin: 0; padding: 0; list-style: none; }
-  .kpi-list li {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-  }
-  .kpi-list li:last-child { border-bottom: 0; }
-
-  .kpi-num {
-    color: #60a5fa;
-    font-weight: 700;
-  }
-
-  .section-title {
-    margin: 0 0 12px;
-    font-size: clamp(1.55rem, 3.2vw, 2.35rem);
-    letter-spacing: -0.01em;
-  }
-
-  .section-intro {
-    margin: 0 0 16px;
-    max-width: 760px;
-    color: #bfd0ef;
-    line-height: 1.62;
-  }
-
-  .feature-grid,
-  .roles-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
-
-  .feature-card,
-  .role-card,
-  .step-card,
-  .community-card,
-  .cta-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.13);
-    border-radius: 16px;
-    padding: 20px;
-    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-  }
-
-  .reveal-on-scroll {
-    opacity: 0;
-    transform: translateY(12px);
-    transition: opacity .35s ease, transform .35s ease;
-  }
-
-  .reveal-on-scroll.is-visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .feature-card:hover,
-  .role-card:hover,
-  .step-card:hover,
-  .community-card:hover,
-  .cta-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
-    border-color: rgba(96, 165, 250, 0.45);
-  }
-
-  .feature-card h4,
-  .role-card h4,
-  .step-card h4 {
-    margin: 0 0 8px;
-    font-size: 1.16rem;
-  }
-
-  .feature-card p,
-  .role-card p,
-  .step-card p,
-  .community-card p,
-  .cta-card p {
-    margin: 0;
-    color: #c0d2ee;
-    line-height: 1.72;
-  }
-
-  .feature-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    background: linear-gradient(145deg, #2563eb, #ef4444);
-    color: #fff;
-    font-size: 1rem;
-    margin-bottom: 10px;
-  }
-
-  .steps-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-  }
-
-  .step-num {
-    display: inline-flex;
-    width: 30px;
-    height: 30px;
-    border-radius: 999px;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #ef4444, #f97316);
-    color: #fff;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-
-  .cta-buttons { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-
-  .brand-foot {
-    margin-top: 8px;
-    text-align: center;
-    color: #97a9c9;
-    font-size: .92rem;
-    line-height: 1.6;
-  }
-
-  @media (max-width: 1100px) {
-    .lp-section { padding: 56px 34px; }
-  }
-
-  @media (max-width: 980px) {
-    .lp-flow { top: 66px; }
-    .hero-grid { grid-template-columns: 1fr; }
-    .feature-grid,
-    .roles-grid { grid-template-columns: 1fr 1fr; }
-    .steps-grid { grid-template-columns: 1fr; }
-    .lp-section { padding: 48px 24px; }
-  }
-
-  @media (max-width: 700px) {
-    .lp-flow {
-      top: 62px;
-      gap: 6px;
-      padding: 8px;
-    }
-
-    .flow-link {
-      font-size: 0.8rem;
-      padding: 6px 10px;
-    }
-
-    .feature-grid,
-    .roles-grid,
-    .steps-grid { grid-template-columns: 1fr; }
-    .lp { gap: 14px; }
-    .lp-section { padding: 38px 14px; }
-  }
-</style>
-
-<div class="lp" data-landing-page>
-  <nav class="lp-flow" aria-label="Landing sections">
-    <a class="flow-link" href="#overview">Overview</a>
-    <a class="flow-link" href="#platform">Platform</a>
-    <a class="flow-link" href="#workflow">Workflow</a>
-    <a class="flow-link" href="#roles">Roles</a>
-    <a class="flow-link" href="#start">Get Started</a>
-  </nav>
-
-  <section id="overview" class="lp-section lp-hero reveal-on-scroll" data-flow-section>
-    <div class="hero-grid">
+  <main class="mk-wrap mk-main">
+    <section class="mk-hero mk-panel">
       <div>
-        <h1 class="landing-title">Run better track days.</h1>
-        <p class="lp-kicker">Track Ops gives race tracks one place to manage drivers, cars, waivers, check-ins, events, and community.</p>
-        <p class="landing-sub">From grassroots drift nights to open track days, Track Ops helps staff stay organized while giving drivers a smoother event-day experience.</p>
-        <div class="cta-buttons">
+        <h1>Run better track days.</h1>
+        <p>Track Ops helps motorsport venues manage drivers, events, waivers, check-ins, inspections, incidents, and live operations from one simple platform.</p>
+        <div class="mk-cta-row">
           <a class="btn" href="{{ url_for('auth.user_register') }}">Create Driver Account</a>
           <a class="btn btn-secondary" href="{{ url_for('auth.employee_login') }}">Employee Access</a>
           <a class="btn btn-secondary" href="{{ url_for('auth.admin_login') }}">Enterprise Admin</a>
         </div>
       </div>
-      <aside class="hero-kpi">
-        <h3>Today at the Track</h3>
-        <ul class="kpi-list">
-          <li><span>Driver check-ins</span><span class="kpi-num">142</span></li>
-          <li><span>Event schedule</span><span class="kpi-num">6 active</span></li>
-          <li><span>Waiver status</span><span class="kpi-num">91% signed</span></li>
-          <li><span>Car profiles</span><span class="kpi-num">318 loaded</span></li>
+      <aside class="mk-dashboard">
+        <h3>Live Operations Snapshot</h3>
+        <ul>
+          <li><span>Today's Drivers</span><strong>84</strong></li>
+          <li><span>Checked In</span><strong>62</strong></li>
+          <li><span>Cars Inspected</span><strong>49</strong></li>
+          <li><span>Incidents Logged</span><strong>3</strong></li>
+          <li><span>Next Run Group</span><strong>B Group</strong></li>
         </ul>
       </aside>
-    </div>
-  </section>
+    </section>
 
-  <section class="lp-section lp-problem reveal-on-scroll" data-flow-section>
-    <h2 class="section-title">Track days move fast. Your software should keep up.</h2>
-    <p class="section-intro">Clipboards, paper waivers, and manual check-ins slow everyone down. Track Ops keeps event-day operations in one clean system.</p>
-    <div class="feature-grid">
-      <article class="feature-card"><span class="feature-badge">01</span><h4>Find driver info quickly</h4></article>
-      <article class="feature-card"><span class="feature-badge">02</span><h4>Move check-in lines faster</h4></article>
-    </div>
-  </section>
+    <section class="mk-panel">
+      <h2>Stop running events from clipboards and group chats.</h2>
+      <div class="mk-grid mk-grid-4">
+        <article class="mk-card"><h4>Fast Driver Check-In</h4><p>Scan QR codes, verify waivers, choose cars, and check drivers into today’s event.</p></article>
+        <article class="mk-card"><h4>Event Visibility</h4><p>See who is checked in, who passed inspection, and what classes are on site.</p></article>
+        <article class="mk-card"><h4>Staff-Friendly Tools</h4><p>Give employees simple screens for check-in, inspection, notes, and live track operations.</p></article>
+        <article class="mk-card"><h4>Track-Owned Data</h4><p>Build long-term driver, vehicle, waiver, and incident history for your facility.</p></article>
+      </div>
+    </section>
 
-  <section id="platform" class="lp-section lp-features reveal-on-scroll" data-flow-section>
-    <h2 class="section-title">Everything your track needs in one place.</h2>
-    <p class="section-intro">Track Ops connects drivers, cars, waivers, and events in one dashboard.</p>
-    <div class="feature-grid">
-      <article class="feature-card"><span class="feature-badge">D</span><h4>Driver Profiles</h4><p>Store driver details, emergency info, notes, cars, and history.</p></article>
-      <article class="feature-card"><span class="feature-badge">C</span><h4>Car Management</h4><p>Track vehicles, photos, QR codes, classes, and inspection details.</p></article>
-      <article class="feature-card"><span class="feature-badge">E</span><h4>Event Check-In</h4><p>Fast QR-based check-in for today’s events.</p></article>
-      <article class="feature-card"><span class="feature-badge">W</span><h4>Waivers & Compliance</h4><p>Help staff see who is signed, verified, and ready.</p></article>
-    </div>
-  </section>
+    <section class="mk-panel">
+      <h2>Core Features</h2>
+      <div class="mk-grid mk-grid-3">
+        <article class="mk-card"><h4>Driver Profiles</h4><p>Driver info, contact details, photos, notes, vehicles, and event history.</p></article>
+        <article class="mk-card"><h4>Vehicle Management</h4><p>Track cars, photos, inspection status, and driver ownership.</p></article>
+        <article class="mk-card"><h4>Event Check-In</h4><p>Quickly check drivers into active events with QR scanning or name search.</p></article>
+        <article class="mk-card"><h4>Digital Waivers</h4><p>Let tracks manage electronic waivers and connect signing status to check-in.</p></article>
+        <article class="mk-card"><h4>Run Groups</h4><p>Organize sessions, grids, run groups, and next-up staging.</p></article>
+        <article class="mk-card"><h4>Live Board</h4><p>Show staff who is on track, who is next, and what run group is active.</p></article>
+        <article class="mk-card"><h4>Incident Logging</h4><p>Capture spins, offs, flags, contact, notes, and follow-up actions.</p></article>
+        <article class="mk-card"><h4>Bulk Driver Import</h4><p>Import driver lists from CSV for large events and private rentals.</p></article>
+      </div>
+    </section>
 
-  <section id="workflow" class="lp-section lp-how reveal-on-scroll" data-flow-section>
-    <h2 class="section-title">Simple for drivers. Powerful for staff.</h2>
-    <div class="steps-grid">
-      <article class="step-card"><span class="step-num">1</span><h4>Drivers create a profile</h4><p>Drivers register once, add their information, and connect their cars.</p></article>
-      <article class="step-card"><span class="step-num">2</span><h4>Staff checks them in</h4><p>Employees can search, scan QR codes, confirm waivers, and verify cars for the day’s event.</p></article>
-      <article class="step-card"><span class="step-num">3</span><h4>Admins manage the operation</h4><p>Admins can organize events, review participation, manage users, and keep the track running smoothly.</p></article>
-    </div>
-  </section>
+    <section class="mk-grid mk-grid-2">
+      <article class="mk-panel mk-card">
+        <h3>For Tracks</h3>
+        <p>Manage event operations, staff workflows, driver records, waivers, and reporting.</p>
+        <a class="btn btn-secondary" href="{{ url_for('auth.admin_login') }}">Enterprise Admin</a>
+      </article>
+      <article class="mk-panel mk-card">
+        <h3>For Drivers</h3>
+        <p>Create a profile, manage cars, sign waivers, and speed up event check-in.</p>
+        <a class="btn" href="{{ url_for('auth.user_register') }}">Create Driver Account</a>
+      </article>
+    </section>
 
-  <section id="roles" class="lp-section lp-audience reveal-on-scroll" data-flow-section>
-    <h2 class="section-title">Built for everyone at the track.</h2>
-    <div class="roles-grid">
-      <article class="role-card"><h4>For Drivers</h4><p>Create your profile, add your cars, sign waivers, and spend less time waiting in line.</p></article>
-      <article class="role-card"><h4>For Track Staff</h4><p>Search drivers quickly, scan codes, confirm event status, and keep the check-in line moving.</p></article>
-      <article class="role-card"><h4>For Admins</h4><p>Manage events, drivers, cars, staff, and operational records from a central dashboard.</p></article>
-    </div>
-  </section>
+    <section class="mk-panel mk-liveboard">
+      <h2>Live Operations Preview</h2>
+      <div class="mk-grid mk-grid-5">
+        <div class="mk-chip"><span>On Track</span><strong>A Group</strong></div>
+        <div class="mk-chip"><span>Next Up</span><strong>B Group</strong></div>
+        <div class="mk-chip"><span>Grid Opens</span><strong>2:15 PM</strong></div>
+        <div class="mk-chip"><span>Current Flag</span><strong>Green</strong></div>
+        <div class="mk-chip"><span>Checked In</span><strong>62 / 84</strong></div>
+      </div>
+    </section>
 
-  <section id="start" class="lp-section lp-final reveal-on-scroll" data-flow-section>
-    <h2 class="section-title">Ready for a smoother event day?</h2>
-    <p class="section-intro">Start with driver registration, staff check-in, or admin access.</p>
-    <div class="cta-buttons">
-      <a class="btn" href="{{ url_for('auth.user_register') }}">Create Driver Account</a>
-      <a class="btn btn-secondary" href="{{ url_for('auth.employee_login') }}">Employee Login</a>
-      <a class="btn btn-secondary" href="{{ url_for('auth.admin_login') }}">Admin Login</a>
-    </div>
-  </section>
+    <section class="mk-panel">
+      <h2>Built for real track-day workflows.</h2>
+      <p>Track Ops is designed around the daily pain points of motorsport facilities: fast check-ins, clear staff visibility, waiver control, vehicle inspection tracking, and live event coordination.</p>
+    </section>
 
-  <footer class="brand-foot">Track Ops by Root Dynamics<br>Built for race tracks, drivers, and event-day operations.</footer>
-</div>
-{% endblock %}
+    <section class="mk-panel mk-final">
+      <h2>Make your next event easier to run.</h2>
+      <div class="mk-cta-row">
+        <a class="btn" href="{{ url_for('auth.user_register') }}">Create Driver Account</a>
+        <a class="btn btn-secondary" href="{{ url_for('auth.employee_login') }}">Employee Access</a>
+        <a class="btn btn-secondary" href="{{ url_for('auth.admin_login') }}">Enterprise Admin</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
