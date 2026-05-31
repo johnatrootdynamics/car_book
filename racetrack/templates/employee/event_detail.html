@@ -124,7 +124,11 @@
                                   <select name="start_time" required>
                                     <option value="">Select start time</option>
                                     {% for value in ns.time_options %}
-                                      <option value="{{ value }}" {% if selected_start == value %}selected{% endif %}>{{ value }}</option>
+                                      {% set hh = value[:2]|int %}
+                                      {% set mm = value[3:5] %}
+                                      {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+                                      {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+                                      <option value="{{ value }}" {% if selected_start == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
                                     {% endfor %}
                                   </select>
                                 </label>
@@ -132,7 +136,11 @@
                                   <select name="end_time" required>
                                     <option value="">Select end time</option>
                                     {% for value in ns.time_options %}
-                                      <option value="{{ value }}" {% if selected_end == value %}selected{% endif %}>{{ value }}</option>
+                                      {% set hh = value[:2]|int %}
+                                      {% set mm = value[3:5] %}
+                                      {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+                                      {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+                                      <option value="{{ value }}" {% if selected_end == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
                                     {% endfor %}
                                   </select>
                                 </label>
@@ -159,7 +167,11 @@
                   <select name="start_time" required {% if not ns.time_options %}disabled{% endif %}>
                     <option value="">Select start time</option>
                     {% for value in ns.time_options %}
-                      <option value="{{ value }}">{{ value }}</option>
+                      {% set hh = value[:2]|int %}
+                      {% set mm = value[3:5] %}
+                      {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+                      {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+                      <option value="{{ value }}">{{ display_h }}:{{ mm }} {{ meridiem }}</option>
                     {% endfor %}
                   </select>
                 </label>
@@ -167,7 +179,11 @@
                   <select name="end_time" required {% if not ns.time_options %}disabled{% endif %}>
                     <option value="">Select end time</option>
                     {% for value in ns.time_options %}
-                      <option value="{{ value }}">{{ value }}</option>
+                      {% set hh = value[:2]|int %}
+                      {% set mm = value[3:5] %}
+                      {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+                      {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+                      <option value="{{ value }}">{{ display_h }}:{{ mm }} {{ meridiem }}</option>
                     {% endfor %}
                   </select>
                 </label>
