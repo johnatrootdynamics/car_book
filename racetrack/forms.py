@@ -2,7 +2,7 @@ from datetime import date
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
-from wtforms import BooleanField, DateField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import BooleanField, DateField, PasswordField, SelectField, StringField, SubmitField, TextAreaField, TimeField
 from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError
 
 
@@ -43,6 +43,8 @@ class EventForm(FlaskForm):
     event_date = DateField(
         "Event Date", validators=[DataRequired(), validate_not_past], format="%Y-%m-%d"
     )
+    event_start_time = TimeField("Event Start Time", validators=[Optional()])
+    event_end_time = TimeField("Event End Time", validators=[Optional()])
     thumbnail_image = FileField(
         "Event Thumbnail",
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],

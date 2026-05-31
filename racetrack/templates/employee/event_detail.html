@@ -15,6 +15,8 @@
         {% set selected_layout_name = event.track_layout.name if event.track_layout else 'Default Track Layout' %}
         <h3>{{ event.event_name }}</h3>
         <p class="muted-line">Date: {{ event.event_date }}</p>
+        <p class="muted-line">Start Time: {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }}</p>
+        <p class="muted-line">End Time: {{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</p>
         <p class="muted-line">Track: {{ event.track.name }}</p>
         <p class="muted-line">Layout: <strong>{{ selected_layout_name }}</strong></p>
         {% if event.track_layout and event.track_layout.image_path %}
@@ -71,6 +73,22 @@
         </div>
       {% elif view == 'slots' %}
         <h3>Class Time Slots</h3>
+        {% if event.event_start_time and event.event_end_time %}
+          <p class="muted-line">Event window: <strong>{{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}</strong> - <strong>{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') }}</strong></p>
+        {% else %}
+          <p class="flash flash-error">Set event start and end time in General before editing class slots.</p>
+        {% endif %}
+        {% set ns = namespace(time_options=[]) %}
+        {% if event.event_start_time and event.event_end_time %}
+          {% set start_total = event.event_start_time.hour * 60 + event.event_start_time.minute %}
+          {% set end_total = event.event_end_time.hour * 60 + event.event_end_time.minute %}
+          {% for total in range(start_total, end_total + 1, 15) %}
+            {% set hh = total // 60 %}
+            {% set mm = total % 60 %}
+            {% set value = '%02d:%02d'|format(hh, mm) %}
+            {% set ns.time_options = ns.time_options + [value] %}
+          {% endfor %}
+        {% endif %}
         {% set slot_a = (class_slots|selectattr('class_code', 'equalto', 'A')|list|first) %}
         {% set slot_b = (class_slots|selectattr('class_code', 'equalto', 'B')|list|first) %}
         {% set slot_c = (class_slots|selectattr('class_code', 'equalto', 'C')|list|first) %}
@@ -105,22 +123,16 @@
                                 <label>Start
                                   <select name="start_time" required>
                                     <option value="">Select start time</option>
-                                    {% for hour in range(0, 24) %}
-                                      {% for minute in [0, 15, 30, 45] %}
-                                        {% set value = '%02d:%02d'|format(hour, minute) %}
-                                        <option value="{{ value }}" {% if selected_start == value %}selected{% endif %}>{{ value }}</option>
-                                      {% endfor %}
+                                    {% for value in ns.time_options %}
+                                      <option value="{{ value }}" {% if selected_start == value %}selected{% endif %}>{{ value }}</option>
                                     {% endfor %}
                                   </select>
                                 </label>
                                 <label>End
                                   <select name="end_time" required>
                                     <option value="">Select end time</option>
-                                    {% for hour in range(0, 24) %}
-                                      {% for minute in [0, 15, 30, 45] %}
-                                        {% set value = '%02d:%02d'|format(hour, minute) %}
-                                        <option value="{{ value }}" {% if selected_end == value %}selected{% endif %}>{{ value }}</option>
-                                      {% endfor %}
+                                    {% for value in ns.time_options %}
+                                      <option value="{{ value }}" {% if selected_end == value %}selected{% endif %}>{{ value }}</option>
                                     {% endfor %}
                                   </select>
                                 </label>
@@ -144,28 +156,22 @@
                 <input type="hidden" name="class_code" value="{{ class_code }}">
                 <h4 style="margin:0;">Add Another {{ class_code }} Slot</h4>
                 <label>Start
-                  <select name="start_time" required>
+                  <select name="start_time" required {% if not ns.time_options %}disabled{% endif %}>
                     <option value="">Select start time</option>
-                    {% for hour in range(0, 24) %}
-                      {% for minute in [0, 15, 30, 45] %}
-                        {% set value = '%02d:%02d'|format(hour, minute) %}
-                        <option value="{{ value }}">{{ value }}</option>
-                      {% endfor %}
+                    {% for value in ns.time_options %}
+                      <option value="{{ value }}">{{ value }}</option>
                     {% endfor %}
                   </select>
                 </label>
                 <label>End
-                  <select name="end_time" required>
+                  <select name="end_time" required {% if not ns.time_options %}disabled{% endif %}>
                     <option value="">Select end time</option>
-                    {% for hour in range(0, 24) %}
-                      {% for minute in [0, 15, 30, 45] %}
-                        {% set value = '%02d:%02d'|format(hour, minute) %}
-                        <option value="{{ value }}">{{ value }}</option>
-                      {% endfor %}
+                    {% for value in ns.time_options %}
+                      <option value="{{ value }}">{{ value }}</option>
                     {% endfor %}
                   </select>
                 </label>
-                <div><button type="submit" class="btn btn-sm">Add Slot</button></div>
+                <div><button type="submit" class="btn btn-sm" {% if not ns.time_options %}disabled{% endif %}>Add Slot</button></div>
               </form>
             </details>
           {% endfor %}

@@ -225,6 +225,12 @@ def create_app():
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS thumbnail_image_path VARCHAR(255) NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_start_time TIME NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_end_time TIME NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS track_layout_id INT NULL"
             )
             conn.exec_driver_sql(

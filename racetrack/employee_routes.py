@@ -285,6 +285,10 @@ def event_new():
         (layout.id, layout.name) for layout in layouts
     ]
     if form.validate_on_submit():
+        if form.event_start_time.data and form.event_end_time.data:
+            if form.event_end_time.data <= form.event_start_time.data:
+                flash("Event end time must be after start time.", "error")
+                return render_template("employee/event_form.html", form=form, title="Create Event")
         layout_id = form.track_layout_id.data or 0
         selected_layout = None
         if layout_id:
@@ -299,6 +303,8 @@ def event_new():
             track_layout_id=selected_layout.id if selected_layout else None,
             event_name=form.event_name.data.strip(),
             event_date=form.event_date.data,
+            event_start_time=form.event_start_time.data,
+            event_end_time=form.event_end_time.data,
         )
         upload = form.thumbnail_image.data
         if upload:
@@ -334,6 +340,10 @@ def event_edit(event_id):
     if request.method == "GET":
         form.track_layout_id.data = event.track_layout_id or 0
     if form.validate_on_submit():
+        if form.event_start_time.data and form.event_end_time.data:
+            if form.event_end_time.data <= form.event_start_time.data:
+                flash("Event end time must be after start time.", "error")
+                return render_template("employee/event_form.html", form=form, title="Edit Event")
         layout_id = form.track_layout_id.data or 0
         selected_layout = None
         if layout_id:
@@ -346,6 +356,8 @@ def event_edit(event_id):
         event.track_layout_id = selected_layout.id if selected_layout else None
         event.event_name = form.event_name.data.strip()
         event.event_date = form.event_date.data
+        event.event_start_time = form.event_start_time.data
+        event.event_end_time = form.event_end_time.data
         upload = form.thumbnail_image.data
         if upload:
             clean_name = secure_filename(upload.filename)
@@ -565,6 +577,12 @@ def event_slot_save(event_id):
         return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
     if end_time_value <= start_time_value:
         flash("End time must be after start time.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+    if not event.event_start_time or not event.event_end_time:
+        flash("Set event start and end time first in General.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+    if start_time_value < event.event_start_time or end_time_value > event.event_end_time:
+        flash("Class slots must be within the event time window.", "error")
         return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
 
     if slot_id:
