@@ -25,7 +25,7 @@
           {% set current_start = event.event_start_time.strftime('%H:%M') if event.event_start_time else '' %}
           {% set current_end = event.event_end_time.strftime('%H:%M') if event.event_end_time else '' %}
 
-          <div class="row-space"><h3 style="margin:0;">General</h3><button type="button" class="btn btn-secondary btn-sm" data-general-edit-btn>Edit</button></div>
+          <div class="row-space"><h3 style="margin:0;">{{ event.event_name }}</h3><button type="button" class="btn btn-secondary btn-sm" data-general-edit-btn>Edit</button></div>
 
           <label>Event Name
             <span class="general-static" data-static>{{ event.event_name }}</span>
@@ -33,12 +33,12 @@
           </label>
 
           <label>Event Date
-            <span class="general-static" data-static>{{ event.event_date }}</span>
+            <span class="general-static" data-static><i class="bi bi-calendar-event"></i> {{ event.event_date }}</span>
             <input data-edit-field type="date" name="event_date" value="{{ event.event_date.strftime('%Y-%m-%d') }}" required hidden>
           </label>
 
           <label>Event Start Time
-            <span class="general-static" data-static>{{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }}</span>
+            <span class="general-static" data-static><i class="bi bi-clock"></i> {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }}</span>
             <select data-edit-field name="event_start_time" required hidden>
               <option value="">Select start time</option>
               {% for value in ns.half_hour_options %}
@@ -52,7 +52,7 @@
           </label>
 
           <label>Event End Time
-            <span class="general-static" data-static>{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</span>
+            <span class="general-static" data-static><i class="bi bi-clock-history"></i> {{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</span>
             <select data-edit-field name="event_end_time" required hidden>
               <option value="">Select end time</option>
               {% for value in ns.half_hour_options %}
@@ -65,12 +65,8 @@
             </select>
           </label>
 
-          <label>Track
-            <span class="general-static" data-static>{{ event.track.name }}</span>
-          </label>
-
           <label>Layout
-            <span class="general-static" data-static>{{ selected_layout_name }}</span>
+            <span class="general-static" data-static><i class="bi bi-map"></i> {{ selected_layout_name }}</span>
             <select data-edit-field name="track_layout_id" hidden>
               <option value="0" {% if not event.track_layout_id %}selected{% endif %}>Default Track Layout</option>
               {% for layout in track_layouts %}
