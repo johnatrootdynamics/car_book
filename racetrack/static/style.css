@@ -522,13 +522,23 @@ th { color: var(--muted); font-weight: 600; }
 
 .layout-tile-menu {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
+  left: auto;
+  bottom: auto;
   z-index: 6;
 }
 
-.layout-tile-menu .event-actions-trigger {
+.layout-tile-menu .layout-tile-trigger {
   margin: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.layout-tile-menu .event-actions-list {
+  right: 0;
+  left: auto;
 }
 
 .check-row {
