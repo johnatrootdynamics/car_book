@@ -75,26 +75,81 @@
         {% set slot_b = (class_slots|selectattr('class_code', 'equalto', 'B')|list|first) %}
         {% set slot_c = (class_slots|selectattr('class_code', 'equalto', 'C')|list|first) %}
         <div class="form-grid" style="margin-bottom:14px;">
-          {% for class_code, slot in [('A', slot_a), ('B', slot_b), ('C', slot_c)] %}
+          {% for class_code in ['A', 'B', 'C'] %}
+            {% set slots_for_class = class_slots|selectattr('class_code', 'equalto', class_code)|list %}
             <details class="card" style="margin:0;">
               <summary class="row-space" style="cursor:pointer; list-style:none;">
                 <span><span class="driver-class-pill driver-class-{{ class_code }}">Class {{ class_code }}</span>
-                {% if slot %}<span class="muted-line"> {{ slot.start_time.strftime('%I:%M %p').lstrip('0') }} - {{ slot.end_time.strftime('%I:%M %p').lstrip('0') }}</span>{% else %}<span class="muted-line"> Not set</span>{% endif %}
+                {% if slots_for_class %}<span class="muted-line"> {{ slots_for_class|length }} slot(s)</span>{% else %}<span class="muted-line"> Not set</span>{% endif %}
                 </span>
                 <span class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</span>
               </summary>
+              {% if slots_for_class %}
+                <div class="table-wrap" style="margin-top:10px;">
+                  <table>
+                    <thead><tr><th>Start</th><th>End</th><th>Actions</th></tr></thead>
+                    <tbody>
+                      {% for slot in slots_for_class %}
+                        <tr>
+                          <td>{{ slot.start_time.strftime('%I:%M %p').lstrip('0') }}</td>
+                          <td>{{ slot.end_time.strftime('%I:%M %p').lstrip('0') }}</td>
+                          <td>
+                            <details>
+                              <summary class="btn btn-secondary btn-sm" style="display:inline-flex;">Edit</summary>
+                              <form method="post" action="{{ url_for('employee.event_slot_save', event_id=event.id) }}" class="form-grid" style="margin-top:8px; max-width:280px;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="class_code" value="{{ class_code }}">
+                                <input type="hidden" name="slot_id" value="{{ slot.id }}">
+                                {% set selected_start = slot.start_time.strftime('%H:%M') %}
+                                {% set selected_end = slot.end_time.strftime('%H:%M') %}
+                                <label>Start
+                                  <select name="start_time" required>
+                                    <option value="">Select start time</option>
+                                    {% for hour in range(0, 24) %}
+                                      {% for minute in [0, 15, 30, 45] %}
+                                        {% set value = '%02d:%02d'|format(hour, minute) %}
+                                        <option value="{{ value }}" {% if selected_start == value %}selected{% endif %}>{{ value }}</option>
+                                      {% endfor %}
+                                    {% endfor %}
+                                  </select>
+                                </label>
+                                <label>End
+                                  <select name="end_time" required>
+                                    <option value="">Select end time</option>
+                                    {% for hour in range(0, 24) %}
+                                      {% for minute in [0, 15, 30, 45] %}
+                                        {% set value = '%02d:%02d'|format(hour, minute) %}
+                                        <option value="{{ value }}" {% if selected_end == value %}selected{% endif %}>{{ value }}</option>
+                                      {% endfor %}
+                                    {% endfor %}
+                                  </select>
+                                </label>
+                                <div><button type="submit" class="btn btn-sm">Save</button></div>
+                              </form>
+                            </details>
+                            <form method="post" action="{{ url_for('employee.event_slot_delete', event_id=event.id, slot_id=slot.id) }}" class="inline" style="margin-top:6px;">
+                              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                              <button type="submit" class="btn btn-secondary btn-sm">Delete</button>
+                            </form>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% endif %}
+
               <form method="post" action="{{ url_for('employee.event_slot_save', event_id=event.id) }}" class="form-grid" style="margin-top:10px;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="class_code" value="{{ class_code }}">
-                {% set selected_start = slot.start_time.strftime('%H:%M') if slot else '' %}
-                {% set selected_end = slot.end_time.strftime('%H:%M') if slot else '' %}
+                <h4 style="margin:0;">Add Another {{ class_code }} Slot</h4>
                 <label>Start
                   <select name="start_time" required>
                     <option value="">Select start time</option>
                     {% for hour in range(0, 24) %}
                       {% for minute in [0, 15, 30, 45] %}
                         {% set value = '%02d:%02d'|format(hour, minute) %}
-                        <option value="{{ value }}" {% if selected_start == value %}selected{% endif %}>{{ value }}</option>
+                        <option value="{{ value }}">{{ value }}</option>
                       {% endfor %}
                     {% endfor %}
                   </select>
@@ -105,12 +160,12 @@
                     {% for hour in range(0, 24) %}
                       {% for minute in [0, 15, 30, 45] %}
                         {% set value = '%02d:%02d'|format(hour, minute) %}
-                        <option value="{{ value }}" {% if selected_end == value %}selected{% endif %}>{{ value }}</option>
+                        <option value="{{ value }}">{{ value }}</option>
                       {% endfor %}
                     {% endfor %}
                   </select>
                 </label>
-                <div><button type="submit" class="btn btn-sm">Save {{ class_code }}</button></div>
+                <div><button type="submit" class="btn btn-sm">Add Slot</button></div>
               </form>
             </details>
           {% endfor %}

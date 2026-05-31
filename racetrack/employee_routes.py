@@ -551,6 +551,7 @@ def event_slot_save(event_id):
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
     class_code = (request.form.get("class_code") or "").strip().upper()
+    slot_id = request.form.get("slot_id", type=int)
     start_time = request.form.get("start_time")
     end_time = request.form.get("end_time")
     if class_code not in {"A", "B", "C"} or not start_time or not end_time:
@@ -566,17 +567,15 @@ def event_slot_save(event_id):
         flash("End time must be after start time.", "error")
         return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
 
-    slots_for_class = (
-        EventClassSlot.query.filter_by(event_id=event.id, class_code=class_code)
-        .order_by(EventClassSlot.start_time.asc())
-        .all()
-    )
-    if slots_for_class:
-        slot = slots_for_class[0]
+    if slot_id:
+        slot = EventClassSlot.query.filter_by(
+            id=slot_id, event_id=event.id, class_code=class_code
+        ).first()
+        if not slot:
+            flash("Slot not found.", "error")
+            return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
         slot.start_time = start_time_value
         slot.end_time = end_time_value
-        for extra in slots_for_class[1:]:
-            db.session.delete(extra)
     else:
         db.session.add(
             EventClassSlot(
