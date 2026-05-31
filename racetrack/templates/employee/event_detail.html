@@ -82,7 +82,7 @@
         {% if event.event_start_time and event.event_end_time %}
           {% set start_total = event.event_start_time.hour * 60 + event.event_start_time.minute %}
           {% set end_total = event.event_end_time.hour * 60 + event.event_end_time.minute %}
-          {% for total in range(start_total, end_total + 1, 30) %}
+          {% for total in range(start_total, end_total + 1, 15) %}
             {% set hh = total // 60 %}
             {% set mm = total % 60 %}
             {% set value = '%02d:%02d'|format(hh, mm) %}

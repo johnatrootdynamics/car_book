@@ -6,8 +6,8 @@
     {{ form.hidden_tag() }}
     <label>Event Name {{ form.event_name() }}</label>
     <label>Event Date {{ form.event_date() }}</label>
-    <label>Event Start Time {{ form.event_start_time(type='time') }}</label>
-    <label>Event End Time {{ form.event_end_time(type='time') }}</label>
+    <label>Event Start Time {{ form.event_start_time(type='time', step='1800') }}</label>
+    <label>Event End Time {{ form.event_end_time(type='time', step='1800') }}</label>
     <label>Track Layout {{ form.track_layout_id() }}</label>
     <label>Thumbnail Image {{ form.thumbnail_image() }}</label>
     {{ form.submit(class_='btn') }}
