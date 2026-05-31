@@ -3,11 +3,11 @@
 <section class="card event-shell">
   <aside class="event-nav">
     <h2>Event</h2>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}">General</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}">Analytics</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}">Participants</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}">Inspect</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}">Class Slots</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}"><i class="bi bi-sliders2"></i> General</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}"><i class="bi bi-graph-up-arrow"></i> Analytics</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i> Class Slots</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-people"></i> Participants</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}"><i class="bi bi-clipboard-check"></i> Inspect</a>
   </aside>
   <div>
     <section class="card">
