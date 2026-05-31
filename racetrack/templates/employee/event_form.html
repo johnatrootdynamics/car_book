@@ -4,10 +4,41 @@
   <h2>{{ title }}</h2>
   <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
+    {% set ns = namespace(half_hour_options=[]) %}
+    {% for hour in range(0, 24) %}
+      {% for minute in [0, 30] %}
+        {% set value = '%02d:%02d'|format(hour, minute) %}
+        {% set ns.half_hour_options = ns.half_hour_options + [value] %}
+      {% endfor %}
+    {% endfor %}
+    {% set current_start = form.event_start_time.data.strftime('%H:%M') if form.event_start_time.data else '' %}
+    {% set current_end = form.event_end_time.data.strftime('%H:%M') if form.event_end_time.data else '' %}
     <label>Event Name {{ form.event_name() }}</label>
     <label>Event Date {{ form.event_date() }}</label>
-    <label>Event Start Time {{ form.event_start_time(type='time', step='1800') }}</label>
-    <label>Event End Time {{ form.event_end_time(type='time', step='1800') }}</label>
+    <label>Event Start Time
+      <select name="event_start_time" required>
+        <option value="">Select start time</option>
+        {% for value in ns.half_hour_options %}
+          {% set hh = value[:2]|int %}
+          {% set mm = value[3:5] %}
+          {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+          {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+          <option value="{{ value }}" {% if current_start == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Event End Time
+      <select name="event_end_time" required>
+        <option value="">Select end time</option>
+        {% for value in ns.half_hour_options %}
+          {% set hh = value[:2]|int %}
+          {% set mm = value[3:5] %}
+          {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+          {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+          <option value="{{ value }}" {% if current_end == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
+        {% endfor %}
+      </select>
+    </label>
     <label>Track Layout {{ form.track_layout_id() }}</label>
     <label>Thumbnail Image {{ form.thumbnail_image() }}</label>
     {{ form.submit(class_='btn') }}
