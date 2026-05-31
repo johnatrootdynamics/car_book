@@ -1,9 +1,12 @@
 from datetime import date, datetime
+import base64
+from io import BytesIO
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash
+from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
 from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackProfileForm
@@ -60,6 +63,66 @@ def _get_or_create_track_driver_class(track_id, user_id):
         db.session.add(record)
         db.session.flush()
     return record
+
+
+def _create_track_layout_from_upload(track_id, name, file_storage):
+    layout = TrackLayout(track_id=track_id, name=name)
+    clean_name = secure_filename(file_storage.filename)
+    file_storage.filename = clean_name
+    layout.image_path = upload_public_image(
+        file_storage,
+        bucket=current_app.config["S3_BUCKET"],
+        endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+        access_key=current_app.config["S3_ACCESS_KEY"],
+        secret_key=current_app.config["S3_SECRET_KEY"],
+        key_prefix=f"track_layouts/{track_id}",
+    )
+    db.session.add(layout)
+    db.session.flush()
+    return layout
+
+
+def _apply_event_layout_selection(event, track_id):
+    mode = (request.form.get("layout_mode") or "default").strip().lower()
+    if mode == "default":
+        event.track_layout_id = None
+        return None
+    if mode == "existing":
+        layout_id = request.form.get("track_layout_id", type=int) or 0
+        if not layout_id:
+            event.track_layout_id = None
+            return None
+        selected = TrackLayout.query.filter_by(id=layout_id, track_id=track_id).first()
+        if not selected:
+            return "Selected layout is invalid."
+        event.track_layout_id = selected.id
+        return None
+    if mode == "upload":
+        upload = request.files.get("event_layout_upload")
+        if not upload or not getattr(upload, "filename", ""):
+            return "Please upload a layout image."
+        name = (request.form.get("event_layout_name") or "").strip() or f"Uploaded Layout {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        layout = _create_track_layout_from_upload(track_id, name, upload)
+        event.track_layout_id = layout.id
+        return None
+    if mode == "draw":
+        drawing_data = (request.form.get("event_layout_drawing") or "").strip()
+        if not drawing_data.startswith("data:image/png;base64,"):
+            return "Please draw a layout before saving."
+        try:
+            raw = base64.b64decode(drawing_data.split(",", 1)[1])
+        except Exception:
+            return "Could not process drawn layout image."
+        drawing_file = FileStorage(
+            stream=BytesIO(raw),
+            filename="drawn_layout.png",
+            content_type="image/png",
+        )
+        name = (request.form.get("event_layout_name") or "").strip() or f"Drawn Layout {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        layout = _create_track_layout_from_upload(track_id, name, drawing_file)
+        event.track_layout_id = layout.id
+        return None
+    return "Invalid layout selection mode."
 
 
 @employee_bp.route("/dashboard")
@@ -289,23 +352,17 @@ def event_new():
             if form.event_end_time.data <= form.event_start_time.data:
                 flash("Event end time must be after start time.", "error")
                 return render_template("employee/event_form.html", form=form, title="Create Event")
-        layout_id = form.track_layout_id.data or 0
-        selected_layout = None
-        if layout_id:
-            selected_layout = TrackLayout.query.filter_by(
-                id=layout_id, track_id=active_track_id()
-            ).first()
-            if not selected_layout:
-                flash("Selected layout is invalid.", "error")
-                return render_template("employee/event_form.html", form=form, title="Create Event")
         event = Event(
             track_id=active_track_id(),
-            track_layout_id=selected_layout.id if selected_layout else None,
             event_name=form.event_name.data.strip(),
             event_date=form.event_date.data,
             event_start_time=form.event_start_time.data,
             event_end_time=form.event_end_time.data,
         )
+        layout_error = _apply_event_layout_selection(event, active_track_id())
+        if layout_error:
+            flash(layout_error, "error")
+            return render_template("employee/event_form.html", form=form, title="Create Event", track_layouts=layouts, event=None)
         upload = form.thumbnail_image.data
         if upload:
             clean_name = secure_filename(upload.filename)
@@ -322,7 +379,7 @@ def event_new():
         db.session.commit()
         flash("Event created.", "success")
         return redirect(url_for("employee.dashboard"))
-    return render_template("employee/event_form.html", form=form, title="Create Event")
+    return render_template("employee/event_form.html", form=form, title="Create Event", track_layouts=layouts, event=None)
 
 
 @employee_bp.route("/events/<int:event_id>/edit", methods=["GET", "POST"])
@@ -344,16 +401,10 @@ def event_edit(event_id):
             if form.event_end_time.data <= form.event_start_time.data:
                 flash("Event end time must be after start time.", "error")
                 return render_template("employee/event_form.html", form=form, title="Edit Event")
-        layout_id = form.track_layout_id.data or 0
-        selected_layout = None
-        if layout_id:
-            selected_layout = TrackLayout.query.filter_by(
-                id=layout_id, track_id=active_track_id()
-            ).first()
-            if not selected_layout:
-                flash("Selected layout is invalid.", "error")
-                return render_template("employee/event_form.html", form=form, title="Edit Event")
-        event.track_layout_id = selected_layout.id if selected_layout else None
+        layout_error = _apply_event_layout_selection(event, active_track_id())
+        if layout_error:
+            flash(layout_error, "error")
+            return render_template("employee/event_form.html", form=form, title="Edit Event", track_layouts=layouts, event=event)
         event.event_name = form.event_name.data.strip()
         event.event_date = form.event_date.data
         event.event_start_time = form.event_start_time.data
@@ -373,7 +424,7 @@ def event_edit(event_id):
         db.session.commit()
         flash("Event updated.", "success")
         return redirect(url_for("employee.dashboard"))
-    return render_template("employee/event_form.html", form=form, title="Edit Event")
+    return render_template("employee/event_form.html", form=form, title="Edit Event", track_layouts=layouts, event=event)
 
 
 @employee_bp.route("/events/<int:event_id>/delete", methods=["POST"])

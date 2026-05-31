@@ -39,9 +39,117 @@
         {% endfor %}
       </select>
     </label>
-    <label>Track Layout {{ form.track_layout_id() }}</label>
+    {% set current_layout_id = event.track_layout_id if event and event.track_layout_id else 0 %}
+    <section class="card" style="margin:0;">
+      <h3 style="margin-top:0;">Layout Source</h3>
+      {% set initial_mode = 'existing' if current_layout_id else 'default' %}
+      <label><input type="radio" name="layout_mode" value="default" {% if initial_mode == 'default' %}checked{% endif %}> Use default track layout image</label>
+      <label><input type="radio" name="layout_mode" value="existing" {% if initial_mode == 'existing' %}checked{% endif %}> Select existing layout</label>
+      <label><input type="radio" name="layout_mode" value="upload"> Upload new layout image</label>
+      <label><input type="radio" name="layout_mode" value="draw"> Draw a layout</label>
+
+      <div data-layout-mode="existing" hidden>
+        <label>Existing Layout
+          <select name="track_layout_id">
+            <option value="0" {% if current_layout_id == 0 %}selected{% endif %}>Default Track Layout</option>
+            {% for layout in track_layouts %}
+              <option value="{{ layout.id }}" {% if current_layout_id == layout.id %}selected{% endif %}>{{ layout.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div data-layout-mode="upload" hidden>
+        <label>New Layout Name <input type="text" name="event_layout_name" maxlength="120" placeholder="e.g. South Loop"></label>
+        <label>Upload Layout Image <input type="file" name="event_layout_upload" accept="image/png,image/jpeg,image/webp"></label>
+      </div>
+
+      <div data-layout-mode="draw" hidden>
+        <label>Drawn Layout Name <input type="text" name="event_layout_name" maxlength="120" placeholder="e.g. Custom Drawn Layout"></label>
+        <input type="hidden" name="event_layout_drawing" data-layout-drawing>
+        <canvas data-layout-canvas width="920" height="480" style="width:100%;max-width:920px;border:1px solid var(--border);border-radius:10px;background:#0f172a;touch-action:none;"></canvas>
+        <div class="inline" style="margin-top:8px;">
+          <button type="button" class="btn btn-secondary btn-sm" data-layout-clear>Clear</button>
+        </div>
+      </div>
+    </section>
     <label>Thumbnail Image {{ form.thumbnail_image() }}</label>
     {{ form.submit(class_='btn') }}
   </form>
 </section>
+<script>
+  (function () {
+    const form = document.querySelector("form[data-enhanced]")
+    if (!form) return
+
+    const modeRadios = form.querySelectorAll("input[name='layout_mode']")
+    const modePanels = form.querySelectorAll("[data-layout-mode]")
+    const drawingInput = form.querySelector("[data-layout-drawing]")
+    const canvas = form.querySelector("[data-layout-canvas]")
+    const clearBtn = form.querySelector("[data-layout-clear]")
+
+    const toggleMode = () => {
+      const selected = Array.from(modeRadios).find((r) => r.checked)?.value || "default"
+      modePanels.forEach((panel) => {
+        panel.hidden = panel.getAttribute("data-layout-mode") !== selected
+      })
+    }
+    modeRadios.forEach((radio) => radio.addEventListener("change", toggleMode))
+    toggleMode()
+
+    if (!canvas || !drawingInput) return
+    const ctx = canvas.getContext("2d")
+    ctx.lineWidth = 3
+    ctx.lineCap = "round"
+    ctx.strokeStyle = "#e2e8f0"
+
+    let drawing = false
+    const getPos = (evt) => {
+      const rect = canvas.getBoundingClientRect()
+      const point = evt.touches ? evt.touches[0] : evt
+      return {
+        x: (point.clientX - rect.left) * (canvas.width / rect.width),
+        y: (point.clientY - rect.top) * (canvas.height / rect.height),
+      }
+    }
+
+    const startDraw = (evt) => {
+      drawing = true
+      const p = getPos(evt)
+      ctx.beginPath()
+      ctx.moveTo(p.x, p.y)
+      evt.preventDefault()
+    }
+    const moveDraw = (evt) => {
+      if (!drawing) return
+      const p = getPos(evt)
+      ctx.lineTo(p.x, p.y)
+      ctx.stroke()
+      evt.preventDefault()
+    }
+    const endDraw = () => {
+      drawing = false
+    }
+
+    canvas.addEventListener("mousedown", startDraw)
+    canvas.addEventListener("mousemove", moveDraw)
+    window.addEventListener("mouseup", endDraw)
+    canvas.addEventListener("touchstart", startDraw, { passive: false })
+    canvas.addEventListener("touchmove", moveDraw, { passive: false })
+    canvas.addEventListener("touchend", endDraw)
+
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      })
+    }
+
+    form.addEventListener("submit", () => {
+      const selected = Array.from(modeRadios).find((r) => r.checked)?.value || "default"
+      if (selected === "draw") {
+        drawingInput.value = canvas.toDataURL("image/png")
+      }
+    })
+  })()
+</script>
 {% endblock %}
