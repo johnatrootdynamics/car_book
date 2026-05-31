@@ -461,25 +461,6 @@ def event_detail(event_id):
     inspections = {}
     class_slots = []
 
-    if view == "analytics":
-        groups = RunGroup.query.filter_by(event_id=event.id).order_by(RunGroup.name.asc()).all()
-        participants = (
-            EventRegistration.query.filter_by(event_id=event.id)
-            .order_by(EventRegistration.created_at.asc())
-            .all()
-        )
-        for reg in participants:
-            class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
-        assignments = {
-            item.event_registration_id: item.run_group_id
-            for item in RunGroupAssignment.query.join(
-                RunGroup, RunGroup.id == RunGroupAssignment.run_group_id
-            )
-            .filter(RunGroup.event_id == event.id)
-            .all()
-        }
-        db.session.commit()
-
     if view == "participants":
         participants = (
             EventRegistration.query.filter_by(event_id=event.id)
