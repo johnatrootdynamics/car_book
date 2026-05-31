@@ -37,9 +37,16 @@
           </div>
         </div>
       {% else %}
-        <a href="{{ url_for('auth.home') }}" class="brand-wrap">
-          <span class="brand">Track Ops</span>
-        </a>
+        {% if current_user.is_authenticated and is_employee %}
+          <a href="{{ url_for('employee.track_profile') }}" class="brand-wrap">
+            <span class="brand">{{ current_user.track.name }}</span>
+            <span class="subbrand">Track Profile</span>
+          </a>
+        {% else %}
+          <a href="{{ url_for('auth.home') }}" class="brand-wrap">
+            <span class="brand">Track Ops</span>
+          </a>
+        {% endif %}
       {% endif %}
       <nav class="side-nav">
         {% set ep = request.endpoint or '' %}
@@ -52,7 +59,6 @@
         {% if current_user.is_authenticated and is_employee %}
           <a class="side-link {% if ep == 'employee.dashboard' %}active{% endif %}" href="{{ url_for('employee.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-speedometer2"></i></span><span class="sidebar-label">Employee Dashboard</span></a>
           <a class="side-link {% if ep in ['employee.events_index','employee.event_detail','employee.event_edit','employee.event_new'] %}active{% endif %}" href="{{ url_for('employee.events_index') }}"><span class="sidebar-icon"><i class="bi bi-calendar-event"></i></span><span class="sidebar-label">Events</span></a>
-          <a class="side-link {% if ep == 'employee.track_profile' %}active{% endif %}" href="{{ url_for('employee.track_profile') }}"><span class="sidebar-icon"><i class="bi bi-geo-alt"></i></span><span class="sidebar-label">Track Profile</span></a>
           <a class="side-link {% if ep == 'employee.staff_accounts' %}active{% endif %}" href="{{ url_for('employee.staff_accounts') }}"><span class="sidebar-icon"><i class="bi bi-person-badge"></i></span><span class="sidebar-label">Staff Accounts</span></a>
           <a class="side-link {% if ep == 'employee.inspection_rules' %}active{% endif %}" href="{{ url_for('employee.inspection_rules') }}"><span class="sidebar-icon"><i class="bi bi-clipboard-check"></i></span><span class="sidebar-label">Inspection Rules</span></a>
           <a class="side-link {% if ep.startswith('employee.waiver_template') %}active{% endif %}" href="{{ url_for('employee.waiver_template_builder') }}"><span class="sidebar-icon"><i class="bi bi-file-earmark-text"></i></span><span class="sidebar-label">Waiver Builder</span></a>
