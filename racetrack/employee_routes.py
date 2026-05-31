@@ -437,15 +437,9 @@ def event_detail(event_id):
         class_counts[dc] += 1
     db.session.commit()
 
-    view = (request.args.get("view") or "overview").strip().lower()
-    legacy_map = {
-        "analytics": "overview",
-        "participants": "drivers",
-        "inspect": "inspection",
-    }
-    view = legacy_map.get(view, view)
-    if view not in {"overview", "drivers", "inspection", "run_groups", "slots"}:
-        view = "overview"
+    view = (request.args.get("view") or "analytics").strip().lower()
+    if view not in {"analytics", "participants", "inspect", "slots"}:
+        view = "analytics"
 
     groups = []
     assignments = {}
@@ -454,7 +448,7 @@ def event_detail(event_id):
     inspections = {}
     class_slots = []
 
-    if view in {"overview", "run_groups"}:
+    if view == "analytics":
         groups = RunGroup.query.filter_by(event_id=event.id).order_by(RunGroup.name.asc()).all()
         participants = (
             EventRegistration.query.filter_by(event_id=event.id)
@@ -473,7 +467,7 @@ def event_detail(event_id):
         }
         db.session.commit()
 
-    if view == "drivers":
+    if view == "participants":
         participants = (
             EventRegistration.query.filter_by(event_id=event.id)
             .order_by(EventRegistration.created_at.asc())
@@ -491,28 +485,12 @@ def event_detail(event_id):
             class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
         db.session.commit()
 
-    if view in {"overview", "slots"}:
+    if view == "slots":
         class_slots = (
             EventClassSlot.query.filter_by(event_id=event.id)
             .order_by(EventClassSlot.start_time.asc())
             .all()
         )
-
-    inspections_for_event = (
-        Inspection.query.join(EventRegistration, EventRegistration.id == Inspection.event_registration_id)
-        .filter(EventRegistration.event_id == event.id)
-        .all()
-    )
-    checked_in_count = len(inspections_for_event)
-    tech_passed_count = len([item for item in inspections_for_event if item.passed])
-
-    from .waiver_routes import get_required_waiver_status
-
-    waiver_signed_count = 0
-    for reg in regs:
-        status, _waiver = get_required_waiver_status(event.track_id, reg.user_id, event.id)
-        if status in {"signed", "not_required"}:
-            waiver_signed_count += 1
 
     return render_template(
         "employee/event_detail.html",
@@ -527,9 +505,6 @@ def event_detail(event_id):
         class_by_user=class_by_user,
         inspections=inspections,
         class_slots=class_slots,
-        checked_in_count=checked_in_count,
-        tech_passed_count=tech_passed_count,
-        waiver_signed_count=waiver_signed_count,
     )
 
 
