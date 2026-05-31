@@ -81,6 +81,11 @@
 
           <label data-edit-field hidden>Thumbnail Image <input type="file" name="thumbnail_image" accept="image/png,image/jpeg,image/webp"></label>
 
+          <div data-edit-field hidden class="inline" style="margin-bottom:8px;">
+            <button type="submit" class="btn">Save Event</button>
+            <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}">Cancel</a>
+          </div>
+
           {% if event.track_layout and event.track_layout.image_path %}
             {% set layout_img = asset_url(event.track_layout.image_path) %}
           {% elif event.track.layout_image_path %}
@@ -91,11 +96,6 @@
           {% if layout_img %}
             <img src="{{ layout_img }}" alt="{{ selected_layout_name }}" style="max-width:420px;width:100%;border-radius:10px;border:1px solid var(--border);margin-top:8px;">
           {% endif %}
-
-          <div data-edit-field hidden class="inline">
-            <button type="submit" class="btn">Save Event</button>
-            <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}">Cancel</a>
-          </div>
         </form>
         <script>
           (function () {
