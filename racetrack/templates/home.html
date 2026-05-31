@@ -15,6 +15,7 @@
       </a>
       <nav class="mk-links">
         <a href="{{ url_for('auth.user_login') }}">Driver Login</a>
+        <a href="{{ url_for('user.spectator_events') }}">Spectator Tickets</a>
         <a href="{{ url_for('auth.employee_login') }}">Employee Login</a>
         <a href="{{ url_for('auth.admin_login') }}">Admin Login</a>
         <a href="{{ url_for('auth.user_register') }}">Register</a>
@@ -29,6 +30,7 @@
         <p>Track Ops helps motorsport venues manage drivers, events, waivers, check-ins, inspections, incidents, and live operations from one simple platform.</p>
         <div class="mk-cta-row">
           <a class="btn" href="{{ url_for('auth.user_register') }}">Create Driver Account</a>
+          <a class="btn btn-secondary" href="{{ url_for('user.spectator_events') }}">Buy Spectator Tickets</a>
           <a class="btn btn-secondary" href="{{ url_for('auth.employee_login') }}">Employee Access</a>
           <a class="btn btn-secondary" href="{{ url_for('auth.admin_login') }}">Enterprise Admin</a>
         </div>
@@ -79,6 +81,16 @@
         <h3>For Drivers</h3>
         <p>Create a profile, manage cars, sign waivers, and speed up event check-in.</p>
         <a class="btn" href="{{ url_for('auth.user_register') }}">Create Driver Account</a>
+      </article>
+      <article class="mk-panel mk-card">
+        <h3>For Spectators</h3>
+        <p>Browse upcoming events and purchase spectator tickets with or without an account.</p>
+        <a class="btn" href="{{ url_for('user.spectator_events') }}">Browse Events & Tickets</a>
+      </article>
+      <article class="mk-panel mk-card">
+        <h3>For Enterprise Admins</h3>
+        <p>Add tracks, onboard customers, and manage the system-level account structure.</p>
+        <a class="btn btn-secondary" href="{{ url_for('auth.admin_login') }}">Enterprise Admin Login</a>
       </article>
     </section>
 

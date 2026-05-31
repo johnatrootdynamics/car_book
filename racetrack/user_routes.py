@@ -191,6 +191,22 @@ def spectator_tickets(event_id):
     return render_template("user/spectator_tickets.html", event=event, form=form)
 
 
+@user_bp.route("/spectator/events")
+def spectator_events():
+    q = (request.args.get("q") or "").strip()
+    query = Event.query.join(Track, Track.id == Event.track_id).filter(Event.event_date >= date.today())
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            (Event.event_name.ilike(like))
+            | (Track.name.ilike(like))
+            | (Track.city.ilike(like))
+            | (Track.state.ilike(like))
+        )
+    events = query.order_by(Event.event_date.asc()).limit(60).all()
+    return render_template("user/spectator_events.html", events=events, q=q)
+
+
 @user_bp.route("/events/<int:event_id>/schedule")
 @login_required
 def event_schedule(event_id):
