@@ -80,6 +80,7 @@ def dashboard():
 
     waiver_by_event = {}
     slot_notice_by_event = {}
+    slot_time_by_event = {}
     for event in events:
         status, waiver = get_required_waiver_status(event.track_id, current_user.id, event.id)
         waiver_by_event[event.id] = {"status": status, "waiver": waiver}
@@ -90,6 +91,7 @@ def dashboard():
             .first()
         )
         if slot:
+            slot_time_by_event[event.id] = slot.start_time.strftime('%I:%M %p').lstrip('0')
             now_dt = datetime.now()
             start_dt = datetime.combine(event.event_date, slot.start_time)
             end_dt = datetime.combine(event.event_date, slot.end_time)
@@ -135,6 +137,7 @@ def dashboard():
         waiver_by_event=waiver_by_event,
         waivers=waivers,
         slot_notice_by_event=slot_notice_by_event,
+        slot_time_by_event=slot_time_by_event,
         subscribed_events=subscribed_events,
         subscribed_tracks=subscribed_tracks,
         selected_track_id=selected_track_id,
