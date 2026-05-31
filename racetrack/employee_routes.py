@@ -20,6 +20,7 @@ from .models import (
     InspectionRule,
     RunGroup,
     RunGroupAssignment,
+    SpectatorTicketOrder,
     Track,
     TrackDriverClass,
     TrackLayout,
@@ -158,12 +159,25 @@ def dashboard():
         .all()
     )
     signup_counts = {event_id: count for event_id, count in signup_counts_raw}
+    last_event = past_events[0] if past_events else None
+    last_event_participants = signup_counts.get(last_event.id, 0) if last_event else 0
+    last_event_spectator_tickets = 0
+    if last_event:
+        tickets_sum = (
+            db.session.query(func.coalesce(func.sum(SpectatorTicketOrder.quantity), 0))
+            .filter(SpectatorTicketOrder.event_id == last_event.id)
+            .scalar()
+        )
+        last_event_spectator_tickets = int(tickets_sum or 0)
     return render_template(
         "employee/dashboard.html",
         upcoming_events=upcoming_events,
         past_events=past_events,
         track=track,
         signup_counts=signup_counts,
+        last_event=last_event,
+        last_event_participants=last_event_participants,
+        last_event_spectator_tickets=last_event_spectator_tickets,
     )
 
 

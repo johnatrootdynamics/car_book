@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card narrow">
+  <div class="row-space">
+    <div>
+      <h2>Spectator Tickets</h2>
+      <p class="muted-line">{{ event.event_name }} • {{ event.track.name }} • {{ event.event_date }}</p>
+    </div>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.dashboard') if current_user.is_authenticated and current_user.account_type == 'user' else url_for('auth.home') }}">Back</a>
+  </div>
+
+  <form method="post" class="form-grid" data-enhanced>
+    {{ form.hidden_tag() }}
+    <label>Full Name {{ form.full_name(placeholder='Guest full name') }}</label>
+    <label>Email {{ form.email(placeholder='guest@example.com') }}</label>
+    <label>Tickets {{ form.quantity() }}</label>
+    <label>Payment Method {{ form.payment_method() }}</label>
+    <p class="hint">MVP mode: purchase is recorded for operations reporting; no payment gateway charge yet.</p>
+    {{ form.submit(class_='btn') }}
+  </form>
+</section>
+{% endblock %}

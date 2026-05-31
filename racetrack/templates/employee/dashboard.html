@@ -10,6 +10,25 @@
 </section>
 
 <section class="card">
+  <h3>Last Event Snapshot</h3>
+  {% if last_event %}
+    <p class="muted-line">{{ last_event.event_name }} • {{ last_event.event_date }}</p>
+    <div class="grid-cards">
+      <article class="event-card">
+        <h4>Participants</h4>
+        <p><strong>{{ last_event_participants }}</strong> drivers</p>
+      </article>
+      <article class="event-card">
+        <h4>Spectator Tickets</h4>
+        <p><strong>{{ last_event_spectator_tickets }}</strong> sold</p>
+      </article>
+    </div>
+  {% else %}
+    <p class="muted-line">No past event data yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
   <h3>Upcoming Events</h3>
   {% if upcoming_events %}
     <div class="grid-cards">

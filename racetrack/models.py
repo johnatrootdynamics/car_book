@@ -162,6 +162,9 @@ class Event(db.Model):
     class_slots = db.relationship(
         "EventClassSlot", backref="event", cascade="all, delete-orphan"
     )
+    spectator_ticket_orders = db.relationship(
+        "SpectatorTicketOrder", backref="event", cascade="all, delete-orphan"
+    )
     track_layout = db.relationship("TrackLayout")
 
 
@@ -371,6 +374,27 @@ class EventClassSlot(db.Model):
 
     __table_args__ = (
         db.CheckConstraint("class_code IN ('A','B','C')", name="chk_event_class_slot_code"),
+    )
+
+
+class SpectatorTicketOrder(db.Model):
+    __tablename__ = "spectator_ticket_orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    buyer_type = db.Column(db.String(20), nullable=False, default="guest")
+    guest_full_name = db.Column(db.String(150), nullable=True)
+    guest_email = db.Column(db.String(255), nullable=True)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    payment_method = db.Column(db.String(50), nullable=False, default="stripe")
+    status = db.Column(db.String(30), nullable=False, default="recorded")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    buyer = db.relationship("User")
+
+    __table_args__ = (
+        db.CheckConstraint("quantity > 0", name="chk_spectator_ticket_quantity"),
     )
 
 

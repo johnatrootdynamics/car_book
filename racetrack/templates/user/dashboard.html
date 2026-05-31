@@ -44,6 +44,7 @@
                 <summary class="event-actions-trigger" aria-label="Event actions"><i class="bi bi-three-dots-vertical"></i></summary>
                 <div class="event-actions-list">
                   <a class="event-action-item" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Open Event</a>
+                  <a class="event-action-item" href="{{ url_for('user.spectator_tickets', event_id=event.id) }}">Spectator Tickets</a>
                   {% if ws != 'signed' and ws != 'not_required' %}
                     {% if ww %}
                       <a class="event-action-item" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
@@ -74,6 +75,7 @@
             {% if slot_notice_by_event.get(event.id) %}
               <p class="badge badge-viewed">{{ slot_notice_by_event.get(event.id) }}</p>
             {% endif %}
+            <p><a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_tickets', event_id=event.id) }}">Buy Spectator Tickets</a></p>
           </div>
           <a class="event-tile-hit" href="{{ url_for('user.event_schedule', event_id=event.id) }}" aria-label="Open {{ event.event_name }}"></a>
         </div>
@@ -121,6 +123,7 @@
               {{ signup_form.car_id() }}
               {{ signup_form.submit(class_='btn btn-sm') }}
             </form>
+            <p><a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_tickets', event_id=event.id) }}">Buy Spectator Tickets</a></p>
           </div>
         </div>
       {% endfor %}

@@ -6,7 +6,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
-from .forms import CarForm, EventSignupForm, SocialCommentForm
+from .forms import CarForm, EventSignupForm, SocialCommentForm, SpectatorTicketForm
 from .models import (
     Car,
     Event,
@@ -14,6 +14,7 @@ from .models import (
     EventRegistration,
     SocialComment,
     SocialPost,
+    SpectatorTicketOrder,
     Track,
     TrackDriverClass,
     TrackSubscription,
@@ -148,6 +149,46 @@ def dashboard():
         subscribed_track_ids=subscribed_track_ids,
         track_class_by_track_id=track_class_by_track_id,
     )
+
+
+@user_bp.route("/events/<int:event_id>/spectator-tickets", methods=["GET", "POST"])
+def spectator_tickets(event_id):
+    event = Event.query.get_or_404(event_id)
+    form = SpectatorTicketForm()
+    if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
+        if request.method == "GET":
+            form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
+            form.email.data = current_user.email
+    if form.validate_on_submit():
+        buyer_type = "guest"
+        user_id = None
+        full_name = (form.full_name.data or "").strip()
+        email = (form.email.data or "").strip().lower()
+        if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
+            buyer_type = "user"
+            user_id = current_user.id
+            if not full_name:
+                full_name = f"{current_user.first_name} {current_user.last_name}".strip()
+            if not email:
+                email = current_user.email
+        if not full_name or not email:
+            flash("Name and email are required for ticket purchases.", "error")
+            return render_template("user/spectator_tickets.html", event=event, form=form)
+        order = SpectatorTicketOrder(
+            event_id=event.id,
+            user_id=user_id,
+            buyer_type=buyer_type,
+            guest_full_name=full_name,
+            guest_email=email,
+            quantity=form.quantity.data,
+            payment_method=form.payment_method.data,
+            status="recorded",
+        )
+        db.session.add(order)
+        db.session.commit()
+        flash("Spectator ticket purchase recorded.", "success")
+        return redirect(url_for("user.spectator_tickets", event_id=event.id))
+    return render_template("user/spectator_tickets.html", event=event, form=form)
 
 
 @user_bp.route("/events/<int:event_id>/schedule")

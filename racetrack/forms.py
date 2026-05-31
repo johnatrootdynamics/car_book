@@ -112,3 +112,26 @@ class WaiverTemplateForm(FlaskForm):
     is_active = BooleanField("Active", default=True)
     required_for_checkin = BooleanField("Required for check-in", default=True)
     submit = SubmitField("Save Template")
+
+
+class SpectatorTicketForm(FlaskForm):
+    full_name = StringField("Full Name", validators=[Length(max=150)])
+    email = StringField("Email", validators=[Length(max=255)])
+    quantity = SelectField(
+        "Tickets",
+        coerce=int,
+        choices=[(1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "5"), (10, "10")],
+        validators=[DataRequired()],
+    )
+    payment_method = SelectField(
+        "Payment Method",
+        choices=[
+            ("stripe", "Stripe"),
+            ("paypal", "PayPal"),
+            ("toast", "Toast"),
+            ("quickbooks", "QuickBooks Payments"),
+            ("other", "Other"),
+        ],
+        validators=[DataRequired()],
+    )
+    submit = SubmitField("Complete Ticket Purchase")
