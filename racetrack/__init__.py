@@ -167,6 +167,7 @@ def create_app():
             "run_groups",
             "run_group_assignments",
             "event_class_slots",
+            "track_layouts",
             "track_waiver_templates",
             "driver_waivers",
         }
@@ -222,6 +223,9 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS thumbnail_image_path VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS track_layout_id INT NULL"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL"
@@ -387,6 +391,7 @@ def create_app():
             "run_groups",
             "run_group_assignments",
             "event_class_slots",
+            "track_layouts",
             "track_waiver_templates",
             "driver_waivers",
         }

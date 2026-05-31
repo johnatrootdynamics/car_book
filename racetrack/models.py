@@ -74,6 +74,21 @@ class Track(db.Model):
     driver_classes = db.relationship(
         "TrackDriverClass", backref="track", cascade="all, delete-orphan"
     )
+    layouts = db.relationship("TrackLayout", backref="track", cascade="all, delete-orphan")
+
+
+class TrackLayout(db.Model):
+    __tablename__ = "track_layouts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    image_path = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("track_id", "name", name="uniq_track_layout_name"),
+    )
 
 
 class Employee(db.Model, UserMixin):
@@ -130,6 +145,7 @@ class Event(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    track_layout_id = db.Column(db.Integer, db.ForeignKey("track_layouts.id"), nullable=True)
     event_name = db.Column(db.String(200), nullable=False)
     event_date = db.Column(db.Date, nullable=False)
     thumbnail_image_path = db.Column(db.String(255), nullable=True)
@@ -144,6 +160,7 @@ class Event(db.Model):
     class_slots = db.relationship(
         "EventClassSlot", backref="event", cascade="all, delete-orphan"
     )
+    track_layout = db.relationship("TrackLayout")
 
 
 class EventRegistration(db.Model):

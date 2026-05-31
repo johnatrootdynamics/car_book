@@ -3,7 +3,7 @@ from datetime import date
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from wtforms import BooleanField, DateField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length, ValidationError
+from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError
 
 
 def validate_not_past(form, field):
@@ -47,6 +47,7 @@ class EventForm(FlaskForm):
         "Event Thumbnail",
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
     )
+    track_layout_id = SelectField("Track Layout", coerce=int, validators=[Optional()])
     submit = SubmitField("Create Event")
 
 

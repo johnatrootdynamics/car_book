@@ -19,6 +19,7 @@ from .models import (
     RunGroupAssignment,
     Track,
     TrackDriverClass,
+    TrackLayout,
     TrackWaiverTemplate,
     User,
     db,
@@ -149,7 +150,8 @@ def track_profile():
         return guard
     track = Track.query.get_or_404(active_track_id())
     form = TrackProfileForm(obj=track)
-    return render_template("employee/track_profile.html", track=track, form=form)
+    layouts = TrackLayout.query.filter_by(track_id=track.id).order_by(TrackLayout.name.asc()).all()
+    return render_template("employee/track_profile.html", track=track, form=form, layouts=layouts)
 
 
 @employee_bp.route("/staff-accounts", methods=["GET"])
@@ -194,6 +196,57 @@ def update_track():
     return redirect(url_for("employee.dashboard"))
 
 
+@employee_bp.route("/track-layouts/new", methods=["POST"])
+@login_required
+def track_layout_new():
+    guard = require_employee()
+    if guard:
+        return guard
+    track = Track.query.get_or_404(active_track_id())
+    name = (request.form.get("name") or "").strip()
+    upload = request.files.get("image")
+    if not name:
+        flash("Layout name is required.", "error")
+        return redirect(url_for("employee.track_profile"))
+    existing = TrackLayout.query.filter_by(track_id=track.id, name=name).first()
+    if existing:
+        flash("A layout with that name already exists.", "error")
+        return redirect(url_for("employee.track_profile"))
+    layout = TrackLayout(track_id=track.id, name=name)
+    if upload and getattr(upload, "filename", ""):
+        clean_name = secure_filename(upload.filename)
+        upload.filename = clean_name
+        layout.image_path = upload_public_image(
+            upload,
+            bucket=current_app.config["S3_BUCKET"],
+            endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+            access_key=current_app.config["S3_ACCESS_KEY"],
+            secret_key=current_app.config["S3_SECRET_KEY"],
+            key_prefix=f"track_layouts/{track.id}",
+        )
+    db.session.add(layout)
+    db.session.commit()
+    flash("Track layout created.", "success")
+    return redirect(url_for("employee.track_profile"))
+
+
+@employee_bp.route("/track-layouts/<int:layout_id>/delete", methods=["POST"])
+@login_required
+def track_layout_delete(layout_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    layout = TrackLayout.query.filter_by(id=layout_id, track_id=active_track_id()).first_or_404()
+    events_using_layout = Event.query.filter_by(track_layout_id=layout.id).count()
+    if events_using_layout:
+        flash("Cannot delete this layout while events use it.", "error")
+        return redirect(url_for("employee.track_profile"))
+    db.session.delete(layout)
+    db.session.commit()
+    flash("Track layout deleted.", "success")
+    return redirect(url_for("employee.track_profile"))
+
+
 @employee_bp.route("/employees/new", methods=["POST"])
 @login_required
 def create_employee():
@@ -227,8 +280,26 @@ def event_new():
     if guard:
         return guard
     form = EventForm()
+    layouts = TrackLayout.query.filter_by(track_id=active_track_id()).order_by(TrackLayout.name.asc()).all()
+    form.track_layout_id.choices = [(0, "Default Track Layout")] + [
+        (layout.id, layout.name) for layout in layouts
+    ]
     if form.validate_on_submit():
-        event = Event(track_id=active_track_id(), event_name=form.event_name.data.strip(), event_date=form.event_date.data)
+        layout_id = form.track_layout_id.data or 0
+        selected_layout = None
+        if layout_id:
+            selected_layout = TrackLayout.query.filter_by(
+                id=layout_id, track_id=active_track_id()
+            ).first()
+            if not selected_layout:
+                flash("Selected layout is invalid.", "error")
+                return render_template("employee/event_form.html", form=form, title="Create Event")
+        event = Event(
+            track_id=active_track_id(),
+            track_layout_id=selected_layout.id if selected_layout else None,
+            event_name=form.event_name.data.strip(),
+            event_date=form.event_date.data,
+        )
         upload = form.thumbnail_image.data
         if upload:
             clean_name = secure_filename(upload.filename)
@@ -256,7 +327,23 @@ def event_edit(event_id):
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
     form = EventForm(obj=event)
+    layouts = TrackLayout.query.filter_by(track_id=active_track_id()).order_by(TrackLayout.name.asc()).all()
+    form.track_layout_id.choices = [(0, "Default Track Layout")] + [
+        (layout.id, layout.name) for layout in layouts
+    ]
+    if request.method == "GET":
+        form.track_layout_id.data = event.track_layout_id or 0
     if form.validate_on_submit():
+        layout_id = form.track_layout_id.data or 0
+        selected_layout = None
+        if layout_id:
+            selected_layout = TrackLayout.query.filter_by(
+                id=layout_id, track_id=active_track_id()
+            ).first()
+            if not selected_layout:
+                flash("Selected layout is invalid.", "error")
+                return render_template("employee/event_form.html", form=form, title="Edit Event")
+        event.track_layout_id = selected_layout.id if selected_layout else None
         event.event_name = form.event_name.data.strip()
         event.event_date = form.event_date.data
         upload = form.thumbnail_image.data

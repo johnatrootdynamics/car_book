@@ -16,9 +16,50 @@
   {% if track.layout_image_path %}
     {% set track_layout_url = asset_url(track.layout_image_path) %}
     <div class="track-layout-preview">
-      <p>Current Layout</p>
+      <p>Default Layout</p>
       {% if track_layout_url %}<img src="{{ track_layout_url }}" alt="Track layout image">{% endif %}
     </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Track Layout Variants</h3>
+  <form method="post" action="{{ url_for('employee.track_layout_new') }}" enctype="multipart/form-data" class="form-grid two-col">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Layout Name <input type="text" name="name" maxlength="120" required></label>
+    <label>Layout Image <input type="file" name="image" accept="image/png,image/jpeg,image/webp"></label>
+    <div class="full"><button type="submit" class="btn">Add Layout</button></div>
+  </form>
+
+  {% if layouts %}
+    <div class="table-wrap" style="margin-top:12px;">
+      <table>
+        <thead><tr><th>Name</th><th>Preview</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for layout in layouts %}
+            <tr>
+              <td>{{ layout.name }}</td>
+              <td>
+                {% if layout.image_path %}
+                  {% set img = asset_url(layout.image_path) %}
+                  {% if img %}<img src="{{ img }}" alt="{{ layout.name }}" style="width:120px;border-radius:8px;border:1px solid var(--border);">{% endif %}
+                {% else %}
+                  <span class="muted-line">No image</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" action="{{ url_for('employee.track_layout_delete', layout_id=layout.id) }}" class="inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-secondary btn-sm">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted-line" style="margin-top:10px;">No custom layouts yet.</p>
   {% endif %}
 </section>
 {% endblock %}
