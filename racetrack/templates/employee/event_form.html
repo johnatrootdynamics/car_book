@@ -43,10 +43,13 @@
     <section class="card" style="margin:0;">
       <h3 style="margin-top:0;">Layout Source</h3>
       {% set initial_mode = 'existing' if current_layout_id else 'default' %}
-      <label><input type="radio" name="layout_mode" value="default" {% if initial_mode == 'default' %}checked{% endif %}> Use default track layout image</label>
-      <label><input type="radio" name="layout_mode" value="existing" {% if initial_mode == 'existing' %}checked{% endif %}> Select existing layout</label>
-      <label><input type="radio" name="layout_mode" value="upload"> Upload new layout image</label>
-      <label><input type="radio" name="layout_mode" value="draw"> Draw a layout</label>
+      <div class="layout-mode-buttons" data-layout-mode-buttons>
+        <button type="button" class="btn btn-secondary btn-sm layout-mode-btn {% if initial_mode == 'default' %}active{% endif %}" data-layout-mode-btn="default">Use Default</button>
+        <button type="button" class="btn btn-secondary btn-sm layout-mode-btn {% if initial_mode == 'existing' %}active{% endif %}" data-layout-mode-btn="existing">Use Existing</button>
+        <button type="button" class="btn btn-secondary btn-sm layout-mode-btn" data-layout-mode-btn="upload">Upload New</button>
+        <button type="button" class="btn btn-secondary btn-sm layout-mode-btn" data-layout-mode-btn="draw">Draw Layout</button>
+      </div>
+      <input type="hidden" name="layout_mode" value="{{ initial_mode }}" data-layout-mode-input>
 
       <div data-layout-mode="existing" hidden>
         <label>Existing Layout
@@ -82,19 +85,28 @@
     const form = document.querySelector("form[data-enhanced]")
     if (!form) return
 
-    const modeRadios = form.querySelectorAll("input[name='layout_mode']")
+    const modeButtons = form.querySelectorAll("[data-layout-mode-btn]")
+    const modeInput = form.querySelector("[data-layout-mode-input]")
     const modePanels = form.querySelectorAll("[data-layout-mode]")
     const drawingInput = form.querySelector("[data-layout-drawing]")
     const canvas = form.querySelector("[data-layout-canvas]")
     const clearBtn = form.querySelector("[data-layout-clear]")
 
     const toggleMode = () => {
-      const selected = Array.from(modeRadios).find((r) => r.checked)?.value || "default"
+      const selected = (modeInput && modeInput.value) || "default"
+      modeButtons.forEach((btn) => {
+        btn.classList.toggle("active", btn.getAttribute("data-layout-mode-btn") === selected)
+      })
       modePanels.forEach((panel) => {
         panel.hidden = panel.getAttribute("data-layout-mode") !== selected
       })
     }
-    modeRadios.forEach((radio) => radio.addEventListener("change", toggleMode))
+    modeButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (modeInput) modeInput.value = btn.getAttribute("data-layout-mode-btn") || "default"
+        toggleMode()
+      })
+    })
     toggleMode()
 
     if (!canvas || !drawingInput) return
@@ -145,7 +157,7 @@
     }
 
     form.addEventListener("submit", () => {
-      const selected = Array.from(modeRadios).find((r) => r.checked)?.value || "default"
+      const selected = (modeInput && modeInput.value) || "default"
       if (selected === "draw") {
         drawingInput.value = canvas.toDataURL("image/png")
       }

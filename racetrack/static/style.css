@@ -947,6 +947,19 @@ th { color: var(--muted); font-weight: 600; }
   font-weight: 600;
 }
 
+.layout-mode-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.layout-mode-btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-color: transparent;
+}
+
 .event-signup-form {
   display: grid;
   gap: 8px;
