@@ -438,7 +438,7 @@ def event_detail(event_id):
     db.session.commit()
 
     view = (request.args.get("view") or "analytics").strip().lower()
-    if view not in {"analytics", "run_groups", "participants", "inspect", "slots"}:
+    if view not in {"analytics", "participants", "inspect", "slots"}:
         view = "analytics"
 
     groups = []
@@ -448,7 +448,7 @@ def event_detail(event_id):
     inspections = {}
     class_slots = []
 
-    if view == "run_groups":
+    if view == "analytics":
         groups = RunGroup.query.filter_by(event_id=event.id).order_by(RunGroup.name.asc()).all()
         participants = (
             EventRegistration.query.filter_by(event_id=event.id)
