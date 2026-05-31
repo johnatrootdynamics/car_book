@@ -563,6 +563,14 @@ th { color: var(--muted); font-weight: 600; }
   gap: 14px;
 }
 
+.track-profile-static {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #dbeafe;
+  font-weight: 600;
+}
+
 @media (max-width: 960px) {
   .track-profile-grid {
     grid-template-columns: 1fr;

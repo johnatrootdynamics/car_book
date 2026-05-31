@@ -4,15 +4,27 @@
 <article class="card">
   <div class="row-space">
     <h2>Track Profile</h2>
-    <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
+    <button type="button" class="btn btn-secondary btn-sm" data-track-profile-edit-btn>Edit</button>
   </div>
-  <form method="post" action="{{ url_for('employee.update_track') }}" enctype="multipart/form-data" class="form-grid two-col" data-enhanced>
+  <form method="post" action="{{ url_for('employee.update_track') }}" enctype="multipart/form-data" class="form-grid two-col" data-enhanced data-track-profile-form>
     {{ form.hidden_tag() }}
-    <label>Track Name {{ form.name() }}</label>
-    <label>City {{ form.city() }}</label>
-    <label>State {{ form.state() }}</label>
-    <label>Layout Image {{ form.layout_image() }}</label>
-    <div class="full">{{ form.submit(class_='btn') }}</div>
+    <label>Track Name
+      <span class="track-profile-static" data-track-profile-static><i class="bi bi-signpost-split"></i> {{ track.name }}</span>
+      {{ form.name(data_track_profile_edit='1', hidden=true) }}
+    </label>
+    <label>City
+      <span class="track-profile-static" data-track-profile-static><i class="bi bi-geo-alt"></i> {{ track.city }}</span>
+      {{ form.city(data_track_profile_edit='1', hidden=true) }}
+    </label>
+    <label>State
+      <span class="track-profile-static" data-track-profile-static><i class="bi bi-map"></i> {{ track.state }}</span>
+      {{ form.state(data_track_profile_edit='1', hidden=true) }}
+    </label>
+    <label data-track-profile-edit="1" hidden>Layout Image {{ form.layout_image() }}</label>
+    <div class="full inline" data-track-profile-edit="1" hidden>
+      {{ form.submit(class_='btn') }}
+      <a class="btn btn-secondary" href="{{ url_for('employee.track_profile') }}">Cancel</a>
+    </div>
   </form>
 </article>
 
@@ -96,6 +108,20 @@
 </section>
 <script>
   (function () {
+    const profileForm = document.querySelector("[data-track-profile-form]")
+    if (profileForm) {
+      const profileEditBtn = document.querySelector("[data-track-profile-edit-btn]")
+      const staticNodes = profileForm.querySelectorAll("[data-track-profile-static]")
+      const editNodes = profileForm.querySelectorAll("[data-track-profile-edit]")
+      if (profileEditBtn) {
+        profileEditBtn.addEventListener("click", () => {
+          staticNodes.forEach((node) => { node.hidden = true })
+          editNodes.forEach((node) => { node.hidden = false })
+          profileEditBtn.hidden = true
+        })
+      }
+    }
+
     const form = document.querySelector("[data-track-layout-form]")
     if (!form) return
     const modeButtons = form.querySelectorAll("[data-track-layout-mode-btn]")
