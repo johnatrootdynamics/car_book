@@ -521,15 +521,14 @@ th { color: var(--muted); font-weight: 600; }
 }
 
 .layout-tile-menu {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  left: auto;
-  bottom: auto;
+  position: static;
   z-index: 6;
 }
 
 .layout-tile-menu .layout-tile-trigger {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   margin: 0;
   width: 28px;
   height: 28px;
@@ -537,6 +536,8 @@ th { color: var(--muted); font-weight: 600; }
 }
 
 .layout-tile-menu .event-actions-list {
+  position: absolute;
+  top: 40px;
   right: 0;
   left: auto;
 }
