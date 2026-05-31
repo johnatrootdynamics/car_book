@@ -32,31 +32,35 @@
   </form>
 
   {% if layouts %}
-    <div class="table-wrap" style="margin-top:12px;">
-      <table>
-        <thead><tr><th>Name</th><th>Preview</th><th>Actions</th></tr></thead>
-        <tbody>
-          {% for layout in layouts %}
-            <tr>
-              <td>{{ layout.name }}</td>
-              <td>
-                {% if layout.image_path %}
-                  {% set img = asset_url(layout.image_path) %}
-                  {% if img %}<img src="{{ img }}" alt="{{ layout.name }}" style="width:120px;border-radius:8px;border:1px solid var(--border);">{% endif %}
-                {% else %}
-                  <span class="muted-line">No image</span>
-                {% endif %}
-              </td>
-              <td>
-                <form method="post" action="{{ url_for('employee.track_layout_delete', layout_id=layout.id) }}" class="inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-secondary btn-sm">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="layout-tile-grid" style="margin-top:12px;">
+      {% for layout in layouts %}
+        <article class="layout-tile">
+          {% if layout.image_path %}
+            {% set img = asset_url(layout.image_path) %}
+            {% if img %}
+              <img src="{{ img }}" alt="{{ layout.name }}">
+            {% else %}
+              <div class="layout-tile-fallback">{{ layout.name }}</div>
+            {% endif %}
+          {% else %}
+            <div class="layout-tile-fallback">{{ layout.name }}</div>
+          {% endif %}
+
+          <div class="layout-tile-overlay">
+            <strong>{{ layout.name }}</strong>
+          </div>
+
+          <details class="event-actions-menu layout-tile-menu">
+            <summary class="event-actions-trigger" aria-label="Layout actions"><i class="bi bi-three-dots-vertical"></i></summary>
+            <div class="event-actions-list">
+              <form method="post" action="{{ url_for('employee.track_layout_delete', layout_id=layout.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="event-action-item event-action-danger" onclick="return confirm('Delete this layout?')">Delete Layout</button>
+              </form>
+            </div>
+          </details>
+        </article>
+      {% endfor %}
     </div>
   {% else %}
     <p class="muted-line" style="margin-top:10px;">No custom layouts yet.</p>
