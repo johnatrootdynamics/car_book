@@ -72,14 +72,41 @@ body {
 .brand-wrap { text-decoration: none; display: flex; flex-direction: column; gap: 2px; }
 .subbrand { color: var(--muted); font-size: .74rem; letter-spacing: .2px; }
 .side-nav { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
-.side-nav a {
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 52px;
   color: var(--muted);
   text-decoration: none;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
   border: 1px solid transparent;
+  transition: color .16s ease, background .16s ease, border-color .16s ease;
 }
-.side-nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.06); border-color: var(--border); }
+
+.sidebar-icon {
+  width: 2rem;
+  min-width: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.45rem;
+  color: inherit;
+}
+
+.sidebar-label {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.side-link:hover,
+.side-link.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
 
 .main-content-wrap { flex: 1; min-width: 0; }
 .main-content { padding: 64px 0 38px; }
