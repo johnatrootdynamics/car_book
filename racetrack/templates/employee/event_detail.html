@@ -29,6 +29,58 @@
         {% if layout_img %}
           <img src="{{ layout_img }}" alt="{{ selected_layout_name }}" style="max-width:420px;width:100%;border-radius:10px;border:1px solid var(--border);margin-top:8px;">
         {% endif %}
+
+        <section class="card" style="margin-top:12px;">
+          <h3>Edit Event</h3>
+          <form method="post" action="{{ url_for('employee.event_edit', event_id=event.id) }}" enctype="multipart/form-data" class="form-grid" data-enhanced>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% set ns = namespace(half_hour_options=[]) %}
+            {% for hour in range(0, 24) %}
+              {% for minute in [0, 30] %}
+                {% set value = '%02d:%02d'|format(hour, minute) %}
+                {% set ns.half_hour_options = ns.half_hour_options + [value] %}
+              {% endfor %}
+            {% endfor %}
+            {% set current_start = event.event_start_time.strftime('%H:%M') if event.event_start_time else '' %}
+            {% set current_end = event.event_end_time.strftime('%H:%M') if event.event_end_time else '' %}
+            <label>Event Name <input type="text" name="event_name" maxlength="200" value="{{ event.event_name }}" required></label>
+            <label>Event Date <input type="date" name="event_date" value="{{ event.event_date.strftime('%Y-%m-%d') }}" required></label>
+            <label>Event Start Time
+              <select name="event_start_time" required>
+                <option value="">Select start time</option>
+                {% for value in ns.half_hour_options %}
+                  {% set hh = value[:2]|int %}
+                  {% set mm = value[3:5] %}
+                  {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+                  {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+                  <option value="{{ value }}" {% if current_start == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>Event End Time
+              <select name="event_end_time" required>
+                <option value="">Select end time</option>
+                {% for value in ns.half_hour_options %}
+                  {% set hh = value[:2]|int %}
+                  {% set mm = value[3:5] %}
+                  {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+                  {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+                  <option value="{{ value }}" {% if current_end == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>Track Layout
+              <select name="track_layout_id">
+                <option value="0" {% if not event.track_layout_id %}selected{% endif %}>Default Track Layout</option>
+                {% for layout in track_layouts %}
+                  <option value="{{ layout.id }}" {% if event.track_layout_id == layout.id %}selected{% endif %}>{{ layout.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>Thumbnail Image <input type="file" name="thumbnail_image" accept="image/png,image/jpeg,image/webp"></label>
+            <div><button type="submit" class="btn">Save Event</button></div>
+          </form>
+        </section>
       {% elif view == 'participants' %}
         <h3>Participants</h3>
         {% if participants %}

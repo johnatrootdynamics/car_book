@@ -429,6 +429,7 @@ def event_detail(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    track_layouts = TrackLayout.query.filter_by(track_id=event.track_id).order_by(TrackLayout.name.asc()).all()
 
     regs = EventRegistration.query.filter_by(event_id=event.id).order_by(EventRegistration.created_at.asc()).all()
 
@@ -507,6 +508,7 @@ def event_detail(event_id):
     return render_template(
         "employee/event_detail.html",
         event=event,
+        track_layouts=track_layouts,
         total_signups=len(regs),
         signup_trend=signup_trend,
         class_counts=class_counts,
