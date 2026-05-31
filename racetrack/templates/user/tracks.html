@@ -20,7 +20,7 @@
       <div class="event-tile" data-track-card data-track-search-text="{{ (track.name ~ ' ' ~ track.city ~ ' ' ~ track.state)|lower }}">
         {% if track.layout_image_path %}
           {% set track_image = asset_url(track.layout_image_path) %}
-          {% if track_image %}<img src="{{ track_image }}" alt="{{ track.name }} layout">{% endif %}
+          {% if track_image %}<img class="track-directory-image" src="{{ track_image }}" alt="{{ track.name }} layout">{% endif %}
         {% else %}
           <div class="event-fallback">{{ track.name }}</div>
         {% endif %}
