@@ -104,33 +104,24 @@
       <div class="event-tile-grid">
       {% for event in subscribed_events %}
         {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
-        {% set is_signed_up = event.id in signups %}
-        <div class="event-tile {% if is_signed_up %}event-tile-clickable{% endif %}">
+        <div class="event-tile">
           <div class="event-tile-body">
             <h3 class="event-track-name">{{ event.track.name }}</h3>
             <h4>{{ event.event_name }}</h4>
             <p class="muted-line"><span class="event-date-icon">📅 {{ event.event_date }}</span></p>
             <div class="event-meta-row">
               <span class="driver-class-pill driver-class-{{ current_class }}">Class {{ current_class }}</span>
-              <span class="status-bubble {% if is_signed_up %}status-ok{% else %}status-warn{% endif %}">
-                <span class="status-icon">{% if is_signed_up %}✓{% else %}!{% endif %}</span>
-                <span>{% if is_signed_up %}Signed Up{% else %}Not Signed Up{% endif %}</span>
+              <span class="status-bubble status-warn">
+                <span class="status-icon">!</span>
+                <span>Not Signed Up</span>
               </span>
-              {% if is_signed_up and slot_time_by_event.get(event.id) %}
-                <span class="drive-time-chip"><span class="drive-time-icon">🛞</span><span>{{ slot_time_by_event.get(event.id) }}</span></span>
-              {% endif %}
             </div>
-            {% if not is_signed_up %}
-              <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
-                {{ signup_form.hidden_tag() }}
-                {{ signup_form.car_id() }}
-                {{ signup_form.submit(class_='btn btn-sm') }}
-              </form>
-            {% endif %}
+            <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
+              {{ signup_form.hidden_tag() }}
+              {{ signup_form.car_id() }}
+              {{ signup_form.submit(class_='btn btn-sm') }}
+            </form>
           </div>
-          {% if is_signed_up %}
-            <a class="event-tile-hit" href="{{ url_for('user.event_schedule', event_id=event.id) }}" aria-label="Open {{ event.event_name }}"></a>
-          {% endif %}
         </div>
       {% endfor %}
       </div>

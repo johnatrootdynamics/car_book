@@ -122,7 +122,11 @@ def dashboard():
         )
         if selected_track_id:
             event_query = event_query.filter(Event.track_id == selected_track_id)
-        subscribed_events = event_query.order_by(Event.event_date.asc()).limit(24).all()
+        subscribed_events = [
+            event
+            for event in event_query.order_by(Event.event_date.asc()).limit(24).all()
+            if event.id not in signups
+        ]
 
     waivers = []
     for item in waiver_by_event.values():
