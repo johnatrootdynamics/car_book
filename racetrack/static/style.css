@@ -208,9 +208,18 @@ textarea {
   align-items: center;
   gap: 6px;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   font-size: .82rem;
   font-weight: 700;
+  min-height: 28px;
+}
+
+.event-meta-row .driver-class-pill {
+  padding: 5px 10px;
+  font-size: .82rem;
+  line-height: 1;
+  gap: 6px;
+  min-height: 28px;
 }
 
 .status-ok {
@@ -226,13 +235,13 @@ textarea {
 }
 
 .status-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: .78rem;
+  font-size: .8rem;
   font-weight: 900;
   background: rgba(255, 255, 255, 0.14);
 }
@@ -244,7 +253,12 @@ textarea {
 }
 
 .drive-time-icon {
-  font-size: .9rem;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .82rem;
   line-height: 1;
 }
 table { width: 100%; border-collapse: collapse; }
@@ -731,7 +745,10 @@ th { color: var(--muted); font-weight: 600; }
 }
 
 .event-date-icon {
-  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .9rem;
 }
 
 .event-signup-form {
