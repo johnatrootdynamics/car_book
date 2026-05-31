@@ -738,10 +738,36 @@ th { color: var(--muted); font-weight: 600; }
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   position: relative;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+
+.event-tile-clickable:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.36);
+  box-shadow: 0 14px 26px rgba(2, 6, 23, 0.36);
+}
+
+.event-tile-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 12px;
 }
 
 .event-tile-body {
   padding: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.event-tile-body .btn,
+.event-tile-body form,
+.event-tile-body select,
+.event-tile-body input,
+.event-tile-body button,
+.event-tile-body a {
+  position: relative;
+  z-index: 3;
 }
 
 .event-date-icon {
