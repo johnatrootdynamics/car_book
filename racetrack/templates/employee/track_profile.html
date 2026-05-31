@@ -51,7 +51,7 @@
           </div>
 
           <details class="event-actions-menu layout-tile-menu">
-            <summary class="event-actions-trigger layout-tile-trigger" aria-label="Layout actions"><i class="bi bi-three-dots-vertical"></i></summary>
+            <summary class="event-actions-trigger layout-tile-trigger" aria-label="Layout actions"><span class="layout-menu-glyph" aria-hidden="true">⋮</span></summary>
             <div class="event-actions-list">
               <form method="post" action="{{ url_for('employee.track_layout_delete', layout_id=layout.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
