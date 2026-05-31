@@ -937,6 +937,12 @@ th { color: var(--muted); font-weight: 600; }
   margin: 0 0 6px;
 }
 
+.event-track-name {
+  margin: 0 0 4px;
+  font-size: 1.12rem;
+  line-height: 1.25;
+}
+
 .pop-comment {
   border-left: 3px solid var(--accent);
   border-radius: 8px;
