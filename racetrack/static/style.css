@@ -915,10 +915,12 @@ th { color: var(--muted); font-weight: 600; }
 }
 
 .general-head {
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  width: 100%;
   margin-bottom: 8px;
-  justify-items: start;
 }
 
 .event-general-meta {
