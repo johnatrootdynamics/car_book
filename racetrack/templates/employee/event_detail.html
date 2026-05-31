@@ -86,11 +86,29 @@
               <form method="post" action="{{ url_for('employee.event_slot_save', event_id=event.id) }}" class="form-grid" style="margin-top:10px;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="class_code" value="{{ class_code }}">
+                {% set selected_start = slot.start_time.strftime('%H:%M') if slot else '' %}
+                {% set selected_end = slot.end_time.strftime('%H:%M') if slot else '' %}
                 <label>Start
-                  <input type="time" name="start_time" value="{{ slot.start_time.strftime('%H:%M') if slot else '' }}" required>
+                  <select name="start_time" required>
+                    <option value="">Select start time</option>
+                    {% for hour in range(0, 24) %}
+                      {% for minute in [0, 15, 30, 45] %}
+                        {% set value = '%02d:%02d'|format(hour, minute) %}
+                        <option value="{{ value }}" {% if selected_start == value %}selected{% endif %}>{{ value }}</option>
+                      {% endfor %}
+                    {% endfor %}
+                  </select>
                 </label>
                 <label>End
-                  <input type="time" name="end_time" value="{{ slot.end_time.strftime('%H:%M') if slot else '' }}" required>
+                  <select name="end_time" required>
+                    <option value="">Select end time</option>
+                    {% for hour in range(0, 24) %}
+                      {% for minute in [0, 15, 30, 45] %}
+                        {% set value = '%02d:%02d'|format(hour, minute) %}
+                        <option value="{{ value }}" {% if selected_end == value %}selected{% endif %}>{{ value }}</option>
+                      {% endfor %}
+                    {% endfor %}
+                  </select>
                 </label>
                 <div><button type="submit" class="btn btn-sm">Save {{ class_code }}</button></div>
               </form>
