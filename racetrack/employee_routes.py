@@ -269,7 +269,9 @@ def track_layout_new():
         return guard
     track = Track.query.get_or_404(active_track_id())
     name = (request.form.get("name") or "").strip()
+    mode = (request.form.get("layout_mode") or "upload").strip().lower()
     upload = request.files.get("image")
+    drawing_data = (request.form.get("layout_drawing") or "").strip()
     if not name:
         flash("Layout name is required.", "error")
         return redirect(url_for("employee.track_profile"))
@@ -278,7 +280,39 @@ def track_layout_new():
         flash("A layout with that name already exists.", "error")
         return redirect(url_for("employee.track_profile"))
     layout = TrackLayout(track_id=track.id, name=name)
-    if upload and getattr(upload, "filename", ""):
+    if mode == "draw":
+        if not drawing_data.startswith("data:image/png;base64,"):
+            flash("Please draw a layout before saving.", "error")
+            return redirect(url_for("employee.track_profile"))
+        try:
+            raw = base64.b64decode(drawing_data.split(",", 1)[1])
+        except Exception:
+            flash("Could not process drawn layout image.", "error")
+            return redirect(url_for("employee.track_profile"))
+        draw_file = FileStorage(
+            stream=BytesIO(raw),
+            filename="drawn_layout.png",
+            content_type="image/png",
+        )
+        clean_name = secure_filename(draw_file.filename)
+        draw_file.filename = clean_name
+        layout.image_path = upload_public_image(
+            draw_file,
+            bucket=current_app.config["S3_BUCKET"],
+            endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+            access_key=current_app.config["S3_ACCESS_KEY"],
+            secret_key=current_app.config["S3_SECRET_KEY"],
+            key_prefix=f"track_layouts/{track.id}",
+        )
+    elif mode == "default":
+        if not track.layout_image_path:
+            flash("No default track layout image available to copy.", "error")
+            return redirect(url_for("employee.track_profile"))
+        layout.image_path = track.layout_image_path
+    else:
+        if not upload or not getattr(upload, "filename", ""):
+            flash("Please upload a layout image.", "error")
+            return redirect(url_for("employee.track_profile"))
         clean_name = secure_filename(upload.filename)
         upload.filename = clean_name
         layout.image_path = upload_public_image(
