@@ -166,6 +166,7 @@ def create_app():
             "track_driver_classes",
             "run_groups",
             "run_group_assignments",
+            "event_class_slots",
             "track_waiver_templates",
             "driver_waivers",
         }
@@ -385,6 +386,7 @@ def create_app():
             "track_driver_classes",
             "run_groups",
             "run_group_assignments",
+            "event_class_slots",
             "track_waiver_templates",
             "driver_waivers",
         }

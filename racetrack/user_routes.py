@@ -1,6 +1,6 @@
 import secrets
 import os
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -10,6 +10,7 @@ from .forms import CarForm, EventSignupForm, SocialCommentForm
 from .models import (
     Car,
     Event,
+    EventClassSlot,
     EventRegistration,
     SocialComment,
     SocialPost,
@@ -69,10 +70,33 @@ def dashboard():
     form.car_id.choices = [(car.id, f"{car.car_year} {car.make} {car.model}") for car in cars]
     from .waiver_routes import get_required_waiver_status
 
+    track_classes = (
+        TrackDriverClass.query.join(Track, Track.id == TrackDriverClass.track_id)
+        .filter(TrackDriverClass.user_id == current_user.id)
+        .order_by(Track.name.asc())
+        .all()
+    )
+    track_class_by_track_id = {item.track_id: item.driver_class for item in track_classes}
+
     waiver_by_event = {}
+    slot_notice_by_event = {}
     for event in events:
         status, waiver = get_required_waiver_status(event.track_id, current_user.id, event.id)
         waiver_by_event[event.id] = {"status": status, "waiver": waiver}
+        driver_class = track_class_by_track_id.get(event.track_id, "C")
+        slot = (
+            EventClassSlot.query.filter_by(event_id=event.id, class_code=driver_class)
+            .order_by(EventClassSlot.start_time.asc())
+            .first()
+        )
+        if slot:
+            now_dt = datetime.now()
+            start_dt = datetime.combine(event.event_date, slot.start_time)
+            end_dt = datetime.combine(event.event_date, slot.end_time)
+            if start_dt - timedelta(minutes=15) <= now_dt < start_dt:
+                slot_notice_by_event[event.id] = f"Your class ({driver_class}) starts at {slot.start_time.strftime('%I:%M %p').lstrip('0')}"
+            elif start_dt <= now_dt <= end_dt:
+                slot_notice_by_event[event.id] = f"Your class ({driver_class}) is active now"
 
     subscribed_track_ids = {
         item.track_id
@@ -88,13 +112,6 @@ def dashboard():
             .order_by(Track.name.asc())
             .all()
         )
-    track_classes = (
-        TrackDriverClass.query.join(Track, Track.id == TrackDriverClass.track_id)
-        .filter(TrackDriverClass.user_id == current_user.id)
-        .order_by(Track.name.asc())
-        .all()
-    )
-    track_class_by_track_id = {item.track_id: item.driver_class for item in track_classes}
     subscribed_events = []
     if subscribed_track_ids:
         event_query = Event.query.filter(
@@ -117,11 +134,54 @@ def dashboard():
         signup_form=form,
         waiver_by_event=waiver_by_event,
         waivers=waivers,
+        slot_notice_by_event=slot_notice_by_event,
         subscribed_events=subscribed_events,
         subscribed_tracks=subscribed_tracks,
         selected_track_id=selected_track_id,
         subscribed_track_ids=subscribed_track_ids,
         track_class_by_track_id=track_class_by_track_id,
+    )
+
+
+@user_bp.route("/events/<int:event_id>/schedule")
+@login_required
+def event_schedule(event_id):
+    guard = require_user()
+    if guard:
+        return guard
+    event = Event.query.get_or_404(event_id)
+    reg = EventRegistration.query.filter_by(event_id=event.id, user_id=current_user.id).first_or_404()
+    track_class = (
+        TrackDriverClass.query.filter_by(track_id=event.track_id, user_id=current_user.id).first()
+    )
+    driver_class = track_class.driver_class if track_class else "C"
+    slots = (
+        EventClassSlot.query.filter_by(event_id=event.id)
+        .order_by(EventClassSlot.start_time.asc())
+        .all()
+    )
+
+    notice = None
+    my_slot = None
+    for slot in slots:
+        if slot.class_code == driver_class and my_slot is None:
+            my_slot = slot
+    if my_slot:
+        now_dt = datetime.now()
+        start_dt = datetime.combine(event.event_date, my_slot.start_time)
+        end_dt = datetime.combine(event.event_date, my_slot.end_time)
+        if start_dt - timedelta(minutes=15) <= now_dt < start_dt:
+            notice = f"Heads up: your class ({driver_class}) starts at {my_slot.start_time.strftime('%I:%M %p').lstrip('0')}"
+        elif start_dt <= now_dt <= end_dt:
+            notice = f"You're up now. Class {driver_class} is currently running."
+
+    return render_template(
+        "user/event_schedule.html",
+        event=event,
+        registration=reg,
+        slots=slots,
+        driver_class=driver_class,
+        notice=notice,
     )
 
 

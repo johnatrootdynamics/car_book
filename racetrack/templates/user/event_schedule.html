@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="row-space">
+    <div>
+      <h2>{{ event.event_name }}</h2>
+      <p>{{ event.track.name }} • {{ event.event_date }}</p>
+    </div>
+    <a class="btn btn-secondary" href="{{ url_for('user.dashboard') }}">Back</a>
+  </div>
+  <p class="muted-line">Your class for this track: <strong>{{ driver_class }}</strong></p>
+  {% if notice %}
+    <div class="flash flash-success">{{ notice }}</div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Class Run Schedule</h3>
+  {% if slots %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Class</th><th>Start</th><th>End</th></tr></thead>
+        <tbody>
+          {% for slot in slots %}
+            <tr>
+              <td><span class="driver-class-pill driver-class-{{ slot.class_code }}">{{ slot.class_code }}</span></td>
+              <td>{{ slot.start_time.strftime('%I:%M %p').lstrip('0') }}</td>
+              <td>{{ slot.end_time.strftime('%I:%M %p').lstrip('0') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No class schedule published yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

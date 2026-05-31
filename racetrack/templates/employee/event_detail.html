@@ -9,6 +9,7 @@
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='run_groups') }}">Run Groups</a>
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}">Participants</a>
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}">Inspect</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}">Class Slots</a>
   </aside>
   <div>
     <section class="card">
@@ -92,6 +93,51 @@
           <p class="hint">Type at least 2 characters. Results update as you type.</p>
           <div class="class-search-results" data-inspect-name-results></div>
         </div>
+      {% elif view == 'slots' %}
+        <h3>Class Time Slots</h3>
+        <form method="post" action="{{ url_for('employee.event_slot_new', event_id=event.id) }}" class="form-grid" style="margin-bottom:14px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Class
+            <select name="class_code" required>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+            </select>
+          </label>
+          <label>Start
+            <input type="time" name="start_time" required>
+          </label>
+          <label>End
+            <input type="time" name="end_time" required>
+          </label>
+          <div>
+            <button type="submit" class="btn btn-sm">Add Slot</button>
+          </div>
+        </form>
+        {% if class_slots %}
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Class</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
+              <tbody>
+                {% for slot in class_slots %}
+                  <tr>
+                    <td><span class="driver-class-pill driver-class-{{ slot.class_code }}">{{ slot.class_code }}</span></td>
+                    <td>{{ slot.start_time.strftime('%I:%M %p').lstrip('0') }}</td>
+                    <td>{{ slot.end_time.strftime('%I:%M %p').lstrip('0') }}</td>
+                    <td>
+                      <form method="post" action="{{ url_for('employee.event_slot_delete', event_id=event.id, slot_id=slot.id) }}" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-secondary btn-sm">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p>No class slots have been set for this event yet.</p>
+        {% endif %}
       {% else %}
         <h3>Event Analytics</h3>
         <p class="muted-line">Use the left menu to switch tools without leaving this page.</p>

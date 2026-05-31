@@ -141,6 +141,9 @@ class Event(db.Model):
     run_groups = db.relationship(
         "RunGroup", backref="event", cascade="all, delete-orphan"
     )
+    class_slots = db.relationship(
+        "EventClassSlot", backref="event", cascade="all, delete-orphan"
+    )
 
 
 class EventRegistration(db.Model):
@@ -334,6 +337,21 @@ class RunGroupAssignment(db.Model):
         db.UniqueConstraint(
             "event_registration_id", name="uniq_registration_run_group_assignment"
         ),
+    )
+
+
+class EventClassSlot(db.Model):
+    __tablename__ = "event_class_slots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    class_code = db.Column(db.String(1), nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint("class_code IN ('A','B','C')", name="chk_event_class_slot_code"),
     )
 
 

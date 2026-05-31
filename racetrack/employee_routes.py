@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
@@ -10,6 +10,7 @@ from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRule
 from .models import (
     Employee,
     Event,
+    EventClassSlot,
     EventRegistration,
     Inspection,
     InspectionItem,
@@ -350,7 +351,7 @@ def event_detail(event_id):
     db.session.commit()
 
     view = (request.args.get("view") or "analytics").strip().lower()
-    if view not in {"analytics", "run_groups", "participants", "inspect"}:
+    if view not in {"analytics", "run_groups", "participants", "inspect", "slots"}:
         view = "analytics"
 
     groups = []
@@ -358,6 +359,7 @@ def event_detail(event_id):
     participants = []
     class_by_user = {}
     inspections = {}
+    class_slots = []
 
     if view == "run_groups":
         groups = RunGroup.query.filter_by(event_id=event.id).order_by(RunGroup.name.asc()).all()
@@ -396,6 +398,13 @@ def event_detail(event_id):
             class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
         db.session.commit()
 
+    if view == "slots":
+        class_slots = (
+            EventClassSlot.query.filter_by(event_id=event.id)
+            .order_by(EventClassSlot.start_time.asc())
+            .all()
+        )
+
     return render_template(
         "employee/event_detail.html",
         event=event,
@@ -408,7 +417,57 @@ def event_detail(event_id):
         participants=participants,
         class_by_user=class_by_user,
         inspections=inspections,
+        class_slots=class_slots,
     )
+
+
+@employee_bp.route("/events/<int:event_id>/slots/new", methods=["POST"])
+@login_required
+def event_slot_new(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    class_code = (request.form.get("class_code") or "").strip().upper()
+    start_time = request.form.get("start_time")
+    end_time = request.form.get("end_time")
+    if class_code not in {"A", "B", "C"} or not start_time or not end_time:
+        flash("Class, start time, and end time are required.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+    try:
+        start_time_value = datetime.strptime(start_time, "%H:%M").time()
+        end_time_value = datetime.strptime(end_time, "%H:%M").time()
+    except ValueError:
+        flash("Invalid time value.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+    if end_time_value <= start_time_value:
+        flash("End time must be after start time.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+    db.session.add(
+        EventClassSlot(
+            event_id=event.id,
+            class_code=class_code,
+            start_time=start_time_value,
+            end_time=end_time_value,
+        )
+    )
+    db.session.commit()
+    flash("Class slot created.", "success")
+    return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+
+
+@employee_bp.route("/events/<int:event_id>/slots/<int:slot_id>/delete", methods=["POST"])
+@login_required
+def event_slot_delete(event_id, slot_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    slot = EventClassSlot.query.filter_by(id=slot_id, event_id=event.id).first_or_404()
+    db.session.delete(slot)
+    db.session.commit()
+    flash("Class slot deleted.", "success")
+    return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
 
 
 @employee_bp.route("/events/<int:event_id>/run-groups")

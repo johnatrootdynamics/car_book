@@ -76,6 +76,9 @@
           <div class="event-tile-body">
             <h4>{{ event.event_name }}</h4>
             <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+            {% if slot_notice_by_event.get(event.id) %}
+              <p class="badge badge-viewed">{{ slot_notice_by_event.get(event.id) }}</p>
+            {% endif %}
             <p>
               {% if ws == 'signed' or ws == 'not_required' %}
                 <span class="badge badge-signed">Signed Up</span>
@@ -92,6 +95,7 @@
                 <a class="btn btn-sm" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
               {% endif %}
             {% endif %}
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Class Schedule</a>
             <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-secondary btn-sm">Cancel</button>
@@ -142,6 +146,7 @@
           <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
           {% if event.id in signups %}
             <span class="badge badge-viewed">Already Signed Up</span>
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Class Schedule</a>
           {% else %}
             <p class="muted-line">Current track class: <strong>{{ current_class }}</strong></p>
             <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
