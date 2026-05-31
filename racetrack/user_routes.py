@@ -218,6 +218,8 @@ def spectator_tickets(event_id):
         if request.method == "GET":
             form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
             form.email.data = current_user.email
+    if request.method == "GET":
+        form.payment_method.data = event.track.spectator_payment_provider or "stripe"
     if form.validate_on_submit():
         buyer_type = "guest"
         user_id = None
@@ -240,7 +242,7 @@ def spectator_tickets(event_id):
             guest_full_name=full_name,
             guest_email=email,
             quantity=form.quantity.data,
-            payment_method=form.payment_method.data,
+            payment_method=event.track.spectator_payment_provider or "stripe",
             status="recorded",
         )
         db.session.add(order)
@@ -285,6 +287,10 @@ def spectator_cart_add():
     ticket_type = _get_or_create_default_ticket_type(event)
     quantity = max(1, min(quantity, ticket_type.max_per_order or 10))
     cart = _get_or_create_spectator_cart()
+    existing_items = SpectatorCartItem.query.filter_by(cart_id=cart.id).all()
+    if existing_items and any(item.event.track_id != event.track_id for item in existing_items):
+        flash("Cart currently holds tickets for another track. Please checkout or clear cart first.", "error")
+        return redirect(url_for("user.spectator_cart"))
     existing = SpectatorCartItem.query.filter_by(
         cart_id=cart.id, event_id=event.id, ticket_type_id=ticket_type.id
     ).first()
@@ -361,11 +367,14 @@ def spectator_checkout():
         line = unit * item.quantity
         subtotal_cents += line
         rows.append({"item": item, "unit": unit, "line": line})
+    provider = items[0].event.track.spectator_payment_provider if items else "stripe"
 
     form = SpectatorCheckoutForm()
     if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" and request.method == "GET":
         form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
         form.email.data = current_user.email
+    if request.method == "GET":
+        form.payment_method.data = provider
 
     if form.validate_on_submit():
         user_id = current_user.id if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" else None
@@ -374,7 +383,7 @@ def spectator_checkout():
             user_id=user_id,
             guest_full_name=form.full_name.data.strip(),
             guest_email=form.email.data.strip().lower(),
-            payment_method=form.payment_method.data,
+            payment_method=provider,
             status="recorded",
             total_cents=subtotal_cents,
         )
@@ -400,7 +409,7 @@ def spectator_checkout():
                     guest_full_name=form.full_name.data.strip(),
                     guest_email=form.email.data.strip().lower(),
                     quantity=item.quantity,
-                    payment_method=form.payment_method.data,
+                    payment_method=provider,
                     status="recorded",
                 )
             )

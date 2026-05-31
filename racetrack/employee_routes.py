@@ -290,6 +290,7 @@ def update_track():
         track.name = form.name.data.strip()
         track.city = form.city.data.strip()
         track.state = form.state.data.strip()
+        track.spectator_payment_provider = (form.spectator_payment_provider.data or "stripe").strip()
         upload = form.layout_image.data
         if upload:
             clean_name = secure_filename(upload.filename)

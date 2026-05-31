@@ -246,6 +246,9 @@ def create_app():
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS track_layout_id INT NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS spectator_payment_provider VARCHAR(50) NOT NULL DEFAULT 'stripe'"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS checked_in_at DATETIME NULL"
             )
             conn.exec_driver_sql(

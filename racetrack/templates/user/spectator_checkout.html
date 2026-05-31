@@ -29,7 +29,10 @@
     {{ form.hidden_tag() }}
     <label>Full Name {{ form.full_name() }}</label>
     <label>Email {{ form.email() }}</label>
-    <label>Payment Method {{ form.payment_method() }}</label>
+    <label>Payment Method
+      <input type="text" value="{{ form.payment_method.data|title }}" disabled>
+      {{ form.payment_method(type='hidden') }}
+    </label>
     <p class="hint">You can checkout as guest or logged-in driver. Confirmation is tied to your email.</p>
     {{ form.submit(class_='btn') }}
   </form>

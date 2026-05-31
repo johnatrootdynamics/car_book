@@ -61,6 +61,7 @@ class Track(db.Model):
     city = db.Column(db.String(100), nullable=False)
     state = db.Column(db.String(100), nullable=False)
     layout_image_path = db.Column(db.String(255), nullable=True)
+    spectator_payment_provider = db.Column(db.String(50), nullable=False, default="stripe")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     employees = db.relationship("Employee", backref="track")

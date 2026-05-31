@@ -68,6 +68,17 @@ class TrackProfileForm(FlaskForm):
         "Track Layout Image",
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
     )
+    spectator_payment_provider = SelectField(
+        "Spectator Payment Provider",
+        choices=[
+            ("stripe", "Stripe"),
+            ("paypal", "PayPal"),
+            ("toast", "Toast"),
+            ("quickbooks", "QuickBooks Payments"),
+            ("other", "Other"),
+        ],
+        validators=[DataRequired()],
+    )
     submit = SubmitField("Save Track Profile")
 
 
@@ -142,15 +153,5 @@ class SpectatorTicketForm(FlaskForm):
 class SpectatorCheckoutForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
-    payment_method = SelectField(
-        "Payment Method",
-        choices=[
-            ("stripe", "Stripe"),
-            ("paypal", "PayPal"),
-            ("toast", "Toast"),
-            ("quickbooks", "QuickBooks Payments"),
-            ("other", "Other"),
-        ],
-        validators=[DataRequired()],
-    )
+    payment_method = StringField("Payment Method", validators=[DataRequired(), Length(max=50)])
     submit = SubmitField("Place Order")
