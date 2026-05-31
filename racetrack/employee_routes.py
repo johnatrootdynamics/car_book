@@ -437,9 +437,9 @@ def event_detail(event_id):
         class_counts[dc] += 1
     db.session.commit()
 
-    view = (request.args.get("view") or "analytics").strip().lower()
-    if view not in {"analytics", "participants", "inspect", "slots"}:
-        view = "analytics"
+    view = (request.args.get("view") or "general").strip().lower()
+    if view not in {"general", "analytics", "participants", "inspect", "slots"}:
+        view = "general"
 
     groups = []
     assignments = {}

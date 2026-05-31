@@ -2,20 +2,8 @@
 {% block content %}
 <section class="card event-shell">
   <aside class="event-nav">
-    <h2>{{ event.event_name }}</h2>
-    <p class="muted-line">{{ event.event_date }}</p>
-    {% set selected_layout_name = event.track_layout.name if event.track_layout else 'Default Track Layout' %}
-    <p class="muted-line">Layout: <strong>{{ selected_layout_name }}</strong></p>
-    {% if event.track_layout and event.track_layout.image_path %}
-      {% set layout_img = asset_url(event.track_layout.image_path) %}
-    {% elif event.track.layout_image_path %}
-      {% set layout_img = asset_url(event.track.layout_image_path) %}
-    {% else %}
-      {% set layout_img = none %}
-    {% endif %}
-    {% if layout_img %}
-      <img src="{{ layout_img }}" alt="{{ selected_layout_name }}" style="width:100%;border-radius:10px;border:1px solid var(--border);margin-bottom:8px;">
-    {% endif %}
+    <h2>Event</h2>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}">General</a>
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}">Analytics</a>
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}">Participants</a>
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}">Inspect</a>
@@ -23,7 +11,23 @@
   </aside>
   <div>
     <section class="card">
-      {% if view == 'participants' %}
+      {% if view == 'general' %}
+        {% set selected_layout_name = event.track_layout.name if event.track_layout else 'Default Track Layout' %}
+        <h3>{{ event.event_name }}</h3>
+        <p class="muted-line">Date: {{ event.event_date }}</p>
+        <p class="muted-line">Track: {{ event.track.name }}</p>
+        <p class="muted-line">Layout: <strong>{{ selected_layout_name }}</strong></p>
+        {% if event.track_layout and event.track_layout.image_path %}
+          {% set layout_img = asset_url(event.track_layout.image_path) %}
+        {% elif event.track.layout_image_path %}
+          {% set layout_img = asset_url(event.track.layout_image_path) %}
+        {% else %}
+          {% set layout_img = none %}
+        {% endif %}
+        {% if layout_img %}
+          <img src="{{ layout_img }}" alt="{{ selected_layout_name }}" style="max-width:420px;width:100%;border-radius:10px;border:1px solid var(--border);margin-top:8px;">
+        {% endif %}
+      {% elif view == 'participants' %}
         <h3>Participants</h3>
         {% if participants %}
           <div class="table-wrap">
