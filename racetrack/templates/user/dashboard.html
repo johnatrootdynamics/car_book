@@ -61,6 +61,7 @@
       {% for event in events %}
         {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
         {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
+        {% set is_ready = ws == 'signed' or ws == 'not_required' %}
         <div class="event-tile">
           {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
           {% if event.thumbnail_image_path %}
@@ -74,20 +75,20 @@
           {% endif %}
           <span class="event-class-overlay">Class {{ current_class }}</span>
           <div class="event-tile-body">
-            <h4>{{ event.event_name }}</h4>
+            <h4><a class="event-tile-link" href="{{ url_for('user.event_schedule', event_id=event.id) }}">{{ event.event_name }}</a></h4>
             <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+            <div class="event-meta-row">
+              <span class="status-bubble {% if is_ready %}status-ok{% else %}status-warn{% endif %}">
+                <span class="status-icon">{% if is_ready %}✓{% else %}!{% endif %}</span>
+                <span>{% if is_ready %}Ready{% else %}Action Needed{% endif %}</span>
+              </span>
+              {% if slot_time_by_event.get(event.id) %}
+                <span class="drive-time-chip"><span class="drive-time-icon">🛞</span><span>{{ slot_time_by_event.get(event.id) }}</span></span>
+              {% endif %}
+            </div>
             {% if slot_notice_by_event.get(event.id) %}
               <p class="badge badge-viewed">{{ slot_notice_by_event.get(event.id) }}</p>
             {% endif %}
-            <p>
-              {% if ws == 'signed' or ws == 'not_required' %}
-                <span class="badge badge-signed">Signed Up</span>
-              {% elif ws in ['sent', 'viewed'] %}
-                <span class="badge badge-viewed">Waiver Pending</span>
-              {% else %}
-                <span class="badge badge-failed">Needs Waiver</span>
-              {% endif %}
-            </p>
             {% if ws != 'signed' and ws != 'not_required' %}
               {% if ww %}
                 <a class="btn btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
@@ -95,10 +96,6 @@
                 <a class="btn btn-sm" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
               {% endif %}
             {% endif %}
-            {% if slot_time_by_event.get(event.id) %}
-              <p class="muted-line">Your class is up at <strong>{{ slot_time_by_event.get(event.id) }}</strong></p>
-            {% endif %}
-            <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_schedule', event_id=event.id) }}">View Schedule</a>
             <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-secondary btn-sm">Cancel</button>
@@ -135,6 +132,7 @@
       {% for event in subscribed_events %}
       <div class="event-tile">
         {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
+        {% set is_signed_up = event.id in signups %}
         {% if event.thumbnail_image_path %}
           {% set event_image = asset_url(event.thumbnail_image_path) %}
           {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
@@ -145,14 +143,27 @@
           <div class="event-fallback">{{ event.event_name }}</div>
         {% endif %}
         <div class="event-tile-body">
-          <h4>{{ event.event_name }}</h4>
+          <h4>
+            {% if is_signed_up %}
+              <a class="event-tile-link" href="{{ url_for('user.event_schedule', event_id=event.id) }}">{{ event.event_name }}</a>
+            {% else %}
+              {{ event.event_name }}
+            {% endif %}
+          </h4>
           <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+          <div class="event-meta-row">
+            <span class="status-bubble {% if is_signed_up %}status-ok{% else %}status-warn{% endif %}">
+              <span class="status-icon">{% if is_signed_up %}✓{% else %}!{% endif %}</span>
+              <span>{% if is_signed_up %}Signed Up{% else %}Not Signed Up{% endif %}</span>
+            </span>
+            {% if is_signed_up and slot_time_by_event.get(event.id) %}
+              <span class="drive-time-chip"><span class="drive-time-icon">🛞</span><span>{{ slot_time_by_event.get(event.id) }}</span></span>
+            {% endif %}
+          </div>
           {% if event.id in signups %}
-            <span class="badge badge-viewed">Already Signed Up</span>
             {% if slot_time_by_event.get(event.id) %}
               <p class="muted-line">Your class is up at <strong>{{ slot_time_by_event.get(event.id) }}</strong></p>
             {% endif %}
-            <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_schedule', event_id=event.id) }}">View Schedule</a>
           {% else %}
             <p class="muted-line">Current track class: <strong>{{ current_class }}</strong></p>
             <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
