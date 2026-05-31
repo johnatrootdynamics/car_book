@@ -71,25 +71,32 @@
         </div>
       {% elif view == 'slots' %}
         <h3>Class Time Slots</h3>
-        <form method="post" action="{{ url_for('employee.event_slot_new', event_id=event.id) }}" class="form-grid" style="margin-bottom:14px;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label>Class
-            <select name="class_code" required>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-            </select>
-          </label>
-          <label>Start
-            <input type="time" name="start_time" required>
-          </label>
-          <label>End
-            <input type="time" name="end_time" required>
-          </label>
-          <div>
-            <button type="submit" class="btn btn-sm">Add Slot</button>
-          </div>
-        </form>
+        {% set slot_a = (class_slots|selectattr('class_code', 'equalto', 'A')|list|first) %}
+        {% set slot_b = (class_slots|selectattr('class_code', 'equalto', 'B')|list|first) %}
+        {% set slot_c = (class_slots|selectattr('class_code', 'equalto', 'C')|list|first) %}
+        <div class="form-grid" style="margin-bottom:14px;">
+          {% for class_code, slot in [('A', slot_a), ('B', slot_b), ('C', slot_c)] %}
+            <details class="card" style="margin:0;">
+              <summary class="row-space" style="cursor:pointer; list-style:none;">
+                <span><span class="driver-class-pill driver-class-{{ class_code }}">Class {{ class_code }}</span>
+                {% if slot %}<span class="muted-line"> {{ slot.start_time.strftime('%I:%M %p').lstrip('0') }} - {{ slot.end_time.strftime('%I:%M %p').lstrip('0') }}</span>{% else %}<span class="muted-line"> Not set</span>{% endif %}
+                </span>
+                <span class="btn btn-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</span>
+              </summary>
+              <form method="post" action="{{ url_for('employee.event_slot_save', event_id=event.id) }}" class="form-grid" style="margin-top:10px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="class_code" value="{{ class_code }}">
+                <label>Start
+                  <input type="time" name="start_time" value="{{ slot.start_time.strftime('%H:%M') if slot else '' }}" required>
+                </label>
+                <label>End
+                  <input type="time" name="end_time" value="{{ slot.end_time.strftime('%H:%M') if slot else '' }}" required>
+                </label>
+                <div><button type="submit" class="btn btn-sm">Save {{ class_code }}</button></div>
+              </form>
+            </details>
+          {% endfor %}
+        </div>
         {% if class_slots %}
           <div class="table-wrap">
             <table>

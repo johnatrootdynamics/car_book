@@ -543,6 +543,54 @@ def event_slot_new(event_id):
     return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
 
 
+@employee_bp.route("/events/<int:event_id>/slots/save", methods=["POST"])
+@login_required
+def event_slot_save(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    class_code = (request.form.get("class_code") or "").strip().upper()
+    start_time = request.form.get("start_time")
+    end_time = request.form.get("end_time")
+    if class_code not in {"A", "B", "C"} or not start_time or not end_time:
+        flash("Class, start time, and end time are required.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+    try:
+        start_time_value = datetime.strptime(start_time, "%H:%M").time()
+        end_time_value = datetime.strptime(end_time, "%H:%M").time()
+    except ValueError:
+        flash("Invalid time value.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+    if end_time_value <= start_time_value:
+        flash("End time must be after start time.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+
+    slots_for_class = (
+        EventClassSlot.query.filter_by(event_id=event.id, class_code=class_code)
+        .order_by(EventClassSlot.start_time.asc())
+        .all()
+    )
+    if slots_for_class:
+        slot = slots_for_class[0]
+        slot.start_time = start_time_value
+        slot.end_time = end_time_value
+        for extra in slots_for_class[1:]:
+            db.session.delete(extra)
+    else:
+        db.session.add(
+            EventClassSlot(
+                event_id=event.id,
+                class_code=class_code,
+                start_time=start_time_value,
+                end_time=end_time_value,
+            )
+        )
+    db.session.commit()
+    flash(f"Class {class_code} slot saved.", "success")
+    return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+
+
 @employee_bp.route("/events/<int:event_id>/slots/<int:slot_id>/delete", methods=["POST"])
 @login_required
 def event_slot_delete(event_id, slot_id):
