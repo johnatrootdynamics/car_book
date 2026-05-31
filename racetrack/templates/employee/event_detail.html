@@ -3,7 +3,7 @@
 <section class="card event-shell">
   <aside class="event-nav">
     <h2>{{ event.event_name }}</h2>
-    <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+    <p class="muted-line">{{ event.event_date }}</p>
     {% set selected_layout_name = event.track_layout.name if event.track_layout else 'Default Track Layout' %}
     <p class="muted-line">Layout: <strong>{{ selected_layout_name }}</strong></p>
     {% if event.track_layout and event.track_layout.image_path %}
