@@ -914,6 +914,13 @@ th { color: var(--muted); font-weight: 600; }
   font-size: .9rem;
 }
 
+.general-head {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+  justify-items: start;
+}
+
 .event-general-meta {
   display: grid;
   gap: 6px;

@@ -25,15 +25,16 @@
           {% set current_start = event.event_start_time.strftime('%H:%M') if event.event_start_time else '' %}
           {% set current_end = event.event_end_time.strftime('%H:%M') if event.event_end_time else '' %}
 
-          <div class="row-space">
+          <div class="general-head">
             <h3 style="margin:0;" class="general-static" data-static>{{ event.event_name }}</h3>
             <button type="button" class="btn btn-secondary btn-sm" data-general-edit-btn>Edit</button>
           </div>
 
           <div class="event-general-meta general-static" data-static>
-            <p class="event-general-row"><i class="bi bi-calendar-event"></i> {{ event.event_date }}</p>
-            <p class="event-general-row"><i class="bi bi-clock"></i> {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }} - {{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</p>
-            <p class="event-general-row"><i class="bi bi-map"></i> {{ selected_layout_name }}</p>
+            <p class="event-general-row"><strong>Name:</strong> {{ event.event_name }}</p>
+            <p class="event-general-row"><i class="bi bi-calendar-event"></i> <strong>Date:</strong> {{ event.event_date }}</p>
+            <p class="event-general-row"><i class="bi bi-clock"></i> <strong>Time:</strong> {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }} - {{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</p>
+            <p class="event-general-row"><i class="bi bi-map"></i> <strong>Layout:</strong> {{ selected_layout_name }}</p>
           </div>
 
           <label data-edit-field hidden>Event Name
