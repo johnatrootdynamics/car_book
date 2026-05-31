@@ -13,74 +13,105 @@
     <section class="card">
       {% if view == 'general' %}
         {% set selected_layout_name = event.track_layout.name if event.track_layout else 'Default Track Layout' %}
-        <h3>{{ event.event_name }}</h3>
-        <p class="muted-line">Date: {{ event.event_date }}</p>
-        <p class="muted-line">Start Time: {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }}</p>
-        <p class="muted-line">End Time: {{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</p>
-        <p class="muted-line">Track: {{ event.track.name }}</p>
-        <p class="muted-line">Layout: <strong>{{ selected_layout_name }}</strong></p>
-        {% if event.track_layout and event.track_layout.image_path %}
-          {% set layout_img = asset_url(event.track_layout.image_path) %}
-        {% elif event.track.layout_image_path %}
-          {% set layout_img = asset_url(event.track.layout_image_path) %}
-        {% else %}
-          {% set layout_img = none %}
-        {% endif %}
-        {% if layout_img %}
-          <img src="{{ layout_img }}" alt="{{ selected_layout_name }}" style="max-width:420px;width:100%;border-radius:10px;border:1px solid var(--border);margin-top:8px;">
-        {% endif %}
-
-        <section class="card" style="margin-top:12px;">
-          <h3>Edit Event</h3>
-          <form method="post" action="{{ url_for('employee.event_edit', event_id=event.id) }}" enctype="multipart/form-data" class="form-grid" data-enhanced>
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {% set ns = namespace(half_hour_options=[]) %}
-            {% for hour in range(0, 24) %}
-              {% for minute in [0, 30] %}
-                {% set value = '%02d:%02d'|format(hour, minute) %}
-                {% set ns.half_hour_options = ns.half_hour_options + [value] %}
-              {% endfor %}
+        <form method="post" action="{{ url_for('employee.event_edit', event_id=event.id) }}" enctype="multipart/form-data" class="form-grid" data-enhanced data-general-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% set ns = namespace(half_hour_options=[]) %}
+          {% for hour in range(0, 24) %}
+            {% for minute in [0, 30] %}
+              {% set value = '%02d:%02d'|format(hour, minute) %}
+              {% set ns.half_hour_options = ns.half_hour_options + [value] %}
             {% endfor %}
-            {% set current_start = event.event_start_time.strftime('%H:%M') if event.event_start_time else '' %}
-            {% set current_end = event.event_end_time.strftime('%H:%M') if event.event_end_time else '' %}
-            <label>Event Name <input type="text" name="event_name" maxlength="200" value="{{ event.event_name }}" required></label>
-            <label>Event Date <input type="date" name="event_date" value="{{ event.event_date.strftime('%Y-%m-%d') }}" required></label>
-            <label>Event Start Time
-              <select name="event_start_time" required>
-                <option value="">Select start time</option>
-                {% for value in ns.half_hour_options %}
-                  {% set hh = value[:2]|int %}
-                  {% set mm = value[3:5] %}
-                  {% set meridiem = 'AM' if hh < 12 else 'PM' %}
-                  {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
-                  <option value="{{ value }}" {% if current_start == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>Event End Time
-              <select name="event_end_time" required>
-                <option value="">Select end time</option>
-                {% for value in ns.half_hour_options %}
-                  {% set hh = value[:2]|int %}
-                  {% set mm = value[3:5] %}
-                  {% set meridiem = 'AM' if hh < 12 else 'PM' %}
-                  {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
-                  <option value="{{ value }}" {% if current_end == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>Track Layout
-              <select name="track_layout_id">
-                <option value="0" {% if not event.track_layout_id %}selected{% endif %}>Default Track Layout</option>
-                {% for layout in track_layouts %}
-                  <option value="{{ layout.id }}" {% if event.track_layout_id == layout.id %}selected{% endif %}>{{ layout.name }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>Thumbnail Image <input type="file" name="thumbnail_image" accept="image/png,image/jpeg,image/webp"></label>
-            <div><button type="submit" class="btn">Save Event</button></div>
-          </form>
-        </section>
+          {% endfor %}
+          {% set current_start = event.event_start_time.strftime('%H:%M') if event.event_start_time else '' %}
+          {% set current_end = event.event_end_time.strftime('%H:%M') if event.event_end_time else '' %}
+
+          <div class="row-space"><h3 style="margin:0;">General</h3><button type="button" class="btn btn-secondary btn-sm" data-general-edit-btn>Edit</button></div>
+
+          <label>Event Name
+            <span class="general-static" data-static>{{ event.event_name }}</span>
+            <input data-edit-field type="text" name="event_name" maxlength="200" value="{{ event.event_name }}" required hidden>
+          </label>
+
+          <label>Event Date
+            <span class="general-static" data-static>{{ event.event_date }}</span>
+            <input data-edit-field type="date" name="event_date" value="{{ event.event_date.strftime('%Y-%m-%d') }}" required hidden>
+          </label>
+
+          <label>Event Start Time
+            <span class="general-static" data-static>{{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }}</span>
+            <select data-edit-field name="event_start_time" required hidden>
+              <option value="">Select start time</option>
+              {% for value in ns.half_hour_options %}
+                {% set hh = value[:2]|int %}
+                {% set mm = value[3:5] %}
+                {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+                {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+                <option value="{{ value }}" {% if current_start == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label>Event End Time
+            <span class="general-static" data-static>{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</span>
+            <select data-edit-field name="event_end_time" required hidden>
+              <option value="">Select end time</option>
+              {% for value in ns.half_hour_options %}
+                {% set hh = value[:2]|int %}
+                {% set mm = value[3:5] %}
+                {% set meridiem = 'AM' if hh < 12 else 'PM' %}
+                {% set display_h = 12 if (hh % 12) == 0 else (hh % 12) %}
+                <option value="{{ value }}" {% if current_end == value %}selected{% endif %}>{{ display_h }}:{{ mm }} {{ meridiem }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label>Track
+            <span class="general-static" data-static>{{ event.track.name }}</span>
+          </label>
+
+          <label>Layout
+            <span class="general-static" data-static>{{ selected_layout_name }}</span>
+            <select data-edit-field name="track_layout_id" hidden>
+              <option value="0" {% if not event.track_layout_id %}selected{% endif %}>Default Track Layout</option>
+              {% for layout in track_layouts %}
+                <option value="{{ layout.id }}" {% if event.track_layout_id == layout.id %}selected{% endif %}>{{ layout.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label data-edit-field hidden>Thumbnail Image <input type="file" name="thumbnail_image" accept="image/png,image/jpeg,image/webp"></label>
+
+          {% if event.track_layout and event.track_layout.image_path %}
+            {% set layout_img = asset_url(event.track_layout.image_path) %}
+          {% elif event.track.layout_image_path %}
+            {% set layout_img = asset_url(event.track.layout_image_path) %}
+          {% else %}
+            {% set layout_img = none %}
+          {% endif %}
+          {% if layout_img %}
+            <img src="{{ layout_img }}" alt="{{ selected_layout_name }}" style="max-width:420px;width:100%;border-radius:10px;border:1px solid var(--border);margin-top:8px;">
+          {% endif %}
+
+          <div data-edit-field hidden class="inline">
+            <button type="submit" class="btn">Save Event</button>
+            <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}">Cancel</a>
+          </div>
+        </form>
+        <script>
+          (function () {
+            const form = document.querySelector('[data-general-form]')
+            if (!form) return
+            const editBtn = form.querySelector('[data-general-edit-btn]')
+            const staticNodes = form.querySelectorAll('[data-static]')
+            const editNodes = form.querySelectorAll('[data-edit-field]')
+            if (!editBtn) return
+            editBtn.addEventListener('click', () => {
+              staticNodes.forEach((node) => { node.hidden = true })
+              editNodes.forEach((node) => { node.hidden = false })
+              editBtn.hidden = true
+            })
+          })()
+        </script>
       {% elif view == 'participants' %}
         <h3>Participants</h3>
         {% if participants %}
