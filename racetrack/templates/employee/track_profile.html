@@ -32,35 +32,35 @@
   </form>
 
   {% if layouts %}
-    <div class="layout-tile-grid" style="margin-top:12px;">
-      {% for layout in layouts %}
-        <article class="layout-tile">
-          {% if layout.image_path %}
-            {% set img = asset_url(layout.image_path) %}
-            {% if img %}
-              <img src="{{ img }}" alt="{{ layout.name }}">
-            {% else %}
-              <div class="layout-tile-fallback">{{ layout.name }}</div>
-            {% endif %}
-          {% else %}
-            <div class="layout-tile-fallback">{{ layout.name }}</div>
-          {% endif %}
-
-          <div class="layout-tile-overlay">
-            <strong>{{ layout.name }}</strong>
-          </div>
-
-          <details class="event-actions-menu layout-tile-menu">
-            <summary class="event-actions-trigger layout-tile-trigger" aria-label="Layout actions"><span class="layout-menu-glyph" aria-hidden="true">⋮</span></summary>
-            <div class="event-actions-list">
-              <form method="post" action="{{ url_for('employee.track_layout_delete', layout_id=layout.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="event-action-item event-action-danger" onclick="return confirm('Delete this layout?')">Delete Layout</button>
-              </form>
-            </div>
-          </details>
-        </article>
-      {% endfor %}
+    <div class="table-wrap" style="margin-top:12px; max-width:720px;">
+      <table>
+        <thead><tr><th>Layout</th><th>Preview</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for layout in layouts %}
+            <tr>
+              <td>{{ layout.name }}</td>
+              <td>
+                {% if layout.image_path %}
+                  {% set img = asset_url(layout.image_path) %}
+                  {% if img %}
+                    <img src="{{ img }}" alt="{{ layout.name }}" class="layout-preview-small">
+                  {% else %}
+                    <span class="muted-line">No image</span>
+                  {% endif %}
+                {% else %}
+                  <span class="muted-line">No image</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" action="{{ url_for('employee.track_layout_delete', layout_id=layout.id) }}" class="inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Delete this layout? This cannot be undone.')"><i class="bi bi-trash3"></i> Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   {% else %}
     <p class="muted-line" style="margin-top:10px;">No custom layouts yet.</p>

@@ -548,6 +548,15 @@ th { color: var(--muted); font-weight: 600; }
   left: auto;
 }
 
+.layout-preview-small {
+  width: 80px;
+  height: 50px;
+  object-fit: cover;
+  display: block;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
 .check-row {
   display: flex;
   align-items: center;
