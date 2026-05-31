@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card narrow">
+  <div class="row-space">
+    <h2>Spectator Cart</h2>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_events') }}">Add More</a>
+  </div>
+  {% if rows %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Event</th><th>Ticket</th><th>Qty</th><th>Unit</th><th>Total</th><th></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.item.event.event_name }}</td>
+              <td>{{ row.item.ticket_type.name }}</td>
+              <td>{{ row.item.quantity }}</td>
+              <td>{{ money(row.unit) }}</td>
+              <td>{{ money(row.line) }}</td>
+              <td>
+                <form method="post" action="{{ url_for('user.spectator_cart_remove', item_id=row.item.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-secondary btn-sm">Remove</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted-line" style="margin-top:10px;">Subtotal: <strong>{{ money(subtotal_cents) }}</strong></p>
+    <a class="btn" href="{{ url_for('user.spectator_checkout') }}">Checkout</a>
+  {% else %}
+    <p class="muted-line">Your cart is empty.</p>
+  {% endif %}
+</section>
+{% endblock %}

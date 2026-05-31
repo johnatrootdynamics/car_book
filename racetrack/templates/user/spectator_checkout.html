@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card narrow">
+  <div class="row-space">
+    <h2>Checkout</h2>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_cart') }}">Back to Cart</a>
+  </div>
+  <div class="table-wrap" style="margin-bottom:10px;">
+    <table>
+      <thead><tr><th>Event</th><th>Ticket</th><th>Qty</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.item.event.event_name }}</td>
+            <td>{{ row.item.ticket_type.name }}</td>
+            <td>{{ row.item.quantity }}</td>
+            <td>{{ money(row.line) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted-line">Order total: <strong>{{ money(subtotal_cents) }}</strong></p>
+  <form method="post" class="form-grid" data-enhanced>
+    {{ form.hidden_tag() }}
+    <label>Full Name {{ form.full_name() }}</label>
+    <label>Email {{ form.email() }}</label>
+    <label>Payment Method {{ form.payment_method() }}</label>
+    <p class="hint">MVP: order is recorded for operations. Gateway charge integration comes next.</p>
+    {{ form.submit(class_='btn') }}
+  </form>
+</section>
+{% endblock %}

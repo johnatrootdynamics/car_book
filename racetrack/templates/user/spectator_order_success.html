@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card narrow">
+  <h2>Order Recorded</h2>
+  <p class="muted-line">Order <strong>{{ order.order_number }}</strong> has been recorded.</p>
+  <p class="muted-line">Buyer: {{ order.guest_full_name }} • {{ order.guest_email }}</p>
+  <p class="muted-line">Payment Method: {{ order.payment_method|title }}</p>
+  <div class="table-wrap" style="margin-top:10px;">
+    <table>
+      <thead><tr><th>Event</th><th>Ticket</th><th>Qty</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <td>{{ item.event.event_name }}</td>
+            <td>{{ item.ticket_type_name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ money(item.line_total_cents) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted-line" style="margin-top:8px;">Order total: <strong>{{ money(order.total_cents) }}</strong></p>
+  <a class="btn" href="{{ url_for('user.spectator_events') }}">Browse More Events</a>
+</section>
+{% endblock %}

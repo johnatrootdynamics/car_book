@@ -2,11 +2,11 @@ import secrets
 import os
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
-from .forms import CarForm, EventSignupForm, SocialCommentForm, SpectatorTicketForm
+from .forms import CarForm, EventSignupForm, SocialCommentForm, SpectatorCheckoutForm, SpectatorTicketForm
 from .models import (
     Car,
     Event,
@@ -14,7 +14,12 @@ from .models import (
     EventRegistration,
     SocialComment,
     SocialPost,
+    SpectatorCart,
+    SpectatorCartItem,
+    SpectatorOrder,
+    SpectatorOrderItem,
     SpectatorTicketOrder,
+    SpectatorTicketType,
     Track,
     TrackDriverClass,
     TrackSubscription,
@@ -35,6 +40,56 @@ def _generate_car_qr_code():
         code = f"CAR-{secrets.token_hex(4).upper()}"
         if not Car.query.filter_by(static_qr_code=code).first():
             return code
+
+
+def _money(cents):
+    return f"${(cents or 0) / 100:,.2f}"
+
+
+def _get_or_create_default_ticket_type(event):
+    ticket_type = (
+        SpectatorTicketType.query.filter_by(event_id=event.id, is_active=True)
+        .order_by(SpectatorTicketType.created_at.asc())
+        .first()
+    )
+    if ticket_type:
+        return ticket_type
+    ticket_type = SpectatorTicketType(
+        event_id=event.id,
+        name="General Admission",
+        price_cents=2500,
+        is_active=True,
+        max_per_order=10,
+    )
+    db.session.add(ticket_type)
+    db.session.commit()
+    return ticket_type
+
+
+def _get_or_create_spectator_cart():
+    user_id = None
+    if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
+        user_id = current_user.id
+    if user_id:
+        cart = SpectatorCart.query.filter_by(user_id=user_id).first()
+        if cart:
+            return cart
+        cart = SpectatorCart(user_id=user_id)
+        db.session.add(cart)
+        db.session.commit()
+        return cart
+
+    token = session.get("spectator_cart_token")
+    if not token:
+        token = secrets.token_hex(16)
+        session["spectator_cart_token"] = token
+    cart = SpectatorCart.query.filter_by(session_token=token).first()
+    if cart:
+        return cart
+    cart = SpectatorCart(session_token=token)
+    db.session.add(cart)
+    db.session.commit()
+    return cart
 
 
 def require_user():
@@ -204,7 +259,151 @@ def spectator_events():
             | (Track.state.ilike(like))
         )
     events = query.order_by(Event.event_date.asc()).limit(60).all()
-    return render_template("user/spectator_events.html", events=events, q=q)
+    ticket_type_by_event = {}
+    for event in events:
+        ticket_type_by_event[event.id] = _get_or_create_default_ticket_type(event)
+    return render_template(
+        "user/spectator_events.html",
+        events=events,
+        q=q,
+        ticket_type_by_event=ticket_type_by_event,
+        money=_money,
+    )
+
+
+@user_bp.route("/spectator/cart/add", methods=["POST"])
+def spectator_cart_add():
+    event_id = request.form.get("event_id", type=int)
+    quantity = request.form.get("quantity", type=int) or 1
+    event = Event.query.get_or_404(event_id)
+    ticket_type = _get_or_create_default_ticket_type(event)
+    quantity = max(1, min(quantity, ticket_type.max_per_order or 10))
+    cart = _get_or_create_spectator_cart()
+    existing = SpectatorCartItem.query.filter_by(
+        cart_id=cart.id, event_id=event.id, ticket_type_id=ticket_type.id
+    ).first()
+    if existing:
+        existing.quantity = min((existing.quantity or 0) + quantity, ticket_type.max_per_order or 10)
+    else:
+        db.session.add(
+            SpectatorCartItem(
+                cart_id=cart.id,
+                event_id=event.id,
+                ticket_type_id=ticket_type.id,
+                quantity=quantity,
+            )
+        )
+    db.session.commit()
+    flash("Added tickets to cart.", "success")
+    return redirect(url_for("user.spectator_cart"))
+
+
+@user_bp.route("/spectator/cart")
+def spectator_cart():
+    cart = _get_or_create_spectator_cart()
+    items = SpectatorCartItem.query.filter_by(cart_id=cart.id).all()
+    rows = []
+    subtotal_cents = 0
+    for item in items:
+        unit = item.ticket_type.price_cents if item.ticket_type else 0
+        line = unit * item.quantity
+        subtotal_cents += line
+        rows.append({"item": item, "unit": unit, "line": line})
+    return render_template(
+        "user/spectator_cart.html",
+        cart=cart,
+        rows=rows,
+        subtotal_cents=subtotal_cents,
+        money=_money,
+    )
+
+
+@user_bp.route("/spectator/cart/remove/<int:item_id>", methods=["POST"])
+def spectator_cart_remove(item_id):
+    cart = _get_or_create_spectator_cart()
+    item = SpectatorCartItem.query.filter_by(id=item_id, cart_id=cart.id).first_or_404()
+    db.session.delete(item)
+    db.session.commit()
+    flash("Removed item from cart.", "success")
+    return redirect(url_for("user.spectator_cart"))
+
+
+@user_bp.route("/spectator/checkout", methods=["GET", "POST"])
+def spectator_checkout():
+    cart = _get_or_create_spectator_cart()
+    items = SpectatorCartItem.query.filter_by(cart_id=cart.id).all()
+    if not items:
+        flash("Your cart is empty.", "error")
+        return redirect(url_for("user.spectator_events"))
+    subtotal_cents = 0
+    rows = []
+    for item in items:
+        unit = item.ticket_type.price_cents if item.ticket_type else 0
+        line = unit * item.quantity
+        subtotal_cents += line
+        rows.append({"item": item, "unit": unit, "line": line})
+
+    form = SpectatorCheckoutForm()
+    if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" and request.method == "GET":
+        form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
+        form.email.data = current_user.email
+
+    if form.validate_on_submit():
+        user_id = current_user.id if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" else None
+        order = SpectatorOrder(
+            order_number=f"SP-{secrets.token_hex(4).upper()}",
+            user_id=user_id,
+            guest_full_name=form.full_name.data.strip(),
+            guest_email=form.email.data.strip().lower(),
+            payment_method=form.payment_method.data,
+            status="recorded",
+            total_cents=subtotal_cents,
+        )
+        db.session.add(order)
+        db.session.flush()
+        for row in rows:
+            item = row["item"]
+            db.session.add(
+                SpectatorOrderItem(
+                    order_id=order.id,
+                    event_id=item.event_id,
+                    ticket_type_name=item.ticket_type.name if item.ticket_type else "General Admission",
+                    unit_price_cents=row["unit"],
+                    quantity=item.quantity,
+                    line_total_cents=row["line"],
+                )
+            )
+            db.session.add(
+                SpectatorTicketOrder(
+                    event_id=item.event_id,
+                    user_id=user_id,
+                    buyer_type="user" if user_id else "guest",
+                    guest_full_name=form.full_name.data.strip(),
+                    guest_email=form.email.data.strip().lower(),
+                    quantity=item.quantity,
+                    payment_method=form.payment_method.data,
+                    status="recorded",
+                )
+            )
+            db.session.delete(item)
+        db.session.commit()
+        flash(f"Order {order.order_number} recorded successfully.", "success")
+        return redirect(url_for("user.spectator_order_success", order_id=order.id))
+
+    return render_template(
+        "user/spectator_checkout.html",
+        form=form,
+        rows=rows,
+        subtotal_cents=subtotal_cents,
+        money=_money,
+    )
+
+
+@user_bp.route("/spectator/order/<int:order_id>")
+def spectator_order_success(order_id):
+    order = SpectatorOrder.query.get_or_404(order_id)
+    items = SpectatorOrderItem.query.filter_by(order_id=order.id).all()
+    return render_template("user/spectator_order_success.html", order=order, items=items, money=_money)
 
 
 @user_bp.route("/events/<int:event_id>/schedule")

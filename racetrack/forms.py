@@ -135,3 +135,20 @@ class SpectatorTicketForm(FlaskForm):
         validators=[DataRequired()],
     )
     submit = SubmitField("Complete Ticket Purchase")
+
+
+class SpectatorCheckoutForm(FlaskForm):
+    full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    payment_method = SelectField(
+        "Payment Method",
+        choices=[
+            ("stripe", "Stripe"),
+            ("paypal", "PayPal"),
+            ("toast", "Toast"),
+            ("quickbooks", "QuickBooks Payments"),
+            ("other", "Other"),
+        ],
+        validators=[DataRequired()],
+    )
+    submit = SubmitField("Place Order")

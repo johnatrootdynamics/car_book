@@ -165,6 +165,9 @@ class Event(db.Model):
     spectator_ticket_orders = db.relationship(
         "SpectatorTicketOrder", backref="event", cascade="all, delete-orphan"
     )
+    spectator_ticket_types = db.relationship(
+        "SpectatorTicketType", backref="event", cascade="all, delete-orphan"
+    )
     track_layout = db.relationship("TrackLayout")
 
 
@@ -396,6 +399,77 @@ class SpectatorTicketOrder(db.Model):
     __table_args__ = (
         db.CheckConstraint("quantity > 0", name="chk_spectator_ticket_quantity"),
     )
+
+
+class SpectatorTicketType(db.Model):
+    __tablename__ = "spectator_ticket_types"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    name = db.Column(db.String(120), nullable=False, default="General Admission")
+    price_cents = db.Column(db.Integer, nullable=False, default=2500)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    max_per_order = db.Column(db.Integer, nullable=False, default=10)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class SpectatorCart(db.Model):
+    __tablename__ = "spectator_carts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_token = db.Column(db.String(64), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    items = db.relationship("SpectatorCartItem", backref="cart", cascade="all, delete-orphan")
+
+
+class SpectatorCartItem(db.Model):
+    __tablename__ = "spectator_cart_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cart_id = db.Column(db.Integer, db.ForeignKey("spectator_carts.id"), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    ticket_type_id = db.Column(db.Integer, db.ForeignKey("spectator_ticket_types.id"), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    event = db.relationship("Event")
+    ticket_type = db.relationship("SpectatorTicketType")
+
+
+class SpectatorOrder(db.Model):
+    __tablename__ = "spectator_orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(40), nullable=False, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    guest_full_name = db.Column(db.String(150), nullable=True)
+    guest_email = db.Column(db.String(255), nullable=True)
+    payment_method = db.Column(db.String(50), nullable=False, default="stripe")
+    status = db.Column(db.String(30), nullable=False, default="recorded")
+    total_cents = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    buyer = db.relationship("User")
+    items = db.relationship("SpectatorOrderItem", backref="order", cascade="all, delete-orphan")
+
+
+class SpectatorOrderItem(db.Model):
+    __tablename__ = "spectator_order_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("spectator_orders.id"), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    ticket_type_name = db.Column(db.String(120), nullable=False)
+    unit_price_cents = db.Column(db.Integer, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    line_total_cents = db.Column(db.Integer, nullable=False, default=0)
+
+    event = db.relationship("Event")
 
 
 class TrackWaiverTemplate(db.Model):
