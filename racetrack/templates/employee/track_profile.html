@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="track-profile-grid">
+<article class="card">
   <div class="row-space">
     <h2>Track Profile</h2>
     <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
@@ -13,17 +14,22 @@
     <label>Layout Image {{ form.layout_image() }}</label>
     <div class="full">{{ form.submit(class_='btn') }}</div>
   </form>
+</article>
+
+<article class="card">
+  <h3>Default Layout</h3>
   {% if track.layout_image_path %}
     {% set track_layout_url = asset_url(track.layout_image_path) %}
     <div class="track-layout-preview">
-      <p>Default Layout</p>
       {% if track_layout_url %}<img src="{{ track_layout_url }}" alt="Track layout image">{% endif %}
     </div>
+  {% else %}
+    <p class="muted-line">No default layout image uploaded yet.</p>
   {% endif %}
-</section>
+</article>
 
-<section class="card">
-  <h3>Track Layout Variants</h3>
+<article class="card">
+  <h3>Create Layout Variant</h3>
   <form method="post" action="{{ url_for('employee.track_layout_new') }}" enctype="multipart/form-data" class="form-grid two-col" data-track-layout-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>Layout Name <input type="text" name="name" maxlength="120" required></label>
@@ -48,7 +54,10 @@
     <p class="muted-line full" data-track-layout-mode="default" hidden>This will create a new variant using the track's default layout image.</p>
     <div class="full"><button type="submit" class="btn">Add Layout</button></div>
   </form>
+</article>
 
+<article class="card">
+  <h3>Track Layout Variants</h3>
   {% if layouts %}
     <div class="table-wrap" style="margin-top:12px; max-width:720px;">
       <table>
@@ -83,6 +92,7 @@
   {% else %}
     <p class="muted-line" style="margin-top:10px;">No custom layouts yet.</p>
   {% endif %}
+</article>
 </section>
 <script>
   (function () {
