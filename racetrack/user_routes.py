@@ -92,6 +92,10 @@ def _get_or_create_spectator_cart():
     return cart
 
 
+def _cart_item_count(cart):
+    return sum(item.quantity for item in cart.items)
+
+
 def require_user():
     if not current_user.is_authenticated:
         flash("Please sign in as a driver.", "error")
@@ -262,12 +266,14 @@ def spectator_events():
     ticket_type_by_event = {}
     for event in events:
         ticket_type_by_event[event.id] = _get_or_create_default_ticket_type(event)
+    cart = _get_or_create_spectator_cart()
     return render_template(
         "user/spectator_events.html",
         events=events,
         q=q,
         ticket_type_by_event=ticket_type_by_event,
         money=_money,
+        cart_count=_cart_item_count(cart),
     )
 
 
@@ -315,7 +321,20 @@ def spectator_cart():
         rows=rows,
         subtotal_cents=subtotal_cents,
         money=_money,
+        cart_count=_cart_item_count(cart),
     )
+
+
+@user_bp.route("/spectator/cart/update/<int:item_id>", methods=["POST"])
+def spectator_cart_update(item_id):
+    cart = _get_or_create_spectator_cart()
+    item = SpectatorCartItem.query.filter_by(id=item_id, cart_id=cart.id).first_or_404()
+    max_qty = item.ticket_type.max_per_order if item.ticket_type and item.ticket_type.max_per_order else 10
+    qty = request.form.get("quantity", type=int) or 1
+    item.quantity = max(1, min(qty, max_qty))
+    db.session.commit()
+    flash("Cart updated.", "success")
+    return redirect(url_for("user.spectator_cart"))
 
 
 @user_bp.route("/spectator/cart/remove/<int:item_id>", methods=["POST"])
@@ -396,6 +415,7 @@ def spectator_checkout():
         rows=rows,
         subtotal_cents=subtotal_cents,
         money=_money,
+        cart_count=_cart_item_count(cart),
     )
 
 

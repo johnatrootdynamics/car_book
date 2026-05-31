@@ -3,7 +3,10 @@
 <section class="card narrow">
   <div class="row-space">
     <h2>Checkout</h2>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_cart') }}">Back to Cart</a>
+    <div class="inline">
+      <span class="badge badge-viewed">{{ cart_count }} tickets</span>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_cart') }}">Back to Cart</a>
+    </div>
   </div>
   <div class="table-wrap" style="margin-bottom:10px;">
     <table>
@@ -21,12 +24,13 @@
     </table>
   </div>
   <p class="muted-line">Order total: <strong>{{ money(subtotal_cents) }}</strong></p>
+  <p class="hint">Secure checkout flow in progress. Today, orders are recorded immediately for gate and operations teams.</p>
   <form method="post" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Full Name {{ form.full_name() }}</label>
     <label>Email {{ form.email() }}</label>
     <label>Payment Method {{ form.payment_method() }}</label>
-    <p class="hint">MVP: order is recorded for operations. Gateway charge integration comes next.</p>
+    <p class="hint">You can checkout as guest or logged-in driver. Confirmation is tied to your email.</p>
     {{ form.submit(class_='btn') }}
   </form>
 </section>

@@ -7,7 +7,7 @@
       <p class="muted-line">Buy tickets as guest or logged-in user.</p>
     </div>
     <div class="inline">
-      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_cart') }}">View Cart</a>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_cart') }}">View Cart{% if cart_count %} ({{ cart_count }}){% endif %}</a>
       <a class="btn btn-secondary btn-sm" href="{{ url_for('auth.home') }}">Back</a>
     </div>
   </div>
@@ -27,7 +27,7 @@
           <p class="muted-line"><i class="bi bi-calendar-event"></i> {{ event.event_date }}</p>
           {% set ticket_type = ticket_type_by_event.get(event.id) %}
           <p class="muted-line">From {{ money(ticket_type.price_cents if ticket_type else 0) }}</p>
-          <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="inline">
+          <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="inline spectator-add-row">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="event_id" value="{{ event.id }}">
             <select name="quantity" style="width:auto;">

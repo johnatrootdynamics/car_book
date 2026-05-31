@@ -3,7 +3,10 @@
 <section class="card narrow">
   <div class="row-space">
     <h2>Spectator Cart</h2>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_events') }}">Add More</a>
+    <div class="inline">
+      <span class="badge badge-viewed">{{ cart_count }} tickets</span>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_events') }}">Add More</a>
+    </div>
   </div>
   {% if rows %}
     <div class="table-wrap">
@@ -14,7 +17,17 @@
             <tr>
               <td>{{ row.item.event.event_name }}</td>
               <td>{{ row.item.ticket_type.name }}</td>
-              <td>{{ row.item.quantity }}</td>
+              <td>
+                <form method="post" action="{{ url_for('user.spectator_cart_update', item_id=row.item.id) }}" class="inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <select name="quantity" style="width:auto;">
+                    {% for qty in range(1, (row.item.ticket_type.max_per_order if row.item.ticket_type and row.item.ticket_type.max_per_order else 10) + 1) %}
+                      <option value="{{ qty }}" {% if row.item.quantity == qty %}selected{% endif %}>{{ qty }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-secondary btn-sm">Update</button>
+                </form>
+              </td>
               <td>{{ money(row.unit) }}</td>
               <td>{{ money(row.line) }}</td>
               <td>
