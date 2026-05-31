@@ -39,25 +39,9 @@
         <div class="event-tile event-tile-clickable">
           {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
           <div class="event-tile-body">
-            <h3 class="event-track-name">{{ event.track.name }}</h3>
-            <h4>{{ event.event_name }}</h4>
-            <p class="muted-line"><span class="event-date-icon">📅 {{ event.event_date }}</span></p>
-            <div class="event-meta-row">
-              <span class="driver-class-pill driver-class-{{ current_class }}">Class {{ current_class }}</span>
-              <span class="status-bubble {% if is_ready %}status-ok{% else %}status-warn{% endif %}">
-                <span class="status-icon">{% if is_ready %}✓{% else %}!{% endif %}</span>
-                <span>{% if is_ready %}Ready{% else %}Action Needed{% endif %}</span>
-              </span>
-              {% if slot_time_by_event.get(event.id) %}
-                <span class="drive-time-chip"><span class="drive-time-icon">🛞</span><span>{{ slot_time_by_event.get(event.id) }}</span></span>
-              {% endif %}
-            </div>
-            {% if slot_notice_by_event.get(event.id) %}
-              <p class="badge badge-viewed">{{ slot_notice_by_event.get(event.id) }}</p>
-            {% endif %}
-            <div class="event-actions-row">
+            <div class="event-actions-top">
               <details class="event-actions-menu" onclick="event.stopPropagation()">
-                <summary class="event-actions-trigger" aria-label="Event actions">•••</summary>
+                <summary class="event-actions-trigger" aria-label="Event actions"><i class="bi bi-three-dots-vertical"></i></summary>
                 <div class="event-actions-list">
                   <a class="event-action-item" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Open Event</a>
                   {% if ws != 'signed' and ws != 'not_required' %}
@@ -74,6 +58,22 @@
                 </div>
               </details>
             </div>
+            <h3 class="event-track-name">{{ event.track.name }}</h3>
+            <h4>{{ event.event_name }}</h4>
+            <p class="muted-line"><span class="event-date-icon">📅 {{ event.event_date }}</span></p>
+            <div class="event-meta-row">
+              <span class="driver-class-pill driver-class-{{ current_class }}">Class {{ current_class }}</span>
+              <span class="status-bubble {% if is_ready %}status-ok{% else %}status-warn{% endif %}">
+                <span class="status-icon">{% if is_ready %}✓{% else %}!{% endif %}</span>
+                <span>{% if is_ready %}Ready{% else %}Action Needed{% endif %}</span>
+              </span>
+              {% if slot_time_by_event.get(event.id) %}
+                <span class="drive-time-chip"><span class="drive-time-icon">🛞</span><span>{{ slot_time_by_event.get(event.id) }}</span></span>
+              {% endif %}
+            </div>
+            {% if slot_notice_by_event.get(event.id) %}
+              <p class="badge badge-viewed">{{ slot_notice_by_event.get(event.id) }}</p>
+            {% endif %}
           </div>
           <a class="event-tile-hit" href="{{ url_for('user.event_schedule', event_id=event.id) }}" aria-label="Open {{ event.event_name }}"></a>
         </div>

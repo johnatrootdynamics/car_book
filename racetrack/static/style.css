@@ -841,9 +841,10 @@ th { color: var(--muted); font-weight: 600; }
   z-index: 3;
 }
 
-.event-actions-row {
-  display: flex;
-  justify-content: flex-end;
+.event-actions-top {
+  position: absolute;
+  top: 10px;
+  right: 10px;
 }
 
 .event-actions-menu {
@@ -853,7 +854,7 @@ th { color: var(--muted); font-weight: 600; }
 
 .event-actions-trigger {
   list-style: none;
-  width: 34px;
+  width: 30px;
   height: 30px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -862,7 +863,7 @@ th { color: var(--muted); font-weight: 600; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-size: 1rem;
   cursor: pointer;
 }
 
