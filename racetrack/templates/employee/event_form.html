@@ -15,6 +15,8 @@
     {% set current_end = form.event_end_time.data.strftime('%H:%M') if form.event_end_time.data else '' %}
     <label>Event Name {{ form.event_name() }}</label>
     <label>Event Date {{ form.event_date() }}</label>
+    <label>Driver Price (USD) {{ form.driver_price(step='0.01', min='0') }}</label>
+    <label>Spectator Price (USD) {{ form.spectator_price(step='0.01', min='0') }}</label>
     <label>Event Start Time
       <select name="event_start_time" required>
         <option value="">Select start time</option>

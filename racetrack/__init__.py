@@ -237,7 +237,19 @@ def create_app():
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_end_time TIME NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS driver_price_cents INT NOT NULL DEFAULT 0"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS spectator_price_cents INT NOT NULL DEFAULT 2500"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS track_layout_id INT NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS checked_in_at DATETIME NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS checked_in_by_employee_id INT NULL"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL"

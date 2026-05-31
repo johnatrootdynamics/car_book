@@ -8,6 +8,7 @@
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i> Class Slots</a>
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-people"></i> Participants</a>
     <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}"><i class="bi bi-clipboard-check"></i> Inspect</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='tickets') }}"><i class="bi bi-ticket-perforated"></i> Tickets</a>
   </aside>
   <div>
     <section class="card">
@@ -299,6 +300,46 @@
           </div>
         {% else %}
           <p>No class slots have been set for this event yet.</p>
+        {% endif %}
+      {% elif view == 'tickets' %}
+        <h3>Spectator Ticket Lookup</h3>
+        <form method="get" class="inline-form" style="margin-bottom:10px;">
+          <input type="hidden" name="view" value="tickets">
+          <input type="text" name="ticket_q" value="{{ ticket_query }}" placeholder="Order number, buyer name, or email">
+          <button class="btn btn-secondary btn-sm" type="submit">Search</button>
+        </form>
+        {% if ticket_orders %}
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Order</th><th>Buyer</th><th>Email</th><th>Items</th><th>Actions</th></tr></thead>
+              <tbody>
+                {% for order in ticket_orders %}
+                  <tr>
+                    <td>{{ order.order_number }}</td>
+                    <td>{{ order.guest_full_name }}</td>
+                    <td>{{ order.guest_email }}</td>
+                    <td>
+                      {% for item in order.items if item.event_id == event.id %}
+                        <div>{{ item.ticket_type_name }} x{{ item.quantity }}{% if item.checked_in_at %} • Checked In{% endif %}</div>
+                      {% endfor %}
+                    </td>
+                    <td>
+                      {% for item in order.items if item.event_id == event.id %}
+                        {% if not item.checked_in_at %}
+                          <form method="post" action="{{ url_for('employee.ticket_checkin', event_id=event.id, item_id=item.id) }}" class="inline" style="margin-bottom:4px;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm">Check In {{ item.ticket_type_name }}</button>
+                          </form>
+                        {% endif %}
+                      {% endfor %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted-line">No matching ticket orders found.</p>
         {% endif %}
       {% else %}
         <h3>Event Analytics</h3>

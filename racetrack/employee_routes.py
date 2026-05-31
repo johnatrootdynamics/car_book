@@ -1,6 +1,7 @@
 from datetime import date, datetime
 import base64
 from io import BytesIO
+from decimal import Decimal
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
@@ -20,6 +21,9 @@ from .models import (
     InspectionRule,
     RunGroup,
     RunGroupAssignment,
+    SpectatorOrder,
+    SpectatorOrderItem,
+    SpectatorTicketType,
     SpectatorTicketOrder,
     Track,
     TrackDriverClass,
@@ -126,6 +130,36 @@ def _apply_event_layout_selection(event, track_id):
         event.track_layout_id = layout.id
         return None
     return "Invalid layout selection mode."
+
+
+def _to_cents(value):
+    if value is None:
+        return 0
+    return int((Decimal(value) * 100).quantize(Decimal("1")))
+
+
+def _sync_default_spectator_ticket_type(event):
+    ticket_type = (
+        SpectatorTicketType.query.filter_by(event_id=event.id)
+        .order_by(SpectatorTicketType.created_at.asc())
+        .first()
+    )
+    if ticket_type:
+        ticket_type.name = ticket_type.name or "General Admission"
+        ticket_type.price_cents = max(0, event.spectator_price_cents or 0)
+        ticket_type.is_active = True
+        if not ticket_type.max_per_order:
+            ticket_type.max_per_order = 10
+        return
+    db.session.add(
+        SpectatorTicketType(
+            event_id=event.id,
+            name="General Admission",
+            price_cents=max(0, event.spectator_price_cents or 0),
+            is_active=True,
+            max_per_order=10,
+        )
+    )
 
 
 @employee_bp.route("/dashboard")
@@ -397,6 +431,9 @@ def event_new():
     form.track_layout_id.choices = [(0, "Default Track Layout")] + [
         (layout.id, layout.name) for layout in layouts
     ]
+    if request.method == "GET":
+        form.driver_price.data = Decimal("0.00")
+        form.spectator_price.data = Decimal("25.00")
     if form.validate_on_submit():
         if form.event_start_time.data and form.event_end_time.data:
             if form.event_end_time.data <= form.event_start_time.data:
@@ -406,6 +443,8 @@ def event_new():
             track_id=active_track_id(),
             event_name=form.event_name.data.strip(),
             event_date=form.event_date.data,
+            driver_price_cents=_to_cents(form.driver_price.data),
+            spectator_price_cents=_to_cents(form.spectator_price.data),
             event_start_time=form.event_start_time.data,
             event_end_time=form.event_end_time.data,
         )
@@ -426,6 +465,8 @@ def event_new():
                 key_prefix=f"events/{active_track_id()}",
             )
         db.session.add(event)
+        db.session.flush()
+        _sync_default_spectator_ticket_type(event)
         db.session.commit()
         flash("Event created.", "success")
         return redirect(url_for("employee.dashboard"))
@@ -446,6 +487,8 @@ def event_edit(event_id):
     ]
     if request.method == "GET":
         form.track_layout_id.data = event.track_layout_id or 0
+        form.driver_price.data = Decimal(event.driver_price_cents or 0) / Decimal(100)
+        form.spectator_price.data = Decimal(event.spectator_price_cents or 0) / Decimal(100)
     if form.validate_on_submit():
         if form.event_start_time.data and form.event_end_time.data:
             if form.event_end_time.data <= form.event_start_time.data:
@@ -457,6 +500,8 @@ def event_edit(event_id):
             return render_template("employee/event_form.html", form=form, title="Edit Event", track_layouts=layouts, event=event)
         event.event_name = form.event_name.data.strip()
         event.event_date = form.event_date.data
+        event.driver_price_cents = _to_cents(form.driver_price.data)
+        event.spectator_price_cents = _to_cents(form.spectator_price.data)
         event.event_start_time = form.event_start_time.data
         event.event_end_time = form.event_end_time.data
         upload = form.thumbnail_image.data
@@ -471,6 +516,7 @@ def event_edit(event_id):
                 secret_key=current_app.config["S3_SECRET_KEY"],
                 key_prefix=f"events/{active_track_id()}",
             )
+        _sync_default_spectator_ticket_type(event)
         db.session.commit()
         flash("Event updated.", "success")
         return redirect(url_for("employee.dashboard"))
@@ -552,7 +598,7 @@ def event_detail(event_id):
     db.session.commit()
 
     view = (request.args.get("view") or "general").strip().lower()
-    if view not in {"general", "analytics", "participants", "inspect", "slots"}:
+    if view not in {"general", "analytics", "participants", "inspect", "slots", "tickets"}:
         view = "general"
 
     groups = []
@@ -561,6 +607,8 @@ def event_detail(event_id):
     class_by_user = {}
     inspections = {}
     class_slots = []
+    ticket_orders = []
+    ticket_query = (request.args.get("ticket_q") or "").strip()
 
     if view == "participants":
         participants = (
@@ -587,6 +635,22 @@ def event_detail(event_id):
             .all()
         )
 
+    if view == "tickets":
+        query = (
+            SpectatorOrder.query.join(SpectatorOrderItem, SpectatorOrderItem.order_id == SpectatorOrder.id)
+            .filter(SpectatorOrderItem.event_id == event.id)
+            .distinct()
+            .order_by(SpectatorOrder.created_at.desc())
+        )
+        if ticket_query:
+            like = f"%{ticket_query}%"
+            query = query.filter(
+                (SpectatorOrder.order_number.ilike(like))
+                | (SpectatorOrder.guest_full_name.ilike(like))
+                | (SpectatorOrder.guest_email.ilike(like))
+            )
+        ticket_orders = query.limit(100).all()
+
     return render_template(
         "employee/event_detail.html",
         event=event,
@@ -601,6 +665,8 @@ def event_detail(event_id):
         class_by_user=class_by_user,
         inspections=inspections,
         class_slots=class_slots,
+        ticket_orders=ticket_orders,
+        ticket_query=ticket_query,
     )
 
 
@@ -727,6 +793,25 @@ def event_slot_delete(event_id, slot_id):
     db.session.commit()
     flash("Class slot deleted.", "success")
     return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+
+
+@employee_bp.route("/events/<int:event_id>/tickets/<int:item_id>/checkin", methods=["POST"])
+@login_required
+def ticket_checkin(event_id, item_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    item = SpectatorOrderItem.query.filter_by(id=item_id, event_id=event.id).first_or_404()
+    if item.checked_in_at:
+        flash("Ticket already checked in.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
+    item.checked_in_at = datetime.utcnow()
+    if current_user.account_type == "employee":
+        item.checked_in_by_employee_id = current_user.id
+    db.session.commit()
+    flash("Spectator ticket checked in.", "success")
+    return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
 
 
 @employee_bp.route("/events/<int:event_id>/run-groups")

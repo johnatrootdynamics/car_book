@@ -148,6 +148,8 @@ class Event(db.Model):
     track_layout_id = db.Column(db.Integer, db.ForeignKey("track_layouts.id"), nullable=True)
     event_name = db.Column(db.String(200), nullable=False)
     event_date = db.Column(db.Date, nullable=False)
+    driver_price_cents = db.Column(db.Integer, nullable=False, default=0)
+    spectator_price_cents = db.Column(db.Integer, nullable=False, default=2500)
     event_start_time = db.Column(db.Time, nullable=True)
     event_end_time = db.Column(db.Time, nullable=True)
     thumbnail_image_path = db.Column(db.String(255), nullable=True)
@@ -468,8 +470,11 @@ class SpectatorOrderItem(db.Model):
     unit_price_cents = db.Column(db.Integer, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
     line_total_cents = db.Column(db.Integer, nullable=False, default=0)
+    checked_in_at = db.Column(db.DateTime, nullable=True)
+    checked_in_by_employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=True)
 
     event = db.relationship("Event")
+    checked_in_by = db.relationship("Employee")
 
 
 class TrackWaiverTemplate(db.Model):

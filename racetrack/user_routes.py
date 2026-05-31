@@ -57,7 +57,7 @@ def _get_or_create_default_ticket_type(event):
     ticket_type = SpectatorTicketType(
         event_id=event.id,
         name="General Admission",
-        price_cents=2500,
+        price_cents=max(0, event.spectator_price_cents or 0),
         is_active=True,
         max_per_order=10,
     )
