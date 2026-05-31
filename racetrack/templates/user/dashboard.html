@@ -55,17 +55,25 @@
             {% if slot_notice_by_event.get(event.id) %}
               <p class="badge badge-viewed">{{ slot_notice_by_event.get(event.id) }}</p>
             {% endif %}
-            {% if ws != 'signed' and ws != 'not_required' %}
-              {% if ww %}
-                <a class="btn btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
-              {% else %}
-                <a class="btn btn-sm" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
-              {% endif %}
-            {% endif %}
-            <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-secondary btn-sm">Cancel</button>
-            </form>
+            <div class="event-actions-row">
+              <details class="event-actions-menu" onclick="event.stopPropagation()">
+                <summary class="event-actions-trigger" aria-label="Event actions">•••</summary>
+                <div class="event-actions-list">
+                  <a class="event-action-item" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Open Event</a>
+                  {% if ws != 'signed' and ws != 'not_required' %}
+                    {% if ww %}
+                      <a class="event-action-item" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
+                    {% else %}
+                      <a class="event-action-item" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
+                    {% endif %}
+                  {% endif %}
+                  <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="event-action-item event-action-danger">Cancel Signup</button>
+                  </form>
+                </div>
+              </details>
+            </div>
           </div>
           <a class="event-tile-hit" href="{{ url_for('user.event_schedule', event_id=event.id) }}" aria-label="Open {{ event.event_name }}"></a>
         </div>

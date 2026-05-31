@@ -841,6 +841,70 @@ th { color: var(--muted); font-weight: 600; }
   z-index: 3;
 }
 
+.event-actions-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.event-actions-menu {
+  position: relative;
+  z-index: 5;
+}
+
+.event-actions-trigger {
+  list-style: none;
+  width: 34px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(15, 23, 42, 0.65);
+  color: #dbeafe;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.event-actions-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.event-actions-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 170px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(2, 6, 23, 0.94);
+  box-shadow: 0 14px 24px rgba(2, 6, 23, 0.45);
+  overflow: hidden;
+}
+
+.event-action-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: #dbeafe;
+  text-decoration: none;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: .9rem;
+  cursor: pointer;
+}
+
+.event-action-item:hover {
+  background: rgba(59, 130, 246, 0.16);
+  color: #fff;
+}
+
+.event-action-danger:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
+
 .event-date-icon {
   display: inline-flex;
   align-items: center;
