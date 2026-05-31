@@ -542,6 +542,17 @@ def event_slot_new(event_id):
     if end_time_value <= start_time_value:
         flash("End time must be after start time.", "error")
         return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+    overlap = (
+        EventClassSlot.query.filter(
+            EventClassSlot.event_id == event.id,
+            EventClassSlot.start_time < end_time_value,
+            EventClassSlot.end_time > start_time_value,
+        )
+        .first()
+    )
+    if overlap:
+        flash("Class slots cannot overlap. Choose a different time window.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
     db.session.add(
         EventClassSlot(
             event_id=event.id,
@@ -583,6 +594,18 @@ def event_slot_save(event_id):
         return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
     if start_time_value < event.event_start_time or end_time_value > event.event_end_time:
         flash("Class slots must be within the event time window.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
+
+    overlap_query = EventClassSlot.query.filter(
+        EventClassSlot.event_id == event.id,
+        EventClassSlot.start_time < end_time_value,
+        EventClassSlot.end_time > start_time_value,
+    )
+    if slot_id:
+        overlap_query = overlap_query.filter(EventClassSlot.id != slot_id)
+    overlap = overlap_query.first()
+    if overlap:
+        flash("Class slots cannot overlap. Choose a different time window.", "error")
         return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
 
     if slot_id:
