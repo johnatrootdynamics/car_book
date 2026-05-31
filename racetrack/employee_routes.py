@@ -439,7 +439,7 @@ def event_delete(event_id):
     db.session.delete(event)
     db.session.commit()
     flash("Event deleted.", "success")
-    return redirect(url_for("employee.dashboard"))
+    return redirect(url_for("employee.events_index"))
 
 
 @employee_bp.route("/events/<int:event_id>/participants")

@@ -26,7 +26,7 @@
               <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
               <form method="post" action="{{ url_for('employee.event_delete', event_id=event.id) }}" class="inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm danger-btn">Delete</button>
+                <button type="submit" class="btn btn-sm danger-btn" onclick="return confirm('Delete this event? This cannot be undone.')">Delete</button>
               </form>
             </td>
           </tr>
