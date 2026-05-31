@@ -64,20 +64,11 @@
         {% set is_ready = ws == 'signed' or ws == 'not_required' %}
         <div class="event-tile">
           {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
-          {% if event.thumbnail_image_path %}
-            {% set event_image = asset_url(event.thumbnail_image_path) %}
-            {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
-          {% elif event.track.layout_image_path %}
-            {% set track_image = asset_url(event.track.layout_image_path) %}
-            {% if track_image %}<img src="{{ track_image }}" alt="{{ event.track.name }} layout">{% endif %}
-          {% else %}
-            <div class="event-fallback">{{ event.event_name }}</div>
-          {% endif %}
-          <span class="event-class-overlay">Class {{ current_class }}</span>
           <div class="event-tile-body">
             <h4><a class="event-tile-link" href="{{ url_for('user.event_schedule', event_id=event.id) }}">{{ event.event_name }}</a></h4>
-            <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+            <p class="muted-line"><span class="event-date-icon">📅</span> {{ event.track.name }} • {{ event.event_date }}</p>
             <div class="event-meta-row">
+              <span class="driver-class-pill driver-class-{{ current_class }}">Class {{ current_class }}</span>
               <span class="status-bubble {% if is_ready %}status-ok{% else %}status-warn{% endif %}">
                 <span class="status-icon">{% if is_ready %}✓{% else %}!{% endif %}</span>
                 <span>{% if is_ready %}Ready{% else %}Action Needed{% endif %}</span>
@@ -133,15 +124,6 @@
       <div class="event-tile">
         {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
         {% set is_signed_up = event.id in signups %}
-        {% if event.thumbnail_image_path %}
-          {% set event_image = asset_url(event.thumbnail_image_path) %}
-          {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
-        {% elif event.track.layout_image_path %}
-          {% set track_image = asset_url(event.track.layout_image_path) %}
-          {% if track_image %}<img src="{{ track_image }}" alt="{{ event.track.name }} layout">{% endif %}
-        {% else %}
-          <div class="event-fallback">{{ event.event_name }}</div>
-        {% endif %}
         <div class="event-tile-body">
           <h4>
             {% if is_signed_up %}
@@ -150,8 +132,9 @@
               {{ event.event_name }}
             {% endif %}
           </h4>
-          <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
+          <p class="muted-line"><span class="event-date-icon">📅</span> {{ event.track.name }} • {{ event.event_date }}</p>
           <div class="event-meta-row">
+            <span class="driver-class-pill driver-class-{{ current_class }}">Class {{ current_class }}</span>
             <span class="status-bubble {% if is_signed_up %}status-ok{% else %}status-warn{% endif %}">
               <span class="status-icon">{% if is_signed_up %}✓{% else %}!{% endif %}</span>
               <span>{% if is_signed_up %}Signed Up{% else %}Not Signed Up{% endif %}</span>
@@ -160,11 +143,7 @@
               <span class="drive-time-chip"><span class="drive-time-icon">🛞</span><span>{{ slot_time_by_event.get(event.id) }}</span></span>
             {% endif %}
           </div>
-          {% if event.id in signups %}
-            {% if slot_time_by_event.get(event.id) %}
-              <p class="muted-line">Your class is up at <strong>{{ slot_time_by_event.get(event.id) }}</strong></p>
-            {% endif %}
-          {% else %}
+          {% if event.id not in signups %}
             <p class="muted-line">Current track class: <strong>{{ current_class }}</strong></p>
             <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
               {{ signup_form.hidden_tag() }}
