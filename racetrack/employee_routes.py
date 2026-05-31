@@ -102,7 +102,7 @@ def _apply_event_layout_selection(event, track_id):
         if not upload or not getattr(upload, "filename", ""):
             return "Please upload a layout image."
         event_name_fallback = (request.form.get("event_name") or "").strip()
-        name = (request.form.get("event_layout_name") or "").strip() or event_name_fallback or f"Uploaded Layout {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        name = (request.form.get("event_layout_name_upload") or "").strip() or event_name_fallback or f"Uploaded Layout {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         layout = _create_track_layout_from_upload(track_id, name, upload)
         event.track_layout_id = layout.id
         return None
@@ -120,7 +120,7 @@ def _apply_event_layout_selection(event, track_id):
             content_type="image/png",
         )
         event_name_fallback = (request.form.get("event_name") or "").strip()
-        name = (request.form.get("event_layout_name") or "").strip() or event_name_fallback or f"Drawn Layout {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        name = (request.form.get("event_layout_name_draw") or "").strip() or event_name_fallback or f"Drawn Layout {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         layout = _create_track_layout_from_upload(track_id, name, drawing_file)
         event.track_layout_id = layout.id
         return None
