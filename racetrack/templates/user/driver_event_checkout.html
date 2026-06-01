@@ -8,11 +8,26 @@
   <p class="muted-line"><strong>{{ event.event_name }}</strong> • {{ event.track.name }} • {{ event.event_date }}</p>
   <p class="muted-line">Car: {{ selected_car.car_year }} {{ selected_car.make }} {{ selected_car.model }}</p>
   <p class="muted-line">Ticket Price: <strong>${{ '%.2f'|format((amount_cents or 0) / 100) }}</strong></p>
-  <p class="muted-line">Payment Method: <strong>{{ payment_provider|title }}</strong></p>
-  <p class="hint">This records your driver ticket purchase, then continues to waiver signing if required.</p>
-  <form method="post" class="inline">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn">Purchase Ticket & Sign Up</button>
+  <p class="hint">Complete checkout to purchase your driver ticket before signup is finalized.</p>
+  <form method="post" class="form-grid" data-enhanced>
+    {{ form.hidden_tag() }}
+    <label>Full Name
+      <input type="text" value="{{ form.full_name.data }}" disabled>
+      {{ form.full_name(type='hidden') }}
+    </label>
+    <label>Email
+      <input type="text" value="{{ form.email.data }}" disabled>
+      {{ form.email(type='hidden') }}
+    </label>
+    <label>Phone
+      <input type="text" value="{{ form.phone.data }}" disabled>
+      {{ form.phone(type='hidden') }}
+    </label>
+    <label>Payment Method
+      <input type="text" value="{{ payment_provider|title }}" disabled>
+      {{ form.payment_method(type='hidden') }}
+    </label>
+    {{ form.submit(class_='btn') }}
   </form>
 </section>
 {% endblock %}

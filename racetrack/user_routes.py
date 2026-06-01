@@ -6,7 +6,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
-from .forms import CarForm, EventSignupForm, SocialCommentForm, SpectatorCheckoutForm, SpectatorTicketForm
+from .forms import CarForm, DriverCheckoutForm, EventSignupForm, SocialCommentForm, SpectatorCheckoutForm, SpectatorTicketForm
 from .models import (
     Car,
     Event,
@@ -760,7 +760,14 @@ def driver_event_checkout(event_id):
         flash("Choose a car before checkout.", "error")
         return redirect(url_for("user.dashboard"))
 
-    if request.method == "POST":
+    form = DriverCheckoutForm()
+    if request.method == "GET":
+        form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
+        form.email.data = current_user.email
+        form.phone.data = current_user.phone
+        form.payment_method.data = event.track.spectator_payment_provider or "stripe"
+
+    if form.validate_on_submit():
         if not selected_car.static_qr_code:
             selected_car.static_qr_code = _generate_car_qr_code()
         reg = EventRegistration(
@@ -774,7 +781,7 @@ def driver_event_checkout(event_id):
             user_id=current_user.id,
             car_id=selected_car.id,
             amount_cents=max(0, event.driver_price_cents or 0),
-            payment_method=event.track.spectator_payment_provider or "stripe",
+            payment_method=form.payment_method.data,
             status="recorded",
         )
         db.session.add(reg)
@@ -852,6 +859,7 @@ def driver_event_checkout(event_id):
 
     return render_template(
         "user/driver_event_checkout.html",
+        form=form,
         event=event,
         selected_car=selected_car,
         amount_cents=max(0, event.driver_price_cents or 0),
