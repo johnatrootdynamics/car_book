@@ -1073,6 +1073,14 @@ th { color: var(--muted); font-weight: 600; }
   margin-top: 6px;
 }
 
+.event-form-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #dbeafe;
+  font-weight: 700;
+}
+
 .event-signup-form {
   display: grid;
   gap: 8px;
