@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card narrow">
+  <div class="row-space">
+    <h2>Driver Event Checkout</h2>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.dashboard') }}">Back</a>
+  </div>
+  <p class="muted-line"><strong>{{ event.event_name }}</strong> • {{ event.track.name }} • {{ event.event_date }}</p>
+  <p class="muted-line">Car: {{ selected_car.car_year }} {{ selected_car.make }} {{ selected_car.model }}</p>
+  <p class="muted-line">Ticket Price: <strong>${{ '%.2f'|format((amount_cents or 0) / 100) }}</strong></p>
+  <p class="muted-line">Payment Method: <strong>{{ payment_provider|title }}</strong></p>
+  <p class="hint">This records your driver ticket purchase, then continues to waiver signing if required.</p>
+  <form method="post" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn">Purchase Ticket & Sign Up</button>
+  </form>
+</section>
+{% endblock %}

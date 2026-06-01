@@ -733,6 +733,34 @@ def signup_event(event_id):
         if not selected_car:
             flash("Invalid car selected.", "error")
             return redirect(url_for("user.dashboard"))
+        session[f"driver_checkout_car_{event.id}"] = selected_car.id
+        return redirect(url_for("user.driver_event_checkout", event_id=event.id))
+    else:
+        flash("Please choose a valid car.", "error")
+    return redirect(url_for("user.dashboard"))
+
+
+@user_bp.route("/events/<int:event_id>/driver-checkout", methods=["GET", "POST"])
+@login_required
+def driver_event_checkout(event_id):
+    guard = require_user()
+    if guard:
+        return guard
+    event = Event.query.get_or_404(event_id)
+    if event.event_date < date.today():
+        flash("Cannot sign up for past events.", "error")
+        return redirect(url_for("user.dashboard"))
+    if EventRegistration.query.filter_by(event_id=event.id, user_id=current_user.id).first():
+        flash("Already signed up for this event.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    car_id = session.get(f"driver_checkout_car_{event.id}")
+    selected_car = Car.query.filter_by(id=car_id, user_id=current_user.id).first() if car_id else None
+    if not selected_car:
+        flash("Choose a car before checkout.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    if request.method == "POST":
         if not selected_car.static_qr_code:
             selected_car.static_qr_code = _generate_car_qr_code()
         reg = EventRegistration(
@@ -816,11 +844,19 @@ def signup_event(event_id):
         db.session.commit()
         if needs_waiver_action and created_waiver_id:
             flash("Signed up successfully. Please sign the waiver to complete check-in.", "success")
+            session.pop(f"driver_checkout_car_{event.id}", None)
             return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
         flash("Driver ticket recorded and signup completed.", "success")
-    else:
-        flash("Please choose a valid car.", "error")
-    return redirect(url_for("user.dashboard"))
+        session.pop(f"driver_checkout_car_{event.id}", None)
+        return redirect(url_for("user.dashboard"))
+
+    return render_template(
+        "user/driver_event_checkout.html",
+        event=event,
+        selected_car=selected_car,
+        amount_cents=max(0, event.driver_price_cents or 0),
+        payment_provider=(event.track.spectator_payment_provider or "stripe"),
+    )
 
 
 @user_bp.route("/events/<int:event_id>/cancel", methods=["POST"])
