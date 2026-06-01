@@ -11,11 +11,15 @@
   {% if current_user.is_authenticated and current_user.account_type == 'user' %}
     <p class="hint">Logged in as <strong>{{ current_user.email }}</strong>. Checkout uses your profile contact info.</p>
   {% else %}
-    <div class="inline" style="margin-bottom:8px;">
-      <span class="muted-line">Have an account?</span>
-      <a class="btn btn-secondary btn-sm" href="{{ url_for('auth.user_login') }}">Log In</a>
-      <span class="muted-line">or continue as guest.</span>
-    </div>
+    <section class="card" style="margin:10px 0 12px; border-color:rgba(59,130,246,.5); background:rgba(59,130,246,.12);">
+      <div class="row-space" style="align-items:center; gap:10px; flex-wrap:wrap;">
+        <div>
+          <strong>Already have a driver account?</strong>
+          <p class="muted-line" style="margin:4px 0 0;">Log in for faster checkout with your saved profile details.</p>
+        </div>
+        <a class="btn" href="{{ url_for('auth.user_login') }}">Log In to Continue</a>
+      </div>
+    </section>
   {% endif %}
   <div class="table-wrap" style="margin-bottom:10px;">
     <table>

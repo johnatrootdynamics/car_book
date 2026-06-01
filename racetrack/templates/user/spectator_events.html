@@ -11,6 +11,14 @@
       <a class="btn btn-secondary btn-sm" href="{{ url_for('auth.home') }}">Back</a>
     </div>
   </div>
+  {% if not current_user.is_authenticated %}
+    <div class="card" style="margin-top:10px; border-color:rgba(59,130,246,.5); background:rgba(59,130,246,.12);">
+      <div class="row-space" style="align-items:center; gap:10px; flex-wrap:wrap;">
+        <p class="muted-line" style="margin:0;"><strong>Returning customer?</strong> Log in to speed up checkout and track purchases.</p>
+        <a class="btn btn-sm" href="{{ url_for('auth.user_login') }}">Log In</a>
+      </div>
+    </div>
+  {% endif %}
   <form method="get" class="inline-form">
     <input type="text" name="q" value="{{ q }}" placeholder="Search events or tracks">
   </form>
