@@ -11,6 +11,7 @@ from .models import (
     Car,
     Event,
     EventClassSlot,
+    DriverTicketOrder,
     EventRegistration,
     SocialComment,
     SocialPost,
@@ -740,7 +741,16 @@ def signup_event(event_id):
             car_id=selected_car.id,
             checkin_code=selected_car.static_qr_code,
         )
+        driver_ticket_order = DriverTicketOrder(
+            event_id=event.id,
+            user_id=current_user.id,
+            car_id=selected_car.id,
+            amount_cents=max(0, event.driver_price_cents or 0),
+            payment_method=event.track.spectator_payment_provider or "stripe",
+            status="recorded",
+        )
         db.session.add(reg)
+        db.session.add(driver_ticket_order)
         track_class = TrackDriverClass.query.filter_by(
             track_id=event.track_id, user_id=current_user.id
         ).first()
@@ -807,7 +817,7 @@ def signup_event(event_id):
         if needs_waiver_action and created_waiver_id:
             flash("Signed up successfully. Please sign the waiver to complete check-in.", "success")
             return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
-        flash("Signed up successfully.", "success")
+        flash("Driver ticket recorded and signup completed.", "success")
     else:
         flash("Please choose a valid car.", "error")
     return redirect(url_for("user.dashboard"))

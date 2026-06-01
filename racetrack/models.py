@@ -168,6 +168,9 @@ class Event(db.Model):
     spectator_ticket_orders = db.relationship(
         "SpectatorTicketOrder", backref="event", cascade="all, delete-orphan"
     )
+    driver_ticket_orders = db.relationship(
+        "DriverTicketOrder", backref="event", cascade="all, delete-orphan"
+    )
     spectator_ticket_types = db.relationship(
         "SpectatorTicketType", backref="event", cascade="all, delete-orphan"
     )
@@ -403,6 +406,22 @@ class SpectatorTicketOrder(db.Model):
     __table_args__ = (
         db.CheckConstraint("quantity > 0", name="chk_spectator_ticket_quantity"),
     )
+
+
+class DriverTicketOrder(db.Model):
+    __tablename__ = "driver_ticket_orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
+    amount_cents = db.Column(db.Integer, nullable=False, default=0)
+    payment_method = db.Column(db.String(50), nullable=False, default="stripe")
+    status = db.Column(db.String(30), nullable=False, default="recorded")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    buyer = db.relationship("User")
+    car = db.relationship("Car")
 
 
 class SpectatorTicketType(db.Model):
