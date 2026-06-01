@@ -849,13 +849,13 @@ def driver_event_checkout(event_id):
                 if created_waiver_id is None:
                     created_waiver_id = exists.id
         db.session.commit()
-        if needs_waiver_action and created_waiver_id:
-            flash("Signed up successfully. Please sign the waiver to complete check-in.", "success")
-            session.pop(f"driver_checkout_car_{event.id}", None)
-            return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
-        flash("Driver ticket recorded and signup completed.", "success")
         session.pop(f"driver_checkout_car_{event.id}", None)
-        return redirect(url_for("user.dashboard"))
+        if needs_waiver_action and created_waiver_id:
+            flash("Ticket purchased. Next step: sign waiver.", "success")
+            return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
+
+        flash("Ticket purchased. Waiver on file. Next step: inspection.", "success")
+        return redirect(url_for("waiver.driver_waivers"))
 
     return render_template(
         "user/driver_event_checkout.html",
