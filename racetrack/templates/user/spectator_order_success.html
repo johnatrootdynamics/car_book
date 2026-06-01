@@ -4,6 +4,7 @@
   <h2>Order Recorded</h2>
   <p class="muted-line">Order <strong>{{ order.order_number }}</strong> has been recorded.</p>
   <p class="muted-line">Buyer: {{ order.guest_full_name }} • {{ order.guest_email }}</p>
+  <p class="muted-line">Phone: {{ order.guest_phone or 'N/A' }}</p>
   <p class="muted-line">Payment Method: {{ order.payment_method|title }}</p>
   <div class="table-wrap" style="margin-top:10px;">
     <table>

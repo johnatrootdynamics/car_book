@@ -13,6 +13,7 @@
     {{ form.hidden_tag() }}
     <label>Full Name {{ form.full_name(placeholder='Guest full name') }}</label>
     <label>Email {{ form.email(placeholder='guest@example.com') }}</label>
+    <label>Phone {{ form.phone(placeholder='(555) 555-5555') }}</label>
     <label>Tickets {{ form.quantity() }}</label>
     <label>Payment Method {{ form.payment_method() }}</label>
     <p class="hint">MVP mode: purchase is recorded for operations reporting; no payment gateway charge yet.</p>

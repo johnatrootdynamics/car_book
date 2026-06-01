@@ -218,6 +218,7 @@ def spectator_tickets(event_id):
         if request.method == "GET":
             form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
             form.email.data = current_user.email
+            form.phone.data = current_user.phone
     if request.method == "GET":
         form.payment_method.data = event.track.spectator_payment_provider or "stripe"
     if form.validate_on_submit():
@@ -225,15 +226,15 @@ def spectator_tickets(event_id):
         user_id = None
         full_name = (form.full_name.data or "").strip()
         email = (form.email.data or "").strip().lower()
+        phone = (form.phone.data or "").strip()
         if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
             buyer_type = "user"
             user_id = current_user.id
-            if not full_name:
-                full_name = f"{current_user.first_name} {current_user.last_name}".strip()
-            if not email:
-                email = current_user.email
-        if not full_name or not email:
-            flash("Name and email are required for ticket purchases.", "error")
+            full_name = f"{current_user.first_name} {current_user.last_name}".strip()
+            email = current_user.email
+            phone = current_user.phone
+        if not full_name or not email or not phone:
+            flash("Name, email, and phone are required for ticket purchases.", "error")
             return render_template("user/spectator_tickets.html", event=event, form=form)
         order = SpectatorTicketOrder(
             event_id=event.id,
@@ -241,6 +242,7 @@ def spectator_tickets(event_id):
             buyer_type=buyer_type,
             guest_full_name=full_name,
             guest_email=email,
+            guest_phone=phone,
             quantity=form.quantity.data,
             payment_method=event.track.spectator_payment_provider or "stripe",
             status="recorded",
@@ -373,16 +375,26 @@ def spectator_checkout():
     if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" and request.method == "GET":
         form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
         form.email.data = current_user.email
+        form.phone.data = current_user.phone
     if request.method == "GET":
         form.payment_method.data = provider
 
     if form.validate_on_submit():
         user_id = current_user.id if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" else None
+        buyer_name = form.full_name.data.strip()
+        buyer_email = form.email.data.strip().lower()
+        buyer_phone = form.phone.data.strip()
+        if user_id:
+            buyer_name = f"{current_user.first_name} {current_user.last_name}".strip()
+            buyer_email = current_user.email
+            buyer_phone = current_user.phone
+
         order = SpectatorOrder(
             order_number=f"SP-{secrets.token_hex(4).upper()}",
             user_id=user_id,
-            guest_full_name=form.full_name.data.strip(),
-            guest_email=form.email.data.strip().lower(),
+            guest_full_name=buyer_name,
+            guest_email=buyer_email,
+            guest_phone=buyer_phone,
             payment_method=provider,
             status="recorded",
             total_cents=subtotal_cents,
@@ -406,8 +418,9 @@ def spectator_checkout():
                     event_id=item.event_id,
                     user_id=user_id,
                     buyer_type="user" if user_id else "guest",
-                    guest_full_name=form.full_name.data.strip(),
-                    guest_email=form.email.data.strip().lower(),
+                    guest_full_name=buyer_name,
+                    guest_email=buyer_email,
+                    guest_phone=buyer_phone,
                     quantity=item.quantity,
                     payment_method=provider,
                     status="recorded",

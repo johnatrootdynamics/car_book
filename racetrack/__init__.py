@@ -255,6 +255,12 @@ def create_app():
                 "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS checked_in_by_employee_id INT NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS guest_phone VARCHAR(30) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_ticket_orders ADD COLUMN IF NOT EXISTS guest_phone VARCHAR(30) NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL"
             )
             conn.exec_driver_sql(

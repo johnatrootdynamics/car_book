@@ -8,6 +8,15 @@
       <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_cart') }}">Back to Cart</a>
     </div>
   </div>
+  {% if current_user.is_authenticated and current_user.account_type == 'user' %}
+    <p class="hint">Logged in as <strong>{{ current_user.email }}</strong>. Checkout uses your profile contact info.</p>
+  {% else %}
+    <div class="inline" style="margin-bottom:8px;">
+      <span class="muted-line">Have an account?</span>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('auth.user_login') }}">Log In</a>
+      <span class="muted-line">or continue as guest.</span>
+    </div>
+  {% endif %}
   <div class="table-wrap" style="margin-bottom:10px;">
     <table>
       <thead><tr><th>Event</th><th>Ticket</th><th>Qty</th><th>Total</th></tr></thead>
@@ -27,8 +36,24 @@
   <p class="hint">Secure checkout flow in progress. Today, orders are recorded immediately for gate and operations teams.</p>
   <form method="post" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
-    <label>Full Name {{ form.full_name() }}</label>
-    <label>Email {{ form.email() }}</label>
+    {% if current_user.is_authenticated and current_user.account_type == 'user' %}
+      <label>Full Name
+        <input type="text" value="{{ form.full_name.data }}" disabled>
+        {{ form.full_name(type='hidden') }}
+      </label>
+      <label>Email
+        <input type="text" value="{{ form.email.data }}" disabled>
+        {{ form.email(type='hidden') }}
+      </label>
+      <label>Phone
+        <input type="text" value="{{ form.phone.data }}" disabled>
+        {{ form.phone(type='hidden') }}
+      </label>
+    {% else %}
+      <label>Full Name {{ form.full_name() }}</label>
+      <label>Email {{ form.email() }}</label>
+      <label>Phone {{ form.phone() }}</label>
+    {% endif %}
     <label>Payment Method
       <input type="text" value="{{ form.payment_method.data|title }}" disabled>
       {{ form.payment_method(type='hidden') }}

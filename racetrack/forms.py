@@ -130,6 +130,7 @@ class WaiverTemplateForm(FlaskForm):
 class SpectatorTicketForm(FlaskForm):
     full_name = StringField("Full Name", validators=[Length(max=150)])
     email = StringField("Email", validators=[Length(max=255)])
+    phone = StringField("Phone", validators=[Length(max=30)])
     quantity = SelectField(
         "Tickets",
         coerce=int,
@@ -153,5 +154,6 @@ class SpectatorTicketForm(FlaskForm):
 class SpectatorCheckoutForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    phone = StringField("Phone", validators=[DataRequired(), Length(max=30)])
     payment_method = StringField("Payment Method", validators=[DataRequired(), Length(max=50)])
     submit = SubmitField("Place Order")
