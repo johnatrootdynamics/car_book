@@ -28,6 +28,12 @@ from .models import (
     db,
 )
 from .services.storage_service import upload_public_image
+from .services.payment_service import create_stripe_checkout_session, mark_order_paid
+
+try:
+    import stripe
+except Exception:  # pragma: no cover
+    stripe = None
 
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
@@ -397,7 +403,8 @@ def spectator_checkout():
             guest_email=buyer_email,
             guest_phone=buyer_phone,
             payment_method=provider,
-            status="recorded",
+            payment_status="pending",
+            status="pending",
             total_cents=subtotal_cents,
         )
         db.session.add(order)
@@ -414,6 +421,29 @@ def spectator_checkout():
                     line_total_cents=row["line"],
                 )
             )
+        db.session.flush()
+
+        if provider == "stripe" and stripe and current_app.config.get("STRIPE_SECRET_KEY"):
+            stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+            success_url = url_for("user.spectator_order_success", order_id=order.id, _external=True)
+            cancel_url = url_for("user.spectator_checkout", _external=True)
+            checkout_session = create_stripe_checkout_session(
+                stripe,
+                order,
+                rows,
+                success_url=success_url,
+                cancel_url=cancel_url,
+            )
+            order.provider_session_id = checkout_session.id
+            db.session.commit()
+            return redirect(checkout_session.url)
+
+        # fallback recorded mode for non-stripe or missing stripe config
+        order.payment_status = "paid"
+        order.status = "recorded"
+        mark_order_paid(order)
+        for row in rows:
+            item = row["item"]
             db.session.add(
                 SpectatorTicketOrder(
                     event_id=item.event_id,
@@ -445,8 +475,60 @@ def spectator_checkout():
 @user_bp.route("/spectator/order/<int:order_id>")
 def spectator_order_success(order_id):
     order = SpectatorOrder.query.get_or_404(order_id)
+    if order.payment_status == "pending" and order.payment_method != "stripe":
+        order.payment_status = "paid"
+        order.status = "recorded"
+        mark_order_paid(order)
+        db.session.commit()
     items = SpectatorOrderItem.query.filter_by(order_id=order.id).all()
     return render_template("user/spectator_order_success.html", order=order, items=items, money=_money)
+
+
+@user_bp.route("/payments/stripe/webhook", methods=["POST"])
+def stripe_webhook():
+    if not stripe or not current_app.config.get("STRIPE_WEBHOOK_SECRET"):
+        return "ignored", 200
+    payload = request.data
+    sig_header = request.headers.get("Stripe-Signature", "")
+    try:
+        event = stripe.Webhook.construct_event(
+            payload=payload,
+            sig_header=sig_header,
+            secret=current_app.config["STRIPE_WEBHOOK_SECRET"],
+        )
+    except Exception:
+        return "invalid", 400
+
+    if event.get("type") == "checkout.session.completed":
+        session_obj = event["data"]["object"]
+        session_id = session_obj.get("id")
+        order = SpectatorOrder.query.filter_by(provider_session_id=session_id).first()
+        if order and order.payment_status != "paid":
+            mark_order_paid(order, transaction_id=session_obj.get("payment_intent"))
+            # create gate lookup rows and clear cart items only after payment success
+            items = SpectatorOrderItem.query.filter_by(order_id=order.id).all()
+            for order_item in items:
+                db.session.add(
+                    SpectatorTicketOrder(
+                        event_id=order_item.event_id,
+                        user_id=order.user_id,
+                        buyer_type="user" if order.user_id else "guest",
+                        guest_full_name=order.guest_full_name,
+                        guest_email=order.guest_email,
+                        guest_phone=order.guest_phone,
+                        quantity=order_item.quantity,
+                        payment_method=order.payment_method,
+                        status="recorded",
+                    )
+                )
+            # best effort cart clear for matching user cart
+            if order.user_id:
+                cart = SpectatorCart.query.filter_by(user_id=order.user_id).first()
+                if cart:
+                    for item in list(cart.items):
+                        db.session.delete(item)
+            db.session.commit()
+    return "ok", 200
 
 
 @user_bp.route("/events/<int:event_id>/schedule")
