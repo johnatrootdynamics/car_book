@@ -24,6 +24,16 @@
       <span class="track-profile-static" data-track-profile-static><i class="bi bi-credit-card"></i> {{ track.spectator_payment_provider|title }}</span>
       {{ form.spectator_payment_provider(data_track_profile_edit='1', hidden=true) }}
     </label>
+    <label data-track-stripe-field>
+      Stripe Secret Key
+      <span class="track-profile-static" data-track-profile-static><i class="bi bi-key"></i> {{ 'Configured' if track.stripe_secret_key else 'Not configured' }}</span>
+      {{ form.stripe_secret_key(data_track_profile_edit='1', hidden=true, placeholder='sk_live_... or sk_test_...') }}
+    </label>
+    <label data-track-stripe-field>
+      Stripe Webhook Secret
+      <span class="track-profile-static" data-track-profile-static><i class="bi bi-shield-lock"></i> {{ 'Configured' if track.stripe_webhook_secret else 'Not configured' }}</span>
+      {{ form.stripe_webhook_secret(data_track_profile_edit='1', hidden=true, placeholder='whsec_...') }}
+    </label>
     <label data-track-profile-edit="1" hidden>Layout Image {{ form.layout_image() }}</label>
     <div class="full inline" data-track-profile-edit="1" hidden>
       {{ form.submit(class_='btn') }}
@@ -117,12 +127,22 @@
       const profileEditBtn = document.querySelector("[data-track-profile-edit-btn]")
       const staticNodes = profileForm.querySelectorAll("[data-track-profile-static]")
       const editNodes = profileForm.querySelectorAll("[data-track-profile-edit]")
+      const providerField = profileForm.querySelector("select[name='spectator_payment_provider']")
+      const stripeFields = profileForm.querySelectorAll("[data-track-stripe-field]")
+      const toggleStripeFields = () => {
+        const isStripe = !providerField || providerField.value === "stripe"
+        stripeFields.forEach((node) => { node.hidden = !isStripe })
+      }
       if (profileEditBtn) {
         profileEditBtn.addEventListener("click", () => {
           staticNodes.forEach((node) => { node.hidden = true })
           editNodes.forEach((node) => { node.hidden = false })
+          toggleStripeFields()
           profileEditBtn.hidden = true
         })
+      }
+      if (providerField) {
+        providerField.addEventListener("change", toggleStripeFields)
       }
     }
 

@@ -79,6 +79,14 @@ class TrackProfileForm(FlaskForm):
         ],
         validators=[DataRequired()],
     )
+    stripe_secret_key = PasswordField(
+        "Stripe Secret Key",
+        validators=[Optional(), Length(max=255)],
+    )
+    stripe_webhook_secret = PasswordField(
+        "Stripe Webhook Secret",
+        validators=[Optional(), Length(max=255)],
+    )
     submit = SubmitField("Save Track Profile")
 
 

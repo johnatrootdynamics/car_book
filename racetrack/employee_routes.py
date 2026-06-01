@@ -291,6 +291,12 @@ def update_track():
         track.city = form.city.data.strip()
         track.state = form.state.data.strip()
         track.spectator_payment_provider = (form.spectator_payment_provider.data or "stripe").strip()
+        stripe_secret = (form.stripe_secret_key.data or "").strip()
+        stripe_webhook_secret = (form.stripe_webhook_secret.data or "").strip()
+        if stripe_secret:
+            track.stripe_secret_key = stripe_secret
+        if stripe_webhook_secret:
+            track.stripe_webhook_secret = stripe_webhook_secret
         upload = form.layout_image.data
         if upload:
             clean_name = secure_filename(upload.filename)

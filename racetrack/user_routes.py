@@ -1,5 +1,6 @@
 import secrets
 import os
+import json
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
@@ -376,7 +377,8 @@ def spectator_checkout():
         line = unit * item.quantity
         subtotal_cents += line
         rows.append({"item": item, "unit": unit, "line": line})
-    provider = items[0].event.track.spectator_payment_provider if items else "stripe"
+    payment_track = items[0].event.track
+    provider = payment_track.spectator_payment_provider if items else "stripe"
 
     form = SpectatorCheckoutForm()
     if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" and request.method == "GET":
@@ -423,8 +425,8 @@ def spectator_checkout():
             )
         db.session.flush()
 
-        if provider == "stripe" and stripe and current_app.config.get("STRIPE_SECRET_KEY"):
-            stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+        if provider == "stripe" and stripe and payment_track.stripe_secret_key:
+            stripe.api_key = payment_track.stripe_secret_key
             success_url = url_for("user.spectator_order_success", order_id=order.id, _external=True)
             cancel_url = url_for("user.spectator_checkout", _external=True)
             checkout_session = create_stripe_checkout_session(
@@ -486,15 +488,28 @@ def spectator_order_success(order_id):
 
 @user_bp.route("/payments/stripe/webhook", methods=["POST"])
 def stripe_webhook():
-    if not stripe or not current_app.config.get("STRIPE_WEBHOOK_SECRET"):
+    if not stripe:
         return "ignored", 200
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature", "")
     try:
+        payload_data = json.loads(payload.decode("utf-8"))
+        session_id = ((payload_data.get("data") or {}).get("object") or {}).get("id")
+    except Exception:
+        session_id = None
+    if not session_id:
+        return "invalid", 400
+    order = SpectatorOrder.query.filter_by(provider_session_id=session_id).first()
+    if not order:
+        return "ok", 200
+    webhook_secret = order.items[0].event.track.stripe_webhook_secret if order.items else None
+    if not webhook_secret:
+        return "ignored", 200
+    try:
         event = stripe.Webhook.construct_event(
             payload=payload,
             sig_header=sig_header,
-            secret=current_app.config["STRIPE_WEBHOOK_SECRET"],
+            secret=webhook_secret,
         )
     except Exception:
         return "invalid", 400
@@ -502,7 +517,6 @@ def stripe_webhook():
     if event.get("type") == "checkout.session.completed":
         session_obj = event["data"]["object"]
         session_id = session_obj.get("id")
-        order = SpectatorOrder.query.filter_by(provider_session_id=session_id).first()
         if order and order.payment_status != "paid":
             mark_order_paid(order, transaction_id=session_obj.get("payment_intent"))
             # create gate lookup rows and clear cart items only after payment success
