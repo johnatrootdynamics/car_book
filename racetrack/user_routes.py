@@ -29,7 +29,13 @@ from .models import (
     db,
 )
 from .services.storage_service import upload_public_image
-from .services.payment_service import create_stripe_checkout_session, mark_order_paid
+from .services.email_service import send_driver_purchase_receipt, send_spectator_order_receipt
+from .services.payment_service import (
+    create_driver_stripe_checkout_session,
+    create_stripe_checkout_session,
+    mark_driver_ticket_paid,
+    mark_order_paid,
+)
 
 try:
     import stripe
@@ -112,6 +118,105 @@ def require_user():
         flash("Driver access required for that page.", "error")
         return redirect(url_for("employee.dashboard"))
     return None
+
+
+def _safe_send_email(send_fn, *args):
+    try:
+        send_fn(*args)
+    except Exception as exc:
+        current_app.logger.warning("Email send failed: %s", exc)
+
+
+def _create_driver_post_purchase_steps(driver_ticket_order):
+    event = driver_ticket_order.event
+    user = driver_ticket_order.buyer
+    car = driver_ticket_order.car
+    if not car.static_qr_code:
+        car.static_qr_code = _generate_car_qr_code()
+
+    reg = EventRegistration.query.filter_by(event_id=event.id, user_id=user.id).first()
+    if not reg:
+        reg = EventRegistration(
+            event_id=event.id,
+            user_id=user.id,
+            car_id=car.id,
+            checkin_code=car.static_qr_code,
+        )
+        db.session.add(reg)
+        db.session.flush()
+
+    track_class = TrackDriverClass.query.filter_by(track_id=event.track_id, user_id=user.id).first()
+    if not track_class:
+        db.session.add(TrackDriverClass(track_id=event.track_id, user_id=user.id, driver_class="C"))
+
+    if not SocialPost.query.filter_by(event_registration_id=reg.id).first():
+        db.session.add(
+            SocialPost(
+                user_id=user.id,
+                event_id=event.id,
+                event_registration_id=reg.id,
+                post_type="event_signup",
+                title=f"@{user.username} signed up for {event.event_name}",
+                body=f"Driving: {car.car_year} {car.make} {car.model}",
+            )
+        )
+
+    from .models import DriverWaiver
+
+    required_templates = TrackWaiverTemplate.query.filter_by(
+        track_id=event.track_id, is_active=True, required_for_checkin=True
+    ).all()
+    if not required_templates and FORCED_BOLDSIGN_TEMPLATE_ID:
+        fallback_template = TrackWaiverTemplate(
+            track_id=event.track_id,
+            title="Track Waiver",
+            boldsign_template_id=FORCED_BOLDSIGN_TEMPLATE_ID,
+            is_active=True,
+            required_for_checkin=True,
+        )
+        db.session.add(fallback_template)
+        db.session.flush()
+        required_templates = [fallback_template]
+
+    created_waiver_id = None
+    needs_waiver_action = False
+    for template in required_templates:
+        exists = DriverWaiver.query.filter_by(
+            track_id=event.track_id,
+            driver_id=user.id,
+            event_id=event.id,
+            waiver_template_id=template.id,
+        ).first()
+        if not exists:
+            new_waiver = DriverWaiver(
+                track_id=event.track_id,
+                driver_id=user.id,
+                event_id=event.id,
+                waiver_template_id=template.id,
+                status="not_sent",
+            )
+            db.session.add(new_waiver)
+            db.session.flush()
+            needs_waiver_action = True
+            if created_waiver_id is None:
+                created_waiver_id = new_waiver.id
+        elif exists.status != "signed":
+            needs_waiver_action = True
+            if created_waiver_id is None:
+                created_waiver_id = exists.id
+    return needs_waiver_action, created_waiver_id
+
+
+def _finalize_driver_ticket_order(driver_ticket_order, transaction_id=None):
+    if driver_ticket_order.payment_status != "paid":
+        mark_driver_ticket_paid(driver_ticket_order, transaction_id=transaction_id)
+        needs_waiver_action, created_waiver_id = _create_driver_post_purchase_steps(driver_ticket_order)
+        db.session.commit()
+        _safe_send_email(send_driver_purchase_receipt, driver_ticket_order)
+        return needs_waiver_action, created_waiver_id
+    needs_waiver_action, created_waiver_id = _create_driver_post_purchase_steps(driver_ticket_order)
+    db.session.commit()
+    return needs_waiver_action, created_waiver_id
 
 
 @user_bp.route("/dashboard")
@@ -425,7 +530,7 @@ def spectator_checkout():
             )
         db.session.flush()
 
-        if provider == "stripe" and stripe and payment_track.stripe_secret_key:
+        if provider == "stripe" and subtotal_cents > 0 and stripe and payment_track.stripe_secret_key:
             stripe.api_key = payment_track.stripe_secret_key
             success_url = url_for("user.spectator_order_success", order_id=order.id, _external=True)
             cancel_url = url_for("user.spectator_checkout", _external=True)
@@ -440,7 +545,12 @@ def spectator_checkout():
             db.session.commit()
             return redirect(checkout_session.url)
 
-        # fallback recorded mode for non-stripe or missing stripe config
+        if provider == "stripe" and subtotal_cents > 0:
+            db.session.rollback()
+            flash("Stripe payments are not configured for this track yet.", "error")
+            return redirect(url_for("user.spectator_checkout"))
+
+        # fallback recorded mode for non-stripe or free orders
         order.payment_status = "paid"
         order.status = "recorded"
         mark_order_paid(order)
@@ -461,6 +571,7 @@ def spectator_checkout():
             )
             db.session.delete(item)
         db.session.commit()
+        _safe_send_email(send_spectator_order_receipt, order)
         flash(f"Order {order.order_number} recorded successfully.", "success")
         return redirect(url_for("user.spectator_order_success", order_id=order.id))
 
@@ -500,9 +611,15 @@ def stripe_webhook():
     if not session_id:
         return "invalid", 400
     order = SpectatorOrder.query.filter_by(provider_session_id=session_id).first()
+    driver_ticket_order = None
     if not order:
+        driver_ticket_order = DriverTicketOrder.query.filter_by(provider_session_id=session_id).first()
+    if not order and not driver_ticket_order:
         return "ok", 200
-    webhook_secret = order.items[0].event.track.stripe_webhook_secret if order.items else None
+    if order:
+        webhook_secret = order.items[0].event.track.stripe_webhook_secret if order.items else None
+    else:
+        webhook_secret = driver_ticket_order.event.track.stripe_webhook_secret
     if not webhook_secret:
         return "ignored", 200
     try:
@@ -542,6 +659,12 @@ def stripe_webhook():
                     for item in list(cart.items):
                         db.session.delete(item)
             db.session.commit()
+            _safe_send_email(send_spectator_order_receipt, order)
+        elif driver_ticket_order and driver_ticket_order.payment_status != "paid":
+            _finalize_driver_ticket_order(
+                driver_ticket_order,
+                transaction_id=session_obj.get("payment_intent"),
+            )
     return "ok", 200
 
 
@@ -864,87 +987,41 @@ def driver_event_checkout(event_id):
         form.payment_method.data = event.track.spectator_payment_provider or "stripe"
 
     if form.validate_on_submit():
-        if not selected_car.static_qr_code:
-            selected_car.static_qr_code = _generate_car_qr_code()
-        reg = EventRegistration(
-            event_id=event.id,
-            user_id=current_user.id,
-            car_id=selected_car.id,
-            checkin_code=selected_car.static_qr_code,
-        )
         driver_ticket_order = DriverTicketOrder(
             event_id=event.id,
             user_id=current_user.id,
             car_id=selected_car.id,
             amount_cents=max(0, event.driver_price_cents or 0),
             payment_method=form.payment_method.data,
-            status="recorded",
+            payment_status="pending",
+            status="pending",
         )
-        db.session.add(reg)
         db.session.add(driver_ticket_order)
-        track_class = TrackDriverClass.query.filter_by(
-            track_id=event.track_id, user_id=current_user.id
-        ).first()
-        if not track_class:
-            db.session.add(
-                TrackDriverClass(track_id=event.track_id, user_id=current_user.id, driver_class="C")
+        db.session.flush()
+
+        driver_amount_cents = max(0, event.driver_price_cents or 0)
+        if form.payment_method.data == "stripe" and driver_amount_cents > 0 and stripe and event.track.stripe_secret_key:
+            stripe.api_key = event.track.stripe_secret_key
+            checkout_session = create_driver_stripe_checkout_session(
+                stripe,
+                driver_ticket_order,
+                success_url=url_for(
+                    "user.driver_event_checkout_success",
+                    order_id=driver_ticket_order.id,
+                    _external=True,
+                ),
+                cancel_url=url_for("user.driver_event_checkout", event_id=event.id, _external=True),
             )
-        db.session.commit()
-        post = SocialPost(
-            user_id=current_user.id,
-            event_id=event.id,
-            event_registration_id=reg.id,
-            post_type="event_signup",
-            title=f"@{current_user.username} signed up for {event.event_name}",
-            body=f"Driving: {selected_car.car_year} {selected_car.make} {selected_car.model}",
-        )
-        db.session.add(post)
-        db.session.commit()
+            driver_ticket_order.provider_session_id = checkout_session.id
+            db.session.commit()
+            return redirect(checkout_session.url)
 
-        from .models import DriverWaiver
+        if form.payment_method.data == "stripe" and driver_amount_cents > 0:
+            db.session.rollback()
+            flash("Stripe payments are not configured for this track yet.", "error")
+            return redirect(url_for("user.driver_event_checkout", event_id=event.id))
 
-        required_templates = TrackWaiverTemplate.query.filter_by(
-            track_id=event.track_id, is_active=True, required_for_checkin=True
-        ).all()
-        if not required_templates and FORCED_BOLDSIGN_TEMPLATE_ID:
-            fallback_template = TrackWaiverTemplate(
-                track_id=event.track_id,
-                title="Track Waiver",
-                boldsign_template_id=FORCED_BOLDSIGN_TEMPLATE_ID,
-                is_active=True,
-                required_for_checkin=True,
-            )
-            db.session.add(fallback_template)
-            db.session.flush()
-            required_templates = [fallback_template]
-
-        created_waiver_id = None
-        needs_waiver_action = False
-        for template in required_templates:
-            exists = DriverWaiver.query.filter_by(
-                track_id=event.track_id,
-                driver_id=current_user.id,
-                event_id=event.id,
-                waiver_template_id=template.id,
-            ).first()
-            if not exists:
-                new_waiver = DriverWaiver(
-                    track_id=event.track_id,
-                    driver_id=current_user.id,
-                    event_id=event.id,
-                    waiver_template_id=template.id,
-                    status="not_sent",
-                )
-                db.session.add(new_waiver)
-                db.session.flush()
-                needs_waiver_action = True
-                if created_waiver_id is None:
-                    created_waiver_id = new_waiver.id
-            elif exists.status != "signed":
-                needs_waiver_action = True
-                if created_waiver_id is None:
-                    created_waiver_id = exists.id
-        db.session.commit()
+        needs_waiver_action, created_waiver_id = _finalize_driver_ticket_order(driver_ticket_order)
         session.pop(f"driver_checkout_car_{event.id}", None)
         if needs_waiver_action and created_waiver_id:
             flash("Ticket purchased. Next step: sign waiver.", "success")
@@ -961,6 +1038,31 @@ def driver_event_checkout(event_id):
         amount_cents=max(0, event.driver_price_cents or 0),
         payment_provider=(event.track.spectator_payment_provider or "stripe"),
     )
+
+
+@user_bp.route("/driver/orders/<int:order_id>/success")
+@login_required
+def driver_event_checkout_success(order_id):
+    guard = require_user()
+    if guard:
+        return guard
+    driver_ticket_order = DriverTicketOrder.query.filter_by(
+        id=order_id,
+        user_id=current_user.id,
+    ).first_or_404()
+    session.pop(f"driver_checkout_car_{driver_ticket_order.event_id}", None)
+    if driver_ticket_order.payment_status != "paid":
+        flash("Payment is processing. Your signup will unlock as soon as payment is confirmed.", "success")
+        return redirect(url_for("user.dashboard"))
+
+    needs_waiver_action, created_waiver_id = _create_driver_post_purchase_steps(driver_ticket_order)
+    db.session.commit()
+    if needs_waiver_action and created_waiver_id:
+        flash("Ticket purchased. Next step: sign waiver.", "success")
+        return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
+
+    flash("Ticket purchased. Waiver on file. Next step: inspection.", "success")
+    return redirect(url_for("waiver.driver_waivers"))
 
 
 @user_bp.route("/events/<int:event_id>/cancel", methods=["POST"])

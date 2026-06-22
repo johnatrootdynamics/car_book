@@ -9,3 +9,4 @@ python-dotenv==1.1.0
 gunicorn==23.0.0
 requests==2.32.3
 boto3==1.38.18
+stripe==12.2.0

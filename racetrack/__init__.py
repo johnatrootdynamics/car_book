@@ -69,6 +69,12 @@ def create_app():
     app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "")
     app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "")
     app.config["STRIPE_WEBHOOK_SECRET"] = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "")
+    app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
+    app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME", "")
+    app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD", "")
+    app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "true").lower() in {"1", "true", "yes", "on"}
+    app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", app.config["MAIL_USERNAME"])
     app.config["SQLALCHEMY_DATABASE_URI"] = normalize_database_url(
         os.getenv(
         "DATABASE_URL",
@@ -283,6 +289,21 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE driver_ticket_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) NOT NULL DEFAULT 'pending'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE driver_ticket_orders ADD COLUMN IF NOT EXISTS provider_session_id VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE driver_ticket_orders ADD COLUMN IF NOT EXISTS provider_transaction_id VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE driver_ticket_orders ADD COLUMN IF NOT EXISTS paid_at DATETIME NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE driver_ticket_orders ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(255) NULL"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL"

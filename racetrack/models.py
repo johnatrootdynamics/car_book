@@ -419,7 +419,12 @@ class DriverTicketOrder(db.Model):
     car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
     amount_cents = db.Column(db.Integer, nullable=False, default=0)
     payment_method = db.Column(db.String(50), nullable=False, default="stripe")
-    status = db.Column(db.String(30), nullable=False, default="recorded")
+    payment_status = db.Column(db.String(30), nullable=False, default="pending")
+    provider_session_id = db.Column(db.String(255), nullable=True)
+    provider_transaction_id = db.Column(db.String(255), nullable=True)
+    paid_at = db.Column(db.DateTime, nullable=True)
+    failure_reason = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(30), nullable=False, default="pending")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     buyer = db.relationship("User")

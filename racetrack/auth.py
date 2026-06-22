@@ -8,6 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .forms import LoginForm, UserRegistrationForm
 from .models import Employee, EnterpriseAdmin, User, db
+from .services.email_service import send_user_welcome_email
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -57,6 +58,10 @@ def user_register():
         )
         db.session.add(user)
         db.session.commit()
+        try:
+            send_user_welcome_email(user)
+        except Exception:
+            pass
         flash("Account created. Please sign in.", "success")
         return redirect(url_for("auth.user_login"))
     return render_template("auth/register.html", form=form)
