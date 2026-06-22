@@ -24,6 +24,7 @@ from .models import (
     SpectatorTicketType,
     Track,
     TrackDriverClass,
+    TrackPaymentMethod,
     TrackSubscription,
     TrackWaiverTemplate,
     db,
@@ -47,6 +48,13 @@ user_bp = Blueprint("user", __name__, url_prefix="/user")
 FORCED_BOLDSIGN_TEMPLATE_ID = os.getenv(
     "BOLDSIGN_FORCED_TEMPLATE_ID", "e5c8f024-64df-4bdc-9142-3a04c01a154a"
 )
+PAYMENT_PROVIDER_LABELS = {
+    "stripe": "Stripe",
+    "paypal": "PayPal",
+    "toast": "Toast",
+    "quickbooks": "QuickBooks Payments",
+    "other": "Other / Manual",
+}
 
 
 def _generate_car_qr_code():
@@ -58,6 +66,22 @@ def _generate_car_qr_code():
 
 def _money(cents):
     return f"${(cents or 0) / 100:,.2f}"
+
+
+def _configured_payment_choices(track, amount_cents):
+    methods = TrackPaymentMethod.query.filter_by(track_id=track.id, is_enabled=True).all()
+    providers = [method.provider for method in methods if method.provider in PAYMENT_PROVIDER_LABELS]
+    if not providers:
+        providers = [track.spectator_payment_provider or "stripe"]
+
+    choices = []
+    for provider in providers:
+        if provider == "stripe" and amount_cents > 0 and not (track.stripe_secret_key and track.stripe_webhook_secret):
+            continue
+        choices.append((provider, PAYMENT_PROVIDER_LABELS.get(provider, provider.title())))
+    if not choices and amount_cents <= 0:
+        choices.append(("other", PAYMENT_PROVIDER_LABELS["other"]))
+    return choices
 
 
 def _get_or_create_default_ticket_type(event):
@@ -483,17 +507,22 @@ def spectator_checkout():
         subtotal_cents += line
         rows.append({"item": item, "unit": unit, "line": line})
     payment_track = items[0].event.track
-    provider = payment_track.spectator_payment_provider if items else "stripe"
+    payment_choices = _configured_payment_choices(payment_track, subtotal_cents)
+    if not payment_choices:
+        flash("No payment methods are configured for this track yet.", "error")
+        return redirect(url_for("user.spectator_cart"))
 
     form = SpectatorCheckoutForm()
+    form.payment_method.choices = payment_choices
     if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" and request.method == "GET":
         form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
         form.email.data = current_user.email
         form.phone.data = current_user.phone
     if request.method == "GET":
-        form.payment_method.data = provider
+        form.payment_method.data = payment_choices[0][0]
 
     if form.validate_on_submit():
+        provider = form.payment_method.data
         user_id = current_user.id if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" else None
         buyer_name = form.full_name.data.strip()
         buyer_email = form.email.data.strip().lower()
@@ -530,7 +559,7 @@ def spectator_checkout():
             )
         db.session.flush()
 
-        if provider == "stripe" and subtotal_cents > 0 and stripe and payment_track.stripe_secret_key:
+        if provider == "stripe" and subtotal_cents > 0 and stripe and payment_track.stripe_secret_key and payment_track.stripe_webhook_secret:
             stripe.api_key = payment_track.stripe_secret_key
             success_url = url_for("user.spectator_order_success", order_id=order.id, _external=True)
             cancel_url = url_for("user.spectator_checkout", _external=True)
@@ -979,12 +1008,19 @@ def driver_event_checkout(event_id):
         flash("Choose a car before checkout.", "error")
         return redirect(url_for("user.dashboard"))
 
+    driver_amount_cents = max(0, event.driver_price_cents or 0)
+    payment_choices = _configured_payment_choices(event.track, driver_amount_cents)
+    if not payment_choices:
+        flash("No payment methods are configured for this track yet.", "error")
+        return redirect(url_for("user.dashboard"))
+
     form = DriverCheckoutForm()
+    form.payment_method.choices = payment_choices
     if request.method == "GET":
         form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
         form.email.data = current_user.email
         form.phone.data = current_user.phone
-        form.payment_method.data = event.track.spectator_payment_provider or "stripe"
+        form.payment_method.data = payment_choices[0][0]
 
     if form.validate_on_submit():
         driver_ticket_order = DriverTicketOrder(
@@ -999,8 +1035,7 @@ def driver_event_checkout(event_id):
         db.session.add(driver_ticket_order)
         db.session.flush()
 
-        driver_amount_cents = max(0, event.driver_price_cents or 0)
-        if form.payment_method.data == "stripe" and driver_amount_cents > 0 and stripe and event.track.stripe_secret_key:
+        if form.payment_method.data == "stripe" and driver_amount_cents > 0 and stripe and event.track.stripe_secret_key and event.track.stripe_webhook_secret:
             stripe.api_key = event.track.stripe_secret_key
             checkout_session = create_driver_stripe_checkout_session(
                 stripe,
@@ -1035,8 +1070,8 @@ def driver_event_checkout(event_id):
         form=form,
         event=event,
         selected_car=selected_car,
-        amount_cents=max(0, event.driver_price_cents or 0),
-        payment_provider=(event.track.spectator_payment_provider or "stripe"),
+        amount_cents=driver_amount_cents,
+        payment_choices=payment_choices,
     )
 
 

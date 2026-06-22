@@ -76,17 +76,20 @@
             <p class="muted-line">Payment is handled by the track's selected provider.</p>
           </div>
         </div>
-        <div class="checkout-provider-card">
-          <i class="bi bi-credit-card-2-front"></i>
-          <div>
-            <strong>{{ form.payment_method.data|title }}</strong>
-            {% if form.payment_method.data == 'stripe' %}
-              <p class="muted-line">You'll continue to Stripe to complete payment securely.</p>
-            {% else %}
-              <p class="muted-line">This order will be recorded for the track's payment workflow.</p>
-            {% endif %}
-          </div>
-          {{ form.payment_method(type='hidden') }}
+        <div class="payment-choice-list">
+          {% for value, label in form.payment_method.choices %}
+            <label class="payment-choice-card">
+              <input type="radio" name="payment_method" value="{{ value }}" {% if form.payment_method.data == value or (not form.payment_method.data and loop.first) %}checked{% endif %}>
+              <span>
+                <strong>{{ label }}</strong>
+                {% if value == 'stripe' %}
+                  <p class="muted-line">Continue to Stripe to complete payment securely.</p>
+                {% else %}
+                  <p class="muted-line">Use the track's recorded/manual payment workflow.</p>
+                {% endif %}
+              </span>
+            </label>
+          {% endfor %}
         </div>
       </section>
 

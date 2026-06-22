@@ -35,4 +35,30 @@
     </table>
   </div>
 </section>
+
+<section class="card">
+  <h3>Customer Payment Methods</h3>
+  <p class="muted-line">Customers can choose from the enabled methods below. Stripe only appears at checkout for paid orders when Stripe credentials are configured.</p>
+  <form method="post" action="{{ url_for('employee.payment_methods_update') }}" class="form-grid" data-enhanced>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="payment-method-grid">
+      {% for provider, label in payment_provider_choices.items() %}
+        {% set method = payment_methods.get(provider) %}
+        {% set enabled = method.is_enabled if method else provider == track.spectator_payment_provider %}
+        <label class="payment-method-card">
+          <span class="inline">
+            <input type="checkbox" name="payment_providers" value="{{ provider }}" {% if enabled %}checked{% endif %}>
+            <strong>{{ label }}</strong>
+          </span>
+          {% if provider == 'stripe' %}
+            <span class="muted-line">{{ 'Configured' if track.stripe_secret_key and track.stripe_webhook_secret else 'Needs Stripe secret and webhook secret' }}</span>
+          {% else %}
+            <span class="muted-line">Recorded/manual provider workflow.</span>
+          {% endif %}
+        </label>
+      {% endfor %}
+    </div>
+    <div><button class="btn" type="submit">Save Payment Methods</button></div>
+  </form>
+</section>
 {% endblock %}

@@ -23,10 +23,24 @@
       <input type="text" value="{{ form.phone.data }}" disabled>
       {{ form.phone(type='hidden') }}
     </label>
-    <label>Payment Method
-      <input type="text" value="{{ payment_provider|title }}" disabled>
-      {{ form.payment_method(type='hidden') }}
-    </label>
+    <div>
+      <label>Payment Method</label>
+      <div class="payment-choice-list">
+        {% for value, label in payment_choices %}
+          <label class="payment-choice-card">
+            <input type="radio" name="payment_method" value="{{ value }}" {% if form.payment_method.data == value or (not form.payment_method.data and loop.first) %}checked{% endif %}>
+            <span>
+              <strong>{{ label }}</strong>
+              {% if value == 'stripe' %}
+                <p class="muted-line">Continue to Stripe to complete payment securely.</p>
+              {% else %}
+                <p class="muted-line">Use the track's recorded/manual payment workflow.</p>
+              {% endif %}
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
     {{ form.submit(class_='btn') }}
   </form>
 </section>

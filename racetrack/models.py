@@ -115,6 +115,25 @@ class TrackEmailTemplate(db.Model):
     )
 
 
+class TrackPaymentMethod(db.Model):
+    __tablename__ = "track_payment_methods"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    provider = db.Column(db.String(50), nullable=False)
+    is_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    track = db.relationship("Track")
+
+    __table_args__ = (
+        db.UniqueConstraint("track_id", "provider", name="uniq_track_payment_method"),
+    )
+
+
 class Employee(db.Model, UserMixin):
     __tablename__ = "employees"
 

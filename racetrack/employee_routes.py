@@ -29,6 +29,7 @@ from .models import (
     TrackDriverClass,
     TrackEmailTemplate,
     TrackLayout,
+    TrackPaymentMethod,
     TrackWaiverTemplate,
     User,
     db,
@@ -53,6 +54,14 @@ EMAIL_TEMPLATE_DEFINITIONS = {
         "subject": "Driver ticket confirmed for {event_name}",
         "body": "Hi {driver_name},\n\nYour driver ticket for {event_name} at {track_name} is confirmed.\n\nCar: {car_name}\nTotal: {order_total}\n\nNext steps: complete any required waiver, then inspection before you are ready to race.\n\nThanks,\n{track_name}",
     },
+}
+
+PAYMENT_PROVIDER_CHOICES = {
+    "stripe": "Stripe",
+    "paypal": "PayPal",
+    "toast": "Toast",
+    "quickbooks": "QuickBooks Payments",
+    "other": "Other / Manual",
 }
 
 
@@ -294,12 +303,44 @@ def settings():
         item.template_key: item
         for item in TrackEmailTemplate.query.filter_by(track_id=track.id).all()
     }
+    payment_methods = {
+        item.provider: item
+        for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
+    }
     return render_template(
         "employee/settings.html",
         track=track,
         templates=templates,
         template_definitions=EMAIL_TEMPLATE_DEFINITIONS,
+        payment_methods=payment_methods,
+        payment_provider_choices=PAYMENT_PROVIDER_CHOICES,
     )
+
+
+@employee_bp.route("/settings/payment-methods", methods=["POST"])
+@login_required
+def payment_methods_update():
+    guard = require_employee()
+    if guard:
+        return guard
+    track = Track.query.get_or_404(active_track_id())
+    selected = set(request.form.getlist("payment_providers"))
+    selected = {provider for provider in selected if provider in PAYMENT_PROVIDER_CHOICES}
+    if not selected:
+        flash("Select at least one payment method.", "error")
+        return redirect(url_for("employee.settings"))
+
+    for provider in PAYMENT_PROVIDER_CHOICES:
+        method = TrackPaymentMethod.query.filter_by(track_id=track.id, provider=provider).first()
+        if not method:
+            method = TrackPaymentMethod(track_id=track.id, provider=provider)
+            db.session.add(method)
+        method.is_enabled = provider in selected
+    if track.spectator_payment_provider not in selected:
+        track.spectator_payment_provider = sorted(selected)[0]
+    db.session.commit()
+    flash("Payment methods updated.", "success")
+    return redirect(url_for("employee.settings"))
 
 
 @employee_bp.route("/settings/email-templates/<template_key>", methods=["GET", "POST"])
