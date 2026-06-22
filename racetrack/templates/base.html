@@ -62,6 +62,7 @@
           <a class="side-link {% if ep == 'employee.staff_accounts' %}active{% endif %}" href="{{ url_for('employee.staff_accounts') }}"><span class="sidebar-icon"><i class="bi bi-person-badge"></i></span><span class="sidebar-label">Staff Accounts</span></a>
           <a class="side-link {% if ep == 'employee.inspection_rules' %}active{% endif %}" href="{{ url_for('employee.inspection_rules') }}"><span class="sidebar-icon"><i class="bi bi-clipboard-check"></i></span><span class="sidebar-label">Inspection Rules</span></a>
           <a class="side-link {% if ep.startswith('employee.waiver_template') %}active{% endif %}" href="{{ url_for('employee.waiver_template_builder') }}"><span class="sidebar-icon"><i class="bi bi-file-earmark-text"></i></span><span class="sidebar-label">Waiver Builder</span></a>
+          <a class="side-link {% if ep in ['employee.payments','employee.payment_methods_update'] %}active{% endif %}" href="{{ url_for('employee.payments') }}"><span class="sidebar-icon"><i class="bi bi-credit-card"></i></span><span class="sidebar-label">Payments</span></a>
           <a class="side-link {% if ep in ['employee.settings','employee.email_template_edit'] %}active{% endif %}" href="{{ url_for('employee.settings') }}"><span class="sidebar-icon"><i class="bi bi-gear"></i></span><span class="sidebar-label">Settings</span></a>
         {% endif %}
         {% if current_user.is_authenticated and is_admin %}

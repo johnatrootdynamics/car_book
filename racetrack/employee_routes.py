@@ -303,21 +303,34 @@ def settings():
         item.template_key: item
         for item in TrackEmailTemplate.query.filter_by(track_id=track.id).all()
     }
-    payment_methods = {
-        item.provider: item
-        for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
-    }
     return render_template(
         "employee/settings.html",
         track=track,
         templates=templates,
         template_definitions=EMAIL_TEMPLATE_DEFINITIONS,
+    )
+
+
+@employee_bp.route("/payments", methods=["GET"])
+@login_required
+def payments():
+    guard = require_employee()
+    if guard:
+        return guard
+    track = Track.query.get_or_404(active_track_id())
+    payment_methods = {
+        item.provider: item
+        for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
+    }
+    return render_template(
+        "employee/payments.html",
+        track=track,
         payment_methods=payment_methods,
         payment_provider_choices=PAYMENT_PROVIDER_CHOICES,
     )
 
 
-@employee_bp.route("/settings/payment-methods", methods=["POST"])
+@employee_bp.route("/payments", methods=["POST"])
 @login_required
 def payment_methods_update():
     guard = require_employee()
@@ -338,9 +351,19 @@ def payment_methods_update():
         method.is_enabled = provider in selected
     if track.spectator_payment_provider not in selected:
         track.spectator_payment_provider = sorted(selected)[0]
+    stripe_secret = (request.form.get("stripe_secret_key") or "").strip()
+    stripe_webhook_secret = (request.form.get("stripe_webhook_secret") or "").strip()
+    if stripe_secret:
+        track.stripe_secret_key = stripe_secret
+    if stripe_webhook_secret:
+        track.stripe_webhook_secret = stripe_webhook_secret
+    if request.form.get("clear_stripe_secret_key"):
+        track.stripe_secret_key = None
+    if request.form.get("clear_stripe_webhook_secret"):
+        track.stripe_webhook_secret = None
     db.session.commit()
-    flash("Payment methods updated.", "success")
-    return redirect(url_for("employee.settings"))
+    flash("Payment settings updated.", "success")
+    return redirect(url_for("employee.payments"))
 
 
 @employee_bp.route("/settings/email-templates/<template_key>", methods=["GET", "POST"])
