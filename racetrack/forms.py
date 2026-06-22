@@ -90,6 +90,13 @@ class TrackProfileForm(FlaskForm):
     submit = SubmitField("Save Track Profile")
 
 
+class TrackEmailTemplateForm(FlaskForm):
+    subject = StringField("Subject", validators=[DataRequired(), Length(max=255)])
+    body = TextAreaField("Body", validators=[DataRequired(), Length(max=5000)])
+    is_enabled = BooleanField("Enabled", default=True)
+    submit = SubmitField("Save Email Template")
+
+
 class EmployeeCreateForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])

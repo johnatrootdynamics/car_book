@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
-from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackProfileForm
+from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackEmailTemplateForm, TrackProfileForm
 from .models import (
     Employee,
     Event,
@@ -27,6 +27,7 @@ from .models import (
     SpectatorTicketOrder,
     Track,
     TrackDriverClass,
+    TrackEmailTemplate,
     TrackLayout,
     TrackWaiverTemplate,
     User,
@@ -38,6 +39,21 @@ from .services.storage_service import upload_public_image
 
 
 employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
+
+EMAIL_TEMPLATE_DEFINITIONS = {
+    "spectator_purchase_receipt": {
+        "label": "Spectator Purchase Receipt",
+        "description": "Sent after a spectator ticket order is paid or recorded.",
+        "subject": "Your tickets for {track_name}",
+        "body": "Hi {buyer_name},\n\nYour spectator ticket order {order_number} is confirmed.\n\nEvent tickets:\n{ticket_lines}\n\nTotal: {order_total}\n\nUse your name, email, phone, or order number at the gate.\n\nThanks,\n{track_name}",
+    },
+    "driver_purchase_receipt": {
+        "label": "Driver Purchase Receipt",
+        "description": "Sent after a driver ticket is paid or recorded.",
+        "subject": "Driver ticket confirmed for {event_name}",
+        "body": "Hi {driver_name},\n\nYour driver ticket for {event_name} at {track_name} is confirmed.\n\nCar: {car_name}\nTotal: {order_total}\n\nNext steps: complete any required waiver, then inspection before you are ready to race.\n\nThanks,\n{track_name}",
+    },
+}
 
 
 def require_employee():
@@ -265,6 +281,62 @@ def track_profile():
     form = TrackProfileForm(obj=track)
     layouts = TrackLayout.query.filter_by(track_id=track.id).order_by(TrackLayout.name.asc()).all()
     return render_template("employee/track_profile.html", track=track, form=form, layouts=layouts)
+
+
+@employee_bp.route("/settings", methods=["GET"])
+@login_required
+def settings():
+    guard = require_employee()
+    if guard:
+        return guard
+    track = Track.query.get_or_404(active_track_id())
+    templates = {
+        item.template_key: item
+        for item in TrackEmailTemplate.query.filter_by(track_id=track.id).all()
+    }
+    return render_template(
+        "employee/settings.html",
+        track=track,
+        templates=templates,
+        template_definitions=EMAIL_TEMPLATE_DEFINITIONS,
+    )
+
+
+@employee_bp.route("/settings/email-templates/<template_key>", methods=["GET", "POST"])
+@login_required
+def email_template_edit(template_key):
+    guard = require_employee()
+    if guard:
+        return guard
+    if template_key not in EMAIL_TEMPLATE_DEFINITIONS:
+        flash("Unknown email template.", "error")
+        return redirect(url_for("employee.settings"))
+    track = Track.query.get_or_404(active_track_id())
+    definition = EMAIL_TEMPLATE_DEFINITIONS[template_key]
+    template = TrackEmailTemplate.query.filter_by(track_id=track.id, template_key=template_key).first()
+    form = TrackEmailTemplateForm(obj=template)
+    if request.method == "GET" and not template:
+        form.subject.data = definition["subject"]
+        form.body.data = definition["body"]
+        form.is_enabled.data = True
+    if form.validate_on_submit():
+        if not template:
+            template = TrackEmailTemplate(track_id=track.id, template_key=template_key)
+            db.session.add(template)
+        template.subject = form.subject.data.strip()
+        template.body = form.body.data.strip()
+        template.is_enabled = bool(form.is_enabled.data)
+        db.session.commit()
+        flash("Email template saved.", "success")
+        return redirect(url_for("employee.settings"))
+    return render_template(
+        "employee/email_template_form.html",
+        track=track,
+        form=form,
+        template=template,
+        template_key=template_key,
+        definition=definition,
+    )
 
 
 @employee_bp.route("/staff-accounts", methods=["GET"])

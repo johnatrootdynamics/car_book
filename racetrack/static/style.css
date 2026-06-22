@@ -1374,6 +1374,21 @@ th { color: var(--muted); font-weight: 600; }
   flex: 1;
 }
 
+.template-token-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.template-token-grid code {
+  border: 1px solid rgba(147, 197, 253, 0.28);
+  border-radius: 999px;
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.12);
+  padding: 7px 10px;
+}
+
 .event-form-label {
   display: inline-flex;
   align-items: center;

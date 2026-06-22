@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card narrow">
+  <div class="row-space">
+    <div>
+      <h2>{{ definition.label }}</h2>
+      <p class="muted-line">{{ definition.description }}</p>
+    </div>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.settings') }}">Back</a>
+  </div>
+  <form method="post" class="form-grid" data-enhanced>
+    {{ form.hidden_tag() }}
+    <label>Subject {{ form.subject() }}</label>
+    <label>Body {{ form.body(rows=14) }}</label>
+    <label class="inline">{{ form.is_enabled() }} Enabled</label>
+    <div class="inline">
+      {{ form.submit(class_='btn') }}
+      <a class="btn btn-secondary" href="{{ url_for('employee.settings') }}">Cancel</a>
+    </div>
+  </form>
+</section>
+
+<section class="card narrow">
+  <h3>Available Placeholders</h3>
+  <p class="muted-line">Use these tokens in the subject or body. Missing values render blank.</p>
+  <div class="template-token-grid">
+    <code>{track_name}</code>
+    <code>{event_name}</code>
+    <code>{buyer_name}</code>
+    <code>{driver_name}</code>
+    <code>{order_number}</code>
+    <code>{order_total}</code>
+    <code>{ticket_lines}</code>
+    <code>{car_name}</code>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="row-space">
+    <div>
+      <h2>Settings</h2>
+      <p class="muted-line">Configure track-level customer communication.</p>
+    </div>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.track_profile') }}">Track Profile</a>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Email Templates</h3>
+  <p class="muted-line">Customize the messages customers receive after payment and purchase events.</p>
+  <div class="table-wrap" style="margin-top:12px;">
+    <table>
+      <thead>
+        <tr><th>Template</th><th>Status</th><th>Subject</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for template_key, definition in template_definitions.items() %}
+          {% set template = templates.get(template_key) %}
+          <tr>
+            <td>
+              <strong>{{ definition.label }}</strong>
+              <p class="muted-line" style="margin:4px 0 0;">{{ definition.description }}</p>
+            </td>
+            <td>{{ 'Enabled' if (not template or template.is_enabled) else 'Disabled' }}</td>
+            <td>{{ template.subject if template else definition.subject }}</td>
+            <td><a class="btn btn-secondary btn-sm" href="{{ url_for('employee.email_template_edit', template_key=template_key) }}">Edit</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

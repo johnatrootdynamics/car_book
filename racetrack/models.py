@@ -94,6 +94,27 @@ class TrackLayout(db.Model):
     )
 
 
+class TrackEmailTemplate(db.Model):
+    __tablename__ = "track_email_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    template_key = db.Column(db.String(80), nullable=False)
+    subject = db.Column(db.String(255), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    is_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    track = db.relationship("Track")
+
+    __table_args__ = (
+        db.UniqueConstraint("track_id", "template_key", name="uniq_track_email_template"),
+    )
+
+
 class Employee(db.Model, UserMixin):
     __tablename__ = "employees"
 
