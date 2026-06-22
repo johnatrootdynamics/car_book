@@ -1,50 +1,74 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card narrow">
-  <div class="row-space">
-    <h2>Spectator Cart</h2>
+<section class="shop-shell">
+  <div class="shop-header-card">
+    <div>
+      <p class="shop-eyebrow">Spectator tickets</p>
+      <h2>Your Cart</h2>
+      <p class="muted-line">Review your tickets, adjust quantities, then move into secure checkout.</p>
+    </div>
     <div class="inline">
-      <span class="badge badge-viewed">{{ cart_count }} tickets</span>
-      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_events') }}">Add More</a>
+      <span class="shop-cart-pill"><i class="bi bi-bag-check"></i> {{ cart_count }} tickets</span>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_events') }}">Continue Shopping</a>
     </div>
   </div>
+
   {% if rows %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Event</th><th>Ticket</th><th>Qty</th><th>Unit</th><th>Total</th><th></th></tr></thead>
-        <tbody>
-          {% for row in rows %}
-            <tr>
-              <td>{{ row.item.event.event_name }}</td>
-              <td>{{ row.item.ticket_type.name }}</td>
-              <td>
-                <form method="post" action="{{ url_for('user.spectator_cart_update', item_id=row.item.id) }}" class="inline">
+    <div class="shop-cart-layout">
+      <div class="shop-cart-items">
+        {% for row in rows %}
+          <article class="shop-cart-item">
+            <div class="shop-ticket-thumb">
+              <i class="bi bi-ticket-perforated"></i>
+            </div>
+            <div class="shop-ticket-main">
+              <div class="row-space">
+                <div>
+                  <h3>{{ row.item.event.event_name }}</h3>
+                  <p class="muted-line"><i class="bi bi-geo-alt"></i> {{ row.item.event.track.name }} &middot; {{ row.item.event.track.city }}, {{ row.item.event.track.state }}</p>
+                  <p class="muted-line"><i class="bi bi-calendar-event"></i> {{ row.item.event.event_date }} &middot; {{ row.item.ticket_type.name }}</p>
+                </div>
+                <strong>{{ money(row.line) }}</strong>
+              </div>
+              <div class="shop-line-controls">
+                <form method="post" action="{{ url_for('user.spectator_cart_update', item_id=row.item.id) }}" class="shop-qty-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <select name="quantity" style="width:auto;">
-                    {% for qty in range(1, (row.item.ticket_type.max_per_order if row.item.ticket_type and row.item.ticket_type.max_per_order else 10) + 1) %}
-                      <option value="{{ qty }}" {% if row.item.quantity == qty %}selected{% endif %}>{{ qty }}</option>
-                    {% endfor %}
-                  </select>
+                  <label>Qty
+                    <select name="quantity">
+                      {% for qty in range(1, (row.item.ticket_type.max_per_order if row.item.ticket_type and row.item.ticket_type.max_per_order else 10) + 1) %}
+                        <option value="{{ qty }}" {% if row.item.quantity == qty %}selected{% endif %}>{{ qty }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
                   <button type="submit" class="btn btn-secondary btn-sm">Update</button>
                 </form>
-              </td>
-              <td>{{ money(row.unit) }}</td>
-              <td>{{ money(row.line) }}</td>
-              <td>
+                <span class="muted-line">{{ money(row.unit) }} each</span>
                 <form method="post" action="{{ url_for('user.spectator_cart_remove', item_id=row.item.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-secondary btn-sm">Remove</button>
+                  <button type="submit" class="shop-link-button">Remove</button>
                 </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+
+      <aside class="shop-summary-card">
+        <p class="shop-eyebrow">Order summary</p>
+        <div class="shop-summary-row"><span>Subtotal</span><strong>{{ money(subtotal_cents) }}</strong></div>
+        <div class="shop-summary-row"><span>Fees</span><span>Calculated by provider</span></div>
+        <div class="shop-summary-row shop-summary-total"><span>Total due today</span><strong>{{ money(subtotal_cents) }}</strong></div>
+        <a class="btn shop-checkout-btn" href="{{ url_for('user.spectator_checkout') }}">Checkout Now</a>
+        <p class="hint">Ticket confirmation is sent to the buyer email and available to gate staff after payment.</p>
+      </aside>
     </div>
-    <p class="muted-line" style="margin-top:10px;">Subtotal: <strong>{{ money(subtotal_cents) }}</strong></p>
-    <a class="btn" href="{{ url_for('user.spectator_checkout') }}">Checkout</a>
   {% else %}
-    <p class="muted-line">Your cart is empty.</p>
+    <div class="shop-empty-card">
+      <i class="bi bi-bag"></i>
+      <h3>Your cart is empty</h3>
+      <p class="muted-line">Find an upcoming event and add spectator tickets to get started.</p>
+      <a class="btn" href="{{ url_for('user.spectator_events') }}">Browse Events</a>
+    </div>
   {% endif %}
 </section>
 {% endblock %}

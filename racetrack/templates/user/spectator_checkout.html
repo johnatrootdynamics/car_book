@@ -1,69 +1,125 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card narrow">
-  <div class="row-space">
-    <h2>Checkout</h2>
-    <div class="inline">
-      <span class="badge badge-viewed">{{ cart_count }} tickets</span>
-      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_cart') }}">Back to Cart</a>
+<section class="checkout-shell">
+  <div class="checkout-main">
+    <div class="checkout-brand-row">
+      <a class="checkout-back-link" href="{{ url_for('user.spectator_cart') }}"><i class="bi bi-chevron-left"></i> Cart</a>
+      <span class="shop-cart-pill"><i class="bi bi-lock"></i> Secure checkout</span>
     </div>
-  </div>
-  {% if current_user.is_authenticated and current_user.account_type == 'user' %}
-    <p class="hint">Logged in as <strong>{{ current_user.email }}</strong>. Checkout uses your profile contact info.</p>
-  {% else %}
-    <section class="card" style="margin:10px 0 12px; border-color:rgba(59,130,246,.5); background:rgba(59,130,246,.12);">
-      <div class="row-space" style="align-items:center; gap:10px; flex-wrap:wrap;">
+
+    <div class="checkout-steps">
+      <span class="active">Cart</span>
+      <i class="bi bi-chevron-right"></i>
+      <span class="active">Information</span>
+      <i class="bi bi-chevron-right"></i>
+      <span>Payment</span>
+      <i class="bi bi-chevron-right"></i>
+      <span>Confirmation</span>
+    </div>
+
+    {% if current_user.is_authenticated and current_user.account_type == 'user' %}
+      <div class="checkout-account-card">
+        <i class="bi bi-person-check"></i>
+        <div>
+          <strong>Checking out as {{ current_user.email }}</strong>
+          <p class="muted-line">We'll use your saved profile details for this order.</p>
+        </div>
+      </div>
+    {% else %}
+      <div class="checkout-account-card checkout-account-highlight">
+        <i class="bi bi-lightning-charge"></i>
         <div>
           <strong>Already have a driver account?</strong>
-          <p class="muted-line" style="margin:4px 0 0;">Log in for faster checkout with your saved profile details.</p>
+          <p class="muted-line">Log in for faster checkout, or continue as a guest below.</p>
         </div>
-        <a class="btn" href="{{ url_for('auth.user_login') }}">Log In to Continue</a>
+        <a class="btn btn-sm" href="{{ url_for('auth.user_login') }}">Log In</a>
       </div>
-    </section>
-  {% endif %}
-  <div class="table-wrap" style="margin-bottom:10px;">
-    <table>
-      <thead><tr><th>Event</th><th>Ticket</th><th>Qty</th><th>Total</th></tr></thead>
-      <tbody>
-        {% for row in rows %}
-          <tr>
-            <td>{{ row.item.event.event_name }}</td>
-            <td>{{ row.item.ticket_type.name }}</td>
-            <td>{{ row.item.quantity }}</td>
-            <td>{{ money(row.line) }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <p class="muted-line">Order total: <strong>{{ money(subtotal_cents) }}</strong></p>
-  <p class="hint">Secure checkout flow in progress. Today, orders are recorded immediately for gate and operations teams.</p>
-  <form method="post" class="form-grid" data-enhanced>
-    {{ form.hidden_tag() }}
-    {% if current_user.is_authenticated and current_user.account_type == 'user' %}
-      <label>Full Name
-        <input type="text" value="{{ form.full_name.data }}" disabled>
-        {{ form.full_name(type='hidden') }}
-      </label>
-      <label>Email
-        <input type="text" value="{{ form.email.data }}" disabled>
-        {{ form.email(type='hidden') }}
-      </label>
-      <label>Phone
-        <input type="text" value="{{ form.phone.data }}" disabled>
-        {{ form.phone(type='hidden') }}
-      </label>
-    {% else %}
-      <label>Full Name {{ form.full_name() }}</label>
-      <label>Email {{ form.email() }}</label>
-      <label>Phone {{ form.phone() }}</label>
     {% endif %}
-    <label>Payment Method
-      <input type="text" value="{{ form.payment_method.data|title }}" disabled>
-      {{ form.payment_method(type='hidden') }}
-    </label>
-    <p class="hint">You can checkout as guest or logged-in driver. Confirmation is tied to your email.</p>
-    {{ form.submit(class_='btn') }}
-  </form>
+
+    <form method="post" class="checkout-form" data-enhanced>
+      {{ form.hidden_tag() }}
+      <section class="checkout-section-card">
+        <div class="checkout-section-head">
+          <span class="checkout-step-number">1</span>
+          <div>
+            <h2>Contact</h2>
+            <p class="muted-line">Your confirmation and gate lookup are tied to this contact information.</p>
+          </div>
+        </div>
+        <div class="form-grid two-col">
+          {% if current_user.is_authenticated and current_user.account_type == 'user' %}
+            <label>Full Name
+              <input type="text" value="{{ form.full_name.data }}" disabled>
+              {{ form.full_name(type='hidden') }}
+            </label>
+            <label>Email
+              <input type="text" value="{{ form.email.data }}" disabled>
+              {{ form.email(type='hidden') }}
+            </label>
+            <label>Phone
+              <input type="text" value="{{ form.phone.data }}" disabled>
+              {{ form.phone(type='hidden') }}
+            </label>
+          {% else %}
+            <label>Full Name {{ form.full_name(placeholder='Alex Morgan') }}</label>
+            <label>Email {{ form.email(placeholder='alex@example.com') }}</label>
+            <label>Phone {{ form.phone(placeholder='(555) 555-5555') }}</label>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="checkout-section-card">
+        <div class="checkout-section-head">
+          <span class="checkout-step-number">2</span>
+          <div>
+            <h2>Payment</h2>
+            <p class="muted-line">Payment is handled by the track's selected provider.</p>
+          </div>
+        </div>
+        <div class="checkout-provider-card">
+          <i class="bi bi-credit-card-2-front"></i>
+          <div>
+            <strong>{{ form.payment_method.data|title }}</strong>
+            {% if form.payment_method.data == 'stripe' %}
+              <p class="muted-line">You'll continue to Stripe to complete payment securely.</p>
+            {% else %}
+              <p class="muted-line">This order will be recorded for the track's payment workflow.</p>
+            {% endif %}
+          </div>
+          {{ form.payment_method(type='hidden') }}
+        </div>
+      </section>
+
+      <button type="submit" class="btn checkout-pay-btn">
+        {% if form.payment_method.data == 'stripe' %}Continue to Payment{% else %}Place Order{% endif %}
+      </button>
+      <p class="hint">By continuing, you agree that tickets are issued for the selected event and buyer email.</p>
+    </form>
+  </div>
+
+  <aside class="checkout-summary">
+    <div class="checkout-summary-card">
+      <div class="row-space">
+        <p class="shop-eyebrow">Order summary</p>
+        <span class="shop-cart-pill">{{ cart_count }} tickets</span>
+      </div>
+      <div class="checkout-summary-items">
+        {% for row in rows %}
+          <div class="checkout-summary-item">
+            <div class="shop-ticket-thumb small"><i class="bi bi-ticket-perforated"></i></div>
+            <div>
+              <strong>{{ row.item.event.event_name }}</strong>
+              <p class="muted-line">{{ row.item.ticket_type.name }} &middot; Qty {{ row.item.quantity }}</p>
+            </div>
+            <span>{{ money(row.line) }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="shop-summary-row"><span>Subtotal</span><strong>{{ money(subtotal_cents) }}</strong></div>
+      <div class="shop-summary-row"><span>Processing</span><span>Provider checkout</span></div>
+      <div class="shop-summary-row shop-summary-total"><span>Total</span><strong>{{ money(subtotal_cents) }}</strong></div>
+      <p class="hint">Gate staff can search by order number, name, email, or phone after checkout.</p>
+    </div>
+  </aside>
 </section>
 {% endblock %}

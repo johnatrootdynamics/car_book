@@ -1,27 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card narrow">
-  <h2>Order Recorded</h2>
-  <p class="muted-line">Order <strong>{{ order.order_number }}</strong> has been recorded.</p>
-  <p class="muted-line">Buyer: {{ order.guest_full_name }} • {{ order.guest_email }}</p>
-  <p class="muted-line">Phone: {{ order.guest_phone or 'N/A' }}</p>
-  <p class="muted-line">Payment Method: {{ order.payment_method|title }}</p>
-  <div class="table-wrap" style="margin-top:10px;">
-    <table>
-      <thead><tr><th>Event</th><th>Ticket</th><th>Qty</th><th>Total</th></tr></thead>
-      <tbody>
-        {% for item in items %}
-          <tr>
-            <td>{{ item.event.event_name }}</td>
-            <td>{{ item.ticket_type_name }}</td>
-            <td>{{ item.quantity }}</td>
-            <td>{{ money(item.line_total_cents) }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<section class="shop-shell">
+  <div class="shop-confirmation-card">
+    <div class="shop-confirmation-icon">
+      {% if order.payment_status == 'paid' %}<i class="bi bi-check2"></i>{% else %}<i class="bi bi-hourglass-split"></i>{% endif %}
+    </div>
+    <p class="shop-eyebrow">Order {{ order.order_number }}</p>
+    <h2>{% if order.payment_status == 'paid' %}You're all set{% else %}Order started{% endif %}</h2>
+    {% if order.payment_status == 'paid' %}
+      <p class="muted-line">Your tickets are confirmed and available to gate staff.</p>
+    {% else %}
+      <p class="muted-line">Payment is still pending. Once payment clears, tickets become available for gate check-in.</p>
+    {% endif %}
   </div>
-  <p class="muted-line" style="margin-top:8px;">Order total: <strong>{{ money(order.total_cents) }}</strong></p>
-  <a class="btn" href="{{ url_for('user.spectator_events') }}">Browse More Events</a>
+
+  <div class="shop-cart-layout">
+    <div class="shop-cart-items">
+      <article class="checkout-section-card">
+        <div class="checkout-section-head">
+          <span class="checkout-step-number"><i class="bi bi-person"></i></span>
+          <div>
+            <h3>Customer</h3>
+            <p class="muted-line">{{ order.guest_full_name }} &middot; {{ order.guest_email }}</p>
+            <p class="muted-line">{{ order.guest_phone or 'No phone provided' }}</p>
+          </div>
+        </div>
+      </article>
+
+      {% for item in items %}
+        <article class="shop-cart-item">
+          <div class="shop-ticket-thumb"><i class="bi bi-ticket-perforated"></i></div>
+          <div class="shop-ticket-main">
+            <div class="row-space">
+              <div>
+                <h3>{{ item.event.event_name }}</h3>
+                <p class="muted-line">{{ item.ticket_type_name }} &middot; Qty {{ item.quantity }}</p>
+              </div>
+              <strong>{{ money(item.line_total_cents) }}</strong>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <aside class="shop-summary-card">
+      <p class="shop-eyebrow">Receipt</p>
+      <div class="shop-summary-row"><span>Payment</span><strong>{{ order.payment_method|title }}</strong></div>
+      <div class="shop-summary-row"><span>Status</span><strong>{{ order.payment_status|title }}</strong></div>
+      <div class="shop-summary-row shop-summary-total"><span>Total</span><strong>{{ money(order.total_cents) }}</strong></div>
+      <a class="btn shop-checkout-btn" href="{{ url_for('user.spectator_events') }}">Browse More Events</a>
+    </aside>
+  </div>
 </section>
 {% endblock %}
