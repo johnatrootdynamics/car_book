@@ -20,7 +20,6 @@
       <span class="track-profile-static" data-track-profile-static><i class="bi bi-map"></i> {{ track.state }}</span>
       {{ form.state(data_track_profile_edit='1', hidden=true) }}
     </label>
-    {{ form.spectator_payment_provider(type='hidden') }}
     <label data-track-profile-edit="1" hidden>Layout Image {{ form.layout_image() }}</label>
     <div class="full inline" data-track-profile-edit="1" hidden>
       {{ form.submit(class_='btn') }}

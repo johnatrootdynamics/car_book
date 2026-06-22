@@ -122,6 +122,11 @@ class TrackPaymentMethod(db.Model):
     track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
     provider = db.Column(db.String(50), nullable=False)
     is_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    public_key = db.Column(db.String(255), nullable=True)
+    secret_key = db.Column(db.String(255), nullable=True)
+    webhook_secret = db.Column(db.String(255), nullable=True)
+    merchant_id = db.Column(db.String(255), nullable=True)
+    extra_config = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False

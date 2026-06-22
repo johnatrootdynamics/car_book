@@ -337,11 +337,14 @@ def payment_methods_update():
     if guard:
         return guard
     track = Track.query.get_or_404(active_track_id())
-    selected = set(request.form.getlist("payment_providers"))
-    selected = {provider for provider in selected if provider in PAYMENT_PROVIDER_CHOICES}
+    selected = {
+        provider
+        for provider in PAYMENT_PROVIDER_CHOICES
+        if request.form.get(f"provider_enabled_{provider}") == "1"
+    }
     if not selected:
         flash("Select at least one payment method.", "error")
-        return redirect(url_for("employee.settings"))
+        return redirect(url_for("employee.payments"))
 
     for provider in PAYMENT_PROVIDER_CHOICES:
         method = TrackPaymentMethod.query.filter_by(track_id=track.id, provider=provider).first()
@@ -349,17 +352,41 @@ def payment_methods_update():
             method = TrackPaymentMethod(track_id=track.id, provider=provider)
             db.session.add(method)
         method.is_enabled = provider in selected
+        public_key = (request.form.get(f"{provider}_public_key") or "").strip()
+        secret_key = (request.form.get(f"{provider}_secret_key") or "").strip()
+        webhook_secret = (request.form.get(f"{provider}_webhook_secret") or "").strip()
+        merchant_id = (request.form.get(f"{provider}_merchant_id") or "").strip()
+        extra_config = (request.form.get(f"{provider}_extra_config") or "").strip()
+        if public_key:
+            method.public_key = public_key
+        if secret_key:
+            method.secret_key = secret_key
+        if webhook_secret:
+            method.webhook_secret = webhook_secret
+        if merchant_id:
+            method.merchant_id = merchant_id
+        if extra_config:
+            method.extra_config = extra_config
+        if request.form.get(f"{provider}_clear_public_key") == "1":
+            method.public_key = None
+        if request.form.get(f"{provider}_clear_secret_key") == "1":
+            method.secret_key = None
+        if request.form.get(f"{provider}_clear_webhook_secret") == "1":
+            method.webhook_secret = None
+        if request.form.get(f"{provider}_clear_merchant_id") == "1":
+            method.merchant_id = None
+        if request.form.get(f"{provider}_clear_extra_config") == "1":
+            method.extra_config = None
     if track.spectator_payment_provider not in selected:
         track.spectator_payment_provider = sorted(selected)[0]
-    stripe_secret = (request.form.get("stripe_secret_key") or "").strip()
-    stripe_webhook_secret = (request.form.get("stripe_webhook_secret") or "").strip()
-    if stripe_secret:
-        track.stripe_secret_key = stripe_secret
-    if stripe_webhook_secret:
-        track.stripe_webhook_secret = stripe_webhook_secret
-    if request.form.get("clear_stripe_secret_key"):
+    stripe_method = TrackPaymentMethod.query.filter_by(track_id=track.id, provider="stripe").first()
+    if stripe_method and stripe_method.secret_key:
+        track.stripe_secret_key = stripe_method.secret_key
+    if stripe_method and stripe_method.webhook_secret:
+        track.stripe_webhook_secret = stripe_method.webhook_secret
+    if request.form.get("stripe_clear_secret_key") == "1":
         track.stripe_secret_key = None
-    if request.form.get("clear_stripe_webhook_secret"):
+    if request.form.get("stripe_clear_webhook_secret") == "1":
         track.stripe_webhook_secret = None
     db.session.commit()
     flash("Payment settings updated.", "success")
@@ -426,13 +453,6 @@ def update_track():
         track.name = form.name.data.strip()
         track.city = form.city.data.strip()
         track.state = form.state.data.strip()
-        track.spectator_payment_provider = (form.spectator_payment_provider.data or "stripe").strip()
-        stripe_secret = (form.stripe_secret_key.data or "").strip()
-        stripe_webhook_secret = (form.stripe_webhook_secret.data or "").strip()
-        if stripe_secret:
-            track.stripe_secret_key = stripe_secret
-        if stripe_webhook_secret:
-            track.stripe_webhook_secret = stripe_webhook_secret
         upload = form.layout_image.data
         if upload:
             clean_name = secure_filename(upload.filename)

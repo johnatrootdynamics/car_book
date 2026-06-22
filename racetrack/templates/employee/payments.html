@@ -5,81 +5,150 @@
     <div>
       <p class="shop-eyebrow">Track settings</p>
       <h2>Payments</h2>
-      <p class="muted-line">Choose which payment methods customers can use and keep provider credentials organized in one place.</p>
+      <p class="muted-line">Add payment providers, store credentials, and choose what customers can use at checkout.</p>
     </div>
     <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.settings') }}">Email Settings</a>
   </div>
 </section>
 
-<form method="post" action="{{ url_for('employee.payment_methods_update') }}" class="payments-layout" data-enhanced>
+<form method="post" action="{{ url_for('employee.payment_methods_update') }}" class="payments-layout" data-enhanced data-payments-form>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-  <section class="card">
-    <h3>Available Payment Methods</h3>
-    <p class="muted-line">Customers only see enabled methods. Stripe is only shown to customers for paid orders when both Stripe credentials are configured.</p>
-    <div class="payment-provider-grid">
-      {% for provider, label in payment_provider_choices.items() %}
-        {% set method = payment_methods.get(provider) %}
-        {% set enabled = method.is_enabled if method else provider == track.spectator_payment_provider %}
-        <label class="payment-provider-card {% if enabled %}active{% endif %}">
-          <span class="payment-provider-head">
+  <section class="payment-provider-stack">
+    {% for provider, label in payment_provider_choices.items() %}
+      {% set method = payment_methods.get(provider) %}
+      {% set enabled = method.is_enabled if method else provider == track.spectator_payment_provider %}
+      {% if provider == 'stripe' %}
+        {% set ready = track.stripe_secret_key and track.stripe_webhook_secret %}
+      {% else %}
+        {% set ready = method and (method.public_key or method.secret_key or method.webhook_secret or method.merchant_id or method.extra_config) %}
+      {% endif %}
+      <article class="payment-setup-card {% if enabled %}active{% endif %}" data-provider-card>
+        <input type="hidden" name="provider_enabled_{{ provider }}" value="{{ '1' if enabled else '0' }}" data-provider-enabled>
+        <div class="payment-setup-head">
+          <div class="payment-provider-head">
             <span class="payment-provider-icon"><i class="bi bi-credit-card-2-front"></i></span>
             <span>
               <strong>{{ label }}</strong>
-              {% if provider == 'stripe' %}
-                <small>{{ 'Ready' if track.stripe_secret_key and track.stripe_webhook_secret else 'Needs credentials' }}</small>
-              {% else %}
-                <small>Manual / recorded flow</small>
-              {% endif %}
+              <small>
+                {% if provider == 'stripe' %}
+                  Stripe Checkout gateway
+                {% else %}
+                  Stored credentials for future gateway setup; currently recorded/manual
+                {% endif %}
+              </small>
             </span>
-          </span>
-          <span class="payment-toggle-row">
-            <input type="checkbox" name="payment_providers" value="{{ provider }}" {% if enabled %}checked{% endif %}>
-            <span>Enabled for customers</span>
-          </span>
-        </label>
-      {% endfor %}
-    </div>
-  </section>
+          </div>
+          <div class="payment-card-actions">
+            <span class="payment-status-pill {{ 'ready' if ready else 'needs-work' }}">{{ 'Ready' if ready else 'Needs Setup' }}</span>
+            <button type="button" class="btn btn-secondary btn-sm" data-provider-toggle>{{ 'Disable' if enabled else 'Enable' }}</button>
+          </div>
+        </div>
 
-  <section class="card payment-credentials-card">
-    <div class="row-space">
-      <div>
-        <h3>Stripe Credentials</h3>
-        <p class="muted-line">Enter live or test Stripe keys for this track. Leave fields blank to keep existing keys.</p>
-      </div>
-      <span class="payment-status-pill {{ 'ready' if track.stripe_secret_key and track.stripe_webhook_secret else 'needs-work' }}">
-        {{ 'Ready' if track.stripe_secret_key and track.stripe_webhook_secret else 'Not Ready' }}
-      </span>
-    </div>
-    <div class="form-grid two-col">
-      <label>Secret Key
-        <input type="password" name="stripe_secret_key" placeholder="sk_live_... or sk_test_...">
-        <span class="hint">Current: {{ 'configured' if track.stripe_secret_key else 'not configured' }}</span>
-      </label>
-      <label>Webhook Secret
-        <input type="password" name="stripe_webhook_secret" placeholder="whsec_...">
-        <span class="hint">Current: {{ 'configured' if track.stripe_webhook_secret else 'not configured' }}</span>
-      </label>
-    </div>
-    <div class="payment-danger-zone">
-      <label class="inline"><input type="checkbox" name="clear_stripe_secret_key" value="1"> Clear Stripe secret key</label>
-      <label class="inline"><input type="checkbox" name="clear_stripe_webhook_secret" value="1"> Clear Stripe webhook secret</label>
-    </div>
+        <details class="payment-provider-details" {% if enabled or provider == 'stripe' %}open{% endif %}>
+          <summary>Provider Credentials</summary>
+          {% if provider == 'stripe' %}
+            <div class="form-grid two-col">
+              <label>Secret Key
+                <input type="password" name="stripe_secret_key" placeholder="sk_live_... or sk_test_...">
+                <span class="hint">Current: {{ 'configured' if track.stripe_secret_key else 'not configured' }}</span>
+              </label>
+              <label>Webhook Secret
+                <input type="password" name="stripe_webhook_secret" placeholder="whsec_...">
+                <span class="hint">Current: {{ 'configured' if track.stripe_webhook_secret else 'not configured' }}</span>
+              </label>
+            </div>
+            <div class="payment-danger-zone">
+              <input type="hidden" name="stripe_clear_secret_key" value="0" data-clear-input>
+              <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear secret key</button>
+              <input type="hidden" name="stripe_clear_webhook_secret" value="0" data-clear-input>
+              <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear webhook secret</button>
+            </div>
+          {% else %}
+            <div class="form-grid two-col">
+              <label>Merchant / Account ID
+                <input type="text" name="{{ provider }}_merchant_id" placeholder="Account or merchant identifier">
+                <span class="hint">Current: {{ 'configured' if method and method.merchant_id else 'not configured' }}</span>
+              </label>
+              <label>Public / Client Key
+                <input type="text" name="{{ provider }}_public_key" placeholder="Client ID, app ID, or public key">
+                <span class="hint">Current: {{ 'configured' if method and method.public_key else 'not configured' }}</span>
+              </label>
+              <label>Secret Key
+                <input type="password" name="{{ provider }}_secret_key" placeholder="Secret, private key, or token">
+                <span class="hint">Current: {{ 'configured' if method and method.secret_key else 'not configured' }}</span>
+              </label>
+              <label>Webhook Secret
+                <input type="password" name="{{ provider }}_webhook_secret" placeholder="Webhook signing secret">
+                <span class="hint">Current: {{ 'configured' if method and method.webhook_secret else 'not configured' }}</span>
+              </label>
+              <label class="full">Additional Config
+                <textarea name="{{ provider }}_extra_config" rows="4" placeholder="Optional provider-specific JSON, notes, or IDs"></textarea>
+                <span class="hint">Current: {{ 'configured' if method and method.extra_config else 'not configured' }}</span>
+              </label>
+            </div>
+            <div class="payment-danger-zone">
+              <input type="hidden" name="{{ provider }}_clear_merchant_id" value="0" data-clear-input>
+              <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear merchant ID</button>
+              <input type="hidden" name="{{ provider }}_clear_public_key" value="0" data-clear-input>
+              <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear public key</button>
+              <input type="hidden" name="{{ provider }}_clear_secret_key" value="0" data-clear-input>
+              <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear secret key</button>
+              <input type="hidden" name="{{ provider }}_clear_webhook_secret" value="0" data-clear-input>
+              <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear webhook secret</button>
+              <input type="hidden" name="{{ provider }}_clear_extra_config" value="0" data-clear-input>
+              <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear extra config</button>
+            </div>
+          {% endif %}
+        </details>
+      </article>
+    {% endfor %}
   </section>
 
   <section class="card payment-help-card">
     <h3>How Customer Choice Works</h3>
-    <p class="muted-line">Enable the methods your track accepts. At checkout, customers choose from enabled methods that are ready to use.</p>
-    <ul class="muted-line">
-      <li>Stripe sends customers to Stripe Checkout and requires webhook confirmation.</li>
-      <li>Manual providers are recorded immediately for track operations.</li>
-      <li>If only one method is available, it is selected automatically.</li>
-    </ul>
+    <p class="muted-line">Customers choose from enabled providers that are ready for checkout. Stripe is a live gateway today; other providers store credentials now and remain recorded/manual until their gateway adapters are added.</p>
   </section>
 
   <div class="payments-save-bar">
-    <button class="btn" type="submit">Save Payment Settings</button>
+    <button class="btn" type="submit">Save Payment Providers</button>
   </div>
 </form>
+
+<script>
+  (function () {
+    const form = document.querySelector("[data-payments-form]")
+    if (!form) return
+    form.querySelectorAll("[data-provider-card]").forEach((card) => {
+      const input = card.querySelector("[data-provider-enabled]")
+      const button = card.querySelector("[data-provider-toggle]")
+      if (!input || !button) return
+      const render = () => {
+        const enabled = input.value === "1"
+        card.classList.toggle("active", enabled)
+        button.textContent = enabled ? "Disable" : "Enable"
+      }
+      button.addEventListener("click", () => {
+        input.value = input.value === "1" ? "0" : "1"
+        render()
+      })
+      render()
+    })
+    form.querySelectorAll("[data-clear-button]").forEach((button) => {
+      const input = button.previousElementSibling
+      if (!input || !input.matches("[data-clear-input]")) return
+      const render = () => {
+        const selected = input.value === "1"
+        button.classList.toggle("active", selected)
+        if (!button.dataset.label) button.dataset.label = button.textContent
+        button.textContent = selected ? "Will " + button.dataset.label.toLowerCase() : button.dataset.label
+      }
+      button.addEventListener("click", () => {
+        input.value = input.value === "1" ? "0" : "1"
+        render()
+      })
+      render()
+    })
+  })()
+</script>
 {% endblock %}

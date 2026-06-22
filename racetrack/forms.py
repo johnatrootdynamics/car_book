@@ -68,25 +68,6 @@ class TrackProfileForm(FlaskForm):
         "Track Layout Image",
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
     )
-    spectator_payment_provider = SelectField(
-        "Spectator Payment Provider",
-        choices=[
-            ("stripe", "Stripe"),
-            ("paypal", "PayPal"),
-            ("toast", "Toast"),
-            ("quickbooks", "QuickBooks Payments"),
-            ("other", "Other"),
-        ],
-        validators=[DataRequired()],
-    )
-    stripe_secret_key = PasswordField(
-        "Stripe Secret Key",
-        validators=[Optional(), Length(max=255)],
-    )
-    stripe_webhook_secret = PasswordField(
-        "Stripe Webhook Secret",
-        validators=[Optional(), Length(max=255)],
-    )
     submit = SubmitField("Save Track Profile")
 
 

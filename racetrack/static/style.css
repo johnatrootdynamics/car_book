@@ -1431,6 +1431,11 @@ th { color: var(--muted); font-weight: 600; }
   margin-top: 12px;
 }
 
+.payment-provider-stack {
+  display: grid;
+  gap: 14px;
+}
+
 .payment-provider-card {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
@@ -1438,6 +1443,29 @@ th { color: var(--muted); font-weight: 600; }
   padding: 16px;
   display: grid;
   gap: 14px;
+}
+
+.payment-setup-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.74);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.payment-setup-card.active {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.11), rgba(15, 23, 42, 0.76));
+}
+
+.payment-setup-head,
+.payment-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .payment-provider-card.active {
@@ -1497,6 +1525,25 @@ th { color: var(--muted); font-weight: 600; }
   gap: 12px;
   margin-top: 14px;
   padding-top: 12px;
+}
+
+.payment-danger-zone .btn.active,
+.payment-card-actions .btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  border-color: transparent;
+}
+
+.payment-provider-details {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+.payment-provider-details summary {
+  cursor: pointer;
+  color: #dbeafe;
+  font-weight: 800;
+  margin-bottom: 10px;
 }
 
 .payments-save-bar {

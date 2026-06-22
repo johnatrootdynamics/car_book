@@ -264,6 +264,21 @@ def create_app():
                 "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS stripe_webhook_secret VARCHAR(255) NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS public_key VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS secret_key VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS webhook_secret VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS merchant_id VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS extra_config TEXT NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS checked_in_at DATETIME NULL"
             )
             conn.exec_driver_sql(
