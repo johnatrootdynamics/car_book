@@ -303,34 +303,21 @@ def settings():
         item.template_key: item
         for item in TrackEmailTemplate.query.filter_by(track_id=track.id).all()
     }
-    return render_template(
-        "employee/settings.html",
-        track=track,
-        templates=templates,
-        template_definitions=EMAIL_TEMPLATE_DEFINITIONS,
-    )
-
-
-@employee_bp.route("/payments", methods=["GET"])
-@login_required
-def payments():
-    guard = require_employee()
-    if guard:
-        return guard
-    track = Track.query.get_or_404(active_track_id())
     payment_methods = {
         item.provider: item
         for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
     }
     return render_template(
-        "employee/payments.html",
+        "employee/settings.html",
         track=track,
+        templates=templates,
+        template_definitions=EMAIL_TEMPLATE_DEFINITIONS,
         payment_methods=payment_methods,
         payment_provider_choices=PAYMENT_PROVIDER_CHOICES,
     )
 
 
-@employee_bp.route("/payments", methods=["POST"])
+@employee_bp.route("/settings/payments", methods=["POST"])
 @login_required
 def payment_methods_update():
     guard = require_employee()
@@ -344,7 +331,7 @@ def payment_methods_update():
     }
     if not selected:
         flash("Select at least one payment method.", "error")
-        return redirect(url_for("employee.payments"))
+        return redirect(url_for("employee.settings"))
 
     for provider in PAYMENT_PROVIDER_CHOICES:
         method = TrackPaymentMethod.query.filter_by(track_id=track.id, provider=provider).first()
@@ -390,7 +377,7 @@ def payment_methods_update():
         track.stripe_webhook_secret = None
     db.session.commit()
     flash("Payment settings updated.", "success")
-    return redirect(url_for("employee.payments"))
+    return redirect(url_for("employee.settings"))
 
 
 @employee_bp.route("/settings/email-templates/<template_key>", methods=["GET", "POST"])
