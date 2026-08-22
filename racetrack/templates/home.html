@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Track Ops</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260821') }}">
 </head>
 <body class="mk-body">
   <header class="mk-topbar">
     <div class="mk-wrap mk-nav">
       <a class="mk-brand-wrap" href="{{ url_for('auth.home') }}">
-        <span class="mk-brand">Track Ops</span>
+        <span class="mk-brand"><i class="bi bi-speedometer2" aria-hidden="true"></i> Track Ops</span>
         <span class="mk-subbrand">A Root Dynamics product</span>
       </a>
       <nav class="mk-links">
@@ -50,10 +51,10 @@
     <section class="mk-panel">
       <h2>Stop running events from clipboards and group chats.</h2>
       <div class="mk-grid mk-grid-4">
-        <article class="mk-card"><h4>Fast Driver Check-In</h4><p>Scan QR codes, verify waivers, choose cars, and check drivers into today’s event.</p></article>
-        <article class="mk-card"><h4>Event Visibility</h4><p>See who is checked in, who passed inspection, and what classes are on site.</p></article>
-        <article class="mk-card"><h4>Staff-Friendly Tools</h4><p>Give employees simple screens for check-in, inspection, notes, and live track operations.</p></article>
-        <article class="mk-card"><h4>Track-Owned Data</h4><p>Build long-term driver, vehicle, waiver, and incident history for your facility.</p></article>
+        <article class="mk-card"><i class="bi bi-qr-code-scan mk-card-icon" aria-hidden="true"></i><h4>Fast Driver Check-In</h4><p>Scan QR codes, verify waivers, choose cars, and check drivers into today’s event.</p></article>
+        <article class="mk-card"><i class="bi bi-activity mk-card-icon" aria-hidden="true"></i><h4>Event Visibility</h4><p>See who is checked in, who passed inspection, and what classes are on site.</p></article>
+        <article class="mk-card"><i class="bi bi-people mk-card-icon" aria-hidden="true"></i><h4>Staff-Friendly Tools</h4><p>Give employees simple screens for check-in, inspection, notes, and live track operations.</p></article>
+        <article class="mk-card"><i class="bi bi-database-check mk-card-icon" aria-hidden="true"></i><h4>Track-Owned Data</h4><p>Build long-term driver, vehicle, waiver, and incident history for your facility.</p></article>
       </div>
     </section>
 
