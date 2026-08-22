@@ -3477,3 +3477,223 @@ details > summary { font-size: .92rem; }
   .inspection-lookup-form { grid-template-columns: 1fr; }
   .inspection-lookup-form .btn { width: 100%; }
 }
+
+/* Minimal spectator ticket shop */
+.spectator-shop-page {
+  width: min(920px, 100%);
+  margin: 0 auto;
+}
+
+.spectator-shop-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.spectator-shop-header h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 1.55rem;
+}
+
+.spectator-shop-header p { margin: 4px 0 0; }
+
+.spectator-cart-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.spectator-cart-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  color: #fff;
+  background: #2457ff;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 750;
+}
+
+.spectator-search-form {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 10px 11px;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 9px;
+}
+
+.spectator-search-form > i { color: #98a2b3; }
+.spectator-search-form input {
+  min-height: 34px;
+  padding: 5px 2px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.spectator-search-form input:focus { border: 0; box-shadow: none; outline: 0; }
+.spectator-search-form > a { font-size: .76rem; font-weight: 650; text-decoration: none; }
+
+.spectator-event-list {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+}
+
+.spectator-event-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 116px;
+  padding: 17px;
+  border-bottom: 1px solid #eaecf0;
+}
+
+.spectator-event-row:last-child { border-bottom: 0; }
+
+.spectator-event-date {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  width: 64px;
+  min-height: 72px;
+  color: #344054;
+  background: #f2f4f7;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.spectator-event-date span {
+  color: #2457ff;
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.spectator-event-date strong { font-size: 1.45rem; line-height: 1.05; }
+.spectator-event-date small { color: #98a2b3; font-size: .63rem; }
+
+.spectator-event-info { min-width: 0; }
+.spectator-event-info h3 { margin: 0 0 5px; font-size: 1.02rem; }
+.spectator-event-info p { margin: 0 0 5px; color: #475467; font-size: .84rem; font-weight: 650; }
+.spectator-event-info span { color: #7a8699; font-size: .78rem; }
+
+.spectator-event-purchase {
+  display: grid;
+  justify-items: end;
+  gap: 9px;
+}
+
+.spectator-event-price { display: grid; justify-items: end; }
+.spectator-event-price strong { font-size: 1.05rem; }
+.spectator-event-price span { color: #7a8699; font-size: .7rem; }
+
+.spectator-buy-form { display: flex; align-items: center; gap: 7px; }
+.spectator-buy-form select { width: 62px; min-width: 62px; }
+
+.spectator-empty-state {
+  display: grid;
+  justify-items: center;
+  padding: 52px 20px;
+  color: #667085;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  text-align: center;
+}
+.spectator-empty-state i { font-size: 1.4rem; color: #98a2b3; }
+.spectator-empty-state h3 { margin: 10px 0 0; }
+.spectator-empty-state p { margin: 5px 0; }
+
+/* Keep the rest of the spectator purchase flow visually quiet. */
+.shop-shell,
+.checkout-shell { color: #344054; }
+
+.shop-shell .shop-header-card,
+.shop-shell .shop-empty-card,
+.shop-shell .shop-confirmation-card,
+.shop-shell .shop-cart-item,
+.shop-shell .checkout-section-card,
+.shop-shell .shop-summary-card,
+.checkout-shell .checkout-section-card,
+.checkout-shell .checkout-account-card,
+.checkout-shell .checkout-summary-card {
+  color: #344054;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.shop-shell .shop-header-card,
+.shop-shell .shop-empty-card,
+.shop-shell .shop-confirmation-card { padding: 18px; }
+.shop-shell .shop-eyebrow,
+.checkout-shell .shop-eyebrow { color: #5573cc; }
+.shop-shell .shop-cart-pill,
+.checkout-shell .shop-cart-pill {
+  color: #475467;
+  background: #f2f4f7;
+  border-color: #e4e7ec;
+}
+.shop-shell .shop-ticket-thumb,
+.checkout-shell .shop-ticket-thumb {
+  color: #2457ff;
+  background: #eef3ff;
+  border-radius: 9px;
+}
+.shop-shell .shop-summary-row,
+.checkout-shell .shop-summary-row {
+  color: #667085;
+  border-color: #eaecf0;
+}
+.shop-shell .shop-summary-total,
+.checkout-shell .shop-summary-total { color: #1d2939; }
+.checkout-shell .checkout-back-link { color: #174dcc; }
+.checkout-shell .checkout-steps .active { color: #1d2939; }
+.checkout-shell .checkout-account-highlight,
+.checkout-shell .payment-choice-card {
+  color: #344054;
+  background: #fafbfc;
+  border-color: #e4e7ec;
+}
+
+@media (max-width: 700px) {
+  .spectator-shop-header { align-items: center; }
+  .spectator-search-form { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .spectator-search-form > a { display: none; }
+  .spectator-event-row { grid-template-columns: 54px minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .spectator-event-date { width: 54px; min-height: 66px; }
+  .spectator-event-purchase {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-items: start;
+    padding-top: 11px;
+    border-top: 1px solid #eaecf0;
+  }
+  .spectator-event-price { justify-items: start; }
+}
+
+@media (max-width: 440px) {
+  .spectator-shop-header h2 { font-size: 1.35rem; }
+  .spectator-shop-header p { max-width: 210px; }
+  .spectator-cart-link span:not(.spectator-cart-count) { display: none; }
+  .spectator-search-form { grid-template-columns: auto minmax(0, 1fr); }
+  .spectator-search-form .btn { grid-column: 1 / -1; width: 100%; }
+  .spectator-event-purchase { grid-template-columns: 1fr; }
+  .spectator-buy-form { width: 100%; }
+  .spectator-buy-form .btn { flex: 1; }
+}
