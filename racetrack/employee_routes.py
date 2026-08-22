@@ -838,7 +838,7 @@ def driver_checkin(event_id, registration_id):
             )
         )
     if return_to == "run_groups":
-        return redirect(url_for("employee.run_groups", event_id=event_id))
+        return redirect(url_for("employee.event_detail", event_id=event_id, view="slots"))
     return redirect(url_for("employee.participants", event_id=event_id))
 
 
@@ -1104,57 +1104,7 @@ def run_groups(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
-    query = (request.args.get("q") or "").strip().lower()
-
-    groups = (
-        RunGroup.query.filter_by(event_id=event.id)
-        .order_by(RunGroup.is_active.desc(), RunGroup.name.asc())
-        .all()
-    )
-    registrations = (
-        EventRegistration.query.filter_by(event_id=event.id)
-        .order_by(EventRegistration.created_at.asc())
-        .all()
-    )
-    class_slots = (
-        EventClassSlot.query.filter_by(event_id=event.id)
-        .order_by(EventClassSlot.start_time.asc(), EventClassSlot.class_code.asc())
-        .all()
-    )
-
-    class_by_user = {}
-    for reg in registrations:
-        class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
-
-    assignments = {
-        item.event_registration_id: item.run_group_id
-        for item in RunGroupAssignment.query.join(
-            RunGroup, RunGroup.id == RunGroupAssignment.run_group_id
-        )
-        .filter(RunGroup.event_id == event.id)
-        .all()
-    }
-    db.session.commit()
-
-    if query:
-        registrations = [
-            reg
-            for reg in registrations
-            if query in f"{reg.user.first_name} {reg.user.last_name}".lower()
-            or query in (reg.user.email or "").lower()
-            or query in (reg.user.username or "").lower()
-        ]
-
-    return render_template(
-        "employee/run_groups.html",
-        event=event,
-        groups=groups,
-        registrations=registrations,
-        assignments=assignments,
-        class_by_user=class_by_user,
-        class_slots=class_slots,
-        q=query,
-    )
+    return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
 
 
 @employee_bp.route("/events/<int:event_id>/run-groups/new", methods=["POST"])

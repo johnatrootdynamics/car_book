@@ -3432,25 +3432,13 @@ details > summary { font-size: .92rem; }
 .event-utility-page-narrow { width: min(680px, 100%); }
 .event-data-card { padding: 0; overflow: hidden; }
 
-.run-group-toolbar,
-.run-group-drivers,
-.run-group-list-card { margin-bottom: 12px; }
-.run-group-schedule { margin-bottom: 12px; }
-.run-group-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
-.run-group-section-head h3,
-.run-group-section-head p { margin: 0; }
-.run-group-section-head p { margin-top: 3px; }
 .track-schedule-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .track-schedule-class { display: grid; align-content: start; gap: 9px; min-height: 88px; padding: 13px; border: 1px solid var(--border); border-radius: 10px; background: #fafbfc; }
 .track-schedule-class .driver-class-pill { width: fit-content; }
 .track-schedule-class strong { color: #202939; font-size: .9rem; }
 .participant-checkin-meta { display: block; margin-top: 4px; color: #7a8699; font-size: .7rem; }
-.run-group-toolbar .inline { flex-wrap: wrap; }
-.run-group-toolbar input { width: min(260px, 100%); }
-
 @media (max-width: 720px) {
   .track-schedule-grid { grid-template-columns: 1fr; }
-  .run-group-section-head { align-items: center; }
 }
 
 .inspection-lookup-card { padding: 16px; }
