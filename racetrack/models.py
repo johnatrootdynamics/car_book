@@ -237,9 +237,14 @@ class EventRegistration(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
     checkin_code = db.Column(db.String(64), nullable=False)
+    checked_in_at = db.Column(db.DateTime, nullable=True)
+    checked_in_by_employee_id = db.Column(
+        db.Integer, db.ForeignKey("employees.id"), nullable=True
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     car = db.relationship("Car")
+    checked_in_by = db.relationship("Employee")
     run_group_assignment = db.relationship(
         "RunGroupAssignment", backref="registration", uselist=False, cascade="all, delete-orphan"
     )

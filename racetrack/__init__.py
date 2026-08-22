@@ -231,6 +231,12 @@ def create_app():
                 "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checkin_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checked_in_at DATETIME NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checked_in_by_employee_id INT NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS static_qr_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(

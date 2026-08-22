@@ -794,6 +794,54 @@ def participants(event_id):
     )
 
 
+@employee_bp.route(
+    "/events/<int:event_id>/participants/<int:registration_id>/checkin",
+    methods=["POST"],
+)
+@login_required
+def driver_checkin(event_id, registration_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    registration = _load_registration_for_track(event_id, registration_id)
+    if registration.checked_in_at:
+        flash("Driver is already checked in.", "error")
+    else:
+        from .waiver_routes import get_required_waiver_status
+
+        waiver_status, _ = get_required_waiver_status(
+            registration.event.track_id,
+            registration.user_id,
+            registration.event_id,
+        )
+        if waiver_status not in {"signed", "not_required"}:
+            flash("The driver must complete the required waiver before check-in.", "error")
+        else:
+            registration.checked_in_at = datetime.utcnow()
+            if current_user.account_type == "employee":
+                registration.checked_in_by_employee_id = current_user.id
+            db.session.commit()
+            flash(
+                f"{registration.user.first_name} {registration.user.last_name} checked in.",
+                "success",
+            )
+
+    return_to = (request.form.get("return_to") or "participants").strip()
+    if return_to == "event":
+        return redirect(url_for("employee.event_detail", event_id=event_id, view="participants"))
+    if return_to == "inspection":
+        return redirect(
+            url_for(
+                "employee.inspection_lookup",
+                event_id=event_id,
+                code=registration.checkin_code,
+            )
+        )
+    if return_to == "run_groups":
+        return redirect(url_for("employee.run_groups", event_id=event_id))
+    return redirect(url_for("employee.participants", event_id=event_id))
+
+
 @employee_bp.route("/events/<int:event_id>")
 @login_required
 def event_detail(event_id):
@@ -825,8 +873,8 @@ def event_detail(event_id):
     view = (request.args.get("view") or "general").strip().lower()
     if view not in {"general", "analytics", "participants", "inspect", "slots", "tickets"}:
         view = "general"
-    if view in {"analytics", "slots"} and not has_office_access():
-        flash("Office staff access required for planning and analytics.", "error")
+    if view == "analytics" and not has_office_access():
+        flash("Office staff access required for event analytics.", "error")
         return redirect(url_for("employee.event_detail", event_id=event.id, view="general"))
 
     groups = []
@@ -834,6 +882,7 @@ def event_detail(event_id):
     participants = []
     class_by_user = {}
     inspections = {}
+    waiver_status = {}
     class_slots = []
     ticket_orders = []
     ticket_query = (request.args.get("ticket_q") or "").strip()
@@ -852,8 +901,12 @@ def event_detail(event_id):
             .filter(EventRegistration.event_id == event.id)
             .all()
         }
+        from .waiver_routes import get_required_waiver_status
+
         for reg in participants:
             class_by_user[reg.user_id] = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
+            status, waiver = get_required_waiver_status(event.track_id, reg.user_id, event.id)
+            waiver_status[reg.id] = {"status": status, "waiver": waiver}
         db.session.commit()
 
     if view == "slots":
@@ -892,6 +945,7 @@ def event_detail(event_id):
         participants=participants,
         class_by_user=class_by_user,
         inspections=inspections,
+        waiver_status=waiver_status,
         class_slots=class_slots,
         ticket_orders=ticket_orders,
         ticket_query=ticket_query,
@@ -1062,6 +1116,11 @@ def run_groups(event_id):
         .order_by(EventRegistration.created_at.asc())
         .all()
     )
+    class_slots = (
+        EventClassSlot.query.filter_by(event_id=event.id)
+        .order_by(EventClassSlot.start_time.asc(), EventClassSlot.class_code.asc())
+        .all()
+    )
 
     class_by_user = {}
     for reg in registrations:
@@ -1093,6 +1152,7 @@ def run_groups(event_id):
         registrations=registrations,
         assignments=assignments,
         class_by_user=class_by_user,
+        class_slots=class_slots,
         q=query,
     )
 

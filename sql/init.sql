@@ -79,6 +79,8 @@ CREATE TABLE IF NOT EXISTS event_registrations (
   user_id INT NOT NULL,
   car_id INT NOT NULL,
   checkin_code VARCHAR(64) NOT NULL,
+  checked_in_at DATETIME NULL,
+  checked_in_by_employee_id INT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_event_reg_event FOREIGN KEY (event_id) REFERENCES events(id)
     ON DELETE CASCADE ON UPDATE CASCADE,
@@ -86,6 +88,8 @@ CREATE TABLE IF NOT EXISTS event_registrations (
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_event_reg_car FOREIGN KEY (car_id) REFERENCES cars(id)
     ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_event_reg_checkin_employee FOREIGN KEY (checked_in_by_employee_id) REFERENCES employees(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT uniq_event_user_signup UNIQUE (event_id, user_id),
   INDEX idx_event_reg_user (user_id),
   INDEX idx_event_reg_car (car_id),

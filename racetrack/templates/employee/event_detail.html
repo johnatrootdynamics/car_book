@@ -13,8 +13,8 @@
     <a class="{% if view == 'general' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}"><i class="bi bi-sliders2"></i><span>General</span></a>
     {% if is_office_staff %}
       <a class="{% if view == 'analytics' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}"><i class="bi bi-graph-up-arrow"></i><span>Analytics</span></a>
-      <a class="{% if view == 'slots' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i><span>Class Slots</span></a>
     {% endif %}
+    <a class="{% if view == 'slots' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i><span>Schedule</span></a>
     <a class="{% if view == 'participants' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-people"></i><span>Participants</span></a>
     <a class="{% if view == 'inspect' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}"><i class="bi bi-clipboard-check"></i><span>Inspect</span></a>
     <a class="{% if view == 'tickets' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='tickets') }}"><i class="bi bi-ticket-perforated"></i><span>Tickets</span></a>
@@ -129,14 +129,26 @@
         {% if participants %}
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Driver</th><th>Email</th><th>Car</th><th>Class</th><th>Inspection</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Driver</th><th>Car</th><th>Class</th><th>Check-in</th><th>Inspection</th><th>Actions</th></tr></thead>
               <tbody>
                 {% for reg in participants %}
                   <tr>
                     <td>{{ reg.user.first_name }} {{ reg.user.last_name }}</td>
-                    <td>{{ reg.user.email }}</td>
                     <td>{{ reg.car.car_year }} {{ reg.car.make }} {{ reg.car.model }}</td>
                     <td><span class="driver-class-pill driver-class-{{ class_by_user.get(reg.user_id, 'C') }}">{{ class_by_user.get(reg.user_id, 'C') }}</span></td>
+                    <td>
+                      {% if reg.checked_in_at %}
+                        <span class="badge badge-signed">Checked in</span>
+                      {% elif waiver_status.get(reg.id, {}).get('status') in ['signed', 'not_required'] %}
+                        <form method="post" action="{{ url_for('employee.driver_checkin', event_id=event.id, registration_id=reg.id) }}" class="inline">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <input type="hidden" name="return_to" value="event">
+                          <button class="btn btn-sm" type="submit">Check in</button>
+                        </form>
+                      {% else %}
+                        <span class="badge badge-failed">Waiver needed</span>
+                      {% endif %}
+                    </td>
                     <td>
                       {% if reg.id in inspections %}
                         {% if inspections[reg.id].passed %}
@@ -167,7 +179,29 @@
           <div class="class-search-results" data-inspect-name-results></div>
         </div>
       {% elif view == 'slots' %}
-        <h3>Class Time Slots</h3>
+        <h3>Track Schedule</h3>
+        {% if not is_office_staff %}
+          <p class="muted-line">Read-only schedule set by office staff.</p>
+          {% if class_slots %}
+            <div class="track-schedule-grid">
+              {% for class_code in ['A', 'B', 'C'] %}
+                {% set slots_for_class = class_slots|selectattr('class_code', 'equalto', class_code)|list %}
+                <article class="track-schedule-class">
+                  <span class="driver-class-pill driver-class-{{ class_code }}">Class {{ class_code }}</span>
+                  {% if slots_for_class %}
+                    {% for slot in slots_for_class %}
+                      <strong>{{ slot.start_time.strftime('%I:%M %p').lstrip('0') }} – {{ slot.end_time.strftime('%I:%M %p').lstrip('0') }}</strong>
+                    {% endfor %}
+                  {% else %}
+                    <span class="muted-line">Time not set</span>
+                  {% endif %}
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No class times have been set for this event yet.</p>
+          {% endif %}
+        {% else %}
         {% if event.event_start_time and event.event_end_time %}
           <p class="muted-line">Event window: <strong>{{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}</strong> - <strong>{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') }}</strong></p>
         {% else %}
@@ -310,6 +344,7 @@
           </div>
         {% else %}
           <p>No class slots have been set for this event yet.</p>
+        {% endif %}
         {% endif %}
       {% elif view == 'tickets' %}
         <h3>Spectator Ticket Lookup</h3>
