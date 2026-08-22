@@ -1,13 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<div class="event-utility-page event-utility-page-wide">
+<header class="event-utility-header">
+  <div>
   <h2>{{ event.event_name }} Participants</h2>
-  <p>{{ event.track.name }} • {{ event.event_date }}</p>
+  <p class="event-utility-meta">{{ event.track.name }} <span>·</span> {{ event.event_date }}</p>
   <p class="muted-line">Driver class is track-specific and carries across all events at this track.</p>
-</section>
+  </div>
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-arrow-left"></i> Event</a>
+</header>
 
-<section class="card">
-  <h3>Participant Details</h3>
+<section class="card event-data-card">
+  <div class="event-data-head"><h3>Participant details</h3><span>{{ registrations|length }} {{ 'driver' if registrations|length == 1 else 'drivers' }}</span></div>
   {% if registrations %}
     <div class="table-wrap">
       <table>
@@ -64,7 +68,8 @@
       </table>
     </div>
   {% else %}
-    <p>No participants yet.</p>
+    <div class="event-empty-state"><i class="bi bi-people"></i><p>No participants yet.</p></div>
   {% endif %}
 </section>
+</div>
 {% endblock %}

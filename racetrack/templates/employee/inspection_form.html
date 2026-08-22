@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<div class="event-utility-page event-utility-page-narrow">
+<header class="event-utility-header inspection-driver-header">
+  <div>
   <h2>Vehicle Inspection</h2>
-  <p>
-    {{ event.event_name }} • {{ registration.user.first_name }} {{ registration.user.last_name }} •
-    {{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}
-  </p>
+  <p class="event-utility-meta">{{ event.event_name }} <span>·</span> {{ registration.user.first_name }} {{ registration.user.last_name }}</p>
+  <p class="muted-line">{{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}</p>
+  </div>
   <p>
     {% set dc = track_class.driver_class if track_class else 'C' %}
     <span class="driver-class-pill driver-class-{{ dc }}">
@@ -13,10 +14,10 @@
       {% if dc == 'A' %}(Advanced){% elif dc == 'B' %}(Intermediate){% else %}(Novice){% endif %}
     </span>
   </p>
-  <p>Check-in Code: <code>{{ registration.checkin_code }}</code></p>
-</section>
+  <code class="inspection-checkin-code">{{ registration.checkin_code }}</code>
+</header>
 
-<section class="card">
+<section class="card inspection-checklist-card">
   <form method="post" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     {% for rule in rules %}
@@ -35,4 +36,5 @@
     </p>
   {% endif %}
 </section>
+</div>
 {% endblock %}

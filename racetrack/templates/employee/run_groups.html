@@ -1,17 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="row-space">
+<div class="event-utility-page">
+<header class="event-utility-header">
     <div>
       <h2>Run Groups</h2>
-      <p>{{ event.event_name }} • {{ event.track.name }} • {{ event.event_date }}</p>
+      <p class="event-utility-meta">{{ event.event_name }} <span>·</span> {{ event.track.name }} <span>·</span> {{ event.event_date }}</p>
       <p class="muted-line">These groups are scoped to this event only.</p>
     </div>
-    <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
-  </div>
-</section>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}"><i class="bi bi-arrow-left"></i> Event</a>
+</header>
 
-<section class="card">
+<section class="card run-group-toolbar">
   <div class="row-space">
     <form method="post" action="{{ url_for('employee.run_group_new', event_id=event.id) }}" class="inline">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -25,7 +24,7 @@
   </div>
 </section>
 
-<section class="card">
+<section class="card run-group-drivers">
   <form method="get" class="inline-form">
     <input type="text" name="q" value="{{ q }}" placeholder="Search drivers by name, username, email">
     <button type="submit" class="btn btn-sm">Filter</button>
@@ -71,7 +70,7 @@
   {% endif %}
 </section>
 
-<section class="card">
+<section class="card run-group-list-card">
   <h3>Run Group List</h3>
   {% if groups %}
     <div class="grid-cards">
@@ -95,4 +94,5 @@
     <p>No run groups yet.</p>
   {% endif %}
 </section>
+</div>
 {% endblock %}

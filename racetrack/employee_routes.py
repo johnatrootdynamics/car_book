@@ -836,6 +836,7 @@ def event_detail(event_id):
         class_slots=class_slots,
         ticket_orders=ticket_orders,
         ticket_query=ticket_query,
+        today=date.today(),
     )
 
 

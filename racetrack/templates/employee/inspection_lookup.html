@@ -1,9 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<div class="event-utility-page event-utility-page-narrow">
+<header class="event-utility-header">
+  <div>
   <h2>Inspection Lookup</h2>
-  <p>{{ event.event_name }} • {{ event.track.name }} • {{ event.event_date }}</p>
-  <form method="get" class="form-grid narrow">
+  <p class="event-utility-meta">{{ event.event_name }} <span>·</span> {{ event.track.name }} <span>·</span> {{ event.event_date }}</p>
+  </div>
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}"><i class="bi bi-arrow-left"></i> Event</a>
+</header>
+<section class="card inspection-lookup-card">
+  <form method="get" class="inspection-lookup-form">
     <label>Scan or Enter Check-in Code
       <input type="text" name="code" value="{{ code }}" placeholder="EV123-ABCDEF">
     </label>
@@ -37,4 +43,5 @@
   {% endif %}
 </section>
 {% endif %}
+</div>
 {% endblock %}

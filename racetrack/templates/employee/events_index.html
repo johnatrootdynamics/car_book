@@ -1,17 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<div class="events-page">
+<section class="events-page-header">
   <div class="row-space">
     <div>
       <h2>Events</h2>
-      <p>{{ track.name }}</p>
+      <p class="muted-line">Plan and manage track days at {{ track.name }}.</p>
     </div>
-    <a class="btn" href="{{ url_for('employee.event_new') }}">Create Event</a>
+    <a class="btn" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create Event</a>
   </div>
 </section>
 
-<section class="card">
-  <h3>Upcoming Events</h3>
+<section class="card events-list-card">
+  <div class="events-section-head"><h3>Upcoming</h3><span>{{ upcoming_events|length }}</span></div>
   {% if upcoming_events %}
     <div class="table-wrap">
       <table class="events-table">
@@ -35,13 +36,13 @@
       </table>
     </div>
   {% else %}
-    <p>No upcoming events.</p>
+    <div class="events-empty"><i class="bi bi-calendar2-plus" aria-hidden="true"></i><p>No upcoming events.</p><a href="{{ url_for('employee.event_new') }}">Create the next event</a></div>
   {% endif %}
 </section>
 
-<section class="card">
-  <details>
-    <summary>Past Events ({{ past_events|length }})</summary>
+<section class="card events-list-card">
+  <details class="past-events-panel">
+    <summary><span>Past events</span><span class="events-count">{{ past_events|length }}</span></summary>
     {% if past_events %}
       <div class="table-wrap" style="margin-top:10px;">
         <table class="events-table">
@@ -65,4 +66,5 @@
     {% endif %}
   </details>
 </section>
+</div>
 {% endblock %}

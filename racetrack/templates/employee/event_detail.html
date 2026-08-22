@@ -1,17 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card event-shell">
-  <aside class="event-nav">
-    <h2>Event</h2>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}"><i class="bi bi-sliders2"></i> General</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}"><i class="bi bi-graph-up-arrow"></i> Analytics</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i> Class Slots</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-people"></i> Participants</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}"><i class="bi bi-clipboard-check"></i> Inspect</a>
-    <a class="btn btn-secondary" href="{{ url_for('employee.event_detail', event_id=event.id, view='tickets') }}"><i class="bi bi-ticket-perforated"></i> Tickets</a>
-  </aside>
-  <div>
-    <section class="card">
+<div class="event-workspace">
+  <header class="event-page-header">
+    <div>
+      <span class="event-page-kicker">{{ 'Past event' if event.event_date < today else 'Event' }}</span>
+      <h2>{{ event.event_name }}</h2>
+      <p class="muted-line"><i class="bi bi-calendar3" aria-hidden="true"></i> {{ event.event_date }} <span>·</span> {{ event.track.name }}</p>
+    </div>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.events_index') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> All events</a>
+  </header>
+  <nav class="event-tabs" aria-label="Event tools">
+    <a class="{% if view == 'general' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}"><i class="bi bi-sliders2"></i><span>General</span></a>
+    <a class="{% if view == 'analytics' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}"><i class="bi bi-graph-up-arrow"></i><span>Analytics</span></a>
+    <a class="{% if view == 'slots' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i><span>Class Slots</span></a>
+    <a class="{% if view == 'participants' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-people"></i><span>Participants</span></a>
+    <a class="{% if view == 'inspect' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}"><i class="bi bi-clipboard-check"></i><span>Inspect</span></a>
+    <a class="{% if view == 'tickets' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='tickets') }}"><i class="bi bi-ticket-perforated"></i><span>Tickets</span></a>
+    <a href="{{ url_for('employee.run_groups', event_id=event.id) }}"><i class="bi bi-collection"></i><span>Run Groups</span></a>
+  </nav>
+  <div class="event-workspace-content">
+    <section class="card event-view-card">
       {% if view == 'general' %}
         {% set selected_layout_name = event.track_layout.name if event.track_layout else 'Default Track Layout' %}
         <form method="post" action="{{ url_for('employee.event_edit', event_id=event.id) }}" enctype="multipart/form-data" class="form-grid" data-enhanced data-general-form>
@@ -343,7 +351,7 @@
         {% endif %}
       {% else %}
         <h3>Event Analytics</h3>
-        <p class="muted-line">Use the left menu to switch tools without leaving this page.</p>
+        <p class="muted-line">Use the tabs above to switch tools without leaving this event.</p>
       {% endif %}
     </section>
 
@@ -356,8 +364,8 @@
             {% for point in signup_trend %}
               <div>
                 <div class="row-space"><span>{{ point.day }}</span><strong>{{ point.count }}</strong></div>
-                <div style="height:8px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;">
-                  <div style="height:100%;width:{{ (point.count / max_count * 100) if max_count else 0 }}%;background:linear-gradient(135deg,var(--accent),var(--accent2));"></div>
+                <div class="event-trend-track">
+                  <div style="width:{{ (point.count / max_count * 100) if max_count else 0 }}%;"></div>
                 </div>
               </div>
             {% endfor %}
@@ -379,5 +387,5 @@
 
     {% endif %}
   </div>
-</section>
+</div>
 {% endblock %}
