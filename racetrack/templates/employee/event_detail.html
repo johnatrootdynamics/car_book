@@ -11,8 +11,10 @@
   </header>
   <nav class="event-tabs" aria-label="Event tools">
     <a class="{% if view == 'general' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='general') }}"><i class="bi bi-sliders2"></i><span>General</span></a>
-    <a class="{% if view == 'analytics' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}"><i class="bi bi-graph-up-arrow"></i><span>Analytics</span></a>
-    <a class="{% if view == 'slots' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i><span>Class Slots</span></a>
+    {% if is_office_staff %}
+      <a class="{% if view == 'analytics' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}"><i class="bi bi-graph-up-arrow"></i><span>Analytics</span></a>
+      <a class="{% if view == 'slots' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i><span>Class Slots</span></a>
+    {% endif %}
     <a class="{% if view == 'participants' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-people"></i><span>Participants</span></a>
     <a class="{% if view == 'inspect' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}"><i class="bi bi-clipboard-check"></i><span>Inspect</span></a>
     <a class="{% if view == 'tickets' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='tickets') }}"><i class="bi bi-ticket-perforated"></i><span>Tickets</span></a>
@@ -36,7 +38,7 @@
 
           <div class="general-head">
             <h3 style="margin:0;" class="general-static" data-static>{{ event.event_name }}</h3>
-            <button type="button" class="btn btn-secondary btn-sm" data-general-edit-btn>Edit</button>
+            {% if is_office_staff %}<button type="button" class="btn btn-secondary btn-sm" data-general-edit-btn>Edit</button>{% endif %}
           </div>
 
           <div class="event-general-meta general-static" data-static>

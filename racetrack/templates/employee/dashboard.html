@@ -61,7 +61,7 @@
               <td>{{ signup_counts.get(event.id, 0) }}</td>
               <td>
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open</a>
-                <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
+                {% if is_office_staff %}<a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>{% endif %}
               </td>
             </tr>
             {% endfor %}

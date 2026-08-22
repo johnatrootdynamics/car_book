@@ -225,6 +225,9 @@ def create_app():
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
+                "ALTER TABLE employees ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'office_staff'"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS checkin_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
@@ -332,6 +335,12 @@ def create_app():
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
+                "UPDATE employees SET role = 'office_staff' WHERE role IS NULL OR role NOT IN ('track_staff', 'office_staff')"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE employees MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'track_staff'"
+            )
+            conn.exec_driver_sql(
                 "UPDATE users SET username = LOWER(SUBSTRING_INDEX(email, '@', 1)) WHERE username IS NULL OR username = ''"
             )
             conn.exec_driver_sql(
@@ -403,6 +412,7 @@ def create_app():
                 full_name="Demo Employee",
                 email="employee@track.local",
                 password_hash=generate_password_hash("ChangeMe123!"),
+                role="office_staff",
             )
             db.session.add(demo_employee)
 
@@ -454,6 +464,13 @@ def create_app():
             "is_user": getattr(current_user, "account_type", None) == "user",
             "is_employee": getattr(current_user, "account_type", None) == "employee",
             "is_admin": getattr(current_user, "account_type", None) == "admin",
+            "is_office_staff": (
+                getattr(current_user, "account_type", None) == "admin"
+                or (
+                    getattr(current_user, "account_type", None) == "employee"
+                    and getattr(current_user, "role", None) == "office_staff"
+                )
+            ),
             "asset_url": asset_url,
         }
 

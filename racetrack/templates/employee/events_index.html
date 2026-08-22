@@ -7,7 +7,7 @@
       <h2>Events</h2>
       <p class="muted-line">Plan and manage track days at {{ track.name }}.</p>
     </div>
-    <a class="btn" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create Event</a>
+    {% if is_office_staff %}<a class="btn" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create Event</a>{% endif %}
   </div>
 </section>
 
@@ -24,11 +24,15 @@
             <td>{{ event.event_date }}</td>
             <td>{{ signup_counts.get(event.id, 0) }}</td>
             <td>
+              {% if is_office_staff %}
               <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
               <form method="post" action="{{ url_for('employee.event_delete', event_id=event.id) }}" class="inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm danger-btn" onclick="return confirm('Delete this event? This cannot be undone.')">Delete</button>
               </form>
+              {% else %}
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open</a>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -36,7 +40,7 @@
       </table>
     </div>
   {% else %}
-    <div class="events-empty"><i class="bi bi-calendar2-plus" aria-hidden="true"></i><p>No upcoming events.</p><a href="{{ url_for('employee.event_new') }}">Create the next event</a></div>
+    <div class="events-empty"><i class="bi bi-calendar2-plus" aria-hidden="true"></i><p>No upcoming events.</p>{% if is_office_staff %}<a href="{{ url_for('employee.event_new') }}">Create the next event</a>{% endif %}</div>
   {% endif %}
 </section>
 
@@ -54,7 +58,11 @@
               <td>{{ event.event_date }}</td>
               <td>{{ signup_counts.get(event.id, 0) }}</td>
               <td>
+                {% if is_office_staff %}
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
+                {% else %}
+                <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open</a>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}

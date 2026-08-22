@@ -3024,7 +3024,7 @@ details > summary { font-size: .92rem; }
 
 .staff-create-form {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr auto;
+  grid-template-columns: 1fr 1.25fr 1fr .82fr auto;
   gap: 9px;
   align-items: end;
 }
@@ -3063,7 +3063,7 @@ details > summary { font-size: .92rem; }
 
 .staff-list-row {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 11px;
   min-height: 58px;
@@ -3090,12 +3090,16 @@ details > summary { font-size: .92rem; }
 .staff-identity { display: grid; min-width: 0; }
 .staff-identity strong { color: #344054; font-size: .88rem; }
 .staff-identity span { overflow: hidden; color: #667085; font-size: .78rem; text-overflow: ellipsis; }
+.staff-role-form { display: flex; align-items: center; gap: 7px; }
+.staff-role-form select { min-width: 126px; padding: 7px 30px 7px 9px; font-size: .76rem; }
 .staff-list-row time { color: #8a94a6; font-size: .74rem; }
 .staff-list-empty { padding: 26px 15px; color: #7a8699; text-align: center; font-size: .84rem; }
 
 @media (max-width: 900px) {
   .staff-create-form { grid-template-columns: 1fr 1fr; }
   .staff-create-action { align-self: end; }
+  .staff-list-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  .staff-list-row time { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -3103,7 +3107,8 @@ details > summary { font-size: .92rem; }
   .staff-create-action .btn { width: 100%; }
   .staff-email-option { grid-column: 1; }
   .staff-list-row { grid-template-columns: 34px minmax(0, 1fr); }
-  .staff-list-row time { grid-column: 2; }
+  .staff-role-form { grid-column: 2; justify-content: flex-start; }
+  .staff-role-form select { flex: 1; }
 }
 
 /* Create/edit event form contrast */

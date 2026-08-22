@@ -147,11 +147,16 @@ class Employee(db.Model, UserMixin):
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default="track_staff")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     @property
     def account_type(self):
         return "employee"
+
+    @property
+    def is_office_staff(self):
+        return self.role == "office_staff"
 
     def get_id(self):
         return f"employee:{self.id}"

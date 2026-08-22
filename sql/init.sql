@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS employees (
   full_name VARCHAR(150) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL DEFAULT 'track_staff',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_employees_track FOREIGN KEY (track_id) REFERENCES tracks(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
@@ -234,9 +235,10 @@ INSERT INTO tracks (name, city, state)
 VALUES ('Demo Speedway', 'Austin', 'TX')
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
-INSERT INTO employees (track_id, full_name, email, password_hash)
+INSERT INTO employees (track_id, full_name, email, password_hash, role)
 SELECT t.id, 'Demo Employee', 'employee@track.local',
-       'scrypt:32768:8:1$hpe5m7nSpcXe2SyA$4c1de5076c48f33169830766d0a522823db14513e9e6620a281ec39ca14fa9950a1800cca5498b97adb80d8c3f3bcd7d1fd5c2d6d2a7ecca64204a5f32ebfe41'
+       'scrypt:32768:8:1$hpe5m7nSpcXe2SyA$4c1de5076c48f33169830766d0a522823db14513e9e6620a281ec39ca14fa9950a1800cca5498b97adb80d8c3f3bcd7d1fd5c2d6d2a7ecca64204a5f32ebfe41',
+       'office_staff'
 FROM tracks t
 WHERE t.name = 'Demo Speedway'
   AND NOT EXISTS (

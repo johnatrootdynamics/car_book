@@ -278,7 +278,10 @@ def boldsign_webhook():
 @waiver_bp.route("/admin/waivers/debug")
 @login_required
 def waiver_debug():
-    if getattr(current_user, "account_type", None) not in {"admin", "employee"}:
+    account_type = getattr(current_user, "account_type", None)
+    if account_type != "admin" and not (
+        account_type == "employee" and getattr(current_user, "role", None) == "office_staff"
+    ):
         abort(403)
     latest = DriverWaiver.query.order_by(DriverWaiver.updated_at.desc()).limit(20).all()
     return render_template("admin/waivers_debug.html", waivers=latest)

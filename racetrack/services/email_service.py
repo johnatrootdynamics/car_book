@@ -65,6 +65,7 @@ def send_user_welcome_email(user):
 
 
 def send_employee_login_email(employee, plaintext_password, track, login_url):
+    role_label = "Office staff" if employee.role == "office_staff" else "Track staff"
     return send_email(
         employee.email,
         f"Your {track.name} Track Ops account",
@@ -74,6 +75,7 @@ def send_employee_login_email(employee, plaintext_password, track, login_url):
             f"Login: {login_url}\n"
             f"Email: {employee.email}\n"
             f"Password: {plaintext_password}\n\n"
+            f"Role: {role_label}\n\n"
             "Please sign in and keep this information secure.\n\n"
             f"Thanks,\n{track.name}"
         ),

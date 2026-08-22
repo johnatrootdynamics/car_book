@@ -65,6 +65,11 @@ PAYMENT_PROVIDER_CHOICES = {
     "other": "Other / Manual",
 }
 
+STAFF_ROLE_LABELS = {
+    "track_staff": "Track staff",
+    "office_staff": "Office staff",
+}
+
 
 def require_employee():
     if not current_user.is_authenticated:
@@ -78,6 +83,23 @@ def require_employee():
     if current_user.account_type != "employee":
         flash("Employee access required for that page.", "error")
         return redirect(url_for("user.dashboard"))
+    return None
+
+
+def has_office_access():
+    """Office staff and impersonating enterprise admins can manage the back office."""
+    if current_user.account_type == "admin":
+        return bool(session.get("impersonate_track_id"))
+    return current_user.account_type == "employee" and getattr(current_user, "role", None) == "office_staff"
+
+
+def require_office_staff():
+    guard = require_employee()
+    if guard:
+        return guard
+    if not has_office_access():
+        flash("Office staff access required for that page.", "error")
+        return redirect(url_for("employee.dashboard"))
     return None
 
 
@@ -284,7 +306,7 @@ def events_index():
 @employee_bp.route("/track-profile", methods=["GET"])
 @login_required
 def track_profile():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     track = Track.query.get_or_404(active_track_id())
@@ -296,7 +318,7 @@ def track_profile():
 @employee_bp.route("/settings", methods=["GET"])
 @login_required
 def settings():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     track = Track.query.get_or_404(active_track_id())
@@ -321,7 +343,7 @@ def settings():
 @employee_bp.route("/settings/payments", methods=["POST"])
 @login_required
 def payment_methods_update():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     track = Track.query.get_or_404(active_track_id())
@@ -384,7 +406,7 @@ def payment_methods_update():
 @employee_bp.route("/settings/email-templates/<template_key>", methods=["GET", "POST"])
 @login_required
 def email_template_edit(template_key):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     if template_key not in EMAIL_TEMPLATE_DEFINITIONS:
@@ -421,18 +443,23 @@ def email_template_edit(template_key):
 @employee_bp.route("/staff-accounts", methods=["GET"])
 @login_required
 def staff_accounts():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     form = EmployeeCreateForm()
     staff = Employee.query.filter_by(track_id=active_track_id()).order_by(Employee.created_at.desc()).all()
-    return render_template("employee/staff_accounts.html", form=form, staff=staff)
+    return render_template(
+        "employee/staff_accounts.html",
+        form=form,
+        staff=staff,
+        staff_role_labels=STAFF_ROLE_LABELS,
+    )
 
 
 @employee_bp.route("/track", methods=["POST"])
 @login_required
 def update_track():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     track = Track.query.get_or_404(active_track_id())
@@ -463,7 +490,7 @@ def update_track():
 @employee_bp.route("/track-layouts/new", methods=["POST"])
 @login_required
 def track_layout_new():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     track = Track.query.get_or_404(active_track_id())
@@ -531,7 +558,7 @@ def track_layout_new():
 @employee_bp.route("/track-layouts/<int:layout_id>/delete", methods=["POST"])
 @login_required
 def track_layout_delete(layout_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     layout = TrackLayout.query.filter_by(id=layout_id, track_id=active_track_id()).first_or_404()
@@ -548,7 +575,7 @@ def track_layout_delete(layout_id):
 @employee_bp.route("/employees/new", methods=["POST"])
 @login_required
 def create_employee():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     form = EmployeeCreateForm()
@@ -564,6 +591,7 @@ def create_employee():
                 full_name=form.full_name.data.strip(),
                 email=form.email.data.lower().strip(),
                 password_hash=generate_password_hash(plaintext_password),
+                role=form.role.data,
             )
             db.session.add(employee)
             db.session.commit()
@@ -589,10 +617,38 @@ def create_employee():
     return redirect(url_for("employee.staff_accounts"))
 
 
+@employee_bp.route("/employees/<int:employee_id>/role", methods=["POST"])
+@login_required
+def update_employee_role(employee_id):
+    guard = require_office_staff()
+    if guard:
+        return guard
+    employee = Employee.query.filter_by(
+        id=employee_id,
+        track_id=active_track_id(),
+    ).first_or_404()
+    role = (request.form.get("role") or "").strip()
+    if role not in STAFF_ROLE_LABELS:
+        flash("Choose a valid staff role.", "error")
+        return redirect(url_for("employee.staff_accounts"))
+    if employee.role == "office_staff" and role == "track_staff":
+        office_count = Employee.query.filter_by(
+            track_id=active_track_id(),
+            role="office_staff",
+        ).count()
+        if office_count <= 1:
+            flash("Every track must keep at least one office staff account.", "error")
+            return redirect(url_for("employee.staff_accounts"))
+    employee.role = role
+    db.session.commit()
+    flash(f"{employee.full_name} is now {STAFF_ROLE_LABELS[role].lower()}.", "success")
+    return redirect(url_for("employee.staff_accounts"))
+
+
 @employee_bp.route("/events/new", methods=["GET", "POST"])
 @login_required
 def event_new():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     form = EventForm()
@@ -645,7 +701,7 @@ def event_new():
 @employee_bp.route("/events/<int:event_id>/edit", methods=["GET", "POST"])
 @login_required
 def event_edit(event_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
@@ -695,7 +751,7 @@ def event_edit(event_id):
 @employee_bp.route("/events/<int:event_id>/delete", methods=["POST"])
 @login_required
 def event_delete(event_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
@@ -769,6 +825,9 @@ def event_detail(event_id):
     view = (request.args.get("view") or "general").strip().lower()
     if view not in {"general", "analytics", "participants", "inspect", "slots", "tickets"}:
         view = "general"
+    if view in {"analytics", "slots"} and not has_office_access():
+        flash("Office staff access required for planning and analytics.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="general"))
 
     groups = []
     assignments = {}
@@ -843,7 +902,7 @@ def event_detail(event_id):
 @employee_bp.route("/events/<int:event_id>/slots/new", methods=["POST"])
 @login_required
 def event_slot_new(event_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
@@ -889,7 +948,7 @@ def event_slot_new(event_id):
 @employee_bp.route("/events/<int:event_id>/slots/save", methods=["POST"])
 @login_required
 def event_slot_save(event_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
@@ -954,7 +1013,7 @@ def event_slot_save(event_id):
 @employee_bp.route("/events/<int:event_id>/slots/<int:slot_id>/delete", methods=["POST"])
 @login_required
 def event_slot_delete(event_id, slot_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
@@ -1300,7 +1359,7 @@ def update_driver_class(track_id, user_id):
 @employee_bp.route("/inspection-rules", methods=["POST"])
 @login_required
 def add_inspection_rule():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     form = InspectionRuleForm()
@@ -1318,7 +1377,7 @@ def add_inspection_rule():
 @employee_bp.route("/inspection-rules/<int:rule_id>/toggle", methods=["POST"])
 @login_required
 def toggle_inspection_rule(rule_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     rule = InspectionRule.query.filter_by(id=rule_id, track_id=active_track_id()).first_or_404()
@@ -1331,7 +1390,7 @@ def toggle_inspection_rule(rule_id):
 @employee_bp.route("/inspection-rules/<int:rule_id>/delete", methods=["POST"])
 @login_required
 def delete_inspection_rule(rule_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     rule = InspectionRule.query.filter_by(id=rule_id, track_id=active_track_id()).first_or_404()
@@ -1344,7 +1403,7 @@ def delete_inspection_rule(rule_id):
 @employee_bp.route("/inspection-rules")
 @login_required
 def inspection_rules():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     rules = InspectionRule.query.filter_by(track_id=active_track_id()).order_by(InspectionRule.sort_order.asc(), InspectionRule.id.asc()).all()
@@ -1355,7 +1414,7 @@ def inspection_rules():
 @employee_bp.route("/waivers/template-builder", methods=["GET", "POST"])
 @login_required
 def waiver_template_builder():
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     embedded_url = None
@@ -1415,7 +1474,7 @@ def waiver_template_builder():
 @employee_bp.route("/waivers/templates/<int:template_id>/delete", methods=["POST"])
 @login_required
 def waiver_template_delete(template_id):
-    guard = require_employee()
+    guard = require_office_staff()
     if guard:
         return guard
     template = TrackWaiverTemplate.query.filter_by(id=template_id, track_id=active_track_id()).first_or_404()

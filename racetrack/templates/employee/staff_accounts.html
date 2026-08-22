@@ -4,7 +4,7 @@
   <header class="staff-accounts-header">
     <div>
       <h2>Staff Accounts</h2>
-      <p class="muted-line">Create and manage employee access for this track.</p>
+      <p class="muted-line">Track staff handle event-day operations. Office staff can also manage planning, finances, settings, and accounts.</p>
     </div>
     <span class="staff-count">{{ staff|length }} {{ 'account' if staff|length == 1 else 'accounts' }}</span>
   </header>
@@ -15,6 +15,7 @@
       <label>Full name {{ form.full_name(placeholder='Alex Morgan') }}</label>
       <label>Email {{ form.email(placeholder='alex@example.com') }}</label>
       <label>Password {{ form.password(placeholder='Minimum 8 characters') }}</label>
+      <label>Role {{ form.role() }}</label>
       <div class="staff-create-action">{{ form.submit(class_='btn') }}</div>
       <label class="staff-email-option">{{ form.email_login_details() }} <span><strong>Email login details</strong><small>Sends the email address, password, and employee login link.</small></span></label>
     </form>
@@ -31,6 +32,16 @@
             <strong>{{ member.full_name }}</strong>
             <span>{{ member.email }}</span>
           </div>
+          <form method="post" action="{{ url_for('employee.update_employee_role', employee_id=member.id) }}" class="staff-role-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="sr-only" for="staff-role-{{ member.id }}">Role for {{ member.full_name }}</label>
+            <select id="staff-role-{{ member.id }}" name="role" aria-label="Role for {{ member.full_name }}">
+              {% for role_value, role_label in staff_role_labels.items() %}
+                <option value="{{ role_value }}" {% if member.role == role_value %}selected{% endif %}>{{ role_label }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-secondary btn-sm" type="submit">Save</button>
+          </form>
           <time datetime="{{ member.created_at.isoformat() }}">Added {{ member.created_at.strftime('%b %-d, %Y') }}</time>
         </article>
       {% endfor %}
