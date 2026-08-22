@@ -3526,6 +3526,8 @@ details > summary { font-size: .92rem; }
 }
 .inspections-event-picker select,
 .inspections-search input { margin: 0; min-height: 40px; }
+.inspections-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+.inspections-search-row > .btn { min-width: 70px; }
 .inspections-search-control { position: relative; }
 .inspections-search-control > i {
   position: absolute;
@@ -3655,6 +3657,7 @@ details > summary { font-size: .92rem; }
   .inspection-lookup-form .btn { width: 100%; }
   .inspections-hub-header { flex-direction: column; gap: 7px; }
   .inspections-toolbar { grid-template-columns: 1fr; }
+  .inspections-search-row { grid-template-columns: minmax(0, 1fr) auto; }
   .inspection-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .inspection-queue-row { grid-template-columns: 1fr auto; gap: 8px 12px; }
   .inspection-queue-state { grid-column: 1; }

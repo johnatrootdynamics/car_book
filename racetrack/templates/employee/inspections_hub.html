@@ -28,10 +28,13 @@
       <form method="get" class="inspections-search">
         <input type="hidden" name="event_id" value="{{ selected_event.id }}">
         <label for="inspection-search">Driver, car, or check-in code</label>
-        <div class="inspections-search-control">
-          <i class="bi bi-search" aria-hidden="true"></i>
-          <input id="inspection-search" type="search" name="q" value="{{ query }}" placeholder="Search the inspection queue" autocomplete="off">
-          {% if query %}<a href="{{ url_for('employee.inspections_hub', event_id=selected_event.id) }}">Clear</a>{% endif %}
+        <div class="inspections-search-row">
+          <div class="inspections-search-control">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="inspection-search" type="search" name="q" value="{{ query }}" placeholder="Search the inspection queue" autocomplete="off">
+            {% if query %}<a href="{{ url_for('employee.inspections_hub', event_id=selected_event.id) }}">Clear</a>{% endif %}
+          </div>
+          <button class="btn btn-secondary btn-sm" type="submit">Search</button>
         </div>
       </form>
     </section>
