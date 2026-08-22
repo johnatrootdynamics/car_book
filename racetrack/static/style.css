@@ -3151,6 +3151,18 @@ details > summary { font-size: .92rem; }
 .event-form-page input[type="time"],
 .event-form-page input[type="number"] { color: #101828; }
 
+.event-form-page input.btn {
+  color: #fff;
+  background: #2457ff;
+  border-color: #2457ff;
+}
+
+.event-form-page input.btn:hover {
+  color: #fff;
+  background: #1745dc;
+  border-color: #1745dc;
+}
+
 .event-form-page input[type="file"] {
   padding: 5px 7px;
   color: #475467;
