@@ -1,34 +1,43 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="row-space">
-    <h2>Staff Accounts</h2>
-    <a class="btn btn-secondary" href="{{ url_for('employee.dashboard') }}">Back</a>
-  </div>
-  <form method="post" action="{{ url_for('employee.create_employee') }}" class="form-grid two-col" data-enhanced>
-    {{ form.hidden_tag() }}
-    <label>Full Name {{ form.full_name() }}</label>
-    <label>Email {{ form.email() }}</label>
-    <label>Password {{ form.password() }}</label>
-    <div class="full">{{ form.submit(class_='btn') }}</div>
-  </form>
-</section>
+<div class="staff-accounts-page">
+  <header class="staff-accounts-header">
+    <div>
+      <h2>Staff Accounts</h2>
+      <p class="muted-line">Create and manage employee access for this track.</p>
+    </div>
+    <span class="staff-count">{{ staff|length }} {{ 'account' if staff|length == 1 else 'accounts' }}</span>
+  </header>
 
-<section class="card">
-  <h3>Existing Staff</h3>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Name</th><th>Email</th><th>Created</th></tr></thead>
-      <tbody>
+  <section class="card staff-create-card">
+    <form method="post" action="{{ url_for('employee.create_employee') }}" class="staff-create-form" data-enhanced>
+      {{ form.hidden_tag() }}
+      <label>Full name {{ form.full_name(placeholder='Alex Morgan') }}</label>
+      <label>Email {{ form.email(placeholder='alex@example.com') }}</label>
+      <label>Password {{ form.password(placeholder='Minimum 8 characters') }}</label>
+      <div class="staff-create-action">{{ form.submit(class_='btn') }}</div>
+      <label class="staff-email-option">{{ form.email_login_details() }} <span><strong>Email login details</strong><small>Sends the email address, password, and employee login link.</small></span></label>
+    </form>
+  </section>
+
+  <section class="card staff-list-card">
+    <div class="staff-list-head"><h3>Current staff</h3></div>
+    {% if staff %}
+      <div class="staff-list">
       {% for member in staff %}
-        <tr>
-          <td>{{ member.full_name }}</td>
-          <td>{{ member.email }}</td>
-          <td>{{ member.created_at }}</td>
-        </tr>
+        <article class="staff-list-row">
+          <span class="staff-avatar">{{ (member.full_name or 'S')[0]|upper }}</span>
+          <div class="staff-identity">
+            <strong>{{ member.full_name }}</strong>
+            <span>{{ member.email }}</span>
+          </div>
+          <time datetime="{{ member.created_at.isoformat() }}">Added {{ member.created_at.strftime('%b %-d, %Y') }}</time>
+        </article>
       {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
+      </div>
+    {% else %}
+      <div class="staff-list-empty">No staff accounts yet.</div>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

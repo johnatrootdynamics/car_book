@@ -64,6 +64,22 @@ def send_user_welcome_email(user):
     )
 
 
+def send_employee_login_email(employee, plaintext_password, track, login_url):
+    return send_email(
+        employee.email,
+        f"Your {track.name} Track Ops account",
+        (
+            f"Hi {employee.full_name},\n\n"
+            f"An employee account has been created for you at {track.name}.\n\n"
+            f"Login: {login_url}\n"
+            f"Email: {employee.email}\n"
+            f"Password: {plaintext_password}\n\n"
+            "Please sign in and keep this information secure.\n\n"
+            f"Thanks,\n{track.name}"
+        ),
+    )
+
+
 def send_spectator_order_receipt(order):
     track = order.items[0].event.track if order.items else None
     ticket_lines = []

@@ -82,6 +82,7 @@ class EmployeeCreateForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
     password = PasswordField("Password", validators=[DataRequired(), Length(min=8, max=255)])
+    email_login_details = BooleanField("Email login details to this employee")
     submit = SubmitField("Create Employee Account")
 
 

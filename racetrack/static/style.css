@@ -2993,3 +2993,115 @@ details > summary { font-size: .92rem; }
   .inspection-rule-row { grid-template-columns: 9px minmax(0, 1fr); }
   .inspection-rule-actions { grid-column: 2; justify-self: start; }
 }
+
+/* Streamlined staff account manager */
+.staff-accounts-page {
+  width: min(940px, 100%);
+  margin: 0 auto;
+}
+
+.staff-accounts-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.staff-accounts-header h2 { margin: 0; font-size: 1.45rem; }
+.staff-accounts-header p { margin: 4px 0 0; }
+
+.staff-count {
+  padding: 4px 9px;
+  color: #667085;
+  background: #eaecf0;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 650;
+}
+
+.staff-create-card { padding: 15px; }
+
+.staff-create-form {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr auto;
+  gap: 9px;
+  align-items: end;
+}
+
+.staff-create-form label { font-size: .78rem; }
+.staff-create-form input:not([type="checkbox"]) { min-width: 0; }
+.staff-create-action .btn { white-space: nowrap; }
+
+.staff-email-option {
+  grid-column: 1 / -1;
+  display: flex;
+  grid-template-columns: none;
+  align-items: flex-start;
+  gap: 9px;
+  width: fit-content;
+  padding-top: 2px;
+  color: #475467;
+  cursor: pointer;
+}
+
+.staff-email-option input {
+  width: 16px;
+  min-height: 16px;
+  margin: 2px 0 0;
+  accent-color: #2457ff;
+}
+
+.staff-email-option span { display: grid; gap: 1px; }
+.staff-email-option strong { color: #344054; font-size: .8rem; }
+.staff-email-option small { color: #7a8699; font-size: .72rem; font-weight: 500; }
+
+.staff-list-card { padding: 0; overflow: hidden; }
+.staff-list-head { padding: 13px 15px; border-bottom: 1px solid #eaecf0; }
+.staff-list-head h3 { margin: 0; }
+.staff-list { display: grid; }
+
+.staff-list-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 58px;
+  padding: 9px 15px;
+  border-bottom: 1px solid #f0f1f3;
+}
+
+.staff-list-row:last-child { border-bottom: 0; }
+.staff-list-row:hover { background: #fafbfc; }
+
+.staff-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: #3159d5;
+  background: #eaf0ff;
+  border-radius: 50%;
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+.staff-identity { display: grid; min-width: 0; }
+.staff-identity strong { color: #344054; font-size: .88rem; }
+.staff-identity span { overflow: hidden; color: #667085; font-size: .78rem; text-overflow: ellipsis; }
+.staff-list-row time { color: #8a94a6; font-size: .74rem; }
+.staff-list-empty { padding: 26px 15px; color: #7a8699; text-align: center; font-size: .84rem; }
+
+@media (max-width: 900px) {
+  .staff-create-form { grid-template-columns: 1fr 1fr; }
+  .staff-create-action { align-self: end; }
+}
+
+@media (max-width: 600px) {
+  .staff-create-form { grid-template-columns: 1fr; }
+  .staff-create-action .btn { width: 100%; }
+  .staff-email-option { grid-column: 1; }
+  .staff-list-row { grid-template-columns: 34px minmax(0, 1fr); }
+  .staff-list-row time { grid-column: 2; }
+}

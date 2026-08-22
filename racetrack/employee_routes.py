@@ -36,6 +36,7 @@ from .models import (
 )
 from .services.boldsign_service import create_embedded_template_url
 from .services.boldsign_service import delete_template as boldsign_delete_template
+from .services.email_service import send_employee_login_email
 from .services.storage_service import upload_public_image
 
 
@@ -556,18 +557,36 @@ def create_employee():
         if existing:
             flash("Employee email already exists.", "error")
         else:
+            plaintext_password = form.password.data
+            track = Track.query.get_or_404(active_track_id())
             employee = Employee(
-                track_id=active_track_id(),
+                track_id=track.id,
                 full_name=form.full_name.data.strip(),
                 email=form.email.data.lower().strip(),
-                password_hash=generate_password_hash(form.password.data),
+                password_hash=generate_password_hash(plaintext_password),
             )
             db.session.add(employee)
             db.session.commit()
-            flash("Employee account created.", "success")
+            if form.email_login_details.data:
+                try:
+                    sent = send_employee_login_email(
+                        employee,
+                        plaintext_password,
+                        track,
+                        url_for("auth.employee_login", _external=True),
+                    )
+                except Exception:
+                    current_app.logger.exception("Could not send employee login email")
+                    sent = False
+                if sent:
+                    flash("Employee account created and login details emailed.", "success")
+                else:
+                    flash("Employee account created, but the login email could not be sent.", "error")
+            else:
+                flash("Employee account created.", "success")
     else:
         flash("Could not create employee account.", "error")
-    return redirect(url_for("employee.dashboard"))
+    return redirect(url_for("employee.staff_accounts"))
 
 
 @employee_bp.route("/events/new", methods=["GET", "POST"])
