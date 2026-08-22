@@ -3105,3 +3105,109 @@ details > summary { font-size: .92rem; }
   .staff-list-row { grid-template-columns: 34px minmax(0, 1fr); }
   .staff-list-row time { grid-column: 2; }
 }
+
+/* Create/edit event form contrast */
+.event-form-page {
+  width: min(680px, 100%);
+  max-width: none;
+  padding: 20px;
+}
+
+.event-form-page > h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  color: #101828;
+}
+
+.event-form-page > h2 i { color: #2457ff; }
+
+.event-form-page .event-form-label {
+  color: #344054;
+  font-size: .84rem;
+  font-weight: 650;
+}
+
+.event-form-page .event-form-label i {
+  width: 16px;
+  color: #4f6fcf;
+  font-size: .82rem;
+  text-align: center;
+}
+
+.event-form-page input,
+.event-form-page select,
+.event-form-page textarea {
+  color: #101828;
+  background: #fff;
+  border-color: #cfd6e2;
+}
+
+.event-form-page input::placeholder,
+.event-form-page textarea::placeholder { color: #8a94a6; opacity: 1; }
+
+.event-form-page input[type="date"],
+.event-form-page input[type="time"],
+.event-form-page input[type="number"] { color: #101828; }
+
+.event-form-page input[type="file"] {
+  padding: 5px 7px;
+  color: #475467;
+  background: #f8fafc;
+  font-size: .82rem;
+}
+
+.event-form-page input[type="file"]::file-selector-button {
+  margin-right: 9px;
+  padding: 6px 9px;
+  color: #344054;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.event-form-page input[type="file"]::file-selector-button:hover { background: #f2f4f7; }
+
+.event-layout-source {
+  margin: 3px 0 2px;
+  padding: 14px;
+  background: #f8fafc;
+  border-color: #e1e6ee;
+  border-radius: 8px;
+}
+
+.event-layout-source > h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 11px;
+  color: #344054;
+  font-size: .9rem;
+}
+
+.event-layout-source > h3 i { color: #4f6fcf; }
+.event-layout-source label { color: #344054; }
+
+.event-form-page .layout-mode-buttons { gap: 6px; margin-bottom: 3px; }
+.event-form-page .layout-mode-btn.active {
+  color: #fff;
+  background: #2457ff;
+  border-color: #2457ff;
+}
+
+.event-form-page [data-layout-mode]:not([hidden]) {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e1e6ee;
+}
+
+@media (max-width: 600px) {
+  .event-form-page { padding: 16px; }
+  .event-form-page .layout-mode-buttons { display: grid; grid-template-columns: 1fr 1fr; }
+}

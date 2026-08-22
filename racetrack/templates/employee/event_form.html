@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card narrow">
+<section class="card narrow event-form-page">
   <h2><i class="bi bi-calendar2-plus"></i> {{ title }}</h2>
   <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
@@ -42,8 +42,8 @@
       </select>
     </label>
     {% set current_layout_id = event.track_layout_id if event and event.track_layout_id else 0 %}
-    <section class="card" style="margin:0;">
-      <h3 style="margin-top:0;"><i class="bi bi-map"></i> Layout Source</h3>
+    <section class="card event-layout-source">
+      <h3><i class="bi bi-map"></i> Layout Source</h3>
       {% set initial_mode = 'existing' if current_layout_id else 'default' %}
       <div class="layout-mode-buttons" data-layout-mode-buttons>
         <button type="button" class="btn btn-secondary btn-sm layout-mode-btn {% if initial_mode == 'default' %}active{% endif %}" data-layout-mode-btn="default">Use Default</button>
