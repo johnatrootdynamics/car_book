@@ -57,6 +57,7 @@
       } %}
       {% for provider, label in payment_provider_choices.items() %}
         {% set method = payment_methods.get(provider) %}
+        {% set setup_guide = payment_provider_docs.get(provider) %}
         {% set enabled = method.is_enabled if method else provider == track.spectator_payment_provider %}
         {% if provider == 'stripe' %}
           {% set ready = track.stripe_secret_key and track.stripe_webhook_secret %}
@@ -69,7 +70,14 @@
             <div class="payment-provider-head">
               <span class="payment-provider-icon"><i class="bi {{ provider_icons.get(provider, 'bi-credit-card') }}"></i></span>
               <span>
-                <strong>{{ label }}</strong>
+                <span class="payment-provider-title">
+                  <strong>{{ label }}</strong>
+                  {% if setup_guide %}
+                    <a class="payment-doc-link" href="{{ setup_guide }}" target="_blank" rel="noopener noreferrer" aria-label="Open {{ label }} setup documentation">
+                      Setup guide <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                    </a>
+                  {% endif %}
+                </span>
                 <small>{% if provider == 'stripe' %}Live checkout gateway{% else %}Manual payment option{% endif %}</small>
               </span>
             </div>

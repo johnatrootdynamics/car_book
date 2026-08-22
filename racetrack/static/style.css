@@ -2726,6 +2726,18 @@ details > summary { font-size: .92rem; }
 .payment-provider-head { gap: 11px; min-width: 0; }
 .payment-provider-head > span:last-child { min-width: 0; }
 .payment-provider-head strong { color: #1d2939; font-size: .95rem; }
+.payment-provider-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; }
+.payment-doc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #667085 !important;
+  font-size: .69rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.payment-doc-link:hover { color: #2457ff !important; text-decoration: underline; }
+.payment-doc-link i { font-size: .62rem; }
 .payment-provider-head small {
   margin-top: 1px;
   color: #667085;

@@ -65,6 +65,13 @@ PAYMENT_PROVIDER_CHOICES = {
     "other": "Other / Manual",
 }
 
+PAYMENT_PROVIDER_DOCS = {
+    "stripe": "https://docs.stripe.com/keys",
+    "paypal": "https://developer.paypal.com/api/rest/",
+    "toast": "https://doc.toasttab.com/doc/devguide/authentication.html",
+    "quickbooks": "https://developer.intuit.com/app/developer/qbpayments/docs/develop",
+}
+
 STAFF_ROLE_LABELS = {
     "track_staff": "Track staff",
     "office_staff": "Office staff",
@@ -337,6 +344,7 @@ def settings():
         template_definitions=EMAIL_TEMPLATE_DEFINITIONS,
         payment_methods=payment_methods,
         payment_provider_choices=PAYMENT_PROVIDER_CHOICES,
+        payment_provider_docs=PAYMENT_PROVIDER_DOCS,
     )
 
 
