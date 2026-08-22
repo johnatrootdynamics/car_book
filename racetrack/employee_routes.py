@@ -310,6 +310,154 @@ def events_index():
     )
 
 
+@employee_bp.route("/inspections")
+@login_required
+def inspections_hub():
+    guard = require_employee()
+    if guard:
+        return guard
+
+    track_id = active_track_id()
+    track = Track.query.get_or_404(track_id)
+    active_rule_count = InspectionRule.query.filter_by(
+        track_id=track_id,
+        active=True,
+    ).count()
+    events = (
+        Event.query.filter_by(track_id=track_id)
+        .order_by(Event.event_date.desc(), Event.id.desc())
+        .all()
+    )
+
+    selected_event = None
+    selected_event_id = request.args.get("event_id", type=int)
+    if selected_event_id:
+        selected_event = Event.query.filter_by(
+            id=selected_event_id,
+            track_id=track_id,
+        ).first_or_404()
+    elif events:
+        selected_event = next(
+            (event for event in events if event.event_date == date.today()),
+            None,
+        )
+        if not selected_event:
+            upcoming = sorted(
+                (event for event in events if event.event_date > date.today()),
+                key=lambda event: (event.event_date, event.id),
+            )
+            selected_event = upcoming[0] if upcoming else events[0]
+
+    query = (request.args.get("q") or "").strip()
+    work_items = []
+    counts = {
+        "total": 0,
+        "pending": 0,
+        "needs_work": 0,
+        "passed": 0,
+        "checked_in": 0,
+    }
+
+    if selected_event:
+        registrations = (
+            EventRegistration.query.filter_by(event_id=selected_event.id)
+            .order_by(EventRegistration.created_at.asc())
+            .all()
+        )
+        inspections = {
+            inspection.event_registration_id: inspection
+            for inspection in Inspection.query.join(
+                EventRegistration,
+                EventRegistration.id == Inspection.event_registration_id,
+            )
+            .filter(EventRegistration.event_id == selected_event.id)
+            .all()
+        }
+
+        from .waiver_routes import get_required_waiver_status
+
+        for registration in registrations:
+            inspection = inspections.get(registration.id)
+            waiver_state, _ = get_required_waiver_status(
+                selected_event.track_id,
+                registration.user_id,
+                selected_event.id,
+            )
+            work_items.append(
+                {
+                    "registration": registration,
+                    "inspection": inspection,
+                    "waiver_state": waiver_state,
+                    "waiver_ok": waiver_state in {"signed", "not_required"},
+                }
+            )
+
+        counts["total"] = len(work_items)
+        counts["pending"] = sum(1 for item in work_items if item["inspection"] is None)
+        counts["needs_work"] = sum(
+            1
+            for item in work_items
+            if item["inspection"] is not None and not item["inspection"].passed
+        )
+        counts["passed"] = sum(
+            1
+            for item in work_items
+            if item["inspection"] is not None and item["inspection"].passed
+        )
+        counts["checked_in"] = sum(
+            1 for item in work_items if item["registration"].checked_in_at
+        )
+
+        if query:
+            needle = query.casefold()
+            work_items = [
+                item
+                for item in work_items
+                if needle
+                in " ".join(
+                    [
+                        item["registration"].user.first_name or "",
+                        item["registration"].user.last_name or "",
+                        item["registration"].user.username or "",
+                        item["registration"].checkin_code or "",
+                        str(item["registration"].car.car_year or ""),
+                        item["registration"].car.make or "",
+                        item["registration"].car.model or "",
+                    ]
+                ).casefold()
+            ]
+
+        def inspection_priority(item):
+            registration = item["registration"]
+            inspection = item["inspection"]
+            is_complete = bool(inspection and inspection.passed)
+            if registration.checked_in_at and not is_complete:
+                queue_rank = 0
+            elif not is_complete:
+                queue_rank = 1
+            else:
+                queue_rank = 2
+            return (
+                queue_rank,
+                registration.user.last_name.casefold(),
+                registration.user.first_name.casefold(),
+            )
+
+        work_items.sort(key=inspection_priority)
+
+    return render_template(
+        "employee/inspections_hub.html",
+        track=track,
+        events=events,
+        selected_event=selected_event,
+        work_items=work_items,
+        counts=counts,
+        query=query,
+        today=date.today(),
+        active_rule_count=active_rule_count,
+    )
+
+
 @employee_bp.route("/track-profile", methods=["GET"])
 @login_required
 def track_profile():
@@ -845,6 +993,8 @@ def driver_checkin(event_id, registration_id):
                 code=registration.checkin_code,
             )
         )
+    if return_to == "inspections":
+        return redirect(url_for("employee.inspections_hub", event_id=event_id))
     if return_to == "run_groups":
         return redirect(url_for("employee.event_detail", event_id=event_id, view="slots"))
     return redirect(url_for("employee.participants", event_id=event_id))
@@ -1566,8 +1716,10 @@ def inspect_registration(event_id, registration_id):
     registration = _load_registration_for_track(event_id, registration_id)
     rules = InspectionRule.query.filter_by(track_id=active_track_id(), active=True).order_by(InspectionRule.sort_order.asc(), InspectionRule.id.asc()).all()
     if not rules:
-        flash("Create inspection rules before inspecting cars.", "error")
-        return redirect(url_for("employee.dashboard"))
+        flash("An active inspection checklist is required before inspecting cars.", "error")
+        if request.args.get("return_to") == "hub":
+            return redirect(url_for("employee.inspections_hub", event_id=event_id))
+        return redirect(url_for("employee.event_detail", event_id=event_id, view="inspect"))
 
     inspection = Inspection.query.filter_by(event_registration_id=registration.id).first()
     form = InspectionForm(obj=inspection)
@@ -1591,6 +1743,8 @@ def inspect_registration(event_id, registration_id):
         inspection.notes = form.notes.data.strip() if form.notes.data else None
         db.session.commit()
         flash("Inspection saved.", "success")
+        if request.args.get("return_to") == "hub":
+            return redirect(url_for("employee.inspections_hub", event_id=event_id))
         return redirect(url_for("employee.participants", event_id=event_id))
 
     track_class = _get_or_create_track_driver_class(registration.event.track_id, registration.user_id)
@@ -1604,4 +1758,5 @@ def inspect_registration(event_id, registration_id):
         existing_map=existing_map,
         form=form,
         inspection=inspection,
+        return_to=request.args.get("return_to"),
     )

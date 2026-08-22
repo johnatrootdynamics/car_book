@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Track Ops</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260822g') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260822h') }}">
 </head>
 <body>
   <div class="app-shell">
@@ -59,10 +59,11 @@
         {% endif %}
         {% if current_user.is_authenticated and is_employee %}
           <a class="side-link {% if ep == 'employee.dashboard' %}active{% endif %}" href="{{ url_for('employee.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-speedometer2"></i></span><span class="sidebar-label">Dashboard</span></a>
-          <a class="side-link {% if ep.startswith('employee.event') or ep in ['employee.events_index','employee.participants','employee.ticket_checkin','employee.inspect_search','employee.inspection_lookup','employee.inspect_registration'] %}active{% endif %}" href="{{ url_for('employee.events_index') }}"><span class="sidebar-icon"><i class="bi bi-calendar-event"></i></span><span class="sidebar-label">Events</span></a>
+          <a class="side-link {% if ep.startswith('employee.event') or ep in ['employee.events_index','employee.participants','employee.ticket_checkin'] %}active{% endif %}" href="{{ url_for('employee.events_index') }}"><span class="sidebar-icon"><i class="bi bi-calendar-event"></i></span><span class="sidebar-label">Events</span></a>
+          <a class="side-link {% if ep in ['employee.inspections_hub','employee.inspect_search','employee.inspection_lookup','employee.inspect_registration'] %}active{% endif %}" href="{{ url_for('employee.inspections_hub') }}"><span class="sidebar-icon"><i class="bi bi-clipboard2-pulse"></i></span><span class="sidebar-label">Inspections</span></a>
           {% if is_office_staff %}
             <a class="side-link {% if ep in ['employee.staff_accounts','employee.create_employee','employee.update_employee_role'] %}active{% endif %}" href="{{ url_for('employee.staff_accounts') }}"><span class="sidebar-icon"><i class="bi bi-person-badge"></i></span><span class="sidebar-label">Staff Accounts</span></a>
-            <a class="side-link {% if ep in ['employee.inspection_rules','employee.add_inspection_rule','employee.toggle_inspection_rule','employee.delete_inspection_rule'] %}active{% endif %}" href="{{ url_for('employee.inspection_rules') }}"><span class="sidebar-icon"><i class="bi bi-clipboard-check"></i></span><span class="sidebar-label">Inspection Rules</span></a>
+            <a class="side-link {% if ep in ['employee.inspection_rules','employee.add_inspection_rule','employee.toggle_inspection_rule','employee.delete_inspection_rule'] %}active{% endif %}" href="{{ url_for('employee.inspection_rules') }}"><span class="sidebar-icon"><i class="bi bi-sliders"></i></span><span class="sidebar-label">Inspection Setup</span></a>
             <a class="side-link {% if ep.startswith('employee.waiver_template') %}active{% endif %}" href="{{ url_for('employee.waiver_template_builder') }}"><span class="sidebar-icon"><i class="bi bi-file-earmark-text"></i></span><span class="sidebar-label">Waiver Builder</span></a>
             <a class="side-link {% if ep in ['employee.settings','employee.email_template_edit','employee.payment_methods_update','employee.track_profile','employee.update_track','employee.track_layout_new','employee.track_layout_delete'] %}active{% endif %}" href="{{ url_for('employee.settings') }}"><span class="sidebar-icon"><i class="bi bi-gear"></i></span><span class="sidebar-label">Settings</span></a>
           {% endif %}

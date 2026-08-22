@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="inspections-hub">
+  <header class="inspections-hub-header">
+    <div>
+      <span class="event-page-kicker">Track operations</span>
+      <h2>Inspections</h2>
+      <p class="muted-line">Find the next driver and keep the inspection line moving.</p>
+    </div>
+    {% if is_office_staff %}
+      <a class="inspection-setup-link" href="{{ url_for('employee.inspection_rules') }}"><i class="bi bi-sliders" aria-hidden="true"></i> Inspection Setup</a>
+    {% endif %}
+  </header>
+
+  {% if events %}
+    <section class="card inspections-toolbar">
+      <form method="get" class="inspections-event-picker">
+        <label for="inspection-event">Event</label>
+        <select id="inspection-event" name="event_id" onchange="this.form.submit()">
+          {% for event in events %}
+            <option value="{{ event.id }}" {% if selected_event and event.id == selected_event.id %}selected{% endif %}>
+              {{ event.event_date.strftime('%b %-d, %Y') }} — {{ event.event_name }}{% if event.event_date == today %} (Today){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <form method="get" class="inspections-search">
+        <input type="hidden" name="event_id" value="{{ selected_event.id }}">
+        <label for="inspection-search">Driver, car, or check-in code</label>
+        <div class="inspections-search-control">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input id="inspection-search" type="search" name="q" value="{{ query }}" placeholder="Search the inspection queue" autocomplete="off">
+          {% if query %}<a href="{{ url_for('employee.inspections_hub', event_id=selected_event.id) }}">Clear</a>{% endif %}
+        </div>
+      </form>
+    </section>
+
+    <section class="inspection-summary" aria-label="Inspection summary">
+      <article><span>Checked in</span><strong>{{ counts.checked_in }}</strong></article>
+      <article><span>Pending</span><strong>{{ counts.pending }}</strong></article>
+      <article><span>Needs work</span><strong>{{ counts.needs_work }}</strong></article>
+      <article class="is-complete"><span>Passed</span><strong>{{ counts.passed }}</strong></article>
+    </section>
+
+    {% if not active_rule_count %}
+      <aside class="inspection-setup-notice">
+        <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+        <span>No active inspection checklist is configured.</span>
+        {% if is_office_staff %}<a href="{{ url_for('employee.inspection_rules') }}">Open Inspection Setup</a>{% else %}<span>Ask office staff to finish setup.</span>{% endif %}
+      </aside>
+    {% endif %}
+
+    <section class="card inspection-queue-card">
+      <div class="inspection-queue-head">
+        <div>
+          <h3>Driver queue</h3>
+          <p>{{ selected_event.event_name }} <span>·</span> {{ selected_event.event_date.strftime('%B %-d, %Y') }}</p>
+        </div>
+        <span>{{ work_items|length }}{% if query %} found{% else %} drivers{% endif %}</span>
+      </div>
+
+      {% if work_items %}
+        <div class="inspection-queue-list">
+          {% for item in work_items %}
+            {% set registration = item.registration %}
+            {% set inspection = item.inspection %}
+            <article class="inspection-queue-row {% if inspection and inspection.passed %}is-passed{% elif registration.checked_in_at %}is-ready{% endif %}">
+              <div class="inspection-driver-copy">
+                <strong>{{ registration.user.first_name }} {{ registration.user.last_name }}</strong>
+                <span>{{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}</span>
+                <code>{{ registration.checkin_code }}</code>
+              </div>
+
+              <div class="inspection-queue-state">
+                {% if registration.checked_in_at %}
+                  <span class="badge badge-signed">Checked in</span>
+                {% elif item.waiver_ok %}
+                  <form method="post" action="{{ url_for('employee.driver_checkin', event_id=selected_event.id, registration_id=registration.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="return_to" value="inspections">
+                    <button class="inspection-text-action" type="submit">Check in</button>
+                  </form>
+                {% else %}
+                  <span class="badge badge-failed">Waiver missing</span>
+                {% endif %}
+
+                {% if inspection and inspection.passed %}
+                  <span class="inspection-result is-passed"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Passed</span>
+                {% elif inspection %}
+                  <span class="inspection-result is-needs-work"><i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i> Needs work</span>
+                {% else %}
+                  <span class="inspection-result"><i class="bi bi-circle" aria-hidden="true"></i> Pending</span>
+                {% endif %}
+              </div>
+
+              <div class="inspection-queue-action">
+                {% if item.waiver_ok and active_rule_count %}
+                  <a class="btn {% if inspection and inspection.passed %}btn-secondary{% endif %} btn-sm" href="{{ url_for('employee.inspect_registration', event_id=selected_event.id, registration_id=registration.id, return_to='hub') }}">
+                    {% if inspection and inspection.passed %}Review{% elif inspection %}Reinspect{% else %}Inspect{% endif %}
+                  </a>
+                {% elif not active_rule_count %}
+                  <span class="inspection-action-disabled">Setup needed</span>
+                {% else %}
+                  <span class="inspection-action-disabled">Waiver required</span>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="event-empty-state">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <p>{% if query %}No drivers match “{{ query }}”.{% else %}No drivers are registered for this event yet.{% endif %}</p>
+          {% if query %}<a href="{{ url_for('employee.inspections_hub', event_id=selected_event.id) }}">Clear search</a>{% endif %}
+        </div>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="card event-empty-state inspections-no-events">
+      <i class="bi bi-calendar2-x" aria-hidden="true"></i>
+      <p>No events are available for inspection yet.</p>
+      {% if is_office_staff %}<a href="{{ url_for('employee.event_new') }}">Create an event</a>{% endif %}
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -14,7 +14,10 @@
       {% if dc == 'A' %}(Advanced){% elif dc == 'B' %}(Intermediate){% else %}(Novice){% endif %}
     </span>
   </p>
-  <code class="inspection-checkin-code">{{ registration.checkin_code }}</code>
+  <div class="inspection-header-actions">
+    <code class="inspection-checkin-code">{{ registration.checkin_code }}</code>
+    <a class="btn btn-secondary btn-sm" href="{% if return_to == 'hub' %}{{ url_for('employee.inspections_hub', event_id=event.id) }}{% else %}{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}{% endif %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</a>
+  </div>
 </header>
 
 <section class="card inspection-checklist-card">

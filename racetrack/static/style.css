@@ -3459,6 +3459,7 @@ details > summary { font-size: .92rem; }
 
 .inspection-driver-header { align-items: center; }
 .inspection-driver-header > p { margin: 0; }
+.inspection-header-actions { display: inline-flex; align-items: center; gap: 7px; }
 .inspection-checkin-code {
   display: inline-flex;
   padding: 7px 9px;
@@ -3478,6 +3479,170 @@ details > summary { font-size: .92rem; }
 
 .inspection-checklist-card input[type="checkbox"] { accent-color: #2457ff; }
 
+.inspections-hub {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
+.inspections-hub-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.inspections-hub-header h2 { margin: 0; color: #101828; font-size: 1.5rem; }
+.inspections-hub-header p { margin: 4px 0 0; }
+.inspection-setup-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: #667085;
+  font-size: .74rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.inspection-setup-link:hover { color: #2457ff; }
+
+.inspections-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) minmax(300px, 1.2fr);
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 14px;
+}
+
+.inspections-event-picker,
+.inspections-search { display: grid; gap: 5px; margin: 0; }
+.inspections-event-picker label,
+.inspections-search label {
+  color: #475467;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.inspections-event-picker select,
+.inspections-search input { margin: 0; min-height: 40px; }
+.inspections-search-control { position: relative; }
+.inspections-search-control > i {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: #98a2b3;
+  transform: translateY(-50%);
+}
+.inspections-search-control input { width: 100%; padding-left: 35px; padding-right: 50px; }
+.inspections-search-control a {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  color: #667085;
+  font-size: .72rem;
+  font-weight: 650;
+  text-decoration: none;
+  transform: translateY(-50%);
+}
+
+.inspection-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.inspection-summary article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 54px;
+  padding: 10px 13px;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+}
+.inspection-summary span { color: #667085; font-size: .75rem; font-weight: 650; }
+.inspection-summary strong { color: #101828; font-size: 1.25rem; }
+.inspection-summary .is-complete strong { color: #14804a; }
+.inspection-setup-notice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  color: #8a5b12;
+  background: #fff9eb;
+  border: 1px solid #f3dfad;
+  border-radius: 8px;
+  font-size: .78rem;
+}
+.inspection-setup-notice a { color: #7a4e08; font-weight: 700; }
+.inspection-setup-notice span:last-child { color: #9a6700; }
+
+.inspection-queue-card { padding: 0; overflow: hidden; }
+.inspection-queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #eaecf0;
+}
+.inspection-queue-head h3 { margin: 0; }
+.inspection-queue-head p { margin: 3px 0 0; color: #667085; font-size: .78rem; }
+.inspection-queue-head p span { color: #b2bac7; }
+.inspection-queue-head > span {
+  padding: 3px 8px;
+  color: #667085;
+  background: #f2f4f7;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 650;
+}
+
+.inspection-queue-list { display: grid; }
+.inspection-queue-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(250px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 72px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eaecf0;
+}
+.inspection-queue-row:last-child { border-bottom: 0; }
+.inspection-queue-row.is-ready { box-shadow: inset 3px 0 #2457ff; }
+.inspection-queue-row.is-passed { background: #fbfdfc; }
+.inspection-driver-copy { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 8px; min-width: 0; }
+.inspection-driver-copy strong { width: 100%; color: #1d2939; font-size: .9rem; }
+.inspection-driver-copy span { color: #667085; font-size: .78rem; }
+.inspection-driver-copy code {
+  padding: 2px 5px;
+  color: #475467;
+  background: #f2f4f7;
+  border-radius: 4px;
+  font-size: .65rem;
+}
+.inspection-queue-state { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.inspection-result { display: inline-flex; align-items: center; gap: 4px; color: #667085; font-size: .73rem; font-weight: 650; }
+.inspection-result.is-passed { color: #14804a; }
+.inspection-result.is-needs-work { color: #b54708; }
+.inspection-text-action {
+  padding: 0;
+  color: #2457ff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: .73rem;
+  font-weight: 700;
+}
+.inspection-text-action:hover { text-decoration: underline; }
+.inspection-queue-action { justify-self: end; }
+.inspection-action-disabled { color: #98a2b3; font-size: .72rem; font-weight: 650; }
+.inspections-no-events { min-height: 180px; }
+
 @media (max-width: 760px) {
   .event-page-header,
   .event-utility-header { flex-direction: column; gap: 10px; }
@@ -3488,6 +3653,20 @@ details > summary { font-size: .92rem; }
   .event-general-row:last-child { border-bottom: 0; }
   .inspection-lookup-form { grid-template-columns: 1fr; }
   .inspection-lookup-form .btn { width: 100%; }
+  .inspections-hub-header { flex-direction: column; gap: 7px; }
+  .inspections-toolbar { grid-template-columns: 1fr; }
+  .inspection-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inspection-queue-row { grid-template-columns: 1fr auto; gap: 8px 12px; }
+  .inspection-queue-state { grid-column: 1; }
+  .inspection-queue-action { grid-column: 2; grid-row: 1 / span 2; }
+}
+
+@media (max-width: 480px) {
+  .inspection-summary { grid-template-columns: 1fr 1fr; }
+  .inspection-queue-row { grid-template-columns: 1fr; }
+  .inspection-queue-state,
+  .inspection-queue-action { grid-column: 1; grid-row: auto; justify-self: stretch; }
+  .inspection-queue-action .btn { width: 100%; }
 }
 
 /* Minimal spectator ticket shop */
