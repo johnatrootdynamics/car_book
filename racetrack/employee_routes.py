@@ -324,8 +324,11 @@ def inspections_hub():
         active=True,
     ).count()
     events = (
-        Event.query.filter_by(track_id=track_id)
-        .order_by(Event.event_date.desc(), Event.id.desc())
+        Event.query.filter(
+            Event.track_id == track_id,
+            Event.event_date >= date.today(),
+        )
+        .order_by(Event.event_date.asc(), Event.id.asc())
         .all()
     )
 
@@ -336,17 +339,11 @@ def inspections_hub():
             id=selected_event_id,
             track_id=track_id,
         ).first_or_404()
+        if selected_event.event_date < date.today():
+            flash("Past events are not available in the inspection workspace.", "error")
+            return redirect(url_for("employee.inspections_hub"))
     elif events:
-        selected_event = next(
-            (event for event in events if event.event_date == date.today()),
-            None,
-        )
-        if not selected_event:
-            upcoming = sorted(
-                (event for event in events if event.event_date > date.today()),
-                key=lambda event: (event.event_date, event.id),
-            )
-            selected_event = upcoming[0] if upcoming else events[0]
+        selected_event = events[0]
 
     query = (request.args.get("q") or "").strip()
     work_items = []
