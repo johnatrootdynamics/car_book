@@ -288,6 +288,24 @@ def create_app():
                 "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS extra_config TEXT NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS mode VARCHAR(10) NOT NULL DEFAULT 'live'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS test_public_key VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS test_secret_key VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS test_webhook_secret VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS test_merchant_id VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS test_extra_config TEXT NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS checked_in_at DATETIME NULL"
             )
             conn.exec_driver_sql(
@@ -303,6 +321,9 @@ def create_app():
                 "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) NOT NULL DEFAULT 'pending'"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(10) NOT NULL DEFAULT 'live'"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS provider_session_id VARCHAR(255) NULL"
             )
             conn.exec_driver_sql(
@@ -316,6 +337,9 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE driver_ticket_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) NOT NULL DEFAULT 'pending'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE driver_ticket_orders ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(10) NOT NULL DEFAULT 'live'"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE driver_ticket_orders ADD COLUMN IF NOT EXISTS provider_session_id VARCHAR(255) NULL"

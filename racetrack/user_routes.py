@@ -57,6 +57,33 @@ PAYMENT_PROVIDER_LABELS = {
 }
 
 
+def _payment_credentials(track, provider, method=None, mode=None):
+    if method is None:
+        method = TrackPaymentMethod.query.filter_by(
+            track_id=track.id,
+            provider=provider,
+        ).first()
+    selected_mode = (mode or (method.mode if method else "live") or "live").lower()
+    if selected_mode not in {"live", "test"}:
+        selected_mode = "live"
+
+    prefix = "test_" if selected_mode == "test" else ""
+    credentials = {
+        "method": method,
+        "mode": selected_mode,
+        "public_key": getattr(method, f"{prefix}public_key", None) if method else None,
+        "secret_key": getattr(method, f"{prefix}secret_key", None) if method else None,
+        "webhook_secret": getattr(method, f"{prefix}webhook_secret", None) if method else None,
+        "merchant_id": getattr(method, f"{prefix}merchant_id", None) if method else None,
+        "extra_config": getattr(method, f"{prefix}extra_config", None) if method else None,
+    }
+    # Tracks configured before provider records existed remain valid in live mode.
+    if provider == "stripe" and selected_mode == "live":
+        credentials["secret_key"] = credentials["secret_key"] or track.stripe_secret_key
+        credentials["webhook_secret"] = credentials["webhook_secret"] or track.stripe_webhook_secret
+    return credentials
+
+
 def _generate_car_qr_code():
     while True:
         code = f"CAR-{secrets.token_hex(4).upper()}"
@@ -70,15 +97,30 @@ def _money(cents):
 
 def _configured_payment_choices(track, amount_cents):
     methods = TrackPaymentMethod.query.filter_by(track_id=track.id, is_enabled=True).all()
-    providers = [method.provider for method in methods if method.provider in PAYMENT_PROVIDER_LABELS]
+    methods_by_provider = {
+        method.provider: method
+        for method in methods
+        if method.provider in PAYMENT_PROVIDER_LABELS
+    }
+    providers = list(methods_by_provider)
     if not providers:
         providers = [track.spectator_payment_provider or "stripe"]
 
     choices = []
     for provider in providers:
-        if provider == "stripe" and amount_cents > 0 and not (track.stripe_secret_key and track.stripe_webhook_secret):
+        credentials = _payment_credentials(
+            track,
+            provider,
+            method=methods_by_provider.get(provider),
+        )
+        if provider == "stripe" and amount_cents > 0 and not (
+            credentials["secret_key"] and credentials["webhook_secret"]
+        ):
             continue
-        choices.append((provider, PAYMENT_PROVIDER_LABELS.get(provider, provider.title())))
+        label = PAYMENT_PROVIDER_LABELS.get(provider, provider.title())
+        if credentials["mode"] == "test":
+            label = f"{label} (Test mode)"
+        choices.append((provider, label))
     if not choices and amount_cents <= 0:
         choices.append(("other", PAYMENT_PROVIDER_LABELS["other"]))
     return choices
@@ -554,6 +596,7 @@ def spectator_checkout():
 
     if form.validate_on_submit():
         provider = form.payment_method.data
+        payment_credentials = _payment_credentials(payment_track, provider)
         user_id = current_user.id if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" else None
         buyer_name = form.full_name.data.strip()
         buyer_email = form.email.data.strip().lower()
@@ -570,6 +613,7 @@ def spectator_checkout():
             guest_email=buyer_email,
             guest_phone=buyer_phone,
             payment_method=provider,
+            payment_mode=payment_credentials["mode"],
             payment_status="pending",
             status="pending",
             total_cents=subtotal_cents,
@@ -590,8 +634,8 @@ def spectator_checkout():
             )
         db.session.flush()
 
-        if provider == "stripe" and subtotal_cents > 0 and stripe and payment_track.stripe_secret_key and payment_track.stripe_webhook_secret:
-            stripe.api_key = payment_track.stripe_secret_key
+        if provider == "stripe" and subtotal_cents > 0 and stripe and payment_credentials["secret_key"] and payment_credentials["webhook_secret"]:
+            stripe.api_key = payment_credentials["secret_key"]
             success_url = url_for("user.spectator_order_success", order_id=order.id, _external=True)
             cancel_url = url_for("user.spectator_checkout", _external=True)
             checkout_session = create_stripe_checkout_session(
@@ -677,9 +721,18 @@ def stripe_webhook():
     if not order and not driver_ticket_order:
         return "ok", 200
     if order:
-        webhook_secret = order.items[0].event.track.stripe_webhook_secret if order.items else None
+        payment_track = order.items[0].event.track if order.items else None
+        webhook_secret = (
+            _payment_credentials(payment_track, "stripe", mode=order.payment_mode)["webhook_secret"]
+            if payment_track
+            else None
+        )
     else:
-        webhook_secret = driver_ticket_order.event.track.stripe_webhook_secret
+        webhook_secret = _payment_credentials(
+            driver_ticket_order.event.track,
+            "stripe",
+            mode=driver_ticket_order.payment_mode,
+        )["webhook_secret"]
     if not webhook_secret:
         return "ignored", 200
     try:
@@ -1054,20 +1107,22 @@ def driver_event_checkout(event_id):
         form.payment_method.data = payment_choices[0][0]
 
     if form.validate_on_submit():
+        payment_credentials = _payment_credentials(event.track, form.payment_method.data)
         driver_ticket_order = DriverTicketOrder(
             event_id=event.id,
             user_id=current_user.id,
             car_id=selected_car.id,
             amount_cents=max(0, event.driver_price_cents or 0),
             payment_method=form.payment_method.data,
+            payment_mode=payment_credentials["mode"],
             payment_status="pending",
             status="pending",
         )
         db.session.add(driver_ticket_order)
         db.session.flush()
 
-        if form.payment_method.data == "stripe" and driver_amount_cents > 0 and stripe and event.track.stripe_secret_key and event.track.stripe_webhook_secret:
-            stripe.api_key = event.track.stripe_secret_key
+        if form.payment_method.data == "stripe" and driver_amount_cents > 0 and stripe and payment_credentials["secret_key"] and payment_credentials["webhook_secret"]:
+            stripe.api_key = payment_credentials["secret_key"]
             checkout_session = create_driver_stripe_checkout_session(
                 stripe,
                 driver_ticket_order,

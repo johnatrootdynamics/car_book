@@ -1,4 +1,71 @@
 {% extends "base.html" %}
+{% macro credential_set(provider, method, environment, is_active, stripe_only=false) %}
+  {% set is_test = environment == 'test' %}
+  {% set prefix = 'test_' if is_test else '' %}
+  {% set secret_configured = method and (method.test_secret_key if is_test else method.secret_key) %}
+  {% set webhook_configured = method and (method.test_webhook_secret if is_test else method.webhook_secret) %}
+  {% set merchant_configured = method and (method.test_merchant_id if is_test else method.merchant_id) %}
+  {% set public_configured = method and (method.test_public_key if is_test else method.public_key) %}
+  {% set extra_configured = method and (method.test_extra_config if is_test else method.extra_config) %}
+  <details class="payment-credential-set" data-credential-environment="{{ environment }}" {% if is_active %}open{% endif %}>
+    <summary>
+      <span><i class="bi {{ 'bi-flask' if is_test else 'bi-broadcast' }}" aria-hidden="true"></i> {{ environment|title }} credentials</span>
+      <span class="payment-set-state" data-set-state>{{ 'Active' if is_active else 'Stored' }}</span>
+    </summary>
+    <div class="payment-credential-fields">
+      {% if is_test %}
+        <p class="payment-test-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Test transactions never use your live account credentials.</p>
+      {% endif %}
+      {% if stripe_only %}
+        <div class="form-grid two-col">
+          <label>Secret Key
+            <input type="password" name="{{ provider }}_{{ prefix }}secret_key" placeholder="{{ 'sk_test_...' if is_test else 'sk_live_...' }}" autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if secret_configured else 'not configured' }}</span>
+          </label>
+          <label>Webhook Secret
+            <input type="password" name="{{ provider }}_{{ prefix }}webhook_secret" placeholder="whsec_..." autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if webhook_configured else 'not configured' }}</span>
+          </label>
+        </div>
+        <div class="payment-danger-zone">
+          <input type="hidden" name="{{ provider }}_clear_{{ prefix }}secret_key" value="0" data-clear-input>
+          <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear secret key</button>
+          <input type="hidden" name="{{ provider }}_clear_{{ prefix }}webhook_secret" value="0" data-clear-input>
+          <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear webhook secret</button>
+        </div>
+      {% else %}
+        <div class="form-grid two-col">
+          <label>Merchant / Account ID
+            <input type="text" name="{{ provider }}_{{ prefix }}merchant_id" placeholder="Account or merchant identifier" autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if merchant_configured else 'not configured' }}</span>
+          </label>
+          <label>Public / Client Key
+            <input type="text" name="{{ provider }}_{{ prefix }}public_key" placeholder="Client ID, app ID, or public key" autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if public_configured else 'not configured' }}</span>
+          </label>
+          <label>Secret Key
+            <input type="password" name="{{ provider }}_{{ prefix }}secret_key" placeholder="Secret, private key, or token" autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if secret_configured else 'not configured' }}</span>
+          </label>
+          <label>Webhook Secret
+            <input type="password" name="{{ provider }}_{{ prefix }}webhook_secret" placeholder="Webhook signing secret" autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if webhook_configured else 'not configured' }}</span>
+          </label>
+          <label class="full">Additional Config
+            <textarea name="{{ provider }}_{{ prefix }}extra_config" rows="3" placeholder="Optional provider-specific JSON, notes, or IDs"></textarea>
+            <span class="hint">Current: {{ 'configured' if extra_configured else 'not configured' }}</span>
+          </label>
+        </div>
+        <div class="payment-danger-zone">
+          {% for field, field_label in [('merchant_id', 'merchant ID'), ('public_key', 'public key'), ('secret_key', 'secret key'), ('webhook_secret', 'webhook secret'), ('extra_config', 'extra config')] %}
+            <input type="hidden" name="{{ provider }}_clear_{{ prefix }}{{ field }}" value="0" data-clear-input>
+            <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear {{ field_label }}</button>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </details>
+{% endmacro %}
 {% block content %}
 <section class="card">
   <div class="row-space">
@@ -59,11 +126,15 @@
         {% set method = payment_methods.get(provider) %}
         {% set setup_guide = payment_provider_docs.get(provider) %}
         {% set enabled = method.is_enabled if method else provider == track.spectator_payment_provider %}
+        {% set mode = method.mode if method and method.mode in ['live', 'test'] else 'live' %}
         {% if provider == 'stripe' %}
-          {% set ready = track.stripe_secret_key and track.stripe_webhook_secret %}
+          {% set live_ready = (method and method.secret_key or track.stripe_secret_key) and (method and method.webhook_secret or track.stripe_webhook_secret) %}
+          {% set test_ready = method and method.test_secret_key and method.test_webhook_secret %}
         {% else %}
-          {% set ready = method and (method.public_key or method.secret_key or method.webhook_secret or method.merchant_id or method.extra_config) %}
+          {% set live_ready = method and (method.public_key or method.secret_key or method.webhook_secret or method.merchant_id or method.extra_config) %}
+          {% set test_ready = method and (method.test_public_key or method.test_secret_key or method.test_webhook_secret or method.test_merchant_id or method.test_extra_config) %}
         {% endif %}
+        {% set ready = test_ready if mode == 'test' else live_ready %}
         <article class="payment-setup-card {% if enabled %}active{% endif %}" data-provider-card>
           <input type="hidden" name="provider_enabled_{{ provider }}" value="{{ '1' if enabled else '0' }}" data-provider-enabled>
           <div class="payment-setup-head">
@@ -82,7 +153,8 @@
               </span>
             </div>
             <div class="payment-card-actions">
-              <span class="payment-status-pill {{ 'ready' if ready else 'needs-work' }}">{{ 'Ready' if ready else 'Needs Setup' }}</span>
+              <span class="payment-mode-pill {{ mode }}" data-payment-mode-pill>{{ mode|title }}</span>
+              <span class="payment-status-pill {{ 'ready' if ready else 'needs-work' }}" data-payment-status data-live-ready="{{ '1' if live_ready else '0' }}" data-test-ready="{{ '1' if test_ready else '0' }}">{{ 'Ready' if ready else 'Needs Setup' }}</span>
               <button type="button" class="btn btn-secondary btn-sm" data-provider-toggle>{{ 'Disable' if enabled else 'Enable' }}</button>
             </div>
           </div>
@@ -90,59 +162,22 @@
           <details class="payment-provider-details">
             <summary><span>Configure provider</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
             <div class="payment-credentials-body">
-              {% if provider == 'stripe' %}
-                <div class="form-grid two-col">
-                <label>Secret Key
-                  <input type="password" name="stripe_secret_key" placeholder="sk_live_... or sk_test_...">
-                  <span class="hint">Current: {{ 'configured' if track.stripe_secret_key else 'not configured' }}</span>
+              <div class="payment-mode-control" role="radiogroup" aria-label="{{ label }} environment">
+                <span class="payment-mode-label">Transaction mode</span>
+                <label class="payment-mode-option">
+                  <input type="radio" name="provider_mode_{{ provider }}" value="live" {% if mode == 'live' %}checked{% endif %}>
+                  <span><i class="bi bi-broadcast" aria-hidden="true"></i> Live</span>
                 </label>
-                <label>Webhook Secret
-                  <input type="password" name="stripe_webhook_secret" placeholder="whsec_...">
-                  <span class="hint">Current: {{ 'configured' if track.stripe_webhook_secret else 'not configured' }}</span>
+                <label class="payment-mode-option test">
+                  <input type="radio" name="provider_mode_{{ provider }}" value="test" {% if mode == 'test' %}checked{% endif %}>
+                  <span><i class="bi bi-flask" aria-hidden="true"></i> Test</span>
                 </label>
-                </div>
-                <div class="payment-danger-zone">
-                  <input type="hidden" name="stripe_clear_secret_key" value="0" data-clear-input>
-                  <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear secret key</button>
-                  <input type="hidden" name="stripe_clear_webhook_secret" value="0" data-clear-input>
-                  <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear webhook secret</button>
-                </div>
-              {% else %}
-                <div class="form-grid two-col">
-                <label>Merchant / Account ID
-                  <input type="text" name="{{ provider }}_merchant_id" placeholder="Account or merchant identifier">
-                  <span class="hint">Current: {{ 'configured' if method and method.merchant_id else 'not configured' }}</span>
-                </label>
-                <label>Public / Client Key
-                  <input type="text" name="{{ provider }}_public_key" placeholder="Client ID, app ID, or public key">
-                  <span class="hint">Current: {{ 'configured' if method and method.public_key else 'not configured' }}</span>
-                </label>
-                <label>Secret Key
-                  <input type="password" name="{{ provider }}_secret_key" placeholder="Secret, private key, or token">
-                  <span class="hint">Current: {{ 'configured' if method and method.secret_key else 'not configured' }}</span>
-                </label>
-                <label>Webhook Secret
-                  <input type="password" name="{{ provider }}_webhook_secret" placeholder="Webhook signing secret">
-                  <span class="hint">Current: {{ 'configured' if method and method.webhook_secret else 'not configured' }}</span>
-                </label>
-                <label class="full">Additional Config
-                  <textarea name="{{ provider }}_extra_config" rows="4" placeholder="Optional provider-specific JSON, notes, or IDs"></textarea>
-                  <span class="hint">Current: {{ 'configured' if method and method.extra_config else 'not configured' }}</span>
-                </label>
-                </div>
-                <div class="payment-danger-zone">
-                  <input type="hidden" name="{{ provider }}_clear_merchant_id" value="0" data-clear-input>
-                  <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear merchant ID</button>
-                  <input type="hidden" name="{{ provider }}_clear_public_key" value="0" data-clear-input>
-                  <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear public key</button>
-                  <input type="hidden" name="{{ provider }}_clear_secret_key" value="0" data-clear-input>
-                  <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear secret key</button>
-                  <input type="hidden" name="{{ provider }}_clear_webhook_secret" value="0" data-clear-input>
-                  <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear webhook secret</button>
-                  <input type="hidden" name="{{ provider }}_clear_extra_config" value="0" data-clear-input>
-                  <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear extra config</button>
-                </div>
-              {% endif %}
+              </div>
+              <p class="payment-mode-help">Checkout uses only the credentials for the selected mode. Switching modes does not overwrite either credential set.</p>
+              <div class="payment-credential-groups">
+                {{ credential_set(provider, method, 'live', mode == 'live', provider == 'stripe') }}
+                {{ credential_set(provider, method, 'test', mode == 'test', provider == 'stripe') }}
+              </div>
             </div>
           </details>
         </article>
@@ -151,7 +186,7 @@
     <aside class="payment-help-card">
       <i class="bi bi-info-circle" aria-hidden="true"></i>
       <div><h4>How customer choice works</h4>
-      <p class="muted-line">Customers choose from enabled providers that are ready for checkout. Stripe is a live gateway today; other providers store credentials now and remain recorded/manual until their gateway adapters are added.</p>
+      <p class="muted-line">Customers choose from enabled providers that are ready for checkout. Stripe uses the selected Live or Test credentials; other providers store both sets now and remain recorded/manual until their gateway adapters are added.</p>
       </div>
     </aside>
     <div class="payments-save-bar">
@@ -178,6 +213,34 @@
         render()
       })
       render()
+
+      const modePill = card.querySelector("[data-payment-mode-pill]")
+      const paymentStatus = card.querySelector("[data-payment-status]")
+      const modeInputs = card.querySelectorAll("input[type='radio'][name^='provider_mode_']")
+      const renderMode = () => {
+        const selected = card.querySelector("input[type='radio'][name^='provider_mode_']:checked")
+        if (!selected) return
+        const mode = selected.value
+        if (modePill) {
+          modePill.textContent = mode.charAt(0).toUpperCase() + mode.slice(1)
+          modePill.classList.toggle("live", mode === "live")
+          modePill.classList.toggle("test", mode === "test")
+        }
+        if (paymentStatus) {
+          const ready = paymentStatus.dataset[mode + "Ready"] === "1"
+          paymentStatus.textContent = ready ? "Ready" : "Needs Setup"
+          paymentStatus.classList.toggle("ready", ready)
+          paymentStatus.classList.toggle("needs-work", !ready)
+        }
+        card.querySelectorAll("[data-credential-environment]").forEach((set) => {
+          const active = set.dataset.credentialEnvironment === mode
+          const state = set.querySelector("[data-set-state]")
+          if (state) state.textContent = active ? "Active" : "Stored"
+          if (active) set.open = true
+        })
+      }
+      modeInputs.forEach((input) => input.addEventListener("change", renderMode))
+      renderMode()
     })
     form.querySelectorAll("[data-clear-button]").forEach((button) => {
       const input = button.previousElementSibling

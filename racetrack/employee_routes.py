@@ -515,31 +515,21 @@ def payment_methods_update():
             method = TrackPaymentMethod(track_id=track.id, provider=provider)
             db.session.add(method)
         method.is_enabled = provider in selected
-        public_key = (request.form.get(f"{provider}_public_key") or "").strip()
-        secret_key = (request.form.get(f"{provider}_secret_key") or "").strip()
-        webhook_secret = (request.form.get(f"{provider}_webhook_secret") or "").strip()
-        merchant_id = (request.form.get(f"{provider}_merchant_id") or "").strip()
-        extra_config = (request.form.get(f"{provider}_extra_config") or "").strip()
-        if public_key:
-            method.public_key = public_key
-        if secret_key:
-            method.secret_key = secret_key
-        if webhook_secret:
-            method.webhook_secret = webhook_secret
-        if merchant_id:
-            method.merchant_id = merchant_id
-        if extra_config:
-            method.extra_config = extra_config
-        if request.form.get(f"{provider}_clear_public_key") == "1":
-            method.public_key = None
-        if request.form.get(f"{provider}_clear_secret_key") == "1":
-            method.secret_key = None
-        if request.form.get(f"{provider}_clear_webhook_secret") == "1":
-            method.webhook_secret = None
-        if request.form.get(f"{provider}_clear_merchant_id") == "1":
-            method.merchant_id = None
-        if request.form.get(f"{provider}_clear_extra_config") == "1":
-            method.extra_config = None
+        requested_mode = (request.form.get(f"provider_mode_{provider}") or "live").strip().lower()
+        method.mode = requested_mode if requested_mode in {"live", "test"} else "live"
+        for field in ("public_key", "secret_key", "webhook_secret", "merchant_id", "extra_config"):
+            value = (request.form.get(f"{provider}_{field}") or "").strip()
+            if value:
+                setattr(method, field, value)
+            if request.form.get(f"{provider}_clear_{field}") == "1":
+                setattr(method, field, None)
+
+            test_field = f"test_{field}"
+            test_value = (request.form.get(f"{provider}_{test_field}") or "").strip()
+            if test_value:
+                setattr(method, test_field, test_value)
+            if request.form.get(f"{provider}_clear_{test_field}") == "1":
+                setattr(method, test_field, None)
     if track.spectator_payment_provider not in selected:
         track.spectator_payment_provider = sorted(selected)[0]
     stripe_method = TrackPaymentMethod.query.filter_by(track_id=track.id, provider="stripe").first()
