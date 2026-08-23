@@ -4496,6 +4496,5 @@ details > summary { font-size: .92rem; }
 }
 
 @media (max-width: 420px) {
-  .employee-dashboard-metrics { grid-template-columns: 1fr; }
   .employee-featured-event-actions .btn { flex: 1; text-align: center; }
 }
