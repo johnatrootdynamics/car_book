@@ -1,88 +1,197 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="row-space">
+<div class="employee-dashboard">
+  <header class="employee-dashboard-header">
     <div>
-      <h2>Employee Dashboard</h2>
-      <p>{{ current_user.full_name }} • {{ track.name }}</p>
-    </div>
-  </div>
-</section>
-
-<section class="card">
-  <h3>Last Event Snapshot</h3>
-  {% if last_event %}
-    <p class="muted-line">{{ last_event.event_name }} • {{ last_event.event_date }}</p>
-    <div class="grid-cards">
-      <article class="event-card">
-        <h4>Participants</h4>
-        <p><strong>{{ last_event_participants }}</strong> drivers</p>
-      </article>
-      <article class="event-card">
-        <h4>Spectator Tickets</h4>
-        <p><strong>{{ last_event_spectator_tickets }}</strong> sold</p>
-      </article>
-    </div>
-  {% else %}
-    <p class="muted-line">No past event data yet.</p>
-  {% endif %}
-</section>
-
-<section class="card">
-  <h3>Upcoming Events</h3>
-  {% if upcoming_events %}
-    <div class="grid-cards">
-      {% for event in upcoming_events[:6] %}
-        <article class="event-card">
-          <h4>{{ event.event_name }}</h4>
-          <p>{{ event.event_date }} • {{ signup_counts.get(event.id, 0) }} drivers</p>
-          <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open Event</a>
-        </article>
-      {% endfor %}
-    </div>
-    <p style="margin-top:10px;"><a class="btn btn-secondary btn-sm" href="{{ url_for('employee.events_index') }}">View All Events</a></p>
-  {% else %}
-    <p>No upcoming events.</p>
-  {% endif %}
-</section>
-
-<section class="card">
-  <details>
-    <summary>Past Events ({{ past_events|length }})</summary>
-    {% if past_events %}
-      <div class="table-wrap" style="margin-top:10px;">
-        <table>
-          <thead><tr><th>Name</th><th>Date</th><th>Drivers</th><th>Actions</th></tr></thead>
-          <tbody>
-            {% for event in past_events %}
-            <tr>
-              <td>{{ event.event_name }}</td>
-              <td>{{ event.event_date }}</td>
-              <td>{{ signup_counts.get(event.id, 0) }}</td>
-              <td>
-                <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open</a>
-                {% if is_office_staff %}<a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>{% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <span class="event-page-kicker">Track operations</span>
+      <div class="employee-dashboard-title">
+        <h2>{{ track.name }}</h2>
+        <span>{{ 'Office staff' if is_office_staff else 'Track staff' }}</span>
       </div>
-    {% else %}
-      <p class="muted-line">No past events.</p>
-    {% endif %}
-  </details>
-</section>
+      <p>Welcome back, {{ current_user.full_name }}. Here’s your track at a glance.</p>
+    </div>
+    <div class="employee-dashboard-header-actions">
+      {% if is_office_staff %}
+        <a class="btn btn-secondary" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New event</a>
+      {% endif %}
+      <a class="btn" href="{{ url_for('employee.inspections_hub') }}"><i class="bi bi-clipboard2-check" aria-hidden="true"></i> Open inspections</a>
+    </div>
+  </header>
 
-<section class="card">
-  <h3>Driver Class Manager</h3>
-  <p class="muted-line">Search drivers across {{ track.name }} and update class without opening an event.</p>
-  <div class="class-search" data-class-search data-search-url="{{ url_for('employee.search_track_drivers', track_id=track.id) }}" data-csrf-token="{{ csrf_token() }}">
-    <label>Find driver by name, username, or email
-      <input type="text" class="class-search-input" placeholder="Start typing to search drivers..." autocomplete="off">
-    </label>
-    <p class="hint">Type at least 2 characters to search.</p>
-    <div class="class-search-results"></div>
+  <section class="employee-dashboard-metrics" aria-label="Track summary">
+    <article>
+      <span class="employee-metric-icon"><i class="bi bi-calendar3" aria-hidden="true"></i></span>
+      <span><small>Upcoming events</small><strong>{{ upcoming_events|length }}</strong></span>
+    </article>
+    <article>
+      <span class="employee-metric-icon"><i class="bi bi-people" aria-hidden="true"></i></span>
+      <span><small>Upcoming drivers</small><strong>{{ upcoming_driver_count }}</strong></span>
+    </article>
+    <article>
+      <span class="employee-metric-icon"><i class="bi bi-flag" aria-hidden="true"></i></span>
+      <span><small>Last event drivers</small><strong>{{ last_event_participants }}</strong></span>
+    </article>
+    <article>
+      <span class="employee-metric-icon"><i class="bi bi-ticket-perforated" aria-hidden="true"></i></span>
+      <span><small>Last event spectators</small><strong>{{ last_event_spectator_tickets }}</strong></span>
+    </article>
+  </section>
+
+  <div class="employee-dashboard-primary-grid">
+    <section class="card employee-next-event-card">
+      <div class="employee-dashboard-section-head">
+        <div>
+          <span>Up next</span>
+          <h3>Upcoming events</h3>
+        </div>
+        <a href="{{ url_for('employee.events_index') }}">View all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      </div>
+
+      {% if upcoming_events %}
+        {% set next_event = upcoming_events[0] %}
+        <article class="employee-featured-event">
+          <div class="employee-event-date">
+            <span>{{ next_event.event_date.strftime('%b') }}</span>
+            <strong>{{ next_event.event_date.strftime('%-d') }}</strong>
+            <small>{{ next_event.event_date.strftime('%a') }}</small>
+          </div>
+          <div class="employee-featured-event-copy">
+            <div class="employee-featured-event-name">
+              <h4>{{ next_event.event_name }}</h4>
+              {% if next_event.event_date == today %}<span>Today</span>{% endif %}
+            </div>
+            <p>
+              <span><i class="bi bi-people" aria-hidden="true"></i> {{ signup_counts.get(next_event.id, 0) }} drivers</span>
+              {% if next_event.event_start_time %}<span><i class="bi bi-clock" aria-hidden="true"></i> {{ next_event.event_start_time.strftime('%-I:%M %p') }}</span>{% endif %}
+            </p>
+            <div class="employee-featured-event-actions">
+              <a class="btn btn-sm" href="{{ url_for('employee.event_detail', event_id=next_event.id) }}">Open event</a>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.inspections_hub', event_id=next_event.id) }}">Inspection queue</a>
+            </div>
+          </div>
+        </article>
+
+        {% if upcoming_events|length > 1 %}
+          <div class="employee-upcoming-list">
+            {% for event in upcoming_events[1:4] %}
+              <a href="{{ url_for('employee.event_detail', event_id=event.id) }}">
+                <span class="employee-upcoming-date">{{ event.event_date.strftime('%b %-d') }}</span>
+                <span class="employee-upcoming-name">{{ event.event_name }}</span>
+                <span class="employee-upcoming-count">{{ signup_counts.get(event.id, 0) }} drivers</span>
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="employee-dashboard-empty">
+          <i class="bi bi-calendar2-plus" aria-hidden="true"></i>
+          <div><strong>No upcoming events</strong><p>Your next event will appear here.</p></div>
+          {% if is_office_staff %}<a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_new') }}">Create event</a>{% endif %}
+        </div>
+      {% endif %}
+    </section>
+
+    <aside class="card employee-quick-actions-card">
+      <div class="employee-dashboard-section-head">
+        <div><span>Shortcuts</span><h3>Quick actions</h3></div>
+      </div>
+      <nav class="employee-quick-actions" aria-label="Dashboard shortcuts">
+        <a href="{{ url_for('employee.inspections_hub') }}">
+          <i class="bi bi-clipboard2-check" aria-hidden="true"></i>
+          <span><strong>Run inspections</strong><small>Open today’s driver queue</small></span>
+          <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+        </a>
+        <a href="{{ url_for('employee.events_index') }}">
+          <i class="bi bi-calendar3" aria-hidden="true"></i>
+          <span><strong>Manage events</strong><small>Schedules, drivers, and check-in</small></span>
+          <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+        </a>
+        {% if is_office_staff %}
+          <a href="{{ url_for('employee.staff_accounts') }}">
+            <i class="bi bi-person-badge" aria-hidden="true"></i>
+            <span><strong>Staff accounts</strong><small>Add staff and assign roles</small></span>
+            <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+          </a>
+          <a href="{{ url_for('employee.settings') }}">
+            <i class="bi bi-sliders" aria-hidden="true"></i>
+            <span><strong>Track settings</strong><small>Payments and email templates</small></span>
+            <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+          </a>
+        {% endif %}
+      </nav>
+    </aside>
   </div>
-</section>
+
+  <div class="employee-dashboard-secondary-grid">
+    <section class="card employee-class-manager-card">
+      <div class="employee-dashboard-section-head">
+        <div><span>Drivers</span><h3>Driver class manager</h3></div>
+      </div>
+      <p class="muted-line">Search across {{ track.name }} and update a driver’s class without opening an event.</p>
+      <div class="class-search employee-class-search" data-class-search data-search-url="{{ url_for('employee.search_track_drivers', track_id=track.id) }}" data-csrf-token="{{ csrf_token() }}">
+        <label class="sr-only" for="dashboard-driver-search">Find driver by name, username, or email</label>
+        <div class="employee-class-search-control">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input id="dashboard-driver-search" type="search" class="class-search-input" placeholder="Search name, username, or email" autocomplete="off">
+        </div>
+        <p class="hint">Enter at least 2 characters.</p>
+        <div class="class-search-results"></div>
+      </div>
+    </section>
+
+    <section class="card employee-last-event-card">
+      <div class="employee-dashboard-section-head">
+        <div><span>Recently completed</span><h3>Last event</h3></div>
+      </div>
+      {% if last_event %}
+        <div class="employee-last-event-copy">
+          <strong>{{ last_event.event_name }}</strong>
+          <span>{{ last_event.event_date.strftime('%B %-d, %Y') }}</span>
+        </div>
+        <div class="employee-last-event-stats">
+          <article><strong>{{ last_event_participants }}</strong><span>Drivers</span></article>
+          <article><strong>{{ last_event_spectator_tickets }}</strong><span>Spectators</span></article>
+        </div>
+        <a class="employee-text-link" href="{{ url_for('employee.event_detail', event_id=last_event.id) }}">Review event <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      {% else %}
+        <div class="employee-dashboard-empty compact">
+          <i class="bi bi-flag" aria-hidden="true"></i>
+          <div><strong>No completed events yet</strong><p>Event results will appear here.</p></div>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="card employee-past-events-card">
+    <details>
+      <summary>
+        <span><i class="bi bi-clock-history" aria-hidden="true"></i> Past events</span>
+        <span>{{ past_events|length }}</span>
+      </summary>
+      {% if past_events %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Date</th><th>Drivers</th><th>Actions</th></tr></thead>
+            <tbody>
+              {% for event in past_events %}
+              <tr>
+                <td><a class="event-row-link" href="{{ url_for('employee.event_detail', event_id=event.id) }}">{{ event.event_name }}</a></td>
+                <td>{{ event.event_date }}</td>
+                <td>{{ signup_counts.get(event.id, 0) }}</td>
+                <td>
+                  <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open</a>
+                  {% if is_office_staff %}<a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted-line">No past events.</p>
+      {% endif %}
+    </details>
+  </section>
+</div>
 {% endblock %}

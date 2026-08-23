@@ -248,6 +248,7 @@ def dashboard():
         .all()
     )
     signup_counts = {event_id: count for event_id, count in signup_counts_raw}
+    upcoming_driver_count = sum(signup_counts.get(event.id, 0) for event in upcoming_events)
     last_event = past_events[0] if past_events else None
     last_event_participants = signup_counts.get(last_event.id, 0) if last_event else 0
     last_event_spectator_tickets = 0
@@ -264,6 +265,8 @@ def dashboard():
         past_events=past_events,
         track=track,
         signup_counts=signup_counts,
+        upcoming_driver_count=upcoming_driver_count,
+        today=date.today(),
         last_event=last_event,
         last_event_participants=last_event_participants,
         last_event_spectator_tickets=last_event_spectator_tickets,
