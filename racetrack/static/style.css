@@ -3781,6 +3781,8 @@ details > summary { font-size: .92rem; }
 
 .spectator-event-info { min-width: 0; }
 .spectator-event-info h3 { margin: 0 0 5px; font-size: 1.02rem; }
+.spectator-event-title-link { color: #1d2939; text-decoration: none; }
+.spectator-event-title-link:hover { color: #2457ff; }
 .spectator-event-info p { margin: 0 0 5px; color: #475467; font-size: .84rem; font-weight: 650; }
 .spectator-event-info span { color: #7a8699; font-size: .78rem; }
 
@@ -3810,6 +3812,140 @@ details > summary { font-size: .92rem; }
 .spectator-empty-state i { font-size: 1.4rem; color: #98a2b3; }
 .spectator-empty-state h3 { margin: 10px 0 0; }
 .spectator-empty-state p { margin: 5px 0; }
+
+.spectator-detail-page {
+  width: min(960px, 100%);
+  margin: 0 auto;
+}
+
+.spectator-detail-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.spectator-detail-nav > a:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #667085;
+  font-size: .78rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.spectator-detail-nav > a:first-child:hover { color: #2457ff; }
+
+.spectator-detail-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, .7fr);
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+}
+
+.spectator-detail-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  min-height: 330px;
+  padding: 34px;
+  background:
+    radial-gradient(circle at 95% 0%, rgba(36, 87, 255, .09), transparent 42%),
+    linear-gradient(145deg, #fbfcff, #f5f7fb);
+}
+.spectator-detail-date {
+  display: grid;
+  flex: 0 0 76px;
+  justify-items: center;
+  align-content: center;
+  min-height: 92px;
+  color: #1d2939;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  box-shadow: 0 5px 16px rgba(16, 24, 40, .06);
+}
+.spectator-detail-date span {
+  color: #2457ff;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.spectator-detail-date strong { font-size: 1.85rem; line-height: 1.05; }
+.spectator-detail-date small { color: #98a2b3; font-size: .67rem; }
+.spectator-detail-copy { align-self: center; min-width: 0; }
+.spectator-detail-track {
+  margin: 0 0 7px;
+  color: #5573cc;
+  font-size: .72rem;
+  font-weight: 750;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.spectator-detail-copy h2 { margin: 0 0 15px; color: #101828; font-size: clamp(1.65rem, 4vw, 2.35rem); line-height: 1.08; }
+.spectator-detail-location { display: flex; align-items: center; gap: 6px; margin: 6px 0; color: #667085; font-size: .84rem; }
+.spectator-detail-location i { color: #7b91d2; }
+
+.spectator-purchase-card {
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  padding: 26px;
+  border-left: 1px solid #e4e7ec;
+}
+.spectator-purchase-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.spectator-purchase-heading > div { display: grid; gap: 3px; }
+.spectator-purchase-heading span { color: #667085; font-size: .74rem; font-weight: 650; }
+.spectator-purchase-heading strong { color: #101828; font-size: 1.55rem; }
+.spectator-purchase-heading > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #2457ff;
+  background: #eef3ff;
+  border-radius: 9px;
+  font-size: 1.05rem;
+}
+.spectator-purchase-card > p { margin: 0; color: #667085; font-size: .8rem; line-height: 1.55; }
+.spectator-detail-buy-form { display: grid; grid-template-columns: 95px minmax(0, 1fr); gap: 7px; }
+.spectator-detail-buy-form label {
+  grid-column: 1 / -1;
+  color: #475467;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.spectator-detail-buy-form select { min-width: 0; margin: 0; }
+.spectator-detail-buy-form .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.spectator-purchase-note { display: flex; align-items: flex-start; gap: 7px; color: #7a8699; font-size: .7rem; line-height: 1.4; }
+.spectator-purchase-note i { color: #14804a; }
+
+.spectator-detail-benefits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.spectator-detail-benefits article {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 76px;
+  padding: 13px;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 9px;
+}
+.spectator-detail-benefits article > i { color: #5573cc; font-size: .95rem; }
+.spectator-detail-benefits article > div { display: grid; gap: 3px; }
+.spectator-detail-benefits strong { color: #344054; font-size: .78rem; }
+.spectator-detail-benefits span { color: #7a8699; font-size: .7rem; line-height: 1.4; }
 
 /* Keep the rest of the spectator purchase flow visually quiet. */
 .shop-shell,
@@ -3879,6 +4015,10 @@ details > summary { font-size: .92rem; }
     border-top: 1px solid #eaecf0;
   }
   .spectator-event-price { justify-items: start; }
+  .spectator-detail-card { grid-template-columns: 1fr; }
+  .spectator-detail-event { min-height: 230px; padding: 24px; }
+  .spectator-purchase-card { border-top: 1px solid #e4e7ec; border-left: 0; }
+  .spectator-detail-benefits { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 440px) {
@@ -3890,4 +4030,9 @@ details > summary { font-size: .92rem; }
   .spectator-event-purchase { grid-template-columns: 1fr; }
   .spectator-buy-form { width: 100%; }
   .spectator-buy-form .btn { flex: 1; }
+  .spectator-detail-event { gap: 13px; padding: 20px 16px; }
+  .spectator-detail-date { flex-basis: 62px; min-height: 78px; }
+  .spectator-detail-date strong { font-size: 1.55rem; }
+  .spectator-purchase-card { padding: 20px 16px; }
+  .spectator-detail-buy-form { grid-template-columns: 86px minmax(0, 1fr); }
 }

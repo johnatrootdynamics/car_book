@@ -1,7 +1,7 @@
 from datetime import date
 import secrets
 
-from flask import Blueprint, flash, redirect, render_template, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -12,6 +12,13 @@ from .services.email_service import send_user_welcome_email
 
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _safe_next_url(default_endpoint):
+    target = (request.args.get("next") or "").strip()
+    if target.startswith("/") and not target.startswith("//"):
+        return target
+    return url_for(default_endpoint)
 
 
 def _generate_user_qr_code():
@@ -77,7 +84,7 @@ def user_login():
             user = User.query.filter_by(email=form.email.data.lower().strip()).first()
             if user and check_password_hash(user.password_hash, form.password.data):
                 login_user(user)
-                return redirect(url_for("user.dashboard"))
+                return redirect(_safe_next_url("user.dashboard"))
             flash("Invalid credentials.", "error")
         except SQLAlchemyError:
             flash("Database unavailable. Please try again shortly.", "error")

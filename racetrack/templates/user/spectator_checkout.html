@@ -32,7 +32,7 @@
           <strong>Already have a driver account?</strong>
           <p class="muted-line">Log in for faster checkout, or continue as a guest below.</p>
         </div>
-        <a class="btn btn-sm" href="{{ url_for('auth.user_login') }}">Log In</a>
+        <a class="btn btn-sm" href="{{ url_for('auth.user_login', next=url_for('user.spectator_checkout')) }}">Log In</a>
       </div>
     {% endif %}
 

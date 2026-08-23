@@ -7,7 +7,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
-from .forms import CarForm, DriverCheckoutForm, EventSignupForm, SocialCommentForm, SpectatorCheckoutForm, SpectatorTicketForm
+from .forms import CarForm, DriverCheckoutForm, EventSignupForm, SocialCommentForm, SpectatorCheckoutForm
 from .models import (
     Car,
     Event,
@@ -109,13 +109,61 @@ def _get_or_create_spectator_cart():
     if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
         user_id = current_user.id
     if user_id:
-        cart = SpectatorCart.query.filter_by(user_id=user_id).first()
-        if cart:
-            return cart
-        cart = SpectatorCart(user_id=user_id)
-        db.session.add(cart)
+        user_cart = SpectatorCart.query.filter_by(user_id=user_id).first()
+        guest_token = session.get("spectator_cart_token")
+        guest_cart = (
+            SpectatorCart.query.filter_by(session_token=guest_token).first()
+            if guest_token
+            else None
+        )
+
+        if guest_cart and guest_cart.id != getattr(user_cart, "id", None):
+            if not user_cart:
+                guest_cart.user_id = user_id
+                guest_cart.session_token = None
+                session.pop("spectator_cart_token", None)
+                db.session.commit()
+                return guest_cart
+
+            guest_items = list(guest_cart.items)
+            user_items = list(user_cart.items)
+            guest_track_ids = {item.event.track_id for item in guest_items}
+            user_track_ids = {item.event.track_id for item in user_items}
+            can_merge = not guest_items or not user_items or guest_track_ids == user_track_ids
+            if can_merge:
+                for guest_item in guest_items:
+                    existing = SpectatorCartItem.query.filter_by(
+                        cart_id=user_cart.id,
+                        event_id=guest_item.event_id,
+                        ticket_type_id=guest_item.ticket_type_id,
+                    ).first()
+                    if existing:
+                        max_qty = guest_item.ticket_type.max_per_order if guest_item.ticket_type else 10
+                        existing.quantity = min(
+                            (existing.quantity or 0) + (guest_item.quantity or 0),
+                            max_qty or 10,
+                        )
+                        db.session.delete(guest_item)
+                    else:
+                        guest_item.cart = user_cart
+                db.session.delete(guest_cart)
+                session.pop("spectator_cart_token", None)
+                session.pop("spectator_cart_merge_notice", None)
+                db.session.commit()
+            elif not session.get("spectator_cart_merge_notice"):
+                session["spectator_cart_merge_notice"] = True
+                flash(
+                    "Your saved account cart is for another track, so it was kept separate from the guest cart.",
+                    "error",
+                )
+            return user_cart
+
+        if user_cart:
+            return user_cart
+        user_cart = SpectatorCart(user_id=user_id)
+        db.session.add(user_cart)
         db.session.commit()
-        return cart
+        return user_cart
 
     token = session.get("spectator_cart_token")
     if not token:
@@ -347,48 +395,21 @@ def dashboard():
     )
 
 
-@user_bp.route("/events/<int:event_id>/spectator-tickets", methods=["GET", "POST"])
+@user_bp.route("/events/<int:event_id>/spectator-tickets")
 def spectator_tickets(event_id):
     event = Event.query.get_or_404(event_id)
-    form = SpectatorTicketForm()
-    if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
-        if request.method == "GET":
-            form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
-            form.email.data = current_user.email
-            form.phone.data = current_user.phone
-    if request.method == "GET":
-        form.payment_method.data = event.track.spectator_payment_provider or "stripe"
-    if form.validate_on_submit():
-        buyer_type = "guest"
-        user_id = None
-        full_name = (form.full_name.data or "").strip()
-        email = (form.email.data or "").strip().lower()
-        phone = (form.phone.data or "").strip()
-        if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
-            buyer_type = "user"
-            user_id = current_user.id
-            full_name = f"{current_user.first_name} {current_user.last_name}".strip()
-            email = current_user.email
-            phone = current_user.phone
-        if not full_name or not email or not phone:
-            flash("Name, email, and phone are required for ticket purchases.", "error")
-            return render_template("user/spectator_tickets.html", event=event, form=form)
-        order = SpectatorTicketOrder(
-            event_id=event.id,
-            user_id=user_id,
-            buyer_type=buyer_type,
-            guest_full_name=full_name,
-            guest_email=email,
-            guest_phone=phone,
-            quantity=form.quantity.data,
-            payment_method=event.track.spectator_payment_provider or "stripe",
-            status="recorded",
-        )
-        db.session.add(order)
-        db.session.commit()
-        flash("Spectator ticket purchase recorded.", "success")
-        return redirect(url_for("user.spectator_tickets", event_id=event.id))
-    return render_template("user/spectator_tickets.html", event=event, form=form)
+    if event.event_date < date.today():
+        flash("Spectator tickets are no longer available for this event.", "error")
+        return redirect(url_for("user.spectator_events"))
+    ticket_type = _get_or_create_default_ticket_type(event)
+    cart = _get_or_create_spectator_cart()
+    return render_template(
+        "user/spectator_tickets.html",
+        event=event,
+        ticket_type=ticket_type,
+        money=_money,
+        cart_count=_cart_item_count(cart),
+    )
 
 
 @user_bp.route("/spectator/events")

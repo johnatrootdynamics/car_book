@@ -1,23 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card narrow">
-  <div class="row-space">
-    <div>
-      <h2>Spectator Tickets</h2>
-      <p class="muted-line">{{ event.event_name }} • {{ event.track.name }} • {{ event.event_date }}</p>
-    </div>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.dashboard') if current_user.is_authenticated and current_user.account_type == 'user' else url_for('auth.home') }}">Back</a>
-  </div>
+<div class="spectator-detail-page">
+  <nav class="spectator-detail-nav" aria-label="Ticket shop navigation">
+    <a href="{{ url_for('user.spectator_events') }}"><i class="bi bi-chevron-left" aria-hidden="true"></i> All events</a>
+    <a class="btn btn-secondary spectator-cart-link" href="{{ url_for('user.spectator_cart') }}">
+      <i class="bi bi-bag" aria-hidden="true"></i>
+      <span>Cart</span>
+      {% if cart_count %}<span class="spectator-cart-count">{{ cart_count }}</span>{% endif %}
+    </a>
+  </nav>
 
-  <form method="post" class="form-grid" data-enhanced>
-    {{ form.hidden_tag() }}
-    <label>Full Name {{ form.full_name(placeholder='Guest full name') }}</label>
-    <label>Email {{ form.email(placeholder='guest@example.com') }}</label>
-    <label>Phone {{ form.phone(placeholder='(555) 555-5555') }}</label>
-    <label>Tickets {{ form.quantity() }}</label>
-    <label>Payment Method {{ form.payment_method() }}</label>
-    <p class="hint">MVP mode: purchase is recorded for operations reporting; no payment gateway charge yet.</p>
-    {{ form.submit(class_='btn') }}
-  </form>
-</section>
+  <section class="spectator-detail-card">
+    <div class="spectator-detail-event">
+      <div class="spectator-detail-date">
+        <span>{{ event.event_date.strftime('%b') }}</span>
+        <strong>{{ event.event_date.strftime('%-d') }}</strong>
+        <small>{{ event.event_date.strftime('%Y') }}</small>
+      </div>
+      <div class="spectator-detail-copy">
+        <p class="spectator-detail-track">{{ event.track.name }}</p>
+        <h2>{{ event.event_name }}</h2>
+        <p class="spectator-detail-location"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}</p>
+        {% if event.event_start_time %}
+          <p class="spectator-detail-location"><i class="bi bi-clock" aria-hidden="true"></i> Gates and event timing begin at {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <aside class="spectator-purchase-card">
+      <div class="spectator-purchase-heading">
+        <div>
+          <span>{{ ticket_type.name }}</span>
+          <strong>{{ money(ticket_type.price_cents) }}</strong>
+        </div>
+        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+      </div>
+      <p>Choose how many tickets you need. Buyer information and payment are collected together at checkout.</p>
+      <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-detail-buy-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="event_id" value="{{ event.id }}">
+        <label for="spectator-detail-quantity">Quantity</label>
+        <select id="spectator-detail-quantity" name="quantity">
+          {% for qty in range(1, (ticket_type.max_per_order or 10) + 1) %}
+            <option value="{{ qty }}">{{ qty }} {{ 'ticket' if qty == 1 else 'tickets' }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit"><i class="bi bi-bag-plus" aria-hidden="true"></i> Add to cart</button>
+      </form>
+      <div class="spectator-purchase-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>No account required. Confirmation is sent after checkout.</span></div>
+    </aside>
+  </section>
+
+  <section class="spectator-detail-benefits" aria-label="Ticket information">
+    <article><i class="bi bi-phone" aria-hidden="true"></i><div><strong>Mobile ready</strong><span>Keep your confirmation handy at the gate.</span></div></article>
+    <article><i class="bi bi-envelope-check" aria-hidden="true"></i><div><strong>Email confirmation</strong><span>Order details are delivered to the buyer.</span></div></article>
+    <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>One easy cart</strong><span>Add tickets for your group before checkout.</span></div></article>
+  </section>
+</div>
 {% endblock %}

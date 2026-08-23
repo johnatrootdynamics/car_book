@@ -30,7 +30,7 @@
           <small>{{ event.event_date.strftime('%Y') }}</small>
         </time>
         <div class="spectator-event-info">
-          <h3>{{ event.event_name }}</h3>
+          <h3><a class="spectator-event-title-link" href="{{ url_for('user.spectator_tickets', event_id=event.id) }}">{{ event.event_name }}</a></h3>
           <p>{{ event.track.name }}</p>
           <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}</span>
         </div>
@@ -45,11 +45,11 @@
             <input type="hidden" name="event_id" value="{{ event.id }}">
             <label class="sr-only" for="spectator-quantity-{{ event.id }}">Quantity for {{ event.event_name }}</label>
             <select id="spectator-quantity-{{ event.id }}" name="quantity" aria-label="Ticket quantity">
-              {% for qty in [1,2,3,4,5] %}
+              {% for qty in range(1, ((ticket_type.max_per_order if ticket_type else 10) or 10) + 1) %}
                 <option value="{{ qty }}">{{ qty }}</option>
               {% endfor %}
             </select>
-            <button class="btn" type="submit">Add tickets</button>
+            <button class="btn" type="submit">Add to cart</button>
           </form>
         </div>
       </article>
