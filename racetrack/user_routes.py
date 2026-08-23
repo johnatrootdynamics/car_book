@@ -444,6 +444,9 @@ def spectator_cart_add():
     event_id = request.form.get("event_id", type=int)
     quantity = request.form.get("quantity", type=int) or 1
     event = Event.query.get_or_404(event_id)
+    if event.event_date < date.today():
+        flash("Spectator tickets are no longer available for this event.", "error")
+        return redirect(url_for("user.spectator_events"))
     ticket_type = _get_or_create_default_ticket_type(event)
     quantity = max(1, min(quantity, ticket_type.max_per_order or 10))
     cart = _get_or_create_spectator_cart()
@@ -476,11 +479,14 @@ def spectator_cart():
     items = SpectatorCartItem.query.filter_by(cart_id=cart.id).all()
     rows = []
     subtotal_cents = 0
+    has_expired = False
     for item in items:
         unit = item.ticket_type.price_cents if item.ticket_type else 0
         line = unit * item.quantity
         subtotal_cents += line
-        rows.append({"item": item, "unit": unit, "line": line})
+        expired = item.event.event_date < date.today()
+        has_expired = has_expired or expired
+        rows.append({"item": item, "unit": unit, "line": line, "expired": expired})
     return render_template(
         "user/spectator_cart.html",
         cart=cart,
@@ -488,6 +494,7 @@ def spectator_cart():
         subtotal_cents=subtotal_cents,
         money=_money,
         cart_count=_cart_item_count(cart),
+        has_expired=has_expired,
     )
 
 
@@ -520,6 +527,9 @@ def spectator_checkout():
     if not items:
         flash("Your cart is empty.", "error")
         return redirect(url_for("user.spectator_events"))
+    if any(item.event.event_date < date.today() for item in items):
+        flash("Remove expired event tickets before checkout.", "error")
+        return redirect(url_for("user.spectator_cart"))
     subtotal_cents = 0
     rows = []
     for item in items:

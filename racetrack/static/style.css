@@ -3984,6 +3984,17 @@ details > summary { font-size: .92rem; }
   background: #eef3ff;
   border-radius: 9px;
 }
+.shop-shell .shop-cart-item.is-expired { background: #fffbfa; border-color: #f3c7c2; }
+.shop-expired-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  color: #b42318;
+  font-size: .7rem;
+  font-weight: 700;
+}
+.shop-checkout-btn.is-disabled { opacity: .55; cursor: not-allowed; }
 .shop-shell .shop-summary-row,
 .checkout-shell .shop-summary-row {
   color: #667085;

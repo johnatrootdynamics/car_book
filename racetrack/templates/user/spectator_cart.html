@@ -8,7 +8,7 @@
       <p class="muted-line">Review your tickets, adjust quantities, then move into secure checkout.</p>
     </div>
     <div class="inline">
-      <span class="shop-cart-pill"><i class="bi bi-bag-check"></i> {{ cart_count }} tickets</span>
+      <span class="shop-cart-pill"><i class="bi bi-bag-check"></i> {{ cart_count }} {{ 'ticket' if cart_count == 1 else 'tickets' }}</span>
       <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_events') }}">Continue Shopping</a>
     </div>
   </div>
@@ -17,7 +17,7 @@
     <div class="shop-cart-layout">
       <div class="shop-cart-items">
         {% for row in rows %}
-          <article class="shop-cart-item">
+          <article class="shop-cart-item {% if row.expired %}is-expired{% endif %}">
             <div class="shop-ticket-thumb">
               <i class="bi bi-ticket-perforated"></i>
             </div>
@@ -25,6 +25,7 @@
               <div class="row-space">
                 <div>
                   <h3>{{ row.item.event.event_name }}</h3>
+                  {% if row.expired %}<span class="shop-expired-label"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Event has passed</span>{% endif %}
                   <p class="muted-line"><i class="bi bi-geo-alt"></i> {{ row.item.event.track.name }} &middot; {{ row.item.event.track.city }}, {{ row.item.event.track.state }}</p>
                   <p class="muted-line"><i class="bi bi-calendar-event"></i> {{ row.item.event.event_date }} &middot; {{ row.item.ticket_type.name }}</p>
                 </div>
@@ -58,7 +59,11 @@
         <div class="shop-summary-row"><span>Subtotal</span><strong>{{ money(subtotal_cents) }}</strong></div>
         <div class="shop-summary-row"><span>Fees</span><span>Calculated by provider</span></div>
         <div class="shop-summary-row shop-summary-total"><span>Total due today</span><strong>{{ money(subtotal_cents) }}</strong></div>
-        <a class="btn shop-checkout-btn" href="{{ url_for('user.spectator_checkout') }}">Checkout Now</a>
+        {% if has_expired %}
+          <span class="btn shop-checkout-btn is-disabled" aria-disabled="true">Remove expired tickets</span>
+        {% else %}
+          <a class="btn shop-checkout-btn" href="{{ url_for('user.spectator_checkout') }}">Checkout Now</a>
+        {% endif %}
         <p class="hint">Ticket confirmation is sent to the buyer email and available to gate staff after payment.</p>
       </aside>
     </div>
