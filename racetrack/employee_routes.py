@@ -36,6 +36,7 @@ from .models import (
 )
 from .services.boldsign_service import create_embedded_template_url
 from .services.boldsign_service import delete_template as boldsign_delete_template
+from .security import generate_random_password
 from .services.email_service import send_employee_login_email
 from .services.storage_service import upload_public_image
 
@@ -589,16 +590,27 @@ def email_template_edit(template_key):
 @employee_bp.route("/staff-accounts", methods=["GET"])
 @login_required
 def staff_accounts():
-    guard = require_office_staff()
+    guard = require_employee()
     if guard:
         return guard
-    form = EmployeeCreateForm()
+    can_manage_staff = has_office_access()
+    form = EmployeeCreateForm() if can_manage_staff else None
     staff = Employee.query.filter_by(track_id=active_track_id()).order_by(Employee.created_at.desc()).all()
+    if current_user.account_type == "admin" or can_manage_staff:
+        resettable_employee_ids = {member.id for member in staff}
+    else:
+        resettable_employee_ids = {
+            member.id
+            for member in staff
+            if member.role == "track_staff" and member.id != current_user.id
+        }
     return render_template(
         "employee/staff_accounts.html",
         form=form,
         staff=staff,
         staff_role_labels=STAFF_ROLE_LABELS,
+        can_manage_staff=can_manage_staff,
+        resettable_employee_ids=resettable_employee_ids,
     )
 
 
@@ -730,7 +742,7 @@ def create_employee():
         if existing:
             flash("Employee email already exists.", "error")
         else:
-            plaintext_password = form.password.data
+            plaintext_password = generate_random_password()
             track = Track.query.get_or_404(active_track_id())
             employee = Employee(
                 track_id=track.id,
@@ -740,24 +752,26 @@ def create_employee():
                 role=form.role.data,
             )
             db.session.add(employee)
+            try:
+                db.session.flush()
+                sent = send_employee_login_email(
+                    employee,
+                    plaintext_password,
+                    track,
+                    url_for("auth.employee_login", _external=True),
+                )
+            except Exception:
+                current_app.logger.exception("Could not send employee login email")
+                sent = False
+            if not sent:
+                db.session.rollback()
+                flash(
+                    "Employee account was not created because the login email could not be delivered.",
+                    "error",
+                )
+                return redirect(url_for("employee.staff_accounts"))
             db.session.commit()
-            if form.email_login_details.data:
-                try:
-                    sent = send_employee_login_email(
-                        employee,
-                        plaintext_password,
-                        track,
-                        url_for("auth.employee_login", _external=True),
-                    )
-                except Exception:
-                    current_app.logger.exception("Could not send employee login email")
-                    sent = False
-                if sent:
-                    flash("Employee account created and login details emailed.", "success")
-                else:
-                    flash("Employee account created, but the login email could not be sent.", "error")
-            else:
-                flash("Employee account created.", "success")
+            flash("Employee account created and login details emailed.", "success")
     else:
         flash("Could not create employee account.", "error")
     return redirect(url_for("employee.staff_accounts"))
@@ -788,6 +802,52 @@ def update_employee_role(employee_id):
     employee.role = role
     db.session.commit()
     flash(f"{employee.full_name} is now {STAFF_ROLE_LABELS[role].lower()}.", "success")
+    return redirect(url_for("employee.staff_accounts"))
+
+
+@employee_bp.route("/employees/<int:employee_id>/reset-password", methods=["POST"])
+@login_required
+def reset_employee_password(employee_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    employee = Employee.query.filter_by(
+        id=employee_id,
+        track_id=active_track_id(),
+    ).first_or_404()
+
+    is_enterprise_admin = current_user.account_type == "admin"
+    is_office_staff = has_office_access()
+    is_allowed_track_reset = (
+        current_user.account_type == "employee"
+        and current_user.role == "track_staff"
+        and employee.role == "track_staff"
+        and employee.id != current_user.id
+    )
+    if not (is_enterprise_admin or is_office_staff or is_allowed_track_reset):
+        flash("You do not have permission to reset that employee’s password.", "error")
+        return redirect(url_for("employee.staff_accounts"))
+
+    plaintext_password = generate_random_password()
+    employee.password_hash = generate_password_hash(plaintext_password)
+    try:
+        db.session.flush()
+        sent = send_employee_login_email(
+            employee,
+            plaintext_password,
+            employee.track,
+            url_for("auth.employee_login", _external=True),
+            is_reset=True,
+        )
+    except Exception:
+        current_app.logger.exception("Could not send employee password reset email")
+        sent = False
+    if not sent:
+        db.session.rollback()
+        flash("Password was not changed because the reset email could not be delivered.", "error")
+        return redirect(url_for("employee.staff_accounts"))
+    db.session.commit()
+    flash(f"A new password was emailed to {employee.email}.", "success")
     return redirect(url_for("employee.staff_accounts"))
 
 

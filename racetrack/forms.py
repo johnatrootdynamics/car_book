@@ -16,8 +16,7 @@ class UserRegistrationForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
     phone = StringField("Phone", validators=[Length(max=30)])
-    password = PasswordField("Password", validators=[DataRequired(), Length(min=8, max=255)])
-    submit = SubmitField("Create Account")
+    submit = SubmitField("Create Account & Email Password")
 
 
 class LoginForm(FlaskForm):
@@ -81,15 +80,13 @@ class TrackEmailTemplateForm(FlaskForm):
 class EmployeeCreateForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
-    password = PasswordField("Password", validators=[DataRequired(), Length(min=8, max=255)])
     role = SelectField(
         "Role",
         choices=[("track_staff", "Track staff"), ("office_staff", "Office staff")],
         validators=[DataRequired()],
         default="track_staff",
     )
-    email_login_details = BooleanField("Email login details to this employee")
-    submit = SubmitField("Create Employee Account")
+    submit = SubmitField("Create & Email Login")
 
 
 class TrackCreateForm(FlaskForm):

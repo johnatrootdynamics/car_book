@@ -4,6 +4,7 @@
   <div class="register-intro">
     <h2>Create Driver Account</h2>
     <p>Join your local track community, sign up for events, and get inspection-ready with your unique check-in code.</p>
+    <p class="register-password-note"><i class="bi bi-envelope-check" aria-hidden="true"></i> We’ll generate a secure password and email it directly to you.</p>
   </div>
   <form method="post" class="form-grid narrow register-form" data-enhanced>
     {{ form.hidden_tag() }}
@@ -11,8 +12,6 @@
     <label>Full Name {{ form.full_name() }}</label>
     <label>Email {{ form.email() }}</label>
     <label>Phone {{ form.phone() }}</label>
-    <label>Password {{ form.password() }}</label>
-    <p class="hint">Use at least 8 characters.</p>
     <div>{{ form.submit(class_='btn') }}</div>
   </form>
 </section>

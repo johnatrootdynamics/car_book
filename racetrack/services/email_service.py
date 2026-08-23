@@ -56,28 +56,81 @@ def send_email(to_email, subject, body):
     return True
 
 
-def send_user_welcome_email(user):
+def send_user_login_email(user, plaintext_password, login_url, is_reset=False):
+    intro = (
+        "Your CarBook password has been reset."
+        if is_reset
+        else "Your CarBook account is ready."
+    )
     return send_email(
         user.email,
-        "Welcome to CarBook",
-        f"Hi {user.first_name},\n\nYour CarBook account is ready. Sign in to find events, buy tickets, complete waivers, and manage your cars.\n\nThanks,\nCarBook",
+        "Your new CarBook password" if is_reset else "Welcome to CarBook",
+        (
+            f"Hi {user.first_name},\n\n"
+            f"{intro}\n\n"
+            f"Login: {login_url}\n"
+            f"Email: {user.email}\n"
+            f"Password: {plaintext_password}\n\n"
+            "Please sign in and keep this information secure.\n\n"
+            "Thanks,\nCarBook"
+        ),
     )
 
 
-def send_employee_login_email(employee, plaintext_password, track, login_url):
+def send_employee_login_email(
+    employee,
+    plaintext_password,
+    track,
+    login_url,
+    is_reset=False,
+):
     role_label = "Office staff" if employee.role == "office_staff" else "Track staff"
+    intro = (
+        f"Your employee password for {track.name} has been reset."
+        if is_reset
+        else f"An employee account has been created for you at {track.name}."
+    )
     return send_email(
         employee.email,
-        f"Your {track.name} Track Ops account",
+        (
+            f"Your new {track.name} Track Ops password"
+            if is_reset
+            else f"Your {track.name} Track Ops account"
+        ),
         (
             f"Hi {employee.full_name},\n\n"
-            f"An employee account has been created for you at {track.name}.\n\n"
+            f"{intro}\n\n"
             f"Login: {login_url}\n"
             f"Email: {employee.email}\n"
             f"Password: {plaintext_password}\n\n"
             f"Role: {role_label}\n\n"
             "Please sign in and keep this information secure.\n\n"
             f"Thanks,\n{track.name}"
+        ),
+    )
+
+
+def send_admin_login_email(admin, plaintext_password, login_url, is_reset=True):
+    intro = (
+        "Your enterprise admin password has been reset."
+        if is_reset
+        else "Your enterprise admin account is ready."
+    )
+    return send_email(
+        admin.email,
+        (
+            "Your new CarBook enterprise admin password"
+            if is_reset
+            else "Your CarBook enterprise admin account"
+        ),
+        (
+            f"Hi {admin.full_name},\n\n"
+            f"{intro}\n\n"
+            f"Login: {login_url}\n"
+            f"Email: {admin.email}\n"
+            f"Password: {plaintext_password}\n\n"
+            "Please sign in and keep this information secure.\n\n"
+            "Thanks,\nCarBook"
         ),
     )
 

@@ -9,17 +9,20 @@
     <span class="staff-count">{{ staff|length }} {{ 'account' if staff|length == 1 else 'accounts' }}</span>
   </header>
 
-  <section class="card staff-create-card">
-    <form method="post" action="{{ url_for('employee.create_employee') }}" class="staff-create-form" data-enhanced>
-      {{ form.hidden_tag() }}
-      <label>Full name {{ form.full_name(placeholder='Alex Morgan') }}</label>
-      <label>Email {{ form.email(placeholder='alex@example.com') }}</label>
-      <label>Password {{ form.password(placeholder='Minimum 8 characters') }}</label>
-      <label>Role {{ form.role() }}</label>
-      <div class="staff-create-action">{{ form.submit(class_='btn') }}</div>
-      <label class="staff-email-option">{{ form.email_login_details() }} <span><strong>Email login details</strong><small>Sends the email address, password, and employee login link.</small></span></label>
-    </form>
-  </section>
+  {% if can_manage_staff %}
+    <section class="card staff-create-card">
+      <form method="post" action="{{ url_for('employee.create_employee') }}" class="staff-create-form" data-enhanced>
+        {{ form.hidden_tag() }}
+        <label>Full name {{ form.full_name(placeholder='Alex Morgan') }}</label>
+        <label>Email {{ form.email(placeholder='alex@example.com') }}</label>
+        <label>Role {{ form.role() }}</label>
+        <div class="staff-create-action">{{ form.submit(class_='btn') }}</div>
+        <p class="staff-generated-password-note"><i class="bi bi-envelope-check" aria-hidden="true"></i> A secure password is generated automatically and emailed directly to the employee.</p>
+      </form>
+    </section>
+  {% else %}
+    <aside class="staff-permission-note"><i class="bi bi-info-circle" aria-hidden="true"></i> You can reset another track staff member’s password. Office staff accounts and role assignments are protected.</aside>
+  {% endif %}
 
   <section class="card staff-list-card">
     <div class="staff-list-head"><h3>Current staff</h3></div>
@@ -32,16 +35,28 @@
             <strong>{{ member.full_name }}</strong>
             <span>{{ member.email }}</span>
           </div>
-          <form method="post" action="{{ url_for('employee.update_employee_role', employee_id=member.id) }}" class="staff-role-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label class="sr-only" for="staff-role-{{ member.id }}">Role for {{ member.full_name }}</label>
-            <select id="staff-role-{{ member.id }}" name="role" aria-label="Role for {{ member.full_name }}">
-              {% for role_value, role_label in staff_role_labels.items() %}
-                <option value="{{ role_value }}" {% if member.role == role_value %}selected{% endif %}>{{ role_label }}</option>
-              {% endfor %}
-            </select>
-            <button class="btn btn-secondary btn-sm" type="submit">Save</button>
-          </form>
+          <div class="staff-row-actions">
+            {% if can_manage_staff %}
+              <form method="post" action="{{ url_for('employee.update_employee_role', employee_id=member.id) }}" class="staff-role-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label class="sr-only" for="staff-role-{{ member.id }}">Role for {{ member.full_name }}</label>
+                <select id="staff-role-{{ member.id }}" name="role" aria-label="Role for {{ member.full_name }}">
+                  {% for role_value, role_label in staff_role_labels.items() %}
+                    <option value="{{ role_value }}" {% if member.role == role_value %}selected{% endif %}>{{ role_label }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-secondary btn-sm" type="submit">Save</button>
+              </form>
+            {% else %}
+              <span class="staff-role-pill {{ member.role }}">{{ staff_role_labels.get(member.role, member.role) }}</span>
+            {% endif %}
+            {% if member.id in resettable_employee_ids %}
+              <form method="post" action="{{ url_for('employee.reset_employee_password', employee_id=member.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="staff-reset-action" type="submit" onclick="return confirm('Generate a new password and email it to this employee?')"><i class="bi bi-key" aria-hidden="true"></i> Reset password</button>
+              </form>
+            {% endif %}
+          </div>
           <time datetime="{{ member.created_at.isoformat() }}">Added {{ member.created_at.strftime('%b %-d, %Y') }}</time>
         </article>
       {% endfor %}

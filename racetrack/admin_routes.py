@@ -1,9 +1,34 @@
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_login import current_user, login_required
+from sqlalchemy import or_
+from werkzeug.security import generate_password_hash
 
 from .forms import TrackCreateForm, WaiverTemplateForm
-from .models import DriverWaiver, Track, TrackWaiverTemplate, db
+from .models import (
+    DriverWaiver,
+    Employee,
+    EnterpriseAdmin,
+    Track,
+    TrackWaiverTemplate,
+    User,
+    db,
+)
+from .security import generate_random_password
 from .services.boldsign_service import list_templates
+from .services.email_service import (
+    send_admin_login_email,
+    send_employee_login_email,
+    send_user_login_email,
+)
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -34,6 +59,108 @@ def dashboard():
         impersonating_track_id=impersonating_track_id,
         create_form=create_form,
     )
+
+
+@admin_bp.route("/accounts")
+@login_required
+def accounts():
+    guard = require_admin()
+    if guard:
+        return guard
+    query = (request.args.get("q") or "").strip()
+    employees_query = Employee.query.join(Track)
+    users_query = User.query
+    admins_query = EnterpriseAdmin.query
+    if query:
+        pattern = f"%{query}%"
+        employees_query = employees_query.filter(
+            or_(
+                Employee.full_name.ilike(pattern),
+                Employee.email.ilike(pattern),
+                Track.name.ilike(pattern),
+            )
+        )
+        users_query = users_query.filter(
+            or_(
+                User.first_name.ilike(pattern),
+                User.last_name.ilike(pattern),
+                User.username.ilike(pattern),
+                User.email.ilike(pattern),
+            )
+        )
+        admins_query = admins_query.filter(
+            or_(
+                EnterpriseAdmin.full_name.ilike(pattern),
+                EnterpriseAdmin.email.ilike(pattern),
+            )
+        )
+    employees = employees_query.order_by(Employee.created_at.desc()).limit(100).all()
+    users = users_query.order_by(User.created_at.desc()).limit(100).all()
+    admins = admins_query.order_by(EnterpriseAdmin.created_at.desc()).limit(100).all()
+    return render_template(
+        "admin/accounts.html",
+        employees=employees,
+        users=users,
+        admins=admins,
+        query=query,
+    )
+
+
+@admin_bp.route(
+    "/accounts/<account_type>/<int:account_id>/reset-password",
+    methods=["POST"],
+)
+@login_required
+def reset_account_password(account_type, account_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    account_models = {
+        "driver": User,
+        "employee": Employee,
+        "admin": EnterpriseAdmin,
+    }
+    model = account_models.get(account_type)
+    if not model:
+        flash("Unknown account type.", "error")
+        return redirect(url_for("admin.accounts"))
+    account = model.query.get_or_404(account_id)
+    plaintext_password = generate_random_password()
+    account.password_hash = generate_password_hash(plaintext_password)
+    try:
+        db.session.flush()
+        if account_type == "driver":
+            sent = send_user_login_email(
+                account,
+                plaintext_password,
+                url_for("auth.user_login", _external=True),
+                is_reset=True,
+            )
+        elif account_type == "employee":
+            sent = send_employee_login_email(
+                account,
+                plaintext_password,
+                account.track,
+                url_for("auth.employee_login", _external=True),
+                is_reset=True,
+            )
+        else:
+            sent = send_admin_login_email(
+                account,
+                plaintext_password,
+                url_for("auth.admin_login", _external=True),
+                is_reset=True,
+            )
+    except Exception:
+        current_app.logger.exception("Could not send enterprise password reset email")
+        sent = False
+    if not sent:
+        db.session.rollback()
+        flash("Password was not changed because the reset email could not be delivered.", "error")
+        return redirect(url_for("admin.accounts", q=(request.form.get("q") or "").strip()))
+    db.session.commit()
+    flash(f"A new password was emailed to {account.email}.", "success")
+    return redirect(url_for("admin.accounts", q=(request.form.get("q") or "").strip()))
 
 
 @admin_bp.route("/tracks/new", methods=["POST"])

@@ -1,14 +1,24 @@
 from datetime import date
 import secrets
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .forms import LoginForm, UserRegistrationForm
 from .models import Employee, EnterpriseAdmin, User, db
-from .services.email_service import send_user_welcome_email
+from .security import generate_random_password
+from .services.email_service import send_user_login_email
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -48,6 +58,7 @@ def user_register():
         if existing:
             flash("Email already registered.", "error")
             return render_template("auth/register.html", form=form)
+        plaintext_password = generate_random_password()
         user = User(
             first_name=form.full_name.data.strip().split(" ")[0],
             last_name=" ".join(form.full_name.data.strip().split(" ")[1:]) or "-",
@@ -61,15 +72,25 @@ def user_register():
             city="N/A",
             state="N/A",
             postal_code="N/A",
-            password_hash=generate_password_hash(form.password.data),
+            password_hash=generate_password_hash(plaintext_password),
         )
         db.session.add(user)
-        db.session.commit()
         try:
-            send_user_welcome_email(user)
+            db.session.flush()
+            sent = send_user_login_email(
+                user,
+                plaintext_password,
+                url_for("auth.user_login", _external=True),
+            )
         except Exception:
-            pass
-        flash("Account created. Please sign in.", "success")
+            current_app.logger.exception("Could not send new driver login email")
+            sent = False
+        if not sent:
+            db.session.rollback()
+            flash("Account was not created because the login email could not be delivered.", "error")
+            return render_template("auth/register.html", form=form)
+        db.session.commit()
+        flash("Account created. Your password has been emailed to you.", "success")
         return redirect(url_for("auth.user_login"))
     return render_template("auth/register.html", form=form)
 
