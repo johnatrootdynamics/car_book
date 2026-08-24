@@ -3090,6 +3090,9 @@ details > summary { font-size: .92rem; }
 .orders-empty h3 { margin: 8px 0 4px; }
 .orders-empty p { margin: 0; color: #667085; }
 .order-back-link { color: #667085 !important; font-size: .78rem; font-weight: 700; text-decoration: none; }
+.order-detail-actions { display: flex; align-items: center; gap: 8px; }
+.order-detail-actions form { margin: 0; }
+.order-detail-actions .btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .order-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .order-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 18px; margin: 13px 0 0; }
 .order-facts div { min-width: 0; }
@@ -3126,6 +3129,8 @@ details > summary { font-size: .92rem; }
   .orders-search,
   .orders-filter-actions { grid-column: auto; }
   .order-driver-event { grid-template-columns: 1fr 1fr; }
+  .order-detail-hero .row-space { align-items: flex-start; flex-direction: column; }
+  .order-detail-actions { width: 100%; justify-content: space-between; }
 }
 
 .payment-help-card {

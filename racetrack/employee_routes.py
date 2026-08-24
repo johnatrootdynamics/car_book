@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 
 from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackEmailTemplateForm, TrackProfileForm
 from .models import (
+    DriverTicketOrder,
     Employee,
     Event,
     EventClassSlot,
@@ -37,7 +38,11 @@ from .models import (
 from .services.boldsign_service import create_embedded_template_url
 from .services.boldsign_service import delete_template as boldsign_delete_template
 from .security import generate_random_password
-from .services.email_service import send_employee_login_email
+from .services.email_service import (
+    send_driver_purchase_receipt,
+    send_employee_login_email,
+    send_spectator_order_receipt,
+)
 from .services.storage_service import upload_public_image
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status, payment_is_confirmed
@@ -563,7 +568,56 @@ def order_detail(kind, order_id):
         payment_status=effective_payment_status(order),
         money=format_money,
         back_endpoint="employee.orders",
+        resend_endpoint="employee.resend_order_email",
     )
+
+
+@employee_bp.route("/orders/<kind>/<int:order_id>/resend-email", methods=["POST"])
+@login_required
+def resend_order_email(kind, order_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    if kind == "spectator":
+        order = (
+            SpectatorOrder.query.join(
+                SpectatorOrderItem,
+                SpectatorOrderItem.order_id == SpectatorOrder.id,
+            )
+            .join(Event, Event.id == SpectatorOrderItem.event_id)
+            .filter(SpectatorOrder.id == order_id, Event.track_id == track_id)
+            .distinct()
+            .first_or_404()
+        )
+        recipient = order.guest_email
+        send_fn = send_spectator_order_receipt
+        success_message = f"Tickets were resent to {recipient}."
+    elif kind == "driver":
+        order = (
+            DriverTicketOrder.query.join(Event, Event.id == DriverTicketOrder.event_id)
+            .filter(DriverTicketOrder.id == order_id, Event.track_id == track_id)
+            .first_or_404()
+        )
+        recipient = order.buyer.email
+        send_fn = send_driver_purchase_receipt
+        success_message = f"Driver confirmation was resent to {recipient}."
+    else:
+        return "Unknown order type", 404
+
+    if effective_payment_status(order) != "paid":
+        flash("This email cannot be resent until payment is confirmed.", "error")
+        return redirect(url_for("employee.order_detail", kind=kind, order_id=order_id))
+    try:
+        sent = send_fn(order)
+    except Exception:
+        current_app.logger.exception("Could not resend %s order email for order %s", kind, order_id)
+        sent = False
+    if not sent:
+        flash("The email could not be sent. Check the SMTP settings and try again.", "error")
+    else:
+        flash(success_message, "success")
+    return redirect(url_for("employee.order_detail", kind=kind, order_id=order_id))
 
 
 @employee_bp.route("/settings", methods=["GET"])

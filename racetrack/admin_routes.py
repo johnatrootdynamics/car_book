@@ -34,7 +34,9 @@ from .services.email_service import (
     get_email_configuration,
     send_email,
     send_admin_login_email,
+    send_driver_purchase_receipt,
     send_employee_login_email,
+    send_spectator_order_receipt,
     send_user_login_email,
 )
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
@@ -268,7 +270,42 @@ def order_detail(kind, order_id):
         payment_status=effective_payment_status(order),
         money=format_money,
         back_endpoint="admin.orders",
+        resend_endpoint="admin.resend_order_email",
     )
+
+
+@admin_bp.route("/orders/<kind>/<int:order_id>/resend-email", methods=["POST"])
+@login_required
+def resend_order_email(kind, order_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    if kind == "spectator":
+        order = SpectatorOrder.query.get_or_404(order_id)
+        recipient = order.guest_email
+        send_fn = send_spectator_order_receipt
+        success_message = f"Tickets were resent to {recipient}."
+    elif kind == "driver":
+        order = DriverTicketOrder.query.get_or_404(order_id)
+        recipient = order.buyer.email
+        send_fn = send_driver_purchase_receipt
+        success_message = f"Driver confirmation was resent to {recipient}."
+    else:
+        return "Unknown order type", 404
+
+    if effective_payment_status(order) != "paid":
+        flash("This email cannot be resent until payment is confirmed.", "error")
+        return redirect(url_for("admin.order_detail", kind=kind, order_id=order_id))
+    try:
+        sent = send_fn(order)
+    except Exception:
+        current_app.logger.exception("Could not resend %s order email for order %s", kind, order_id)
+        sent = False
+    if not sent:
+        flash("The email could not be sent. Check the SMTP settings and try again.", "error")
+    else:
+        flash(success_message, "success")
+    return redirect(url_for("admin.order_detail", kind=kind, order_id=order_id))
 
 
 @admin_bp.route("/accounts")

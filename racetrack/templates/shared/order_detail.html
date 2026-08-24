@@ -9,7 +9,15 @@
       <h2>{{ order_number }}</h2>
       <p class="muted-line">{{ track.name }} &middot; Created {{ order.created_at.strftime('%B %-d, %Y at %-I:%M %p') }}</p>
     </div>
-    <span class="order-status-pill large {{ payment_status }}">{{ payment_status|title }}</span>
+    <div class="order-detail-actions">
+      <span class="order-status-pill large {{ payment_status }}">{{ payment_status|title }}</span>
+      {% if payment_status == 'paid' %}
+        <form method="post" action="{{ url_for(resend_endpoint, kind=kind, order_id=order.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-secondary btn-sm"><i class="bi bi-envelope-arrow-up" aria-hidden="true"></i> {{ 'Resend tickets' if kind == 'spectator' else 'Resend confirmation' }}</button>
+        </form>
+      {% endif %}
+    </div>
   </div>
   {% if payment_status != 'paid' %}
     <div class="order-hold-notice"><i class="bi bi-shield-exclamation"></i><span><strong>Fulfillment is on hold.</strong> Tickets, signup access, receipts, and gate check-in remain locked until payment is confirmed.</span></div>
