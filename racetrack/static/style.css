@@ -2974,6 +2974,20 @@ details > summary { font-size: .92rem; }
 .payment-danger-zone .btn:hover { color: #b42336; background: #fff5f6; border-color: #f1bec5; }
 .payment-danger-zone .btn.active { color: #fff; background: #c5283d; border-color: #c5283d; }
 
+.form-error-summary {
+  grid-column: 1 / -1;
+  padding: 12px 14px;
+  color: #9f1239;
+  background: #fff1f3;
+  border: 1px solid #fecdd3;
+  border-radius: 10px;
+}
+.form-error-summary strong { display: block; margin-bottom: 5px; }
+.form-error-summary ul { margin: 0; padding-left: 19px; }
+.form-error-summary li + li { margin-top: 3px; }
+.form-error-summary li span { font-weight: 700; }
+.event-form-label small { color: #667085; font-size: .72rem; font-weight: 600; }
+
 .payment-help-card {
   display: flex;
   align-items: flex-start;

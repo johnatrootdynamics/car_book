@@ -3,7 +3,7 @@ from datetime import date
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from wtforms import BooleanField, DateField, DecimalField, PasswordField, SelectField, StringField, SubmitField, TextAreaField, TimeField
-from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, InputRequired, Length, NumberRange, Optional, ValidationError
 
 
 def validate_not_past(form, field):
@@ -44,8 +44,8 @@ class EventForm(FlaskForm):
     )
     event_start_time = TimeField("Event Start Time", validators=[Optional()])
     event_end_time = TimeField("Event End Time", validators=[Optional()])
-    driver_price = DecimalField("Driver Price", places=2, validators=[DataRequired(), NumberRange(min=0)])
-    spectator_price = DecimalField("Spectator Price", places=2, validators=[DataRequired(), NumberRange(min=0)])
+    driver_price = DecimalField("Driver Price", places=2, validators=[InputRequired(), NumberRange(min=0)])
+    spectator_price = DecimalField("Spectator Price", places=2, validators=[InputRequired(), NumberRange(min=0)])
     thumbnail_image = FileField(
         "Event Thumbnail",
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],

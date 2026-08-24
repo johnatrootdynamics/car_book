@@ -4,6 +4,18 @@
   <h2><i class="bi bi-calendar2-plus"></i> {{ title }}</h2>
   <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
+    {% if form.errors %}
+      <div class="form-error-summary" role="alert">
+        <strong>Please check the event details.</strong>
+        <ul>
+          {% for field_name, errors in form.errors.items() %}
+            {% for error in errors %}
+              <li><span>{{ form[field_name].label.text }}:</span> {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
     {% set ns = namespace(half_hour_options=[]) %}
     {% for hour in range(0, 24) %}
       {% for minute in [0, 30] %}
@@ -17,8 +29,8 @@
     <label><span class="event-form-label"><i class="bi bi-calendar-event"></i> Event Date</span> {{ form.event_date() }}</label>
     <label><span class="event-form-label"><i class="bi bi-speedometer2"></i> Driver Price (USD)</span> {{ form.driver_price(step='0.01', min='0') }}</label>
     <label><span class="event-form-label"><i class="bi bi-ticket-perforated"></i> Spectator Price (USD)</span> {{ form.spectator_price(step='0.01', min='0') }}</label>
-    <label><span class="event-form-label"><i class="bi bi-clock"></i> Event Start Time</span>
-      <select name="event_start_time" required>
+    <label><span class="event-form-label"><i class="bi bi-clock"></i> Event Start Time <small>(optional)</small></span>
+      <select name="event_start_time">
         <option value="">Select start time</option>
         {% for value in ns.half_hour_options %}
           {% set hh = value[:2]|int %}
@@ -29,8 +41,8 @@
         {% endfor %}
       </select>
     </label>
-    <label><span class="event-form-label"><i class="bi bi-clock-history"></i> Event End Time</span>
-      <select name="event_end_time" required>
+    <label><span class="event-form-label"><i class="bi bi-clock-history"></i> Event End Time <small>(optional)</small></span>
+      <select name="event_end_time">
         <option value="">Select end time</option>
         {% for value in ns.half_hour_options %}
           {% set hh = value[:2]|int %}
