@@ -34,7 +34,7 @@
             <div class="row-space">
               <div>
                 <h3>{{ item.event.event_name }}</h3>
-                <p class="muted-line">{{ item.ticket_type_name }} &middot; Qty {{ item.quantity }}</p>
+                <p class="muted-line">Ticket {{ loop.index }} of {{ items|length }} &middot; {{ item.ticket_type_name }}</p>
               </div>
               <strong>{{ money(item.line_total_cents) }}</strong>
             </div>

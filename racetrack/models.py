@@ -579,7 +579,12 @@ class SpectatorOrder(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     buyer = db.relationship("User")
-    items = db.relationship("SpectatorOrderItem", backref="order", cascade="all, delete-orphan")
+    items = db.relationship(
+        "SpectatorOrderItem",
+        backref="order",
+        cascade="all, delete-orphan",
+        order_by="SpectatorOrderItem.id",
+    )
 
 
 class SpectatorOrderItem(db.Model):

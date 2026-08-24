@@ -12,7 +12,15 @@ from sqlalchemy import text
 from sqlalchemy.engine.url import make_url
 from werkzeug.security import generate_password_hash
 
-from .models import db, Employee, EnterpriseAdmin, Track, User
+from .models import (
+    db,
+    Employee,
+    EnterpriseAdmin,
+    SpectatorOrder,
+    SpectatorOrderItem,
+    Track,
+    User,
+)
 from .services.storage_service import build_presigned_read_url
 
 
@@ -445,6 +453,26 @@ def create_app():
                 )
             except Exception:
                 pass
+
+        legacy_multi_ticket_orders = (
+            SpectatorOrder.query.join(
+                SpectatorOrderItem,
+                SpectatorOrderItem.order_id == SpectatorOrder.id,
+            )
+            .filter(SpectatorOrderItem.quantity > 1)
+            .distinct()
+            .all()
+        )
+        if legacy_multi_ticket_orders:
+            from .services.ticket_service import ensure_order_ticket_codes
+
+            for order in legacy_multi_ticket_orders:
+                ensure_order_ticket_codes(order)
+            db.session.commit()
+            app.logger.info(
+                "Split %s existing spectator orders into individual QR tickets.",
+                len(legacy_multi_ticket_orders),
+            )
 
         demo_track = Track.query.filter_by(name="Demo Speedway").first()
         if not demo_track:

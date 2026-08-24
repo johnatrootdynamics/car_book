@@ -699,17 +699,18 @@ def spectator_checkout():
         db.session.flush()
         for row in rows:
             item = row["item"]
-            db.session.add(
-                SpectatorOrderItem(
-                    order_id=order.id,
-                    event_id=item.event_id,
-                    ticket_type_name=item.ticket_type.name if item.ticket_type else "General Admission",
-                    unit_price_cents=row["unit"],
-                    quantity=item.quantity,
-                    line_total_cents=row["line"],
-                    qr_code=generate_ticket_code(),
+            for _ in range(item.quantity):
+                db.session.add(
+                    SpectatorOrderItem(
+                        order_id=order.id,
+                        event_id=item.event_id,
+                        ticket_type_name=item.ticket_type.name if item.ticket_type else "General Admission",
+                        unit_price_cents=row["unit"],
+                        quantity=1,
+                        line_total_cents=row["unit"],
+                        qr_code=generate_ticket_code(),
+                    )
                 )
-            )
         db.session.flush()
 
         if provider == "stripe" and subtotal_cents > 0 and stripe and payment_credentials["secret_key"] and payment_credentials["webhook_secret"]:
