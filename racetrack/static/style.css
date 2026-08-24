@@ -5191,21 +5191,18 @@ details > summary { font-size: .92rem; }
 .ticket-used-banner span { color: #fee4e2; font-size: .76rem; font-weight: 650; }
 .ticket-result-status { display: flex; align-items: center; gap: 12px; padding: 17px; background: #fafbfc; border-bottom: 1px solid #eaecf0; }
 .ticket-result-status > span { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; color: #187044; background: #eaf8f0; border-radius: 50%; font-size: 1.05rem; }
-.ticket-result-card.used .ticket-result-status { background: #fffafa; }
-.ticket-result-card.used .ticket-result-status > span { color: #b42318; background: #fee4e2; }
 .ticket-result-status p { margin: 0 0 2px; color: #187044; font-size: .68rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
-.ticket-result-card.used .ticket-result-status p { color: #b42318; }
 .ticket-result-status h3 { margin: 0; color: #1d2939; font-size: 1rem; }
 .ticket-result-status small { display: block; margin-top: 2px; color: #667085; font-size: .72rem; }
 .ticket-result-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin: 0; padding: 17px; }
+.ticket-result-facts-used { gap: 16px 28px; padding: 18px 20px 20px; background: #fffafa; }
 .ticket-result-facts dt { margin-bottom: 3px; color: #7a8699; font-size: .65rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .ticket-result-facts dd { margin: 0; color: #344054; font-size: .82rem; font-weight: 650; overflow-wrap: anywhere; }
+.ticket-result-facts dd small { display: block; margin-top: 2px; color: #667085; font-size: .69rem; font-weight: 500; }
 .ticket-result-facts code,
 .ticket-code-display { color: #475467; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; }
 .ticket-result-card > form { padding: 0 17px 17px; }
 .ticket-admit-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 100%; }
-.ticket-used-note { display: flex; align-items: flex-start; gap: 9px; margin: 0 17px 17px; padding: 11px 12px; color: #912018; background: #fef3f2; border: 1px solid #fecdca; border-radius: 8px; font-size: .76rem; }
-.ticket-used-note > i { margin-top: 1px; font-size: .9rem; }
 .ticket-scan-empty { padding: 38px 18px; color: #98a2b3; text-align: center; }
 .ticket-scan-empty i { font-size: 2rem; }
 .ticket-scan-empty p { margin: 7px 0 2px; color: #667085; font-size: .84rem; font-weight: 700; }
@@ -5214,5 +5211,6 @@ details > summary { font-size: .92rem; }
 @media (max-width: 600px) {
   .ticket-verify-header { align-items: flex-start; flex-direction: column; }
   .ticket-scan-card > form { grid-template-columns: 1fr; }
-  .ticket-result-facts { grid-template-columns: 1fr; gap: 10px; }
+  .ticket-result-facts:not(.ticket-result-facts-used) { grid-template-columns: 1fr; gap: 10px; }
+  .ticket-result-facts-used { gap: 13px 18px; padding: 16px; }
 }
