@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from werkzeug.security import generate_password_hash
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -485,6 +485,11 @@ def ticket_verification():
     guard = require_employee()
     if guard:
         return guard
+    scanner_active = (
+        request.form.get("scanner_active") == "1"
+        if request.method == "POST"
+        else request.args.get("scanner") == "1"
+    )
     code = normalize_ticket_code(
         request.form.get("code") if request.method == "POST" else request.args.get("code")
     )
@@ -517,6 +522,7 @@ def ticket_verification():
         code=code,
         item=item,
         verification_state=verification_state,
+        scanner_active=scanner_active,
     )
 
 
@@ -1285,7 +1291,7 @@ def event_detail(event_id):
     db.session.commit()
 
     view = (request.args.get("view") or "general").strip().lower()
-    if view not in {"general", "analytics", "participants", "inspect", "slots", "tickets"}:
+    if view not in {"general", "analytics", "participants", "inspect", "slots"}:
         view = "general"
     if view == "analytics" and not has_office_access():
         flash("Office staff access required for event analytics.", "error")
@@ -1298,8 +1304,6 @@ def event_detail(event_id):
     inspections = {}
     waiver_status = {}
     class_slots = []
-    ticket_orders = []
-    ticket_query = (request.args.get("ticket_q") or "").strip()
 
     if view == "participants":
         participants = (
@@ -1330,31 +1334,6 @@ def event_detail(event_id):
             .all()
         )
 
-    if view == "tickets":
-        query = (
-            SpectatorOrder.query.join(SpectatorOrderItem, SpectatorOrderItem.order_id == SpectatorOrder.id)
-            .filter(
-                SpectatorOrderItem.event_id == event.id,
-                SpectatorOrder.payment_status == "paid",
-                or_(
-                    SpectatorOrder.total_cents <= 0,
-                    ~SpectatorOrder.payment_method.in_(["stripe", "paypal"]),
-                    SpectatorOrder.provider_transaction_id.isnot(None),
-                ),
-            )
-            .distinct()
-            .order_by(SpectatorOrder.created_at.desc())
-        )
-        if ticket_query:
-            like = f"%{ticket_query}%"
-            query = query.filter(
-                (SpectatorOrder.order_number.ilike(like))
-                | (SpectatorOrder.guest_full_name.ilike(like))
-                | (SpectatorOrder.guest_email.ilike(like))
-                | (SpectatorOrderItem.qr_code.ilike(like))
-            )
-        ticket_orders = query.limit(100).all()
-
     return render_template(
         "employee/event_detail.html",
         event=event,
@@ -1370,8 +1349,6 @@ def event_detail(event_id):
         inspections=inspections,
         waiver_status=waiver_status,
         class_slots=class_slots,
-        ticket_orders=ticket_orders,
-        ticket_query=ticket_query,
         today=date.today(),
     )
 
@@ -1509,6 +1486,12 @@ def ticket_checkin(event_id, item_id):
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
     item = SpectatorOrderItem.query.filter_by(id=item_id, event_id=event.id).first_or_404()
+    scanner_active = request.form.get("scanner_active") == "1"
+    scanner_url = url_for(
+        "employee.ticket_verification",
+        code=item.qr_code,
+        **({"scanner": 1} if scanner_active else {}),
+    )
     if not payment_is_confirmed(
         item.order.payment_status,
         item.order.payment_method,
@@ -1516,22 +1499,16 @@ def ticket_checkin(event_id, item_id):
         item.order.provider_transaction_id,
     ):
         flash("This ticket cannot be checked in because payment is not complete.", "error")
-        if request.form.get("return_to") == "scanner":
-            return redirect(url_for("employee.ticket_verification", code=item.qr_code))
-        return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
+        return redirect(scanner_url)
     if item.checked_in_at:
         flash("Ticket already checked in.", "error")
-        if request.form.get("return_to") == "scanner":
-            return redirect(url_for("employee.ticket_verification", code=item.qr_code))
-        return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
+        return redirect(scanner_url)
     item.checked_in_at = datetime.utcnow()
     if current_user.account_type == "employee":
         item.checked_in_by_employee_id = current_user.id
     db.session.commit()
     flash(f"{item.ticket_type_name} ticket checked in for {item.order.guest_full_name or 'guest'}.", "success")
-    if request.form.get("return_to") == "scanner":
-        return redirect(url_for("employee.ticket_verification", code=item.qr_code))
-    return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
+    return redirect(scanner_url)
 
 
 @employee_bp.route("/events/<int:event_id>/run-groups")

@@ -328,7 +328,8 @@ function setupTicketQrScanner() {
   const panel = root.querySelector("[data-ticket-camera-panel]")
   const status = root.querySelector("[data-ticket-camera-status]")
   const reader = root.querySelector("[data-ticket-qr-reader]")
-  if (!form || !input || !startButton || !panel || !reader) return
+  const activeInput = root.querySelector("[data-ticket-scanner-active]")
+  if (!form || !input || !startButton || !panel || !reader || !activeInput) return
 
   const extractCode = (value) => {
     const raw = (value || "").trim()
@@ -342,42 +343,64 @@ function setupTicketQrScanner() {
 
   let scanner = null
   let submitted = false
-  startButton.addEventListener("click", async () => {
+  let starting = false
+  const currentCode = (root.dataset.currentCode || "").trim().toUpperCase()
+
+  const startScanner = async () => {
+    if (starting || scanner) return
     if (typeof window.Html5Qrcode === "undefined") {
       if (status) status.textContent = "Camera scanning could not load. Enter the ticket code manually."
       panel.hidden = false
       return
     }
+    starting = true
     panel.hidden = false
     startButton.disabled = true
-    startButton.innerHTML = '<i class="bi bi-camera-video" aria-hidden="true"></i> Camera active'
+    startButton.innerHTML = '<i class="bi bi-broadcast-pin" aria-hidden="true"></i> Continuous scanner active'
+    activeInput.value = "1"
     if (status) status.textContent = "Starting camera…"
     try {
       scanner = new window.Html5Qrcode(reader.id)
       await scanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 230, height: 230 }, aspectRatio: 1 },
-        async (decodedText) => {
+        (decodedText) => {
           if (submitted) return
-          submitted = true
-          input.value = extractCode(decodedText)
-          if (status) status.textContent = "Ticket found. Verifying…"
-          try {
-            await scanner.stop()
-          } catch (error) {
-            // The form can still submit if the camera stopped itself.
+          const decodedCode = extractCode(decodedText).trim().toUpperCase()
+          if (!decodedCode) return
+          if (decodedCode === currentCode) {
+            if (status) status.textContent = "This ticket is already displayed. Move it away — ready for the next guest."
+            return
           }
+          submitted = true
+          input.value = decodedCode
+          if (status) status.textContent = "Ticket found. Verifying…"
           form.requestSubmit()
         },
         () => {}
       )
-      if (status) status.textContent = "Point the camera at the ticket QR code."
+      if (status) status.textContent = currentCode
+        ? "Move the last ticket away, then present the next QR code."
+        : "Scanner is ready. Point the camera at a ticket QR code."
     } catch (error) {
+      scanner = null
       startButton.disabled = false
-      startButton.innerHTML = '<i class="bi bi-camera" aria-hidden="true"></i> Try camera again'
+      startButton.innerHTML = '<i class="bi bi-camera" aria-hidden="true"></i> Resume continuous scanner'
       if (status) status.textContent = "Camera access was unavailable. Check permission or enter the code manually."
+    } finally {
+      starting = false
     }
-  })
+  }
+
+  startButton.addEventListener("click", startScanner)
+
+  if (root.dataset.verificationState === "used" && typeof navigator.vibrate === "function") {
+    navigator.vibrate([180, 80, 180])
+  }
+
+  if (root.dataset.scannerActive === "1") {
+    window.setTimeout(startScanner, 120)
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
