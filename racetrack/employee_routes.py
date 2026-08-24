@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from werkzeug.security import generate_password_hash
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -39,6 +39,8 @@ from .services.boldsign_service import delete_template as boldsign_delete_templa
 from .security import generate_random_password
 from .services.email_service import send_employee_login_email
 from .services.storage_service import upload_public_image
+from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
+from .services.payment_service import effective_payment_status, payment_is_confirmed
 
 
 employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
@@ -469,6 +471,99 @@ def track_profile():
     form = TrackProfileForm(obj=track)
     layouts = TrackLayout.query.filter_by(track_id=track.id).order_by(TrackLayout.name.asc()).all()
     return render_template("employee/track_profile.html", track=track, form=form, layouts=layouts)
+
+
+@employee_bp.route("/orders")
+@login_required
+def orders():
+    guard = require_employee()
+    if guard:
+        return guard
+    scoped_rows = load_order_rows(track_id=active_track_id())
+    search = (request.args.get("q") or "").strip()
+    payment_status = (request.args.get("status") or "").strip().lower()
+    kind = (request.args.get("kind") or "").strip().lower()
+    provider = (request.args.get("provider") or "").strip().lower()
+    rows = filter_order_rows(
+        scoped_rows,
+        search=search,
+        payment_status=payment_status,
+        kind=kind,
+        provider=provider,
+    )
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = 50
+    total_pages = max(1, (len(rows) + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    page_rows = rows[(page - 1) * per_page : page * per_page]
+    return render_template(
+        "shared/orders.html",
+        title="Track Orders",
+        subtitle="Driver and spectator orders for your track.",
+        rows=page_rows,
+        summary=summarize_orders(rows),
+        providers=sorted({row["provider"] for row in scoped_rows}),
+        tracks=[],
+        selected_track_id=None,
+        search=search,
+        selected_status=payment_status,
+        selected_kind=kind,
+        selected_provider=provider,
+        page=page,
+        total_pages=total_pages,
+        list_endpoint="employee.orders",
+        detail_endpoint="employee.order_detail",
+        show_track=False,
+        money=format_money,
+    )
+
+
+@employee_bp.route("/orders/<kind>/<int:order_id>")
+@login_required
+def order_detail(kind, order_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    if kind == "spectator":
+        order = (
+            SpectatorOrder.query.join(
+                SpectatorOrderItem,
+                SpectatorOrderItem.order_id == SpectatorOrder.id,
+            )
+            .join(Event, Event.id == SpectatorOrderItem.event_id)
+            .filter(SpectatorOrder.id == order_id, Event.track_id == track_id)
+            .distinct()
+            .first_or_404()
+        )
+        items = [item for item in order.items if item.event.track_id == track_id]
+        track = items[0].event.track
+        registration = None
+    elif kind == "driver":
+        order = (
+            DriverTicketOrder.query.join(Event, Event.id == DriverTicketOrder.event_id)
+            .filter(DriverTicketOrder.id == order_id, Event.track_id == track_id)
+            .first_or_404()
+        )
+        track = order.event.track
+        registration = EventRegistration.query.filter_by(
+            event_id=order.event_id,
+            user_id=order.user_id,
+        ).first()
+    else:
+        return "Unknown order type", 404
+    return render_template(
+        "shared/order_detail.html",
+        title="Order Details",
+        kind=kind,
+        order=order,
+        track=track,
+        registration=registration,
+        items=items if kind == "spectator" else [],
+        payment_status=effective_payment_status(order),
+        money=format_money,
+        back_endpoint="employee.orders",
+    )
 
 
 @employee_bp.route("/settings", methods=["GET"])
@@ -1138,7 +1233,15 @@ def event_detail(event_id):
     if view == "tickets":
         query = (
             SpectatorOrder.query.join(SpectatorOrderItem, SpectatorOrderItem.order_id == SpectatorOrder.id)
-            .filter(SpectatorOrderItem.event_id == event.id)
+            .filter(
+                SpectatorOrderItem.event_id == event.id,
+                SpectatorOrder.payment_status == "paid",
+                or_(
+                    SpectatorOrder.total_cents <= 0,
+                    ~SpectatorOrder.payment_method.in_(["stripe", "paypal"]),
+                    SpectatorOrder.provider_transaction_id.isnot(None),
+                ),
+            )
             .distinct()
             .order_by(SpectatorOrder.created_at.desc())
         )
@@ -1305,6 +1408,14 @@ def ticket_checkin(event_id, item_id):
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
     item = SpectatorOrderItem.query.filter_by(id=item_id, event_id=event.id).first_or_404()
+    if not payment_is_confirmed(
+        item.order.payment_status,
+        item.order.payment_method,
+        item.order.total_cents,
+        item.order.provider_transaction_id,
+    ):
+        flash("This ticket cannot be checked in because payment is not complete.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
     if item.checked_in_at:
         flash("Ticket already checked in.", "error")
         return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))

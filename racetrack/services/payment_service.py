@@ -2,6 +2,31 @@ from datetime import datetime
 
 import requests
 
+ONLINE_PAYMENT_PROVIDERS = {"stripe", "paypal"}
+
+
+def payment_is_confirmed(payment_status, provider, amount_cents, transaction_id):
+    if payment_status != "paid":
+        return False
+    if int(amount_cents or 0) <= 0 or provider not in ONLINE_PAYMENT_PROVIDERS:
+        return True
+    return bool(transaction_id)
+
+
+def effective_payment_status(order):
+    status = order.payment_status or "pending"
+    amount_cents = getattr(order, "total_cents", None)
+    if amount_cents is None:
+        amount_cents = getattr(order, "amount_cents", 0)
+    if status == "paid" and not payment_is_confirmed(
+        status,
+        order.payment_method,
+        amount_cents,
+        order.provider_transaction_id,
+    ):
+        return "unverified"
+    return status
+
 
 class PayPalError(RuntimeError):
     """Raised when PayPal cannot complete a payment operation."""
@@ -217,6 +242,12 @@ def create_driver_stripe_checkout_session(stripe_client, driver_ticket_order, su
 
 
 def mark_order_paid(order, transaction_id=None):
+    if (
+        int(order.total_cents or 0) > 0
+        and order.payment_method in ONLINE_PAYMENT_PROVIDERS
+        and not transaction_id
+    ):
+        raise ValueError("Online spectator orders require a provider transaction ID.")
     order.payment_status = "paid"
     order.status = "recorded"
     order.paid_at = datetime.utcnow()
@@ -225,6 +256,12 @@ def mark_order_paid(order, transaction_id=None):
 
 
 def mark_driver_ticket_paid(driver_ticket_order, transaction_id=None):
+    if (
+        int(driver_ticket_order.amount_cents or 0) > 0
+        and driver_ticket_order.payment_method in ONLINE_PAYMENT_PROVIDERS
+        and not transaction_id
+    ):
+        raise ValueError("Online driver orders require a provider transaction ID.")
     driver_ticket_order.payment_status = "paid"
     driver_ticket_order.status = "recorded"
     driver_ticket_order.paid_at = datetime.utcnow()

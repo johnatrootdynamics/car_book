@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card orders-hero">
+  <div class="row-space">
+    <div>
+      <p class="shop-eyebrow">Payments &amp; fulfillment</p>
+      <h2>{{ title }}</h2>
+      <p class="muted-line">{{ subtitle }}</p>
+    </div>
+    <span class="orders-result-count">{{ summary.count }} {{ 'order' if summary.count == 1 else 'orders' }}</span>
+  </div>
+</section>
+
+<section class="order-metrics">
+  <article><span class="order-metric-icon paid"><i class="bi bi-check2-circle"></i></span><div><small>Paid</small><strong>{{ summary.paid }}</strong></div></article>
+  <article><span class="order-metric-icon pending"><i class="bi bi-hourglass-split"></i></span><div><small>Pending</small><strong>{{ summary.pending }}</strong></div></article>
+  <article><span class="order-metric-icon failed"><i class="bi bi-x-circle"></i></span><div><small>Failed / unverified</small><strong>{{ summary.failed }}</strong></div></article>
+  <article><span class="order-metric-icon revenue"><i class="bi bi-cash-stack"></i></span><div><small>Confirmed revenue</small><strong>{{ money(summary.paid_cents) }}</strong></div></article>
+</section>
+
+<section class="card orders-panel">
+  <form method="get" action="{{ url_for(list_endpoint) }}" class="orders-filters">
+    <label class="orders-search">Search
+      <input type="search" name="q" value="{{ search }}" placeholder="Order, buyer, event, or track">
+    </label>
+    {% if show_track %}
+      <label>Track
+        <select name="track_id">
+          <option value="">All tracks</option>
+          {% for track in tracks %}
+            <option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+    <label>Status
+      <select name="status">
+        <option value="">All statuses</option>
+        {% for value, label in [('paid','Paid'),('pending','Pending'),('failed','Failed'),('canceled','Canceled'),('unverified','Unverified')] %}
+          <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Order type
+      <select name="kind">
+        <option value="">All types</option>
+        <option value="driver" {% if selected_kind == 'driver' %}selected{% endif %}>Driver</option>
+        <option value="spectator" {% if selected_kind == 'spectator' %}selected{% endif %}>Spectator</option>
+      </select>
+    </label>
+    <label>Provider
+      <select name="provider">
+        <option value="">All providers</option>
+        {% for value in providers %}
+          <option value="{{ value }}" {% if selected_provider == value %}selected{% endif %}>{{ value|title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="orders-filter-actions">
+      <button type="submit" class="btn btn-sm">Apply</button>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for(list_endpoint) }}">Reset</a>
+    </div>
+  </form>
+
+  {% if rows %}
+    <div class="table-wrap orders-table-wrap">
+      <table class="orders-table">
+        <thead>
+          <tr>
+            <th>Order</th>
+            {% if show_track %}<th>Track</th>{% endif %}
+            <th>Customer</th>
+            <th>Event</th>
+            <th>Payment</th>
+            <th>Total</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                <strong>{{ row.number }}</strong>
+                <span class="order-kind-label">{{ row.kind_label }}</span>
+              </td>
+              {% if show_track %}<td>{{ row.track.name }}</td>{% endif %}
+              <td><strong>{{ row.buyer_name }}</strong><small>{{ row.buyer_email }}</small></td>
+              <td>{{ row.event_names|join(', ') }}</td>
+              <td>
+                <span class="order-status-pill {{ row.payment_status }}">{{ row.payment_status|title }}</span>
+                <small>{{ row.provider|title }}{% if row.mode == 'test' %} &middot; Test{% endif %}</small>
+              </td>
+              <td><strong>{{ money(row.amount_cents) }}</strong></td>
+              <td>{{ row.created_at.strftime('%b %-d, %Y') }}<small>{{ row.created_at.strftime('%-I:%M %p') }}</small></td>
+              <td><a class="btn btn-secondary btn-sm" href="{{ url_for(detail_endpoint, kind=row.kind, order_id=row.id) }}">View</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if total_pages > 1 %}
+      <nav class="orders-pagination" aria-label="Order pages">
+        {% if page > 1 %}<a class="btn btn-secondary btn-sm" href="{{ url_for(list_endpoint, q=search, status=selected_status, kind=selected_kind, provider=selected_provider, track_id=selected_track_id, page=page-1) }}">Previous</a>{% endif %}
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}<a class="btn btn-secondary btn-sm" href="{{ url_for(list_endpoint, q=search, status=selected_status, kind=selected_kind, provider=selected_provider, track_id=selected_track_id, page=page+1) }}">Next</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="orders-empty"><i class="bi bi-receipt"></i><h3>No matching orders</h3><p>Try clearing one or more filters.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

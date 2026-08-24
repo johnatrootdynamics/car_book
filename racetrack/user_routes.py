@@ -119,6 +119,8 @@ def _configured_payment_choices(track, amount_cents):
             provider,
             method=methods_by_provider.get(provider),
         )
+        if amount_cents > 0 and provider not in {"stripe", "paypal"}:
+            continue
         if provider == "stripe" and amount_cents > 0 and not (
             credentials["secret_key"] and credentials["webhook_secret"]
         ):
@@ -340,6 +342,9 @@ def _finalize_driver_ticket_order(driver_ticket_order, transaction_id=None):
         db.session.commit()
         _safe_send_email(send_driver_purchase_receipt, driver_ticket_order)
         return needs_waiver_action, created_waiver_id
+    if transaction_id and not driver_ticket_order.provider_transaction_id:
+        driver_ticket_order.provider_transaction_id = transaction_id
+        driver_ticket_order.paid_at = driver_ticket_order.paid_at or datetime.utcnow()
     needs_waiver_action, created_waiver_id = _create_driver_post_purchase_steps(driver_ticket_order)
     db.session.commit()
     return needs_waiver_action, created_waiver_id
@@ -347,6 +352,10 @@ def _finalize_driver_ticket_order(driver_ticket_order, transaction_id=None):
 
 def _finalize_spectator_order(order, transaction_id=None):
     if order.payment_status == "paid":
+        if transaction_id and not order.provider_transaction_id:
+            order.provider_transaction_id = transaction_id
+            order.paid_at = order.paid_at or datetime.utcnow()
+            db.session.commit()
         return
     mark_order_paid(order, transaction_id=transaction_id)
     for order_item in SpectatorOrderItem.query.filter_by(order_id=order.id).all():
@@ -746,7 +755,12 @@ def spectator_checkout():
                 flash("PayPal could not start checkout. Please try again.", "error")
                 return redirect(url_for("user.spectator_checkout"))
 
-        # Recorded/manual providers and free orders do not require an online gateway.
+        if subtotal_cents > 0:
+            db.session.rollback()
+            flash("That payment provider cannot confirm online payments yet.", "error")
+            return redirect(url_for("user.spectator_checkout"))
+
+        # Free orders do not require an online gateway confirmation.
         order.payment_status = "paid"
         order.status = "recorded"
         mark_order_paid(order)
@@ -784,11 +798,6 @@ def spectator_checkout():
 @user_bp.route("/spectator/order/<int:order_id>")
 def spectator_order_success(order_id):
     order = SpectatorOrder.query.get_or_404(order_id)
-    if order.payment_status == "pending" and order.payment_method not in {"stripe", "paypal"}:
-        order.payment_status = "paid"
-        order.status = "recorded"
-        mark_order_paid(order)
-        db.session.commit()
     items = SpectatorOrderItem.query.filter_by(order_id=order.id).all()
     return render_template("user/spectator_order_success.html", order=order, items=items, money=_money)
 
@@ -836,9 +845,36 @@ def stripe_webhook():
     except Exception:
         return "invalid", 400
 
-    if event.get("type") == "checkout.session.completed":
+    if event.get("type") in {"checkout.session.async_payment_failed", "checkout.session.expired"}:
+        target = order or driver_ticket_order
+        if target.payment_status != "paid":
+            target.payment_status = "failed"
+            target.status = "failed"
+            target.failure_reason = (
+                "Stripe payment failed."
+                if event.get("type") == "checkout.session.async_payment_failed"
+                else "Stripe checkout expired before payment."
+            )
+            db.session.commit()
+        return "ok", 200
+
+    if event.get("type") in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
         session_obj = event["data"]["object"]
         session_id = session_obj.get("id")
+        target = order or driver_ticket_order
+        expected_cents = order.total_cents if order else driver_ticket_order.amount_cents
+        if (
+            session_obj.get("payment_status") != "paid"
+            or session_obj.get("currency", "").lower() != "usd"
+            or int(session_obj.get("amount_total") or -1) != int(expected_cents or 0)
+        ):
+            current_app.logger.warning(
+                "Ignored unconfirmed or mismatched Stripe checkout session %s for %s order %s",
+                session_id,
+                "spectator" if order else "driver",
+                target.id,
+            )
+            return "ok", 200
         if order and order.payment_status != "paid":
             _finalize_spectator_order(order, transaction_id=session_obj.get("payment_intent"))
         elif driver_ticket_order and driver_ticket_order.payment_status != "paid":
@@ -1390,6 +1426,11 @@ def driver_event_checkout(event_id):
                 db.session.rollback()
                 flash("PayPal could not start checkout. Please try again.", "error")
                 return redirect(url_for("user.driver_event_checkout", event_id=event.id))
+
+        if driver_amount_cents > 0:
+            db.session.rollback()
+            flash("That payment provider cannot confirm online payments yet.", "error")
+            return redirect(url_for("user.driver_event_checkout", event_id=event.id))
 
         needs_waiver_action, created_waiver_id = _finalize_driver_ticket_order(driver_ticket_order)
         session.pop(f"driver_checkout_car_{event.id}", None)

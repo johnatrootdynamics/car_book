@@ -14,9 +14,12 @@ from werkzeug.security import generate_password_hash
 
 from .forms import TrackCreateForm, WaiverTemplateForm
 from .models import (
+    DriverTicketOrder,
     DriverWaiver,
     Employee,
     EnterpriseAdmin,
+    EventRegistration,
+    SpectatorOrder,
     Track,
     TrackWaiverTemplate,
     User,
@@ -29,6 +32,8 @@ from .services.email_service import (
     send_employee_login_email,
     send_user_login_email,
 )
+from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
+from .services.payment_service import effective_payment_status
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -58,6 +63,89 @@ def dashboard():
         tracks=tracks,
         impersonating_track_id=impersonating_track_id,
         create_form=create_form,
+    )
+
+
+@admin_bp.route("/orders")
+@login_required
+def orders():
+    guard = require_admin()
+    if guard:
+        return guard
+    all_rows = load_order_rows()
+    search = (request.args.get("q") or "").strip()
+    payment_status = (request.args.get("status") or "").strip().lower()
+    kind = (request.args.get("kind") or "").strip().lower()
+    provider = (request.args.get("provider") or "").strip().lower()
+    selected_track_id = request.args.get("track_id", type=int)
+    rows = filter_order_rows(
+        all_rows,
+        search=search,
+        payment_status=payment_status,
+        kind=kind,
+        provider=provider,
+        track_id=selected_track_id,
+    )
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = 50
+    total_pages = max(1, (len(rows) + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    page_rows = rows[(page - 1) * per_page : page * per_page]
+    return render_template(
+        "shared/orders.html",
+        title="All Orders",
+        subtitle="Every driver and spectator order across all tracks.",
+        rows=page_rows,
+        summary=summarize_orders(rows),
+        providers=sorted({row["provider"] for row in all_rows}),
+        tracks=Track.query.order_by(Track.name.asc()).all(),
+        selected_track_id=selected_track_id,
+        search=search,
+        selected_status=payment_status,
+        selected_kind=kind,
+        selected_provider=provider,
+        page=page,
+        total_pages=total_pages,
+        list_endpoint="admin.orders",
+        detail_endpoint="admin.order_detail",
+        show_track=True,
+        money=format_money,
+    )
+
+
+@admin_bp.route("/orders/<kind>/<int:order_id>")
+@login_required
+def order_detail(kind, order_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    if kind == "spectator":
+        order = SpectatorOrder.query.get_or_404(order_id)
+        if not order.items:
+            return "Order has no event items", 404
+        track = order.items[0].event.track
+        items = list(order.items)
+        registration = None
+    elif kind == "driver":
+        order = DriverTicketOrder.query.get_or_404(order_id)
+        track = order.event.track
+        registration = EventRegistration.query.filter_by(
+            event_id=order.event_id,
+            user_id=order.user_id,
+        ).first()
+    else:
+        return "Unknown order type", 404
+    return render_template(
+        "shared/order_detail.html",
+        title="Order Details",
+        kind=kind,
+        order=order,
+        track=track,
+        registration=registration,
+        items=items if kind == "spectator" else [],
+        payment_status=effective_payment_status(order),
+        money=format_money,
+        back_endpoint="admin.orders",
     )
 
 

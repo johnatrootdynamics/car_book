@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+{% set order_number = order.order_number if kind == 'spectator' else 'DR-%06d'|format(order.id) %}
+<section class="card order-detail-hero">
+  <div class="row-space">
+    <div>
+      <a class="order-back-link" href="{{ url_for(back_endpoint) }}"><i class="bi bi-arrow-left"></i> Orders</a>
+      <p class="shop-eyebrow">{{ 'Spectator' if kind == 'spectator' else 'Driver' }} order</p>
+      <h2>{{ order_number }}</h2>
+      <p class="muted-line">{{ track.name }} &middot; Created {{ order.created_at.strftime('%B %-d, %Y at %-I:%M %p') }}</p>
+    </div>
+    <span class="order-status-pill large {{ payment_status }}">{{ payment_status|title }}</span>
+  </div>
+  {% if payment_status != 'paid' %}
+    <div class="order-hold-notice"><i class="bi bi-shield-exclamation"></i><span><strong>Fulfillment is on hold.</strong> Tickets, signup access, receipts, and gate check-in remain locked until payment is confirmed.</span></div>
+  {% endif %}
+</section>
+
+<div class="order-detail-grid">
+  <section class="card">
+    <h3>Customer</h3>
+    {% if kind == 'spectator' %}
+      <dl class="order-facts">
+        <div><dt>Name</dt><dd>{{ order.guest_full_name or 'Guest' }}</dd></div>
+        <div><dt>Email</dt><dd>{{ order.guest_email or 'Not provided' }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ order.guest_phone or 'Not provided' }}</dd></div>
+      </dl>
+    {% else %}
+      <dl class="order-facts">
+        <div><dt>Name</dt><dd>{{ order.buyer.first_name }} {{ order.buyer.last_name }}</dd></div>
+        <div><dt>Email</dt><dd>{{ order.buyer.email }}</dd></div>
+        <div><dt>Car</dt><dd>{{ order.car.car_year }} {{ order.car.make }} {{ order.car.model }}</dd></div>
+      </dl>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h3>Payment</h3>
+    <dl class="order-facts">
+      <div><dt>Provider</dt><dd>{{ order.payment_method|title }}</dd></div>
+      <div><dt>Mode</dt><dd>{{ (order.payment_mode or 'live')|title }}</dd></div>
+      <div><dt>Amount</dt><dd><strong>{{ money(order.total_cents if kind == 'spectator' else order.amount_cents) }}</strong></dd></div>
+      <div><dt>Paid</dt><dd>{{ order.paid_at.strftime('%B %-d, %Y at %-I:%M %p') if order.paid_at else 'Not paid' }}</dd></div>
+      <div class="full"><dt>Transaction ID</dt><dd class="order-transaction-id">{{ order.provider_transaction_id or 'Not available' }}</dd></div>
+      {% if order.failure_reason %}<div class="full"><dt>Failure reason</dt><dd>{{ order.failure_reason }}</dd></div>{% endif %}
+    </dl>
+  </section>
+</div>
+
+<section class="card order-line-items">
+  <h3>{{ 'Tickets' if kind == 'spectator' else 'Event registration' }}</h3>
+  {% if kind == 'spectator' %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Event</th><th>Ticket</th><th>Quantity</th><th>Amount</th><th>Gate status</th></tr></thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td><strong>{{ item.event.event_name }}</strong><small>{{ item.event.event_date }}</small></td>
+              <td>{{ item.ticket_type_name }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ money(item.line_total_cents) }}</td>
+              <td>
+                {% if payment_status != 'paid' %}<span class="order-status-pill pending">Locked</span>
+                {% elif item.checked_in_at %}<span class="order-status-pill paid">Checked in</span>
+                {% else %}<span class="order-status-pill ready">Ready</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <dl class="order-facts order-driver-event">
+      <div><dt>Event</dt><dd>{{ order.event.event_name }}</dd></div>
+      <div><dt>Date</dt><dd>{{ order.event.event_date }}</dd></div>
+      <div><dt>Signup</dt><dd>{% if registration %}Created{% elif payment_status == 'paid' %}Processing{% else %}Locked until paid{% endif %}</dd></div>
+      <div><dt>Check-in</dt><dd>{{ 'Checked in' if registration and registration.checked_in_at else 'Not checked in' }}</dd></div>
+    </dl>
+  {% endif %}
+</section>
+{% endblock %}

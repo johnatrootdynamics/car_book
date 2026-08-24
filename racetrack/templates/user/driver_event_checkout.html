@@ -31,8 +31,8 @@
             <input type="radio" name="payment_method" value="{{ value }}" {% if form.payment_method.data == value or (not form.payment_method.data and loop.first) %}checked{% endif %}>
             <span>
               <strong>{{ label }}</strong>
-              {% if value == 'stripe' %}
-                <p class="muted-line">Continue to Stripe to complete payment securely.</p>
+              {% if value in ['stripe', 'paypal'] %}
+                <p class="muted-line">Continue to {{ 'Stripe' if value == 'stripe' else 'PayPal' }} to complete payment securely.</p>
               {% else %}
                 <p class="muted-line">Use the track's recorded/manual payment workflow.</p>
               {% endif %}
