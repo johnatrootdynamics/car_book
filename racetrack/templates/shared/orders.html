@@ -1,65 +1,77 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card orders-hero">
-  <div class="row-space">
-    <div>
-      <p class="shop-eyebrow">Payments &amp; fulfillment</p>
-      <h2>{{ title }}</h2>
-      <p class="muted-line">{{ subtitle }}</p>
-    </div>
-    <span class="orders-result-count">{{ summary.count }} {{ 'order' if summary.count == 1 else 'orders' }}</span>
-  </div>
-</section>
+{% set filters = namespace(count=0) %}
+{% if selected_track_id %}{% set filters.count = filters.count + 1 %}{% endif %}
+{% if selected_status %}{% set filters.count = filters.count + 1 %}{% endif %}
+{% if selected_kind %}{% set filters.count = filters.count + 1 %}{% endif %}
+{% if selected_provider %}{% set filters.count = filters.count + 1 %}{% endif %}
 
-<section class="order-metrics">
-  <article><span class="order-metric-icon paid"><i class="bi bi-check2-circle"></i></span><div><small>Paid</small><strong>{{ summary.paid }}</strong></div></article>
-  <article><span class="order-metric-icon pending"><i class="bi bi-hourglass-split"></i></span><div><small>Pending</small><strong>{{ summary.pending }}</strong></div></article>
-  <article><span class="order-metric-icon failed"><i class="bi bi-x-circle"></i></span><div><small>Failed / unverified</small><strong>{{ summary.failed }}</strong></div></article>
-  <article><span class="order-metric-icon revenue"><i class="bi bi-cash-stack"></i></span><div><small>Confirmed revenue</small><strong>{{ money(summary.paid_cents) }}</strong></div></article>
+<header class="orders-page-head">
+  <div>
+    <p class="shop-eyebrow">Payments &amp; fulfillment</p>
+    <h2>{{ title }}</h2>
+    <p>{{ subtitle }}</p>
+  </div>
+  <p class="orders-result-count"><strong>{{ summary.count }}</strong> {{ 'order' if summary.count == 1 else 'orders' }}</p>
+</header>
+
+<section class="orders-summary-strip" aria-label="Order summary">
+  <div class="orders-revenue"><span>Confirmed revenue</span><strong>{{ money(summary.paid_cents) }}</strong></div>
+  <div><span class="order-summary-dot paid"></span><span>Paid</span><strong>{{ summary.paid }}</strong></div>
+  <div><span class="order-summary-dot pending"></span><span>Pending</span><strong>{{ summary.pending }}</strong></div>
+  <div><span class="order-summary-dot failed"></span><span>Needs attention</span><strong>{{ summary.failed }}</strong></div>
 </section>
 
 <section class="card orders-panel">
-  <form method="get" action="{{ url_for(list_endpoint) }}" class="orders-filters">
-    <label class="orders-search">Search
+  <form method="get" action="{{ url_for(list_endpoint) }}" class="orders-toolbar">
+    <label class="orders-search-control">
+      <span class="sr-only">Search orders</span>
+      <i class="bi bi-search" aria-hidden="true"></i>
       <input type="search" name="q" value="{{ search }}" placeholder="Order, buyer, event, or track">
     </label>
-    {% if show_track %}
-      <label>Track
-        <select name="track_id">
-          <option value="">All tracks</option>
-          {% for track in tracks %}
-            <option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-    {% endif %}
-    <label>Status
-      <select name="status">
-        <option value="">All statuses</option>
-        {% for value, label in [('paid','Paid'),('pending','Pending'),('failed','Failed'),('canceled','Canceled'),('unverified','Unverified')] %}
-          <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>Order type
-      <select name="kind">
-        <option value="">All types</option>
-        <option value="driver" {% if selected_kind == 'driver' %}selected{% endif %}>Driver</option>
-        <option value="spectator" {% if selected_kind == 'spectator' %}selected{% endif %}>Spectator</option>
-      </select>
-    </label>
-    <label>Provider
-      <select name="provider">
-        <option value="">All providers</option>
-        {% for value in providers %}
-          <option value="{{ value }}" {% if selected_provider == value %}selected{% endif %}>{{ value|title }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <div class="orders-filter-actions">
-      <button type="submit" class="btn btn-sm">Apply</button>
-      <a class="btn btn-secondary btn-sm" href="{{ url_for(list_endpoint) }}">Reset</a>
-    </div>
+    <button type="submit" class="btn btn-sm orders-search-button">Search</button>
+    <details class="orders-filter-drawer" {% if filters.count %}open{% endif %}>
+      <summary><i class="bi bi-sliders" aria-hidden="true"></i> Filters{% if filters.count %}<span>{{ filters.count }}</span>{% endif %}</summary>
+      <div class="orders-filter-grid">
+        {% if show_track %}
+          <label>Track
+            <select name="track_id">
+              <option value="">All tracks</option>
+              {% for track in tracks %}
+                <option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        {% endif %}
+        <label>Status
+          <select name="status">
+            <option value="">All statuses</option>
+            {% for value, label in [('paid','Paid'),('pending','Pending'),('failed','Failed'),('canceled','Canceled'),('unverified','Unverified')] %}
+              <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Order type
+          <select name="kind">
+            <option value="">All types</option>
+            <option value="driver" {% if selected_kind == 'driver' %}selected{% endif %}>Driver</option>
+            <option value="spectator" {% if selected_kind == 'spectator' %}selected{% endif %}>Spectator</option>
+          </select>
+        </label>
+        <label>Provider
+          <select name="provider">
+            <option value="">All providers</option>
+            {% for value in providers %}
+              <option value="{{ value }}" {% if selected_provider == value %}selected{% endif %}>{{ value|title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <div class="orders-filter-actions">
+          <button type="submit" class="btn btn-sm">Apply filters</button>
+        </div>
+      </div>
+    </details>
+    {% if search or filters.count %}<a class="orders-clear-link" href="{{ url_for(list_endpoint) }}">Clear</a>{% endif %}
   </form>
 
   {% if rows %}
@@ -68,10 +80,9 @@
         <thead>
           <tr>
             <th>Order</th>
-            {% if show_track %}<th>Track</th>{% endif %}
             <th>Customer</th>
             <th>Event</th>
-            <th>Payment</th>
+            <th>Status</th>
             <th>Total</th>
             <th>Created</th>
             <th></th>
@@ -81,19 +92,18 @@
           {% for row in rows %}
             <tr>
               <td>
-                <strong>{{ row.number }}</strong>
+                <a class="order-number-link" href="{{ url_for(detail_endpoint, kind=row.kind, order_id=row.id) }}">{{ row.number }}</a>
                 <span class="order-kind-label">{{ row.kind_label }}</span>
               </td>
-              {% if show_track %}<td>{{ row.track.name }}</td>{% endif %}
               <td><strong>{{ row.buyer_name }}</strong><small>{{ row.buyer_email }}</small></td>
-              <td>{{ row.event_names|join(', ') }}</td>
+              <td><strong>{{ row.event_names|join(', ') }}</strong>{% if show_track %}<small>{{ row.track.name }}</small>{% endif %}</td>
               <td>
                 <span class="order-status-pill {{ row.payment_status }}">{{ row.payment_status|title }}</span>
                 <small>{{ row.provider|title }}{% if row.mode == 'test' %} &middot; Test{% endif %}</small>
               </td>
               <td><strong>{{ money(row.amount_cents) }}</strong></td>
               <td>{{ row.created_at.strftime('%b %-d, %Y') }}<small>{{ row.created_at.strftime('%-I:%M %p') }}</small></td>
-              <td><a class="btn btn-secondary btn-sm" href="{{ url_for(detail_endpoint, kind=row.kind, order_id=row.id) }}">View</a></td>
+              <td><a class="order-row-link" href="{{ url_for(detail_endpoint, kind=row.kind, order_id=row.id) }}" aria-label="View {{ row.number }}"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></td>
             </tr>
           {% endfor %}
         </tbody>
