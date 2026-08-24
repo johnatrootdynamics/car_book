@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import html
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -108,7 +109,7 @@ def get_email_configuration(include_password=True):
     return config
 
 
-def send_email(to_email, subject, body):
+def send_email(to_email, subject, body, html_body=None, inline_images=None):
     if not to_email:
         return False
     config = get_email_configuration()
@@ -121,6 +122,17 @@ def send_email(to_email, subject, body):
     msg["To"] = to_email
     msg["Subject"] = subject
     msg.set_content(body)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
+        html_part = msg.get_payload()[-1]
+        for image in inline_images or []:
+            html_part.add_related(
+                image["content"],
+                maintype="image",
+                subtype=image.get("subtype", "png"),
+                cid=f"<{image['cid']}>",
+                filename=image.get("filename"),
+            )
 
     smtp_class = smtplib.SMTP_SSL if config["security"] == "ssl" else smtplib.SMTP
     smtp_kwargs = {"host": config["server"], "port": config["port"], "timeout": 15}
@@ -217,10 +229,17 @@ def send_admin_login_email(admin, plaintext_password, login_url, is_reset=True):
 
 
 def send_spectator_order_receipt(order):
+    from .ticket_service import ensure_order_ticket_codes, ticket_qr_png, ticket_verification_url
+
+    ensure_order_ticket_codes(order)
     track = order.items[0].event.track if order.items else None
     ticket_lines = []
     for item in order.items:
-        ticket_lines.append(f"{item.event.event_name} - {item.ticket_type_name} x {item.quantity}")
+        ticket_lines.append(
+            f"{item.event.event_name} - {item.ticket_type_name} x {item.quantity}\n"
+            f"Ticket code: {item.qr_code}\n"
+            f"QR link: {ticket_verification_url(item.qr_code)}"
+        )
     values = {
         "track_name": track.name if track else "CarBook",
         "buyer_name": order.guest_full_name or "there",
@@ -230,16 +249,52 @@ def send_spectator_order_receipt(order):
     }
     template = _get_track_template(track.id, "spectator_purchase_receipt") if track else None
     if template:
-        return send_email(order.guest_email, _render_text(template.subject, values), _render_text(template.body, values))
+        subject = _render_text(template.subject, values)
+        body = _render_text(template.body, values)
+    else:
+        subject = f"Your CarBook tickets: {order.order_number}"
+        body = (
+            f"Order {order.order_number}\n\n"
+            "Your spectator tickets are confirmed.\n\n"
+            f"{values['ticket_lines']}\n\n"
+            f"Total: {values['order_total']}\n\n"
+            "Present the QR code for each ticket at the gate."
+        )
 
-    body = (
-        f"Order {order.order_number}\n\n"
-        "Your spectator tickets are confirmed.\n\n"
-        f"{values['ticket_lines']}\n\n"
-        f"Total: {values['order_total']}\n\n"
-        "Use your name, email, phone, or order number at the gate."
+    ticket_cards = []
+    inline_images = []
+    for index, item in enumerate(order.items, start=1):
+        cid = f"ticket-{item.id or index}-{order.id}@trackops"
+        inline_images.append(
+            {
+                "cid": cid,
+                "content": ticket_qr_png(item.qr_code),
+                "filename": f"{order.order_number}-ticket-{index}.png",
+            }
+        )
+        ticket_cards.append(
+            "<div style='margin:18px 0;padding:18px;border:1px solid #e4e7ec;border-radius:10px;text-align:center'>"
+            f"<h3 style='margin:0 0 4px;color:#101828'>{html.escape(item.event.event_name)}</h3>"
+            f"<p style='margin:0 0 12px;color:#667085'>{html.escape(item.ticket_type_name)} &times; {item.quantity}</p>"
+            f"<img src='cid:{cid}' width='220' height='220' alt='Ticket QR code' style='display:block;margin:0 auto 10px'>"
+            f"<code style='font-size:12px;color:#475467'>{html.escape(item.qr_code)}</code>"
+            "</div>"
+        )
+    html_body = (
+        "<div style='max-width:600px;margin:0 auto;font-family:Arial,sans-serif;color:#344054'>"
+        f"<div style='white-space:pre-line;line-height:1.55'>{html.escape(body)}</div>"
+        "<h2 style='margin:26px 0 4px;color:#101828'>Your QR tickets</h2>"
+        "<p style='margin:0 0 12px;color:#667085'>Present each code at the gate. Track staff will scan it to verify admission.</p>"
+        + "".join(ticket_cards)
+        + "</div>"
     )
-    return send_email(order.guest_email, f"Your CarBook tickets: {order.order_number}", body)
+    return send_email(
+        order.guest_email,
+        subject,
+        body,
+        html_body=html_body,
+        inline_images=inline_images,
+    )
 
 
 def send_driver_purchase_receipt(driver_ticket_order):

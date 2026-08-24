@@ -5154,3 +5154,55 @@ details > summary { font-size: .92rem; }
   .orders-filter-grid { grid-template-columns: 1fr; }
   .orders-filter-actions { grid-column: auto; }
 }
+
+/* Spectator QR verification */
+.ticket-verify-page { display: grid; gap: 12px; width: min(760px, 100%); margin: 0 auto; }
+.ticket-verify-header h2 { margin: 2px 0 3px; color: #101828; font-size: 1.45rem; }
+.ticket-verify-header > div > p:last-child { margin: 0; color: #667085; font-size: .82rem; }
+.ticket-scan-card { margin: 0; padding: 14px; }
+.ticket-scan-card > form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 9px; }
+.ticket-scan-card label { display: grid; gap: 5px; color: #475467; font-size: .72rem; font-weight: 700; }
+.ticket-code-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+.ticket-code-entry input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
+.ticket-camera-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; }
+.ticket-camera-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid #eaecf0; }
+.ticket-camera-panel [data-ticket-qr-reader] { width: min(420px, 100%); margin: 0 auto; overflow: hidden; border-radius: 9px; }
+.ticket-camera-panel p { margin: 8px 0 0; text-align: center; }
+.ticket-verification-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 15px;
+  border-radius: 9px;
+}
+.ticket-verification-result.invalid { color: #9f1239; background: #fff1f3; border: 1px solid #fecdd3; }
+.ticket-verification-result > i { margin-top: 1px; font-size: 1.1rem; }
+.ticket-verification-result strong { font-size: .88rem; }
+.ticket-verification-result p { margin: 3px 0 0; font-size: .78rem; }
+.ticket-result-card { margin: 0; padding: 0; overflow: hidden; }
+.ticket-result-card.valid { border-color: #a7dfc2; }
+.ticket-result-card.used { border-color: #f1cf8b; }
+.ticket-result-status { display: flex; align-items: center; gap: 12px; padding: 17px; background: #fafbfc; border-bottom: 1px solid #eaecf0; }
+.ticket-result-status > span { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; color: #187044; background: #eaf8f0; border-radius: 50%; font-size: 1.05rem; }
+.ticket-result-card.used .ticket-result-status > span { color: #8a5b12; background: #fff7e6; }
+.ticket-result-status p { margin: 0 0 2px; color: #187044; font-size: .68rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+.ticket-result-card.used .ticket-result-status p { color: #8a5b12; }
+.ticket-result-status h3 { margin: 0; color: #1d2939; font-size: 1rem; }
+.ticket-result-status small { display: block; margin-top: 2px; color: #667085; font-size: .72rem; }
+.ticket-result-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin: 0; padding: 17px; }
+.ticket-result-facts dt { margin-bottom: 3px; color: #7a8699; font-size: .65rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.ticket-result-facts dd { margin: 0; color: #344054; font-size: .82rem; font-weight: 650; overflow-wrap: anywhere; }
+.ticket-result-facts code,
+.ticket-code-display { color: #475467; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; }
+.ticket-result-card > form { padding: 0 17px 17px; }
+.ticket-admit-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 100%; }
+.ticket-used-note { margin: 0; padding: 0 17px 17px; color: #8a5b12; font-size: .76rem; }
+.ticket-scan-empty { padding: 38px 18px; color: #98a2b3; text-align: center; }
+.ticket-scan-empty i { font-size: 2rem; }
+.ticket-scan-empty p { margin: 7px 0 2px; color: #667085; font-size: .84rem; font-weight: 700; }
+.ticket-scan-empty span { font-size: .74rem; }
+
+@media (max-width: 600px) {
+  .ticket-scan-card > form { grid-template-columns: 1fr; }
+  .ticket-result-facts { grid-template-columns: 1fr; gap: 10px; }
+}

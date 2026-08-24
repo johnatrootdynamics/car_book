@@ -592,6 +592,7 @@ class SpectatorOrderItem(db.Model):
     unit_price_cents = db.Column(db.Integer, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
     line_total_cents = db.Column(db.Integer, nullable=False, default=0)
+    qr_code = db.Column(db.String(64), nullable=True, unique=True)
     checked_in_at = db.Column(db.DateTime, nullable=True)
     checked_in_by_employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=True)
 

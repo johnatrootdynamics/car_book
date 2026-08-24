@@ -41,6 +41,7 @@ from .services.email_service import (
 )
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status
+from .services.ticket_service import ensure_order_ticket_codes
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -247,6 +248,8 @@ def order_detail(kind, order_id):
         order = SpectatorOrder.query.get_or_404(order_id)
         if not order.items:
             return "Order has no event items", 404
+        if ensure_order_ticket_codes(order):
+            db.session.commit()
         track = order.items[0].event.track
         items = list(order.items)
         registration = None
@@ -282,6 +285,8 @@ def resend_order_email(kind, order_id):
         return guard
     if kind == "spectator":
         order = SpectatorOrder.query.get_or_404(order_id)
+        if ensure_order_ticket_codes(order):
+            db.session.commit()
         recipient = order.guest_email
         send_fn = send_spectator_order_receipt
         success_message = f"Tickets were resent to {recipient}."

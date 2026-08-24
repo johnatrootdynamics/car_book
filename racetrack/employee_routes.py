@@ -46,6 +46,7 @@ from .services.email_service import (
 from .services.storage_service import upload_public_image
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status, payment_is_confirmed
+from .services.ticket_service import ensure_order_ticket_codes, normalize_ticket_code
 
 
 employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
@@ -478,6 +479,47 @@ def track_profile():
     return render_template("employee/track_profile.html", track=track, form=form, layouts=layouts)
 
 
+@employee_bp.route("/tickets/verify", methods=["GET", "POST"])
+@login_required
+def ticket_verification():
+    guard = require_employee()
+    if guard:
+        return guard
+    code = normalize_ticket_code(
+        request.form.get("code") if request.method == "POST" else request.args.get("code")
+    )
+    item = None
+    verification_state = None
+    if code:
+        item = (
+            SpectatorOrderItem.query.join(Event, Event.id == SpectatorOrderItem.event_id)
+            .filter(
+                SpectatorOrderItem.qr_code == code,
+                Event.track_id == active_track_id(),
+            )
+            .first()
+        )
+        if not item:
+            verification_state = "invalid"
+        elif not payment_is_confirmed(
+            item.order.payment_status,
+            item.order.payment_method,
+            item.order.total_cents,
+            item.order.provider_transaction_id,
+        ):
+            verification_state = "unpaid"
+        elif item.checked_in_at:
+            verification_state = "used"
+        else:
+            verification_state = "valid"
+    return render_template(
+        "employee/ticket_verification.html",
+        code=code,
+        item=item,
+        verification_state=verification_state,
+    )
+
+
 @employee_bp.route("/orders")
 @login_required
 def orders():
@@ -541,6 +583,8 @@ def order_detail(kind, order_id):
             .distinct()
             .first_or_404()
         )
+        if ensure_order_ticket_codes(order):
+            db.session.commit()
         items = [item for item in order.items if item.event.track_id == track_id]
         track = items[0].event.track
         registration = None
@@ -590,6 +634,8 @@ def resend_order_email(kind, order_id):
             .distinct()
             .first_or_404()
         )
+        if ensure_order_ticket_codes(order):
+            db.session.commit()
         recipient = order.guest_email
         send_fn = send_spectator_order_receipt
         success_message = f"Tickets were resent to {recipient}."
@@ -1305,6 +1351,7 @@ def event_detail(event_id):
                 (SpectatorOrder.order_number.ilike(like))
                 | (SpectatorOrder.guest_full_name.ilike(like))
                 | (SpectatorOrder.guest_email.ilike(like))
+                | (SpectatorOrderItem.qr_code.ilike(like))
             )
         ticket_orders = query.limit(100).all()
 
@@ -1469,15 +1516,21 @@ def ticket_checkin(event_id, item_id):
         item.order.provider_transaction_id,
     ):
         flash("This ticket cannot be checked in because payment is not complete.", "error")
+        if request.form.get("return_to") == "scanner":
+            return redirect(url_for("employee.ticket_verification", code=item.qr_code))
         return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
     if item.checked_in_at:
         flash("Ticket already checked in.", "error")
+        if request.form.get("return_to") == "scanner":
+            return redirect(url_for("employee.ticket_verification", code=item.qr_code))
         return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
     item.checked_in_at = datetime.utcnow()
     if current_user.account_type == "employee":
         item.checked_in_by_employee_id = current_user.id
     db.session.commit()
-    flash("Spectator ticket checked in.", "success")
+    flash(f"{item.ticket_type_name} ticket checked in for {item.order.guest_full_name or 'guest'}.", "success")
+    if request.form.get("return_to") == "scanner":
+        return redirect(url_for("employee.ticket_verification", code=item.qr_code))
     return redirect(url_for("employee.event_detail", event_id=event.id, view="tickets"))
 
 

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="ticket-verify-page" data-ticket-scanner>
+  <header class="ticket-verify-header">
+    <div>
+      <p class="shop-eyebrow">Gate operations</p>
+      <h2>Verify Spectator Ticket</h2>
+      <p>Scan the QR code from the customer’s ticket email or enter the code manually.</p>
+    </div>
+  </header>
+
+  <section class="card ticket-scan-card">
+    <form method="post" action="{{ url_for('employee.ticket_verification') }}" data-ticket-qr-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>
+        <span>Ticket code</span>
+        <div class="ticket-code-entry">
+          <input type="text" name="code" value="{{ code }}" placeholder="TKT-..." autocomplete="off" autocapitalize="characters" spellcheck="false" data-ticket-qr-input autofocus>
+          <button type="submit" class="btn">Verify</button>
+        </div>
+      </label>
+      <button type="button" class="btn btn-secondary ticket-camera-button" data-ticket-camera-start><i class="bi bi-camera" aria-hidden="true"></i> Use camera</button>
+    </form>
+    <div class="ticket-camera-panel" data-ticket-camera-panel hidden>
+      <div id="ticket-qr-reader" data-ticket-qr-reader></div>
+      <p class="muted-line" data-ticket-camera-status>Point the camera at the ticket QR code.</p>
+    </div>
+  </section>
+
+  {% if verification_state == 'invalid' %}
+    <section class="ticket-verification-result invalid">
+      <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
+      <div><strong>Ticket not found</strong><p>This code does not belong to a spectator ticket for your track.</p></div>
+    </section>
+  {% elif verification_state == 'unpaid' %}
+    <section class="ticket-verification-result invalid">
+      <i class="bi bi-shield-x" aria-hidden="true"></i>
+      <div><strong>Payment not confirmed</strong><p>This ticket is locked and cannot be admitted.</p></div>
+    </section>
+  {% elif item %}
+    <section class="card ticket-result-card {{ verification_state }}">
+      <div class="ticket-result-status">
+        <span><i class="bi {{ 'bi-check-circle-fill' if verification_state == 'valid' else 'bi-exclamation-circle-fill' }}" aria-hidden="true"></i></span>
+        <div>
+          <p>{{ 'Valid ticket' if verification_state == 'valid' else 'Already checked in' }}</p>
+          <h3>{{ item.event.event_name }}</h3>
+          <small>{{ item.event.event_date.strftime('%B %-d, %Y') }} &middot; {{ item.event.track.name }}</small>
+        </div>
+      </div>
+      <dl class="ticket-result-facts">
+        <div><dt>Guest</dt><dd>{{ item.order.guest_full_name or 'Guest' }}</dd></div>
+        <div><dt>Ticket</dt><dd>{{ item.ticket_type_name }}{% if item.quantity > 1 %} &times; {{ item.quantity }}{% endif %}</dd></div>
+        <div><dt>Order</dt><dd>{{ item.order.order_number }}</dd></div>
+        <div><dt>Code</dt><dd><code>{{ item.qr_code }}</code></dd></div>
+      </dl>
+      {% if verification_state == 'valid' %}
+        <form method="post" action="{{ url_for('employee.ticket_checkin', event_id=item.event_id, item_id=item.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="return_to" value="scanner">
+          <button type="submit" class="btn ticket-admit-button"><i class="bi bi-check2-circle" aria-hidden="true"></i> Verify and check in</button>
+        </form>
+      {% else %}
+        <p class="ticket-used-note">Checked in {{ item.checked_in_at.strftime('%B %-d, %Y at %-I:%M %p') }}{% if item.checked_in_by %} by {{ item.checked_in_by.full_name }}{% endif %}.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="ticket-scan-empty">
+      <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+      <p>Ready to scan</p>
+      <span>Verification results will appear here.</span>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+{% endblock %}

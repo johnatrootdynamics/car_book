@@ -60,13 +60,14 @@
   {% if kind == 'spectator' %}
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Event</th><th>Ticket</th><th>Quantity</th><th>Amount</th><th>Gate status</th></tr></thead>
+        <thead><tr><th>Event</th><th>Ticket</th><th>Quantity</th><th>Verification code</th><th>Amount</th><th>Gate status</th></tr></thead>
         <tbody>
           {% for item in items %}
             <tr>
               <td><strong>{{ item.event.event_name }}</strong><small>{{ item.event.event_date }}</small></td>
               <td>{{ item.ticket_type_name }}</td>
               <td>{{ item.quantity }}</td>
+              <td><code class="ticket-code-display">{{ item.qr_code or 'Generating…' }}</code></td>
               <td>{{ money(item.line_total_cents) }}</td>
               <td>
                 {% if payment_status != 'paid' %}<span class="order-status-pill pending">Locked</span>

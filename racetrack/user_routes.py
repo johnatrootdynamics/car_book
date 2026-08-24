@@ -43,6 +43,7 @@ from .services.payment_service import (
     paypal_capture_details,
     verify_paypal_webhook_signature,
 )
+from .services.ticket_service import ensure_order_ticket_codes, generate_ticket_code
 
 try:
     import stripe
@@ -351,10 +352,13 @@ def _finalize_driver_ticket_order(driver_ticket_order, transaction_id=None):
 
 
 def _finalize_spectator_order(order, transaction_id=None):
+    ticket_codes_added = ensure_order_ticket_codes(order)
     if order.payment_status == "paid":
         if transaction_id and not order.provider_transaction_id:
             order.provider_transaction_id = transaction_id
             order.paid_at = order.paid_at or datetime.utcnow()
+            db.session.commit()
+        elif ticket_codes_added:
             db.session.commit()
         return
     mark_order_paid(order, transaction_id=transaction_id)
@@ -703,6 +707,7 @@ def spectator_checkout():
                     unit_price_cents=row["unit"],
                     quantity=item.quantity,
                     line_total_cents=row["line"],
+                    qr_code=generate_ticket_code(),
                 )
             )
         db.session.flush()

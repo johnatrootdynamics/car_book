@@ -349,7 +349,7 @@
         <h3>Spectator Ticket Lookup</h3>
         <form method="get" class="inline-form" style="margin-bottom:10px;">
           <input type="hidden" name="view" value="tickets">
-          <input type="text" name="ticket_q" value="{{ ticket_query }}" placeholder="Order number, buyer name, or email">
+          <input type="text" name="ticket_q" value="{{ ticket_query }}" placeholder="QR code, order, buyer, or email">
           <button class="btn btn-secondary btn-sm" type="submit">Search</button>
         </form>
         {% if ticket_orders %}
@@ -364,7 +364,7 @@
                     <td>{{ order.guest_email }}</td>
                     <td>
                       {% for item in order.items if item.event_id == event.id %}
-                        <div>{{ item.ticket_type_name }} x{{ item.quantity }}{% if item.checked_in_at %} • Checked In{% endif %}</div>
+                        <div>{{ item.ticket_type_name }} x{{ item.quantity }}{% if item.checked_in_at %} • Checked In{% endif %}<small><code>{{ item.qr_code }}</code></small></div>
                       {% endfor %}
                     </td>
                     <td>

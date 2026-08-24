@@ -318,6 +318,68 @@ function setupInspectionNameSearch() {
   })
 }
 
+function setupTicketQrScanner() {
+  const root = document.querySelector("[data-ticket-scanner]")
+  if (!root) return
+
+  const form = root.querySelector("[data-ticket-qr-form]")
+  const input = root.querySelector("[data-ticket-qr-input]")
+  const startButton = root.querySelector("[data-ticket-camera-start]")
+  const panel = root.querySelector("[data-ticket-camera-panel]")
+  const status = root.querySelector("[data-ticket-camera-status]")
+  const reader = root.querySelector("[data-ticket-qr-reader]")
+  if (!form || !input || !startButton || !panel || !reader) return
+
+  const extractCode = (value) => {
+    const raw = (value || "").trim()
+    if (!raw.toLowerCase().startsWith("http")) return raw
+    try {
+      return new URL(raw).searchParams.get("code") || raw
+    } catch (error) {
+      return raw
+    }
+  }
+
+  let scanner = null
+  let submitted = false
+  startButton.addEventListener("click", async () => {
+    if (typeof window.Html5Qrcode === "undefined") {
+      if (status) status.textContent = "Camera scanning could not load. Enter the ticket code manually."
+      panel.hidden = false
+      return
+    }
+    panel.hidden = false
+    startButton.disabled = true
+    startButton.innerHTML = '<i class="bi bi-camera-video" aria-hidden="true"></i> Camera active'
+    if (status) status.textContent = "Starting camera…"
+    try {
+      scanner = new window.Html5Qrcode(reader.id)
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 230, height: 230 }, aspectRatio: 1 },
+        async (decodedText) => {
+          if (submitted) return
+          submitted = true
+          input.value = extractCode(decodedText)
+          if (status) status.textContent = "Ticket found. Verifying…"
+          try {
+            await scanner.stop()
+          } catch (error) {
+            // The form can still submit if the camera stopped itself.
+          }
+          form.requestSubmit()
+        },
+        () => {}
+      )
+      if (status) status.textContent = "Point the camera at the ticket QR code."
+    } catch (error) {
+      startButton.disabled = false
+      startButton.innerHTML = '<i class="bi bi-camera" aria-hidden="true"></i> Try camera again'
+      if (status) status.textContent = "Camera access was unavailable. Check permission or enter the code manually."
+    }
+  })
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupEnhancedForms()
   setupCounters()
@@ -329,4 +391,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupProfilePhotoUpload()
   setupLiveTrackSearch()
   setupInspectionNameSearch()
+  setupTicketQrScanner()
 })

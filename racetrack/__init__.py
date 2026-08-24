@@ -317,6 +317,9 @@ def create_app():
                 "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS checked_in_by_employee_id INT NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS qr_code VARCHAR(64) NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS guest_phone VARCHAR(30) NULL"
             )
             conn.exec_driver_sql(
@@ -402,6 +405,9 @@ def create_app():
             conn.exec_driver_sql(
                 "UPDATE event_registrations er JOIN cars c ON c.id = er.car_id SET er.checkin_code = c.static_qr_code WHERE er.checkin_code IS NULL OR er.checkin_code = ''"
             )
+            conn.exec_driver_sql(
+                "UPDATE spectator_order_items SET qr_code = CONCAT('TKT-', UPPER(REPLACE(UUID(), '-', ''))) WHERE qr_code IS NULL OR qr_code = ''"
+            )
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
@@ -430,6 +436,12 @@ def create_app():
             try:
                 conn.exec_driver_sql(
                     "CREATE INDEX idx_event_registrations_checkin_code ON event_registrations (checkin_code)"
+                )
+            except Exception:
+                pass
+            try:
+                conn.exec_driver_sql(
+                    "CREATE UNIQUE INDEX idx_spectator_order_items_qr_code ON spectator_order_items (qr_code)"
                 )
             except Exception:
                 pass
