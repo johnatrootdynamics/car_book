@@ -185,6 +185,31 @@ class EnterpriseAdmin(db.Model, UserMixin):
         return f"admin:{self.id}"
 
 
+class SystemEmailSettings(db.Model):
+    __tablename__ = "system_email_settings"
+
+    id = db.Column(db.Integer, primary_key=True, default=1)
+    is_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    server = db.Column(db.String(255), nullable=True)
+    port = db.Column(db.Integer, nullable=False, default=587)
+    security = db.Column(db.String(20), nullable=False, default="starttls")
+    username = db.Column(db.String(255), nullable=True)
+    password_encrypted = db.Column(db.Text, nullable=True)
+    sender_name = db.Column(db.String(150), nullable=True)
+    sender_email = db.Column(db.String(255), nullable=True)
+    updated_by_admin_id = db.Column(
+        db.Integer,
+        db.ForeignKey("enterprise_admins.id"),
+        nullable=True,
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    updated_by = db.relationship("EnterpriseAdmin")
+
+
 class Car(db.Model):
     __tablename__ = "cars"
 

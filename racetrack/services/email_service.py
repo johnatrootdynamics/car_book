@@ -1,7 +1,12 @@
+import base64
+import hashlib
 import smtplib
+import ssl
 from email.message import EmailMessage
+from email.utils import formataddr
 
 from flask import current_app
+from cryptography.fernet import Fernet, InvalidToken
 
 
 class _SafeTemplateDict(dict):
@@ -27,29 +32,105 @@ def _get_track_template(track_id, template_key):
     ).first()
 
 
+def _credential_cipher():
+    key_material = (
+        current_app.config.get("SMTP_CREDENTIAL_KEY")
+        or current_app.config.get("SECRET_KEY")
+        or "dev-change-me"
+    )
+    digest = hashlib.sha256(str(key_material).encode("utf-8")).digest()
+    return Fernet(base64.urlsafe_b64encode(digest))
+
+
+def encrypt_smtp_password(password):
+    if not password:
+        return None
+    return _credential_cipher().encrypt(password.encode("utf-8")).decode("utf-8")
+
+
+def decrypt_smtp_password(encrypted_password):
+    if not encrypted_password:
+        return ""
+    try:
+        return _credential_cipher().decrypt(encrypted_password.encode("utf-8")).decode("utf-8")
+    except InvalidToken as exc:
+        raise RuntimeError(
+            "The saved SMTP password cannot be decrypted. Check SMTP_CREDENTIAL_KEY."
+        ) from exc
+
+
+def _environment_email_configuration():
+    use_ssl = bool(current_app.config.get("MAIL_USE_SSL"))
+    use_tls = bool(current_app.config.get("MAIL_USE_TLS", True))
+    sender_email = current_app.config.get("MAIL_DEFAULT_SENDER") or ""
+    return {
+        "enabled": bool(current_app.config.get("MAIL_SERVER") and sender_email),
+        "server": current_app.config.get("MAIL_SERVER") or "",
+        "port": int(current_app.config.get("MAIL_PORT") or 587),
+        "security": "ssl" if use_ssl else ("starttls" if use_tls else "none"),
+        "username": current_app.config.get("MAIL_USERNAME") or "",
+        "password": current_app.config.get("MAIL_PASSWORD") or "",
+        "password_saved": bool(current_app.config.get("MAIL_PASSWORD")),
+        "sender_name": current_app.config.get("MAIL_DEFAULT_SENDER_NAME") or "Track Ops",
+        "sender_email": sender_email,
+        "source": "environment",
+    }
+
+
+def get_email_configuration(include_password=True):
+    from ..models import SystemEmailSettings
+
+    settings = SystemEmailSettings.query.get(1)
+    if not settings:
+        config = _environment_email_configuration()
+    else:
+        config = {
+            "enabled": bool(settings.is_enabled),
+            "server": settings.server or "",
+            "port": settings.port or 587,
+            "security": settings.security or "starttls",
+            "username": settings.username or "",
+            "password": (
+                decrypt_smtp_password(settings.password_encrypted)
+                if include_password
+                else ""
+            ),
+            "password_saved": bool(settings.password_encrypted),
+            "sender_name": settings.sender_name or "Track Ops",
+            "sender_email": settings.sender_email or "",
+            "source": "admin",
+        }
+    config["configured"] = bool(
+        config["enabled"] and config["server"] and config["sender_email"]
+    )
+    if not include_password:
+        config.pop("password", None)
+    return config
+
+
 def send_email(to_email, subject, body):
     if not to_email:
         return False
-    server = current_app.config.get("MAIL_SERVER")
-    sender = current_app.config.get("MAIL_DEFAULT_SENDER")
-    if not server or not sender:
-        current_app.logger.info("Email skipped; MAIL_SERVER or MAIL_DEFAULT_SENDER is not configured")
+    config = get_email_configuration()
+    if not config["configured"]:
+        current_app.logger.info("Email skipped; SMTP delivery is disabled or incomplete")
         return False
 
     msg = EmailMessage()
-    msg["From"] = sender
+    msg["From"] = formataddr((config["sender_name"], config["sender_email"]))
     msg["To"] = to_email
     msg["Subject"] = subject
     msg.set_content(body)
 
-    port = current_app.config.get("MAIL_PORT", 587)
-    username = current_app.config.get("MAIL_USERNAME")
-    password = current_app.config.get("MAIL_PASSWORD")
-    use_tls = current_app.config.get("MAIL_USE_TLS", True)
-
-    with smtplib.SMTP(server, port, timeout=10) as smtp:
-        if use_tls:
-            smtp.starttls()
+    smtp_class = smtplib.SMTP_SSL if config["security"] == "ssl" else smtplib.SMTP
+    smtp_kwargs = {"host": config["server"], "port": config["port"], "timeout": 15}
+    if config["security"] == "ssl":
+        smtp_kwargs["context"] = ssl.create_default_context()
+    with smtp_class(**smtp_kwargs) as smtp:
+        if config["security"] == "starttls":
+            smtp.starttls(context=ssl.create_default_context())
+        username = config["username"]
+        password = config["password"]
         if username and password:
             smtp.login(username, password)
         smtp.send_message(msg)

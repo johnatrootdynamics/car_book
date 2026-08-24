@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="admin-settings-page">
+  <header class="admin-settings-header">
+    <div>
+      <span class="section-eyebrow">Enterprise configuration</span>
+      <h2>Admin Settings</h2>
+      <p>Configure the email service used for account credentials and order receipts.</p>
+    </div>
+    <span class="smtp-status {{ 'ready' if email_config.configured else 'off' }}">
+      <i class="bi {{ 'bi-check-circle-fill' if email_config.configured else 'bi-pause-circle-fill' }}" aria-hidden="true"></i>
+      {{ 'Email ready' if email_config.configured else 'Email inactive' }}
+    </span>
+  </header>
+
+  <section class="card admin-settings-card">
+    <div class="admin-settings-card-head">
+      <span class="settings-icon"><i class="bi bi-envelope-at" aria-hidden="true"></i></span>
+      <div>
+        <h3>SMTP delivery</h3>
+        <p>
+          {% if email_config.source == 'admin' %}
+            Managed here by enterprise admins.
+          {% else %}
+            Currently using deployment environment settings. Saving this form will move control here.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('admin.update_smtp_settings') }}" class="smtp-settings-form" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="settings-toggle-row">
+        <span>
+          <strong>Enable email delivery</strong>
+          <small>When disabled, the system will not send credentials or receipts.</small>
+        </span>
+        <input type="checkbox" name="is_enabled" value="1" {% if email_config.enabled %}checked{% endif %}>
+      </label>
+
+      <div class="smtp-form-grid">
+        <label class="smtp-host-field">
+          <span>SMTP server</span>
+          <input type="text" name="server" value="{{ email_config.server }}" placeholder="smtp.example.com" required spellcheck="false">
+        </label>
+        <label>
+          <span>Port</span>
+          <input type="number" name="port" value="{{ email_config.port }}" min="1" max="65535" required>
+        </label>
+        <label>
+          <span>Security</span>
+          <select name="security">
+            <option value="starttls" {% if email_config.security == 'starttls' %}selected{% endif %}>STARTTLS (usually 587)</option>
+            <option value="ssl" {% if email_config.security == 'ssl' %}selected{% endif %}>SSL/TLS (usually 465)</option>
+            <option value="none" {% if email_config.security == 'none' %}selected{% endif %}>None</option>
+          </select>
+        </label>
+        <label class="smtp-wide-field">
+          <span>Username <small>Optional when authentication is not required</small></span>
+          <input type="text" name="username" value="{{ email_config.username }}" placeholder="mailer@example.com" autocomplete="username" spellcheck="false">
+        </label>
+        <label class="smtp-wide-field">
+          <span>Password {% if email_config.password_saved %}<small>{{ 'Saved securely — leave blank to keep it' if email_config.source == 'admin' else 'Currently supplied by the deployment environment' }}</small>{% endif %}</span>
+          <input type="password" name="password" placeholder="{{ 'Saved — enter a new value to replace it' if email_config.source == 'admin' and email_config.password_saved else 'SMTP password or app password' }}" autocomplete="new-password">
+        </label>
+        <label>
+          <span>Sender name</span>
+          <input type="text" name="sender_name" value="{{ email_config.sender_name }}" placeholder="Track Ops">
+        </label>
+        <label class="smtp-sender-email">
+          <span>Sender email</span>
+          <input type="email" name="sender_email" value="{{ email_config.sender_email }}" placeholder="no-reply@example.com" required spellcheck="false">
+        </label>
+      </div>
+
+      <div class="smtp-form-footer">
+        <p><i class="bi bi-shield-lock" aria-hidden="true"></i> The SMTP password is encrypted before it is stored and is never displayed again.</p>
+        <button type="submit" class="btn"><i class="bi bi-check2" aria-hidden="true"></i> Save SMTP settings</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card smtp-test-card">
+    <div>
+      <span class="settings-icon muted"><i class="bi bi-send-check" aria-hidden="true"></i></span>
+      <div>
+        <h3>Send a test email</h3>
+        <p>Save your SMTP settings first, then confirm the provider accepts the connection and message.</p>
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('admin.test_smtp_settings') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="email" name="test_email" value="{{ current_user.email }}" aria-label="Test recipient email" required>
+      <button type="submit" class="btn btn-secondary"><i class="bi bi-send" aria-hidden="true"></i> Send test</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

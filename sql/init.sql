@@ -48,6 +48,23 @@ CREATE TABLE IF NOT EXISTS enterprise_admins (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS system_email_settings (
+  id INT PRIMARY KEY DEFAULT 1,
+  is_enabled TINYINT(1) NOT NULL DEFAULT 0,
+  server VARCHAR(255) NULL,
+  port INT NOT NULL DEFAULT 587,
+  security VARCHAR(20) NOT NULL DEFAULT 'starttls',
+  username VARCHAR(255) NULL,
+  password_encrypted TEXT NULL,
+  sender_name VARCHAR(150) NULL,
+  sender_email VARCHAR(255) NULL,
+  updated_by_admin_id INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_system_email_settings_admin FOREIGN KEY (updated_by_admin_id) REFERENCES enterprise_admins(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS cars (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,

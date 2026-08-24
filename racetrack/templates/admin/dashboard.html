@@ -6,6 +6,7 @@
   <p class="inline">
     <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.orders') }}"><i class="bi bi-receipt" aria-hidden="true"></i> All Orders</a>
     <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.accounts') }}"><i class="bi bi-key" aria-hidden="true"></i> Account Passwords</a>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.settings') }}"><i class="bi bi-envelope-gear" aria-hidden="true"></i> Email Settings</a>
     <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.waivers') }}">Manage Waiver Templates</a>
   </p>
   {% if impersonating_track_id %}

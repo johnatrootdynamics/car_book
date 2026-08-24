@@ -10,6 +10,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from email_validator import EmailNotValidError, validate_email
 from werkzeug.security import generate_password_hash
 
 from .forms import TrackCreateForm, WaiverTemplateForm
@@ -20,6 +21,7 @@ from .models import (
     EnterpriseAdmin,
     EventRegistration,
     SpectatorOrder,
+    SystemEmailSettings,
     Track,
     TrackWaiverTemplate,
     User,
@@ -28,6 +30,9 @@ from .models import (
 from .security import generate_random_password
 from .services.boldsign_service import list_templates
 from .services.email_service import (
+    encrypt_smtp_password,
+    get_email_configuration,
+    send_email,
     send_admin_login_email,
     send_employee_login_email,
     send_user_login_email,
@@ -64,6 +69,123 @@ def dashboard():
         impersonating_track_id=impersonating_track_id,
         create_form=create_form,
     )
+
+
+@admin_bp.route("/settings")
+@login_required
+def settings():
+    guard = require_admin()
+    if guard:
+        return guard
+    smtp_settings = SystemEmailSettings.query.get(1)
+    email_config = get_email_configuration(include_password=False)
+    return render_template(
+        "admin/settings.html",
+        smtp_settings=smtp_settings,
+        email_config=email_config,
+    )
+
+
+@admin_bp.route("/settings/smtp", methods=["POST"])
+@login_required
+def update_smtp_settings():
+    guard = require_admin()
+    if guard:
+        return guard
+
+    smtp_settings = SystemEmailSettings.query.get(1)
+    if not smtp_settings:
+        smtp_settings = SystemEmailSettings(id=1)
+        db.session.add(smtp_settings)
+
+    server = (request.form.get("server") or "").strip()
+    username = (request.form.get("username") or "").strip()
+    sender_name = (request.form.get("sender_name") or "").strip()
+    sender_email = (request.form.get("sender_email") or "").strip()
+    security = (request.form.get("security") or "starttls").strip().lower()
+    password = request.form.get("password") or ""
+    is_enabled = request.form.get("is_enabled") == "1"
+
+    try:
+        port = int(request.form.get("port") or "587")
+    except ValueError:
+        port = 0
+
+    errors = []
+    if not server:
+        errors.append("SMTP server is required.")
+    if not 1 <= port <= 65535:
+        errors.append("SMTP port must be between 1 and 65535.")
+    if security not in {"starttls", "ssl", "none"}:
+        errors.append("Select a valid SMTP security method.")
+    if not sender_email:
+        errors.append("Sender email is required.")
+    else:
+        try:
+            sender_email = validate_email(
+                sender_email,
+                check_deliverability=False,
+            ).normalized
+        except EmailNotValidError:
+            errors.append("Enter a valid sender email address.")
+    password_will_exist = bool(password or smtp_settings.password_encrypted)
+    if username and not password_will_exist:
+        errors.append("Enter the SMTP password for this username.")
+
+    if errors:
+        for error in errors:
+            flash(error, "error")
+        return redirect(url_for("admin.settings"))
+
+    smtp_settings.is_enabled = is_enabled
+    smtp_settings.server = server
+    smtp_settings.port = port
+    smtp_settings.security = security
+    smtp_settings.username = username or None
+    smtp_settings.sender_name = sender_name or "Track Ops"
+    smtp_settings.sender_email = sender_email
+    smtp_settings.updated_by_admin_id = current_user.id
+    if password:
+        smtp_settings.password_encrypted = encrypt_smtp_password(password)
+
+    db.session.commit()
+    flash(
+        "SMTP settings saved. Send a test email to verify delivery."
+        if is_enabled
+        else "SMTP settings saved with email delivery disabled.",
+        "success",
+    )
+    return redirect(url_for("admin.settings"))
+
+
+@admin_bp.route("/settings/smtp/test", methods=["POST"])
+@login_required
+def test_smtp_settings():
+    guard = require_admin()
+    if guard:
+        return guard
+    recipient = (request.form.get("test_email") or current_user.email or "").strip()
+    try:
+        recipient = validate_email(recipient, check_deliverability=False).normalized
+    except EmailNotValidError:
+        flash("Enter a valid test recipient email address.", "error")
+        return redirect(url_for("admin.settings"))
+
+    try:
+        sent = send_email(
+            recipient,
+            "Track Ops SMTP test",
+            "Your Track Ops SMTP configuration is working.\n\nYou can now send account credentials, order receipts, and other platform emails.",
+        )
+    except Exception as exc:
+        current_app.logger.exception("SMTP test email failed")
+        flash(f"SMTP test failed: {exc}", "error")
+        return redirect(url_for("admin.settings"))
+    if not sent:
+        flash("SMTP test was not sent. Enable email delivery and complete the settings first.", "error")
+        return redirect(url_for("admin.settings"))
+    flash(f"Test email sent to {recipient}.", "success")
+    return redirect(url_for("admin.settings"))
 
 
 @admin_bp.route("/orders")
