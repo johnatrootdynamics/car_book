@@ -2,6 +2,7 @@ import secrets
 import os
 import json
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
@@ -32,10 +33,15 @@ from .models import (
 from .services.storage_service import upload_public_image
 from .services.email_service import send_driver_purchase_receipt, send_spectator_order_receipt
 from .services.payment_service import (
+    PayPalError,
+    capture_paypal_order,
+    create_paypal_order,
     create_driver_stripe_checkout_session,
     create_stripe_checkout_session,
     mark_driver_ticket_paid,
     mark_order_paid,
+    paypal_capture_details,
+    verify_paypal_webhook_signature,
 )
 
 try:
@@ -115,6 +121,12 @@ def _configured_payment_choices(track, amount_cents):
         )
         if provider == "stripe" and amount_cents > 0 and not (
             credentials["secret_key"] and credentials["webhook_secret"]
+        ):
+            continue
+        if provider == "paypal" and amount_cents > 0 and not (
+            credentials["public_key"]
+            and credentials["secret_key"]
+            and credentials["webhook_secret"]
         ):
             continue
         label = PAYMENT_PROVIDER_LABELS.get(provider, provider.title())
@@ -331,6 +343,58 @@ def _finalize_driver_ticket_order(driver_ticket_order, transaction_id=None):
     needs_waiver_action, created_waiver_id = _create_driver_post_purchase_steps(driver_ticket_order)
     db.session.commit()
     return needs_waiver_action, created_waiver_id
+
+
+def _finalize_spectator_order(order, transaction_id=None):
+    if order.payment_status == "paid":
+        return
+    mark_order_paid(order, transaction_id=transaction_id)
+    for order_item in SpectatorOrderItem.query.filter_by(order_id=order.id).all():
+        db.session.add(
+            SpectatorTicketOrder(
+                event_id=order_item.event_id,
+                user_id=order.user_id,
+                buyer_type="user" if order.user_id else "guest",
+                guest_full_name=order.guest_full_name,
+                guest_email=order.guest_email,
+                guest_phone=order.guest_phone,
+                quantity=order_item.quantity,
+                payment_method=order.payment_method,
+                status="recorded",
+            )
+        )
+    if order.user_id:
+        cart = SpectatorCart.query.filter_by(user_id=order.user_id).first()
+        if cart:
+            for item in list(cart.items):
+                db.session.delete(item)
+    db.session.commit()
+    _safe_send_email(send_spectator_order_receipt, order)
+
+
+def _paypal_credentials_for_order(spectator_order=None, driver_ticket_order=None):
+    if spectator_order:
+        track = spectator_order.items[0].event.track if spectator_order.items else None
+        mode = spectator_order.payment_mode
+    else:
+        track = driver_ticket_order.event.track if driver_ticket_order else None
+        mode = driver_ticket_order.payment_mode if driver_ticket_order else None
+    return _payment_credentials(track, "paypal", mode=mode) if track else None
+
+
+def _validated_paypal_capture(details, expected_cents):
+    try:
+        captured_cents = int(Decimal(str(details.get("value"))) * 100)
+    except (InvalidOperation, TypeError, ValueError):
+        raise PayPalError("PayPal returned an invalid captured amount.")
+    if (
+        details.get("status") != "COMPLETED"
+        or details.get("currency") != "USD"
+        or captured_cents != int(expected_cents or 0)
+        or not details.get("transaction_id")
+    ):
+        raise PayPalError("PayPal payment confirmation did not match the order.")
+    return details["transaction_id"]
 
 
 @user_bp.route("/dashboard")
@@ -654,7 +718,35 @@ def spectator_checkout():
             flash("Stripe payments are not configured for this track yet.", "error")
             return redirect(url_for("user.spectator_checkout"))
 
-        # fallback recorded mode for non-stripe or free orders
+        if provider == "paypal" and subtotal_cents > 0:
+            if not (
+                payment_credentials["public_key"]
+                and payment_credentials["secret_key"]
+                and payment_credentials["webhook_secret"]
+            ):
+                db.session.rollback()
+                flash("PayPal payments are not configured for this track yet.", "error")
+                return redirect(url_for("user.spectator_checkout"))
+            try:
+                paypal_order, approve_url = create_paypal_order(
+                    payment_credentials,
+                    subtotal_cents,
+                    f"Spectator tickets - {payment_track.name}",
+                    f"spectator:{order.id}",
+                    url_for("user.spectator_paypal_return", order_id=order.id, _external=True),
+                    url_for("user.spectator_checkout", _external=True),
+                    f"spectator-create-{order.id}",
+                )
+                order.provider_session_id = paypal_order["id"]
+                db.session.commit()
+                return redirect(approve_url)
+            except PayPalError:
+                current_app.logger.exception("PayPal spectator checkout creation failed")
+                db.session.rollback()
+                flash("PayPal could not start checkout. Please try again.", "error")
+                return redirect(url_for("user.spectator_checkout"))
+
+        # Recorded/manual providers and free orders do not require an online gateway.
         order.payment_status = "paid"
         order.status = "recorded"
         mark_order_paid(order)
@@ -692,7 +784,7 @@ def spectator_checkout():
 @user_bp.route("/spectator/order/<int:order_id>")
 def spectator_order_success(order_id):
     order = SpectatorOrder.query.get_or_404(order_id)
-    if order.payment_status == "pending" and order.payment_method != "stripe":
+    if order.payment_status == "pending" and order.payment_method not in {"stripe", "paypal"}:
         order.payment_status = "paid"
         order.status = "recorded"
         mark_order_paid(order)
@@ -748,36 +840,161 @@ def stripe_webhook():
         session_obj = event["data"]["object"]
         session_id = session_obj.get("id")
         if order and order.payment_status != "paid":
-            mark_order_paid(order, transaction_id=session_obj.get("payment_intent"))
-            # create gate lookup rows and clear cart items only after payment success
-            items = SpectatorOrderItem.query.filter_by(order_id=order.id).all()
-            for order_item in items:
-                db.session.add(
-                    SpectatorTicketOrder(
-                        event_id=order_item.event_id,
-                        user_id=order.user_id,
-                        buyer_type="user" if order.user_id else "guest",
-                        guest_full_name=order.guest_full_name,
-                        guest_email=order.guest_email,
-                        guest_phone=order.guest_phone,
-                        quantity=order_item.quantity,
-                        payment_method=order.payment_method,
-                        status="recorded",
-                    )
-                )
-            # best effort cart clear for matching user cart
-            if order.user_id:
-                cart = SpectatorCart.query.filter_by(user_id=order.user_id).first()
-                if cart:
-                    for item in list(cart.items):
-                        db.session.delete(item)
-            db.session.commit()
-            _safe_send_email(send_spectator_order_receipt, order)
+            _finalize_spectator_order(order, transaction_id=session_obj.get("payment_intent"))
         elif driver_ticket_order and driver_ticket_order.payment_status != "paid":
             _finalize_driver_ticket_order(
                 driver_ticket_order,
                 transaction_id=session_obj.get("payment_intent"),
             )
+    return "ok", 200
+
+
+@user_bp.route("/payments/paypal/spectator/<int:order_id>/return")
+def spectator_paypal_return(order_id):
+    order = SpectatorOrder.query.get_or_404(order_id)
+    paypal_order_id = request.args.get("token", "").strip()
+    if order.payment_method != "paypal" or not paypal_order_id or paypal_order_id != order.provider_session_id:
+        flash("PayPal could not confirm this order.", "error")
+        return redirect(url_for("user.spectator_checkout"))
+    if order.payment_status == "paid":
+        return redirect(url_for("user.spectator_order_success", order_id=order.id))
+    credentials = _paypal_credentials_for_order(spectator_order=order)
+    try:
+        captured = capture_paypal_order(
+            credentials,
+            paypal_order_id,
+            f"spectator-capture-{order.id}",
+        )
+        transaction_id = _validated_paypal_capture(
+            paypal_capture_details(captured),
+            order.total_cents,
+        )
+        _finalize_spectator_order(order, transaction_id=transaction_id)
+    except (PayPalError, TypeError, KeyError):
+        current_app.logger.exception("PayPal spectator capture failed for order %s", order.id)
+        flash("PayPal is still processing this payment. Please check again shortly.", "error")
+        return redirect(url_for("user.spectator_order_success", order_id=order.id))
+    flash(f"Order {order.order_number} paid successfully.", "success")
+    return redirect(url_for("user.spectator_order_success", order_id=order.id))
+
+
+@user_bp.route("/payments/paypal/driver/<int:order_id>/return")
+@login_required
+def driver_paypal_return(order_id):
+    guard = require_user()
+    if guard:
+        return guard
+    order = DriverTicketOrder.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+    paypal_order_id = request.args.get("token", "").strip()
+    if order.payment_method != "paypal" or not paypal_order_id or paypal_order_id != order.provider_session_id:
+        flash("PayPal could not confirm this order.", "error")
+        return redirect(url_for("user.driver_event_checkout", event_id=order.event_id))
+    if order.payment_status != "paid":
+        credentials = _paypal_credentials_for_order(driver_ticket_order=order)
+        try:
+            captured = capture_paypal_order(
+                credentials,
+                paypal_order_id,
+                f"driver-capture-{order.id}",
+            )
+            transaction_id = _validated_paypal_capture(
+                paypal_capture_details(captured),
+                order.amount_cents,
+            )
+            _finalize_driver_ticket_order(order, transaction_id=transaction_id)
+        except (PayPalError, TypeError, KeyError):
+            current_app.logger.exception("PayPal driver capture failed for order %s", order.id)
+            flash("PayPal is still processing this payment. Please check again shortly.", "error")
+            return redirect(url_for("user.driver_event_checkout_success", order_id=order.id))
+    return redirect(url_for("user.driver_event_checkout_success", order_id=order.id))
+
+
+@user_bp.route("/payments/paypal/webhook", methods=["POST"])
+def paypal_webhook():
+    event = request.get_json(silent=True) or {}
+    event_type = event.get("event_type", "")
+    resource = event.get("resource") or {}
+    if event_type == "CHECKOUT.ORDER.APPROVED":
+        paypal_order_id = resource.get("id")
+    else:
+        paypal_order_id = (
+            ((resource.get("supplementary_data") or {}).get("related_ids") or {}).get("order_id")
+        )
+    if not paypal_order_id:
+        return "ok", 200
+
+    spectator_order = SpectatorOrder.query.filter_by(
+        provider_session_id=paypal_order_id,
+        payment_method="paypal",
+    ).first()
+    driver_ticket_order = None
+    if not spectator_order:
+        driver_ticket_order = DriverTicketOrder.query.filter_by(
+            provider_session_id=paypal_order_id,
+            payment_method="paypal",
+        ).first()
+    if not spectator_order and not driver_ticket_order:
+        return "ok", 200
+
+    credentials = _paypal_credentials_for_order(
+        spectator_order=spectator_order,
+        driver_ticket_order=driver_ticket_order,
+    )
+    if not credentials or not credentials.get("webhook_secret"):
+        return "ignored", 200
+    try:
+        verified = verify_paypal_webhook_signature(
+            credentials,
+            credentials["webhook_secret"],
+            request.headers,
+            event,
+        )
+    except PayPalError:
+        current_app.logger.exception("PayPal webhook verification request failed")
+        return "retry", 500
+    if not verified:
+        return "invalid", 400
+
+    try:
+        if event_type == "CHECKOUT.ORDER.APPROVED":
+            captured = capture_paypal_order(
+                credentials,
+                paypal_order_id,
+                (
+                    f"spectator-capture-{spectator_order.id}"
+                    if spectator_order
+                    else f"driver-capture-{driver_ticket_order.id}"
+                ),
+            )
+            details = paypal_capture_details(captured)
+        elif event_type == "PAYMENT.CAPTURE.COMPLETED":
+            amount = resource.get("amount") or {}
+            details = {
+                "status": resource.get("status"),
+                "transaction_id": resource.get("id"),
+                "currency": amount.get("currency_code"),
+                "value": amount.get("value"),
+            }
+        elif event_type == "PAYMENT.CAPTURE.DENIED":
+            target = spectator_order or driver_ticket_order
+            if target.payment_status != "paid":
+                target.payment_status = "failed"
+                target.failure_reason = "PayPal declined the payment capture."
+                db.session.commit()
+            return "ok", 200
+        else:
+            return "ok", 200
+
+        target = spectator_order or driver_ticket_order
+        expected_cents = spectator_order.total_cents if spectator_order else driver_ticket_order.amount_cents
+        transaction_id = _validated_paypal_capture(details, expected_cents)
+        if spectator_order:
+            _finalize_spectator_order(spectator_order, transaction_id=transaction_id)
+        else:
+            _finalize_driver_ticket_order(driver_ticket_order, transaction_id=transaction_id)
+    except PayPalError:
+        current_app.logger.exception("PayPal webhook processing failed for order %s", paypal_order_id)
+        return "retry", 500
     return "ok", 200
 
 
@@ -1141,6 +1358,38 @@ def driver_event_checkout(event_id):
             db.session.rollback()
             flash("Stripe payments are not configured for this track yet.", "error")
             return redirect(url_for("user.driver_event_checkout", event_id=event.id))
+
+        if form.payment_method.data == "paypal" and driver_amount_cents > 0:
+            if not (
+                payment_credentials["public_key"]
+                and payment_credentials["secret_key"]
+                and payment_credentials["webhook_secret"]
+            ):
+                db.session.rollback()
+                flash("PayPal payments are not configured for this track yet.", "error")
+                return redirect(url_for("user.driver_event_checkout", event_id=event.id))
+            try:
+                paypal_order, approve_url = create_paypal_order(
+                    payment_credentials,
+                    driver_amount_cents,
+                    f"Driver ticket - {event.event_name}",
+                    f"driver:{driver_ticket_order.id}",
+                    url_for(
+                        "user.driver_paypal_return",
+                        order_id=driver_ticket_order.id,
+                        _external=True,
+                    ),
+                    url_for("user.driver_event_checkout", event_id=event.id, _external=True),
+                    f"driver-create-{driver_ticket_order.id}",
+                )
+                driver_ticket_order.provider_session_id = paypal_order["id"]
+                db.session.commit()
+                return redirect(approve_url)
+            except PayPalError:
+                current_app.logger.exception("PayPal driver checkout creation failed")
+                db.session.rollback()
+                flash("PayPal could not start checkout. Please try again.", "error")
+                return redirect(url_for("user.driver_event_checkout", event_id=event.id))
 
         needs_waiver_action, created_waiver_id = _finalize_driver_ticket_order(driver_ticket_order)
         session.pop(f"driver_checkout_car_{event.id}", None)

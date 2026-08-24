@@ -130,6 +130,8 @@ def create_app():
     app.register_blueprint(employee_bp)
     app.register_blueprint(waiver_bp)
     csrf.exempt(app.view_functions["waiver.boldsign_webhook"])
+    csrf.exempt(app.view_functions["user.stripe_webhook"])
+    csrf.exempt(app.view_functions["user.paypal_webhook"])
 
     def ensure_database_exists():
         db_url = make_url(app.config["SQLALCHEMY_DATABASE_URI"])

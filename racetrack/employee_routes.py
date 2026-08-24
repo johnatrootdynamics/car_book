@@ -486,6 +486,16 @@ def settings():
         item.provider: item
         for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
     }
+    app_base_url = (current_app.config.get("APP_BASE_URL") or "").rstrip("/")
+    paypal_webhook_path = url_for("user.paypal_webhook")
+    if app_base_url:
+        paypal_webhook_url = f"{app_base_url}{paypal_webhook_path}"
+    else:
+        forwarded_scheme = request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip()
+        public_scheme = forwarded_scheme if forwarded_scheme in {"http", "https"} else request.scheme
+        if public_scheme == "http" and request.host.split(":", 1)[0] not in {"localhost", "127.0.0.1"}:
+            public_scheme = "https"
+        paypal_webhook_url = f"{public_scheme}://{request.host}{paypal_webhook_path}"
     return render_template(
         "employee/settings.html",
         track=track,
@@ -494,6 +504,7 @@ def settings():
         payment_methods=payment_methods,
         payment_provider_choices=PAYMENT_PROVIDER_CHOICES,
         payment_provider_docs=PAYMENT_PROVIDER_DOCS,
+        paypal_webhook_url=paypal_webhook_url,
     )
 
 

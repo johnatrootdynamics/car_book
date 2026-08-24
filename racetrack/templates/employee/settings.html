@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% macro credential_set(provider, method, environment, is_active, stripe_only=false) %}
+{% macro credential_set(provider, method, environment, is_active) %}
   {% set is_test = environment == 'test' %}
   {% set prefix = 'test_' if is_test else '' %}
   {% set secret_configured = method and (method.test_secret_key if is_test else method.secret_key) %}
@@ -16,7 +16,7 @@
       {% if is_test %}
         <p class="payment-test-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Test transactions never use your live account credentials.</p>
       {% endif %}
-      {% if stripe_only %}
+      {% if provider == 'stripe' %}
         <div class="form-grid two-col">
           <label>Secret Key
             <input type="password" name="{{ provider }}_{{ prefix }}secret_key" placeholder="{{ 'sk_test_...' if is_test else 'sk_live_...' }}" autocomplete="off">
@@ -32,6 +32,36 @@
           <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear secret key</button>
           <input type="hidden" name="{{ provider }}_clear_{{ prefix }}webhook_secret" value="0" data-clear-input>
           <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear webhook secret</button>
+        </div>
+      {% elif provider == 'paypal' %}
+        <div class="form-grid two-col">
+          <label>Client ID
+            <input type="text" name="{{ provider }}_{{ prefix }}public_key" placeholder="PayPal Client ID" autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if public_configured else 'not configured' }}</span>
+          </label>
+          <label>Secret Key
+            <input type="password" name="{{ provider }}_{{ prefix }}secret_key" placeholder="PayPal Secret key 1" autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if secret_configured else 'not configured' }}</span>
+          </label>
+          <label>Webhook ID
+            <input type="password" name="{{ provider }}_{{ prefix }}webhook_secret" placeholder="Paste the Webhook ID from PayPal" autocomplete="off">
+            <span class="hint">Current: {{ 'configured' if webhook_configured else 'not configured' }}</span>
+          </label>
+          <div class="payment-webhook-setup">
+            <span class="payment-webhook-label">Webhook URL</span>
+            <div class="payment-webhook-copy">
+              <input type="text" value="{{ paypal_webhook_url }}" readonly data-paypal-webhook-url>
+              <button type="button" class="btn btn-secondary btn-sm" data-copy-paypal-webhook>Copy</button>
+            </div>
+            <span class="hint">Add this URL to your PayPal app, then paste the Webhook ID PayPal returns above.</span>
+          </div>
+        </div>
+        <p class="payment-webhook-events"><i class="bi bi-bell" aria-hidden="true"></i> Subscribe to Checkout order approved, Payment capture completed, and Payment capture denied.</p>
+        <div class="payment-danger-zone">
+          {% for field, field_label in [('public_key', 'client ID'), ('secret_key', 'secret key'), ('webhook_secret', 'webhook ID')] %}
+            <input type="hidden" name="{{ provider }}_clear_{{ prefix }}{{ field }}" value="0" data-clear-input>
+            <button type="button" class="btn btn-secondary btn-sm" data-clear-button>Clear {{ field_label }}</button>
+          {% endfor %}
         </div>
       {% else %}
         <div class="form-grid two-col">
@@ -130,6 +160,9 @@
         {% if provider == 'stripe' %}
           {% set live_ready = (method and method.secret_key or track.stripe_secret_key) and (method and method.webhook_secret or track.stripe_webhook_secret) %}
           {% set test_ready = method and method.test_secret_key and method.test_webhook_secret %}
+        {% elif provider == 'paypal' %}
+          {% set live_ready = method and method.public_key and method.secret_key and method.webhook_secret %}
+          {% set test_ready = method and method.test_public_key and method.test_secret_key and method.test_webhook_secret %}
         {% else %}
           {% set live_ready = method and (method.public_key or method.secret_key or method.webhook_secret or method.merchant_id or method.extra_config) %}
           {% set test_ready = method and (method.test_public_key or method.test_secret_key or method.test_webhook_secret or method.test_merchant_id or method.test_extra_config) %}
@@ -149,7 +182,7 @@
                     </a>
                   {% endif %}
                 </span>
-                <small>{% if provider == 'stripe' %}Live checkout gateway{% else %}Manual payment option{% endif %}</small>
+                <small>{% if provider in ['stripe', 'paypal'] %}Online checkout gateway{% else %}Manual payment option{% endif %}</small>
               </span>
             </div>
             <div class="payment-card-actions">
@@ -175,8 +208,8 @@
               </div>
               <p class="payment-mode-help">Checkout uses only the credentials for the selected mode. Switching modes does not overwrite either credential set.</p>
               <div class="payment-credential-groups">
-                {{ credential_set(provider, method, 'live', mode == 'live', provider == 'stripe') }}
-                {{ credential_set(provider, method, 'test', mode == 'test', provider == 'stripe') }}
+                {{ credential_set(provider, method, 'live', mode == 'live') }}
+                {{ credential_set(provider, method, 'test', mode == 'test') }}
               </div>
             </div>
           </details>
@@ -186,7 +219,7 @@
     <aside class="payment-help-card">
       <i class="bi bi-info-circle" aria-hidden="true"></i>
       <div><h4>How customer choice works</h4>
-      <p class="muted-line">Customers choose from enabled providers that are ready for checkout. Stripe uses the selected Live or Test credentials; other providers store both sets now and remain recorded/manual until their gateway adapters are added.</p>
+      <p class="muted-line">Customers choose from enabled providers that are ready for checkout. Stripe and PayPal use the selected Live or Test credentials; Toast, QuickBooks, and Other remain recorded/manual options.</p>
       </div>
     </aside>
     <div class="payments-save-bar">
@@ -256,6 +289,20 @@
         render()
       })
       render()
+    })
+    form.querySelectorAll("[data-copy-paypal-webhook]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const input = button.parentElement.querySelector("[data-paypal-webhook-url]")
+        if (!input) return
+        try {
+          await navigator.clipboard.writeText(input.value)
+        } catch (error) {
+          input.select()
+          document.execCommand("copy")
+        }
+        button.textContent = "Copied"
+        window.setTimeout(() => { button.textContent = "Copy" }, 1600)
+      })
     })
   })()
 </script>

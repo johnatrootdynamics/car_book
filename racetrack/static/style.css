@@ -2928,6 +2928,33 @@ details > summary { font-size: .92rem; }
   font-size: .73rem;
   line-height: 1.4;
 }
+.payment-webhook-setup {
+  align-self: end;
+  display: grid;
+  gap: 6px;
+}
+.payment-webhook-label {
+  color: #344054;
+  font-size: .82rem;
+  font-weight: 700;
+}
+.payment-webhook-copy {
+  display: flex;
+  gap: 7px;
+}
+.payment-webhook-copy input {
+  min-width: 0;
+  font-size: .78rem;
+}
+.payment-webhook-copy .btn { flex: 0 0 auto; }
+.payment-webhook-events {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 0;
+  color: #667085;
+  font-size: .78rem;
+}
 
 .payment-danger-zone {
   margin-top: 12px;
