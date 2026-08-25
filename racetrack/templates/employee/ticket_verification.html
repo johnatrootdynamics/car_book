@@ -8,7 +8,7 @@
   <header class="ticket-verify-header">
     <div>
       <p class="shop-eyebrow">Gate operations</p>
-      <h2>Verify Spectator Ticket</h2>
+      <h2>Verify Event Ticket</h2>
       <p>Start the camera once, then scan customer after customer without leaving this screen.</p>
     </div>
     {% if scanner_active %}
@@ -38,7 +38,7 @@
   {% if verification_state == 'invalid' %}
     <section class="ticket-verification-result invalid">
       <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
-      <div><strong>Ticket not found</strong><p>This code does not belong to a spectator ticket for your track.</p></div>
+      <div><strong>Ticket not found</strong><p>This code does not belong to an event ticket for your track.</p></div>
     </section>
   {% elif verification_state == 'unpaid' %}
     <section class="ticket-verification-result invalid">
