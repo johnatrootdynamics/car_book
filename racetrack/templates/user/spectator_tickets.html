@@ -27,34 +27,39 @@
       </div>
     </div>
 
-    <aside class="spectator-purchase-card">
-      <div class="spectator-purchase-heading">
-        <div>
-          <span>{{ ticket_type.name }}</span>
-          <strong>{{ money(ticket_type.price_cents) }}</strong>
-        </div>
-        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
-      </div>
-      <p>Choose how many tickets you need. Buyer information and payment are collected together at checkout.</p>
-      <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-detail-buy-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="event_id" value="{{ event.id }}">
-        <label for="spectator-detail-quantity">Quantity</label>
-        <select id="spectator-detail-quantity" name="quantity">
-          {% for qty in range(1, (ticket_type.max_per_order or 10) + 1) %}
-            <option value="{{ qty }}">{{ qty }} {{ 'ticket' if qty == 1 else 'tickets' }}</option>
-          {% endfor %}
-        </select>
-        <button class="btn" type="submit"><i class="bi bi-bag-plus" aria-hidden="true"></i> Add to cart</button>
-      </form>
-      <div class="spectator-purchase-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>No account required. Confirmation is sent after checkout.</span></div>
-    </aside>
+    <div class="ticket-purchase-options">
+      {% for ticket_type in [spectator_ticket_type, vendor_ticket_type] %}
+        <aside class="spectator-purchase-card {% if ticket_type.ticket_category == 'vendor' %}vendor-purchase-card{% endif %}">
+          <div class="spectator-purchase-heading">
+            <div>
+              <span>{{ ticket_type.name }}</span>
+              <strong>{{ money(ticket_type.price_cents) }}</strong>
+            </div>
+            <i class="bi {{ 'bi-shop' if ticket_type.ticket_category == 'vendor' else 'bi-ticket-perforated' }}" aria-hidden="true"></i>
+          </div>
+          <p>{% if ticket_type.ticket_category == 'vendor' %}Paid admission for each vendor representative working on site.{% else %}General gate admission for event spectators.{% endif %}</p>
+          <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-detail-buy-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="event_id" value="{{ event.id }}">
+            <input type="hidden" name="ticket_type_id" value="{{ ticket_type.id }}">
+            <label for="ticket-quantity-{{ ticket_type.id }}">Quantity</label>
+            <select id="ticket-quantity-{{ ticket_type.id }}" name="quantity">
+              {% for qty in range(1, (ticket_type.max_per_order or 10) + 1) %}
+                <option value="{{ qty }}">{{ qty }} {{ 'ticket' if qty == 1 else 'tickets' }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn" type="submit"><i class="bi bi-bag-plus" aria-hidden="true"></i> Add to cart</button>
+          </form>
+        </aside>
+      {% endfor %}
+      <div class="spectator-purchase-note ticket-options-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>No account required. Each person receives a separate QR ticket.</span></div>
+    </div>
   </section>
 
   <section class="spectator-detail-benefits" aria-label="Ticket information">
     <article><i class="bi bi-phone" aria-hidden="true"></i><div><strong>Mobile ready</strong><span>Keep your confirmation handy at the gate.</span></div></article>
     <article><i class="bi bi-envelope-check" aria-hidden="true"></i><div><strong>Email confirmation</strong><span>Order details are delivered to the buyer.</span></div></article>
-    <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>One easy cart</strong><span>Add tickets for your group before checkout.</span></div></article>
+    <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>One easy cart</strong><span>Combine spectator and vendor admission in one checkout.</span></div></article>
   </section>
 </div>
 {% endblock %}

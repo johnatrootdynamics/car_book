@@ -53,10 +53,10 @@ employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
 
 EMAIL_TEMPLATE_DEFINITIONS = {
     "spectator_purchase_receipt": {
-        "label": "Spectator Purchase Receipt",
-        "description": "Sent after a spectator ticket order is paid or recorded.",
+        "label": "Event Ticket Purchase Receipt",
+        "description": "Sent after a spectator or vendor ticket order is paid or recorded.",
         "subject": "Your tickets for {track_name}",
-        "body": "Hi {buyer_name},\n\nYour spectator ticket order {order_number} is confirmed.\n\nEvent tickets:\n{ticket_lines}\n\nTotal: {order_total}\n\nUse your name, email, phone, or order number at the gate.\n\nThanks,\n{track_name}",
+        "body": "Hi {buyer_name},\n\nYour event ticket order {order_number} is confirmed.\n\nEvent tickets:\n{ticket_lines}\n\nTotal: {order_total}\n\nPresent each ticket's QR code at the gate.\n\nThanks,\n{track_name}",
     },
     "driver_purchase_receipt": {
         "label": "Driver Purchase Receipt",
@@ -203,27 +203,35 @@ def _to_cents(value):
 
 
 def _sync_default_spectator_ticket_type(event):
-    ticket_type = (
-        SpectatorTicketType.query.filter_by(event_id=event.id)
-        .order_by(SpectatorTicketType.created_at.asc())
-        .first()
+    configurations = (
+        ("spectator", "General Admission", event.spectator_price_cents, 10),
+        ("vendor", "Vendor Admission", event.vendor_price_cents, 20),
     )
-    if ticket_type:
-        ticket_type.name = ticket_type.name or "General Admission"
-        ticket_type.price_cents = max(0, event.spectator_price_cents or 0)
-        ticket_type.is_active = True
-        if not ticket_type.max_per_order:
-            ticket_type.max_per_order = 10
-        return
-    db.session.add(
-        SpectatorTicketType(
-            event_id=event.id,
-            name="General Admission",
-            price_cents=max(0, event.spectator_price_cents or 0),
-            is_active=True,
-            max_per_order=10,
+    for category, default_name, price_cents, max_per_order in configurations:
+        ticket_type = (
+            SpectatorTicketType.query.filter_by(
+                event_id=event.id,
+                ticket_category=category,
+            )
+            .order_by(SpectatorTicketType.created_at.asc())
+            .first()
         )
-    )
+        if ticket_type:
+            ticket_type.name = ticket_type.name or default_name
+            ticket_type.price_cents = max(0, price_cents or 0)
+            ticket_type.is_active = True
+            ticket_type.max_per_order = ticket_type.max_per_order or max_per_order
+            continue
+        db.session.add(
+            SpectatorTicketType(
+                event_id=event.id,
+                name=default_name,
+                ticket_category=category,
+                price_cents=max(0, price_cents or 0),
+                is_active=True,
+                max_per_order=max_per_order,
+            )
+        )
 
 
 @employee_bp.route("/dashboard")
@@ -261,13 +269,22 @@ def dashboard():
     last_event = past_events[0] if past_events else None
     last_event_participants = signup_counts.get(last_event.id, 0) if last_event else 0
     last_event_spectator_tickets = 0
+    last_event_vendor_tickets = 0
     if last_event:
-        tickets_sum = (
+        spectator_sum = (
             db.session.query(func.coalesce(func.sum(SpectatorTicketOrder.quantity), 0))
             .filter(SpectatorTicketOrder.event_id == last_event.id)
+            .filter(SpectatorTicketOrder.ticket_category == "spectator")
             .scalar()
         )
-        last_event_spectator_tickets = int(tickets_sum or 0)
+        vendor_sum = (
+            db.session.query(func.coalesce(func.sum(SpectatorTicketOrder.quantity), 0))
+            .filter(SpectatorTicketOrder.event_id == last_event.id)
+            .filter(SpectatorTicketOrder.ticket_category == "vendor")
+            .scalar()
+        )
+        last_event_spectator_tickets = int(spectator_sum or 0)
+        last_event_vendor_tickets = int(vendor_sum or 0)
     return render_template(
         "employee/dashboard.html",
         upcoming_events=upcoming_events,
@@ -279,6 +296,7 @@ def dashboard():
         last_event=last_event,
         last_event_participants=last_event_participants,
         last_event_spectator_tickets=last_event_spectator_tickets,
+        last_event_vendor_tickets=last_event_vendor_tickets,
     )
 
 
@@ -523,6 +541,80 @@ def ticket_verification():
         item=item,
         verification_state=verification_state,
         scanner_active=scanner_active,
+    )
+
+
+@employee_bp.route("/vendors")
+@login_required
+def vendors():
+    guard = require_employee()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    events = (
+        Event.query.filter_by(track_id=track_id)
+        .order_by(Event.event_date.desc())
+        .all()
+    )
+    selected_event_id = request.args.get("event_id", type=int)
+    selected_event = next((event for event in events if event.id == selected_event_id), None)
+    if not selected_event:
+        selected_event = next(
+            (event for event in reversed(events) if event.event_date >= date.today()),
+            events[0] if events else None,
+        )
+
+    query_text = (request.args.get("q") or "").strip().lower()
+    vendor_tickets = []
+    if selected_event:
+        candidates = (
+            SpectatorOrderItem.query.join(
+                SpectatorOrder,
+                SpectatorOrder.id == SpectatorOrderItem.order_id,
+            )
+            .filter(
+                SpectatorOrderItem.event_id == selected_event.id,
+                SpectatorOrderItem.ticket_category == "vendor",
+            )
+            .order_by(SpectatorOrder.created_at.asc(), SpectatorOrderItem.id.asc())
+            .all()
+        )
+        for item in candidates:
+            if not payment_is_confirmed(
+                item.order.payment_status,
+                item.order.payment_method,
+                item.order.total_cents,
+                item.order.provider_transaction_id,
+            ):
+                continue
+            haystack = " ".join(
+                [
+                    item.order.vendor_business_name or "",
+                    item.order.guest_full_name or "",
+                    item.order.guest_email or "",
+                    item.order.order_number or "",
+                    item.qr_code or "",
+                ]
+            ).lower()
+            if query_text and query_text not in haystack:
+                continue
+            vendor_tickets.append(item)
+
+    checked_in_count = sum(1 for item in vendor_tickets if item.checked_in_at)
+    business_count = len(
+        {
+            (item.order.vendor_business_name or item.order.guest_full_name or "Unknown").casefold()
+            for item in vendor_tickets
+        }
+    )
+    return render_template(
+        "employee/vendors.html",
+        events=events,
+        selected_event=selected_event,
+        vendor_tickets=vendor_tickets,
+        query_text=query_text,
+        checked_in_count=checked_in_count,
+        business_count=business_count,
     )
 
 
@@ -1077,6 +1169,7 @@ def event_new():
     if request.method == "GET":
         form.driver_price.data = Decimal("0.00")
         form.spectator_price.data = Decimal("25.00")
+        form.vendor_price.data = Decimal("100.00")
     if form.validate_on_submit():
         if form.event_start_time.data and form.event_end_time.data:
             if form.event_end_time.data <= form.event_start_time.data:
@@ -1088,6 +1181,7 @@ def event_new():
             event_date=form.event_date.data,
             driver_price_cents=_to_cents(form.driver_price.data),
             spectator_price_cents=_to_cents(form.spectator_price.data),
+            vendor_price_cents=_to_cents(form.vendor_price.data),
             event_start_time=form.event_start_time.data,
             event_end_time=form.event_end_time.data,
         )
@@ -1132,6 +1226,7 @@ def event_edit(event_id):
         form.track_layout_id.data = event.track_layout_id or 0
         form.driver_price.data = Decimal(event.driver_price_cents or 0) / Decimal(100)
         form.spectator_price.data = Decimal(event.spectator_price_cents or 0) / Decimal(100)
+        form.vendor_price.data = Decimal(event.vendor_price_cents or 0) / Decimal(100)
     if form.validate_on_submit():
         if form.event_start_time.data and form.event_end_time.data:
             if form.event_end_time.data <= form.event_start_time.data:
@@ -1145,6 +1240,7 @@ def event_edit(event_id):
         event.event_date = form.event_date.data
         event.driver_price_cents = _to_cents(form.driver_price.data)
         event.spectator_price_cents = _to_cents(form.spectator_price.data)
+        event.vendor_price_cents = _to_cents(form.vendor_price.data)
         event.event_start_time = form.event_start_time.data
         event.event_end_time = form.event_end_time.data
         upload = form.thumbnail_image.data

@@ -236,8 +236,9 @@ def send_spectator_order_receipt(order):
     ticket_lines = []
     ticket_count = len(order.items)
     for index, item in enumerate(order.items, start=1):
+        category_label = "Vendor" if item.ticket_category == "vendor" else "Spectator"
         ticket_lines.append(
-            f"Ticket {index} of {ticket_count}: {item.event.event_name} - {item.ticket_type_name}\n"
+            f"Ticket {index} of {ticket_count}: {category_label} - {item.event.event_name} - {item.ticket_type_name}\n"
             f"Ticket code: {item.qr_code}\n"
             f"QR link: {ticket_verification_url(item.qr_code)}"
         )
@@ -256,7 +257,7 @@ def send_spectator_order_receipt(order):
         subject = f"Your CarBook tickets: {order.order_number}"
         body = (
             f"Order {order.order_number}\n\n"
-            "Your spectator tickets are confirmed.\n\n"
+            "Your event tickets are confirmed.\n\n"
             f"{values['ticket_lines']}\n\n"
             f"Total: {values['order_total']}\n\n"
             "Present the QR code for each ticket at the gate."
@@ -265,6 +266,7 @@ def send_spectator_order_receipt(order):
     ticket_cards = []
     inline_images = []
     for index, item in enumerate(order.items, start=1):
+        category_label = "Vendor" if item.ticket_category == "vendor" else "Spectator"
         cid = f"ticket-{item.id or index}-{order.id}@trackops"
         inline_images.append(
             {
@@ -276,7 +278,7 @@ def send_spectator_order_receipt(order):
         ticket_cards.append(
             "<div style='margin:18px 0;padding:18px;border:1px solid #e4e7ec;border-radius:10px;text-align:center'>"
             f"<h3 style='margin:0 0 4px;color:#101828'>{html.escape(item.event.event_name)}</h3>"
-            f"<p style='margin:0 0 12px;color:#667085'>Ticket {index} of {ticket_count} &middot; {html.escape(item.ticket_type_name)}</p>"
+            f"<p style='margin:0 0 12px;color:#667085'>Ticket {index} of {ticket_count} &middot; {category_label} &middot; {html.escape(item.ticket_type_name)}</p>"
             f"<img src='cid:{cid}' width='220' height='220' alt='Ticket QR code' style='display:block;margin:0 auto 10px'>"
             f"<code style='font-size:12px;color:#475467'>{html.escape(item.qr_code)}</code>"
             "</div>"

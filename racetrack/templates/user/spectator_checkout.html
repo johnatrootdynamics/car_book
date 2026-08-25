@@ -65,7 +65,11 @@
             <label>Email {{ form.email(placeholder='alex@example.com') }}</label>
             <label>Phone {{ form.phone(placeholder='(555) 555-5555') }}</label>
           {% endif %}
+          {% if has_vendor_tickets %}
+            <label>Vendor Business Name {{ form.vendor_business_name(placeholder='Business or organization name', required=true) }}</label>
+          {% endif %}
         </div>
+        {% if has_vendor_tickets %}<p class="hint"><i class="bi bi-shop" aria-hidden="true"></i> This name will appear in the track’s vendor check-in list.</p>{% endif %}
       </section>
 
       <section class="checkout-section-card">
@@ -109,7 +113,7 @@
       <div class="checkout-summary-items">
         {% for row in rows %}
           <div class="checkout-summary-item">
-            <div class="shop-ticket-thumb small"><i class="bi bi-ticket-perforated"></i></div>
+            <div class="shop-ticket-thumb small"><i class="bi {{ 'bi-shop' if row.item.ticket_type.ticket_category == 'vendor' else 'bi-ticket-perforated' }}"></i></div>
             <div>
               <strong>{{ row.item.event.event_name }}</strong>
               <p class="muted-line">{{ row.item.ticket_type.name }} &middot; Qty {{ row.item.quantity }}</p>

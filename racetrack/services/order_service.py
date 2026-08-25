@@ -34,6 +34,13 @@ def load_order_rows(track_id=None):
             continue
         track = items[0].event.track
         event_names = sorted({item.event.event_name for item in items})
+        ticket_categories = {item.ticket_category or "spectator" for item in items}
+        if ticket_categories == {"vendor"}:
+            order_kind_label = "Vendor"
+        elif "vendor" in ticket_categories:
+            order_kind_label = "Mixed tickets"
+        else:
+            order_kind_label = "Spectator"
         buyer_name = order.guest_full_name or (
             f"{order.buyer.first_name} {order.buyer.last_name}" if order.buyer else "Guest"
         )
@@ -41,7 +48,7 @@ def load_order_rows(track_id=None):
         rows.append(
             {
                 "kind": "spectator",
-                "kind_label": "Spectator",
+                "kind_label": order_kind_label,
                 "id": order.id,
                 "number": order.order_number,
                 "track": track,
@@ -49,6 +56,8 @@ def load_order_rows(track_id=None):
                 "event_names": event_names,
                 "buyer_name": buyer_name,
                 "buyer_email": buyer_email,
+                "vendor_business_name": order.vendor_business_name or "",
+                "ticket_categories": ticket_categories,
                 "amount_cents": (
                     order.total_cents or 0
                     if track_id is None
@@ -116,6 +125,7 @@ def filter_order_rows(rows, search="", payment_status="", kind="", provider="", 
                     row["buyer_name"],
                     row["buyer_email"],
                     row["provider"],
+                    row.get("vendor_business_name", ""),
                     *row["event_names"],
                 ]
             ).lower()

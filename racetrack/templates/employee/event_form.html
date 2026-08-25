@@ -29,6 +29,7 @@
     <label><span class="event-form-label"><i class="bi bi-calendar-event"></i> Event Date</span> {{ form.event_date() }}</label>
     <label><span class="event-form-label"><i class="bi bi-speedometer2"></i> Driver Price (USD)</span> {{ form.driver_price(step='0.01', min='0') }}</label>
     <label><span class="event-form-label"><i class="bi bi-ticket-perforated"></i> Spectator Price (USD)</span> {{ form.spectator_price(step='0.01', min='0') }}</label>
+    <label><span class="event-form-label"><i class="bi bi-shop"></i> Vendor Price per Person (USD)</span> {{ form.vendor_price(step='0.01', min='0') }}</label>
     <label><span class="event-form-label"><i class="bi bi-clock"></i> Event Start Time <small>(optional)</small></span>
       <select name="event_start_time">
         <option value="">Select start time</option>

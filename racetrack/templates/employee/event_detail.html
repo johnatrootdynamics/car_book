@@ -44,6 +44,7 @@
             <p class="event-general-row"><i class="bi bi-calendar-event"></i> <strong>Date:</strong> {{ event.event_date }}</p>
             <p class="event-general-row"><i class="bi bi-clock"></i> <strong>Time:</strong> {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }} - {{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</p>
             <p class="event-general-row"><i class="bi bi-map"></i> <strong>Layout:</strong> {{ selected_layout_name }}</p>
+            {% if is_office_staff %}<p class="event-general-row"><i class="bi bi-cash-stack"></i> <strong>Prices:</strong> Driver {{ '$%.2f'|format(event.driver_price_cents / 100) }} · Spectator {{ '$%.2f'|format(event.spectator_price_cents / 100) }} · Vendor {{ '$%.2f'|format(event.vendor_price_cents / 100) }}</p>{% endif %}
           </div>
 
           <label data-edit-field hidden>Event Name
@@ -52,6 +53,18 @@
 
           <label data-edit-field hidden>Event Date
             <input type="date" name="event_date" value="{{ event.event_date.strftime('%Y-%m-%d') }}" required>
+          </label>
+
+          <label data-edit-field hidden>Driver Price (USD)
+            <input type="number" name="driver_price" min="0" step="0.01" value="{{ '%.2f'|format(event.driver_price_cents / 100) }}" required>
+          </label>
+
+          <label data-edit-field hidden>Spectator Price (USD)
+            <input type="number" name="spectator_price" min="0" step="0.01" value="{{ '%.2f'|format(event.spectator_price_cents / 100) }}" required>
+          </label>
+
+          <label data-edit-field hidden>Vendor Price per Person (USD)
+            <input type="number" name="vendor_price" min="0" step="0.01" value="{{ '%.2f'|format(event.vendor_price_cents / 100) }}" required>
           </label>
 
           <label data-edit-field hidden>Event Start Time

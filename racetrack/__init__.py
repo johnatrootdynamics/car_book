@@ -268,6 +268,9 @@ def create_app():
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_end_time TIME NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS vendor_price_cents INT NOT NULL DEFAULT 10000"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS driver_price_cents INT NOT NULL DEFAULT 0"
             )
             conn.exec_driver_sql(
@@ -328,7 +331,19 @@ def create_app():
                 "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS qr_code VARCHAR(64) NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE spectator_order_items ADD COLUMN IF NOT EXISTS ticket_category VARCHAR(20) NOT NULL DEFAULT 'spectator'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_ticket_types ADD COLUMN IF NOT EXISTS ticket_category VARCHAR(20) NOT NULL DEFAULT 'spectator'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_ticket_orders ADD COLUMN IF NOT EXISTS ticket_category VARCHAR(20) NOT NULL DEFAULT 'spectator'"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS guest_phone VARCHAR(30) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS vendor_business_name VARCHAR(150) NULL"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE spectator_ticket_orders ADD COLUMN IF NOT EXISTS guest_phone VARCHAR(30) NULL"
@@ -415,6 +430,15 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "UPDATE spectator_order_items SET qr_code = CONCAT('TKT-', UPPER(REPLACE(UUID(), '-', ''))) WHERE qr_code IS NULL OR qr_code = ''"
+            )
+            conn.exec_driver_sql(
+                "UPDATE spectator_ticket_types SET ticket_category = 'spectator' WHERE ticket_category IS NULL OR ticket_category NOT IN ('spectator', 'vendor')"
+            )
+            conn.exec_driver_sql(
+                "UPDATE spectator_order_items SET ticket_category = 'spectator' WHERE ticket_category IS NULL OR ticket_category NOT IN ('spectator', 'vendor')"
+            )
+            conn.exec_driver_sql(
+                "UPDATE spectator_ticket_orders SET ticket_category = 'spectator' WHERE ticket_category IS NULL OR ticket_category NOT IN ('spectator', 'vendor')"
             )
 
         with db.engine.begin() as conn:

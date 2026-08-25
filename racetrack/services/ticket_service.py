@@ -34,6 +34,7 @@ def ensure_order_ticket_codes(order):
                     SpectatorOrderItem(
                         event_id=item.event_id,
                         ticket_type_name=item.ticket_type_name,
+                        ticket_category=item.ticket_category or "spectator",
                         unit_price_cents=item.unit_price_cents,
                         quantity=1,
                         line_total_cents=amount_per_ticket + (1 if ticket_index < remainder else 0),

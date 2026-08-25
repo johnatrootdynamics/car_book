@@ -141,9 +141,14 @@ def _configured_payment_choices(track, amount_cents):
     return choices
 
 
-def _get_or_create_default_ticket_type(event):
+def _get_or_create_default_ticket_type(event, ticket_category="spectator"):
+    ticket_category = "vendor" if ticket_category == "vendor" else "spectator"
     ticket_type = (
-        SpectatorTicketType.query.filter_by(event_id=event.id, is_active=True)
+        SpectatorTicketType.query.filter_by(
+            event_id=event.id,
+            ticket_category=ticket_category,
+            is_active=True,
+        )
         .order_by(SpectatorTicketType.created_at.asc())
         .first()
     )
@@ -151,10 +156,14 @@ def _get_or_create_default_ticket_type(event):
         return ticket_type
     ticket_type = SpectatorTicketType(
         event_id=event.id,
-        name="General Admission",
-        price_cents=max(0, event.spectator_price_cents or 0),
+        name="Vendor Admission" if ticket_category == "vendor" else "General Admission",
+        ticket_category=ticket_category,
+        price_cents=max(
+            0,
+            (event.vendor_price_cents if ticket_category == "vendor" else event.spectator_price_cents) or 0,
+        ),
         is_active=True,
-        max_per_order=10,
+        max_per_order=20 if ticket_category == "vendor" else 10,
     )
     db.session.add(ticket_type)
     db.session.commit()
@@ -373,6 +382,7 @@ def _finalize_spectator_order(order, transaction_id=None):
                 guest_phone=order.guest_phone,
                 quantity=order_item.quantity,
                 payment_method=order.payment_method,
+                ticket_category=order_item.ticket_category or "spectator",
                 status="recorded",
             )
         )
@@ -520,12 +530,14 @@ def spectator_tickets(event_id):
     if event.event_date < date.today():
         flash("Spectator tickets are no longer available for this event.", "error")
         return redirect(url_for("user.spectator_events"))
-    ticket_type = _get_or_create_default_ticket_type(event)
+    spectator_ticket_type = _get_or_create_default_ticket_type(event, "spectator")
+    vendor_ticket_type = _get_or_create_default_ticket_type(event, "vendor")
     cart = _get_or_create_spectator_cart()
     return render_template(
         "user/spectator_tickets.html",
         event=event,
-        ticket_type=ticket_type,
+        spectator_ticket_type=spectator_ticket_type,
+        vendor_ticket_type=vendor_ticket_type,
         money=_money,
         cart_count=_cart_item_count(cart),
     )
@@ -544,15 +556,18 @@ def spectator_events():
             | (Track.state.ilike(like))
         )
     events = query.order_by(Event.event_date.asc()).limit(60).all()
-    ticket_type_by_event = {}
+    ticket_types_by_event = {}
     for event in events:
-        ticket_type_by_event[event.id] = _get_or_create_default_ticket_type(event)
+        ticket_types_by_event[event.id] = {
+            "spectator": _get_or_create_default_ticket_type(event, "spectator"),
+            "vendor": _get_or_create_default_ticket_type(event, "vendor"),
+        }
     cart = _get_or_create_spectator_cart()
     return render_template(
         "user/spectator_events.html",
         events=events,
         q=q,
-        ticket_type_by_event=ticket_type_by_event,
+        ticket_types_by_event=ticket_types_by_event,
         money=_money,
         cart_count=_cart_item_count(cart),
     )
@@ -561,12 +576,20 @@ def spectator_events():
 @user_bp.route("/spectator/cart/add", methods=["POST"])
 def spectator_cart_add():
     event_id = request.form.get("event_id", type=int)
+    ticket_type_id = request.form.get("ticket_type_id", type=int)
     quantity = request.form.get("quantity", type=int) or 1
     event = Event.query.get_or_404(event_id)
     if event.event_date < date.today():
         flash("Spectator tickets are no longer available for this event.", "error")
         return redirect(url_for("user.spectator_events"))
-    ticket_type = _get_or_create_default_ticket_type(event)
+    if ticket_type_id:
+        ticket_type = SpectatorTicketType.query.filter_by(
+            id=ticket_type_id,
+            event_id=event.id,
+            is_active=True,
+        ).first_or_404()
+    else:
+        ticket_type = _get_or_create_default_ticket_type(event, "spectator")
     quantity = max(1, min(quantity, ticket_type.max_per_order or 10))
     cart = _get_or_create_spectator_cart()
     existing_items = SpectatorCartItem.query.filter_by(cart_id=cart.id).all()
@@ -588,7 +611,7 @@ def spectator_cart_add():
             )
         )
     db.session.commit()
-    flash("Added tickets to cart.", "success")
+    flash(f"Added {ticket_type.name} tickets to cart.", "success")
     return redirect(url_for("user.spectator_cart"))
 
 
@@ -656,6 +679,10 @@ def spectator_checkout():
         line = unit * item.quantity
         subtotal_cents += line
         rows.append({"item": item, "unit": unit, "line": line})
+    has_vendor_tickets = any(
+        item.ticket_type and item.ticket_type.ticket_category == "vendor"
+        for item in items
+    )
     payment_track = items[0].event.track
     payment_choices = _configured_payment_choices(payment_track, subtotal_cents)
     if not payment_choices:
@@ -671,7 +698,13 @@ def spectator_checkout():
     if request.method == "GET":
         form.payment_method.data = payment_choices[0][0]
 
-    if form.validate_on_submit():
+    form_is_valid = form.validate_on_submit()
+    vendor_business_name = (form.vendor_business_name.data or "").strip()
+    if request.method == "POST" and form_is_valid and has_vendor_tickets and not vendor_business_name:
+        flash("Business name is required for vendor admission.", "error")
+        form_is_valid = False
+
+    if form_is_valid:
         provider = form.payment_method.data
         payment_credentials = _payment_credentials(payment_track, provider)
         user_id = current_user.id if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" else None
@@ -689,6 +722,7 @@ def spectator_checkout():
             guest_full_name=buyer_name,
             guest_email=buyer_email,
             guest_phone=buyer_phone,
+            vendor_business_name=vendor_business_name if has_vendor_tickets else None,
             payment_method=provider,
             payment_mode=payment_credentials["mode"],
             payment_status="pending",
@@ -705,6 +739,11 @@ def spectator_checkout():
                         order_id=order.id,
                         event_id=item.event_id,
                         ticket_type_name=item.ticket_type.name if item.ticket_type else "General Admission",
+                        ticket_category=(
+                            item.ticket_type.ticket_category
+                            if item.ticket_type
+                            else "spectator"
+                        ),
                         unit_price_cents=row["unit"],
                         quantity=1,
                         line_total_cents=row["unit"],
@@ -746,7 +785,7 @@ def spectator_checkout():
                 paypal_order, approve_url = create_paypal_order(
                     payment_credentials,
                     subtotal_cents,
-                    f"Spectator tickets - {payment_track.name}",
+                    f"Event tickets - {payment_track.name}",
                     f"spectator:{order.id}",
                     url_for("user.spectator_paypal_return", order_id=order.id, _external=True),
                     url_for("user.spectator_checkout", _external=True),
@@ -782,6 +821,11 @@ def spectator_checkout():
                     guest_phone=buyer_phone,
                     quantity=item.quantity,
                     payment_method=provider,
+                    ticket_category=(
+                        item.ticket_type.ticket_category
+                        if item.ticket_type
+                        else "spectator"
+                    ),
                     status="recorded",
                 )
             )
@@ -798,6 +842,7 @@ def spectator_checkout():
         subtotal_cents=subtotal_cents,
         money=_money,
         cart_count=_cart_item_count(cart),
+        has_vendor_tickets=has_vendor_tickets,
     )
 
 

@@ -35,6 +35,10 @@
       <span class="employee-metric-icon"><i class="bi bi-ticket-perforated" aria-hidden="true"></i></span>
       <span><small>Last event spectators</small><strong>{{ last_event_spectator_tickets }}</strong></span>
     </article>
+    <article>
+      <span class="employee-metric-icon"><i class="bi bi-shop" aria-hidden="true"></i></span>
+      <span><small>Last event vendors</small><strong>{{ last_event_vendor_tickets }}</strong></span>
+    </article>
   </section>
 
   <div class="employee-dashboard-primary-grid">
@@ -152,6 +156,7 @@
         <div class="employee-last-event-stats">
           <article><strong>{{ last_event_participants }}</strong><span>Drivers</span></article>
           <article><strong>{{ last_event_spectator_tickets }}</strong><span>Spectators</span></article>
+          <article><strong>{{ last_event_vendor_tickets }}</strong><span>Vendors</span></article>
         </div>
         <a class="employee-text-link" href="{{ url_for('employee.event_detail', event_id=last_event.id) }}">Review event <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       {% else %}

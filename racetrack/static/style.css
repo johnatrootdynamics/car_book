@@ -4251,6 +4251,11 @@ details > summary { font-size: .92rem; }
   padding: 26px;
   border-left: 1px solid #e4e7ec;
 }
+.ticket-purchase-options { display: grid; align-content: center; border-left: 1px solid #e4e7ec; }
+.ticket-purchase-options .spectator-purchase-card { gap: 10px; padding: 20px 24px; border-left: 0; }
+.ticket-purchase-options .spectator-purchase-card + .spectator-purchase-card { border-top: 1px solid #e4e7ec; }
+.vendor-purchase-card .spectator-purchase-heading > i { color: #8b4a16; background: #fff4e8; }
+.ticket-options-note { padding: 12px 24px 16px; }
 .spectator-purchase-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .spectator-purchase-heading > div { display: grid; gap: 3px; }
 .spectator-purchase-heading span { color: #667085; font-size: .74rem; font-weight: 650; }
@@ -4382,9 +4387,29 @@ details > summary { font-size: .92rem; }
   }
   .spectator-event-price { justify-items: start; }
   .spectator-detail-card { grid-template-columns: 1fr; }
+  .ticket-purchase-options { border-top: 1px solid #e4e7ec; border-left: 0; }
   .spectator-detail-event { min-height: 230px; padding: 24px; }
   .spectator-purchase-card { border-top: 1px solid #e4e7ec; border-left: 0; }
   .spectator-detail-benefits { grid-template-columns: 1fr; }
+}
+
+/* Vendor gate operations */
+.vendor-ops-page { display: grid; gap: 12px; }
+.vendor-ops-header { margin: 0; }
+.vendor-ops-toolbar { margin: 0; padding: 13px 15px; }
+.vendor-filter-form { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(260px, 1.2fr) auto; align-items: end; gap: 9px; }
+.vendor-filter-form label { display: grid; gap: 5px; color: #667085; font-size: .7rem; font-weight: 700; }
+.vendor-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.vendor-metrics article { display: grid; gap: 3px; padding: 14px 16px; background: #fff; border: 1px solid #e4e7ec; border-radius: 9px; }
+.vendor-metrics span { color: #667085; font-size: .7rem; font-weight: 650; }
+.vendor-metrics strong { color: #101828; font-size: 1.25rem; }
+.vendor-roster-card { margin: 0; }
+.vendor-roster-card h3 { margin: 0; }
+.vendor-roster-card .table-wrap { margin-top: 14px; }
+
+@media (max-width: 760px) {
+  .vendor-filter-form { grid-template-columns: 1fr; }
+  .vendor-metrics { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 440px) {
@@ -4464,7 +4489,7 @@ details > summary { font-size: .92rem; }
 
 .employee-dashboard-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -4674,7 +4699,7 @@ details > summary { font-size: .92rem; }
 .employee-last-event-copy { display: grid; gap: 2px; }
 .employee-last-event-copy strong { color: #1d2939; font-size: .9rem; }
 .employee-last-event-copy span { color: #7a8699; font-size: .73rem; }
-.employee-last-event-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; margin: 13px 0; }
+.employee-last-event-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 13px 0; }
 .employee-last-event-stats article {
   display: grid;
   gap: 2px;

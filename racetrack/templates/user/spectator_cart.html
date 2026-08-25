@@ -3,7 +3,7 @@
 <section class="shop-shell">
   <div class="shop-header-card">
     <div>
-      <p class="shop-eyebrow">Spectator tickets</p>
+      <p class="shop-eyebrow">Event tickets</p>
       <h2>Your Cart</h2>
       <p class="muted-line">Review your tickets, adjust quantities, then move into secure checkout.</p>
     </div>
@@ -27,7 +27,7 @@
                   <h3>{{ row.item.event.event_name }}</h3>
                   {% if row.expired %}<span class="shop-expired-label"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Event has passed</span>{% endif %}
                   <p class="muted-line"><i class="bi bi-geo-alt"></i> {{ row.item.event.track.name }} &middot; {{ row.item.event.track.city }}, {{ row.item.event.track.state }}</p>
-                  <p class="muted-line"><i class="bi bi-calendar-event"></i> {{ row.item.event.event_date }} &middot; {{ row.item.ticket_type.name }}</p>
+                  <p class="muted-line"><i class="bi {{ 'bi-shop' if row.item.ticket_type.ticket_category == 'vendor' else 'bi-calendar-event' }}"></i> {{ row.item.event.event_date }} &middot; {{ row.item.ticket_type.name }}</p>
                 </div>
                 <strong>{{ money(row.line) }}</strong>
               </div>
@@ -71,7 +71,7 @@
     <div class="shop-empty-card">
       <i class="bi bi-bag"></i>
       <h3>Your cart is empty</h3>
-      <p class="muted-line">Find an upcoming event and add spectator tickets to get started.</p>
+      <p class="muted-line">Find an upcoming event and add spectator or vendor tickets to get started.</p>
       <a class="btn" href="{{ url_for('user.spectator_events') }}">Browse Events</a>
     </div>
   {% endif %}

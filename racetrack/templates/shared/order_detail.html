@@ -32,6 +32,7 @@
         <div><dt>Name</dt><dd>{{ order.guest_full_name or 'Guest' }}</dd></div>
         <div><dt>Email</dt><dd>{{ order.guest_email or 'Not provided' }}</dd></div>
         <div><dt>Phone</dt><dd>{{ order.guest_phone or 'Not provided' }}</dd></div>
+        {% if order.vendor_business_name %}<div><dt>Vendor business</dt><dd>{{ order.vendor_business_name }}</dd></div>{% endif %}
       </dl>
     {% else %}
       <dl class="order-facts">
@@ -66,7 +67,7 @@
             <tr>
               <td><strong>#{{ loop.index }}</strong><small>of {{ items|length }}</small></td>
               <td><strong>{{ item.event.event_name }}</strong><small>{{ item.event.event_date }}</small></td>
-              <td>{{ item.ticket_type_name }}</td>
+              <td><span class="order-status-pill {{ 'ready' if item.ticket_category == 'vendor' else 'pending' }}">{{ 'Vendor' if item.ticket_category == 'vendor' else 'Spectator' }}</span><small>{{ item.ticket_type_name }}</small></td>
               <td><code class="ticket-code-display">{{ item.qr_code or 'Generating…' }}</code></td>
               <td>{{ money(item.line_total_cents) }}</td>
               <td>

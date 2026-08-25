@@ -46,6 +46,7 @@ class EventForm(FlaskForm):
     event_end_time = TimeField("Event End Time", validators=[Optional()])
     driver_price = DecimalField("Driver Price", places=2, validators=[InputRequired(), NumberRange(min=0)])
     spectator_price = DecimalField("Spectator Price", places=2, validators=[InputRequired(), NumberRange(min=0)])
+    vendor_price = DecimalField("Vendor Price", places=2, validators=[InputRequired(), NumberRange(min=0)])
     thumbnail_image = FileField(
         "Event Thumbnail",
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
@@ -155,6 +156,7 @@ class SpectatorCheckoutForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
     phone = StringField("Phone", validators=[DataRequired(), Length(max=30)])
+    vendor_business_name = StringField("Vendor Business Name", validators=[Optional(), Length(max=150)])
     payment_method = SelectField("Payment Method", validators=[DataRequired(), Length(max=50)])
     submit = SubmitField("Place Order")
 
