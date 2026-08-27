@@ -35,13 +35,13 @@
                 <form method="post" action="{{ url_for('user.spectator_cart_update', item_id=row.item.id) }}" class="shop-qty-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <label>Qty
-                    <select name="quantity">
-                      {% for qty in range(1, (row.item.ticket_type.max_per_order if row.item.ticket_type and row.item.ticket_type.max_per_order else 10) + 1) %}
+                    <select name="quantity" {% if row.max_qty <= 0 %}disabled{% endif %}>
+                      {% for qty in range(1, row.max_qty + 1) %}
                         <option value="{{ qty }}" {% if row.item.quantity == qty %}selected{% endif %}>{{ qty }}</option>
                       {% endfor %}
                     </select>
                   </label>
-                  <button type="submit" class="btn btn-secondary btn-sm">Update</button>
+                  <button type="submit" class="btn btn-secondary btn-sm" {% if row.max_qty <= 0 %}disabled{% endif %}>Update</button>
                 </form>
                 <span class="muted-line">{{ money(row.unit) }} each</span>
                 <form method="post" action="{{ url_for('user.spectator_cart_remove', item_id=row.item.id) }}">
@@ -49,6 +49,7 @@
                   <button type="submit" class="shop-link-button">Remove</button>
                 </form>
               </div>
+              {% if row.availability.sold_out %}<p class="ticket-capacity-state sold-out"><strong>Sold out.</strong> Remove this ticket to continue.</p>{% elif not row.availability.unlimited %}<p class="ticket-capacity-state"><strong>{{ row.availability.remaining }} remaining</strong></p>{% endif %}
             </div>
           </article>
         {% endfor %}
@@ -59,8 +60,8 @@
         <div class="shop-summary-row"><span>Subtotal</span><strong>{{ money(subtotal_cents) }}</strong></div>
         <div class="shop-summary-row"><span>Fees</span><span>Calculated by provider</span></div>
         <div class="shop-summary-row shop-summary-total"><span>Total due today</span><strong>{{ money(subtotal_cents) }}</strong></div>
-        {% if has_expired %}
-          <span class="btn shop-checkout-btn is-disabled" aria-disabled="true">Remove expired tickets</span>
+        {% if has_expired or has_unavailable %}
+          <span class="btn shop-checkout-btn is-disabled" aria-disabled="true">{{ 'Remove expired tickets' if has_expired else 'Update unavailable tickets' }}</span>
         {% else %}
           <a class="btn shop-checkout-btn" href="{{ url_for('user.spectator_checkout') }}">Checkout Now</a>
         {% endif %}

@@ -32,6 +32,14 @@ from .models import (
 )
 from .services.storage_service import upload_public_image
 from .services.email_service import send_driver_purchase_receipt, send_spectator_order_receipt
+from .services.capacity_service import (
+    driver_already_has_ticket,
+    driver_order_fits_capacity,
+    driver_payment_in_progress,
+    reservation_is_active,
+    spectator_order_fits_capacity,
+    ticket_availability,
+)
 from .services.payment_service import (
     PayPalError,
     capture_paypal_order,
@@ -168,6 +176,22 @@ def _get_or_create_default_ticket_type(event, ticket_category="spectator"):
     db.session.add(ticket_type)
     db.session.commit()
     return ticket_type
+
+
+def _event_ticket_availability(event):
+    return {
+        category: ticket_availability(event, category)
+        for category in ("driver", "spectator", "vendor")
+    }
+
+
+def _ticket_purchase_limit(event, ticket_type):
+    category = ticket_type.ticket_category if ticket_type else "spectator"
+    availability = ticket_availability(event, category)
+    per_order = max(1, int(ticket_type.max_per_order or 10)) if ticket_type else 10
+    if availability["unlimited"]:
+        return per_order, availability
+    return min(per_order, availability["remaining"]), availability
 
 
 def _get_or_create_spectator_cart():
@@ -501,6 +525,10 @@ def dashboard():
             for event in event_query.order_by(Event.event_date.asc()).limit(24).all()
             if event.id not in signups
         ]
+    driver_availability_by_event = {
+        event.id: ticket_availability(event, "driver")
+        for event in subscribed_events
+    }
 
     waivers = []
     for item in waiver_by_event.values():
@@ -521,6 +549,7 @@ def dashboard():
         selected_track_id=selected_track_id,
         subscribed_track_ids=subscribed_track_ids,
         track_class_by_track_id=track_class_by_track_id,
+        driver_availability_by_event=driver_availability_by_event,
     )
 
 
@@ -533,11 +562,13 @@ def spectator_tickets(event_id):
     spectator_ticket_type = _get_or_create_default_ticket_type(event, "spectator")
     vendor_ticket_type = _get_or_create_default_ticket_type(event, "vendor")
     cart = _get_or_create_spectator_cart()
+    availability = _event_ticket_availability(event)
     return render_template(
         "user/spectator_tickets.html",
         event=event,
         spectator_ticket_type=spectator_ticket_type,
         vendor_ticket_type=vendor_ticket_type,
+        availability=availability,
         money=_money,
         cart_count=_cart_item_count(cart),
     )
@@ -557,17 +588,20 @@ def spectator_events():
         )
     events = query.order_by(Event.event_date.asc()).limit(60).all()
     ticket_types_by_event = {}
+    availability_by_event = {}
     for event in events:
         ticket_types_by_event[event.id] = {
             "spectator": _get_or_create_default_ticket_type(event, "spectator"),
             "vendor": _get_or_create_default_ticket_type(event, "vendor"),
         }
+        availability_by_event[event.id] = _event_ticket_availability(event)
     cart = _get_or_create_spectator_cart()
     return render_template(
         "user/spectator_events.html",
         events=events,
         q=q,
         ticket_types_by_event=ticket_types_by_event,
+        availability_by_event=availability_by_event,
         money=_money,
         cart_count=_cart_item_count(cart),
     )
@@ -590,7 +624,11 @@ def spectator_cart_add():
         ).first_or_404()
     else:
         ticket_type = _get_or_create_default_ticket_type(event, "spectator")
-    quantity = max(1, min(quantity, ticket_type.max_per_order or 10))
+    purchase_limit, availability = _ticket_purchase_limit(event, ticket_type)
+    if purchase_limit <= 0:
+        flash(f"{ticket_type.name} is sold out for this event.", "error")
+        return redirect(url_for("user.spectator_tickets", event_id=event.id))
+    quantity = max(1, min(quantity, purchase_limit))
     cart = _get_or_create_spectator_cart()
     existing_items = SpectatorCartItem.query.filter_by(cart_id=cart.id).all()
     if existing_items and any(item.event.track_id != event.track_id for item in existing_items):
@@ -600,7 +638,7 @@ def spectator_cart_add():
         cart_id=cart.id, event_id=event.id, ticket_type_id=ticket_type.id
     ).first()
     if existing:
-        existing.quantity = min((existing.quantity or 0) + quantity, ticket_type.max_per_order or 10)
+        existing.quantity = min((existing.quantity or 0) + quantity, purchase_limit)
     else:
         db.session.add(
             SpectatorCartItem(
@@ -622,13 +660,25 @@ def spectator_cart():
     rows = []
     subtotal_cents = 0
     has_expired = False
+    has_unavailable = False
     for item in items:
         unit = item.ticket_type.price_cents if item.ticket_type else 0
         line = unit * item.quantity
         subtotal_cents += line
         expired = item.event.event_date < date.today()
         has_expired = has_expired or expired
-        rows.append({"item": item, "unit": unit, "line": line, "expired": expired})
+        max_qty, availability = _ticket_purchase_limit(item.event, item.ticket_type)
+        has_unavailable = has_unavailable or max_qty <= 0 or item.quantity > max_qty
+        rows.append(
+            {
+                "item": item,
+                "unit": unit,
+                "line": line,
+                "expired": expired,
+                "max_qty": max_qty,
+                "availability": availability,
+            }
+        )
     return render_template(
         "user/spectator_cart.html",
         cart=cart,
@@ -637,6 +687,7 @@ def spectator_cart():
         money=_money,
         cart_count=_cart_item_count(cart),
         has_expired=has_expired,
+        has_unavailable=has_unavailable,
     )
 
 
@@ -644,7 +695,10 @@ def spectator_cart():
 def spectator_cart_update(item_id):
     cart = _get_or_create_spectator_cart()
     item = SpectatorCartItem.query.filter_by(id=item_id, cart_id=cart.id).first_or_404()
-    max_qty = item.ticket_type.max_per_order if item.ticket_type and item.ticket_type.max_per_order else 10
+    max_qty, availability = _ticket_purchase_limit(item.event, item.ticket_type)
+    if max_qty <= 0:
+        flash(f"{item.ticket_type.name} is now sold out.", "error")
+        return redirect(url_for("user.spectator_cart"))
     qty = request.form.get("quantity", type=int) or 1
     item.quantity = max(1, min(qty, max_qty))
     db.session.commit()
@@ -672,9 +726,21 @@ def spectator_checkout():
     if any(item.event.event_date < date.today() for item in items):
         flash("Remove expired event tickets before checkout.", "error")
         return redirect(url_for("user.spectator_cart"))
+    if request.method == "POST":
+        event_ids = sorted({item.event_id for item in items})
+        Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
     subtotal_cents = 0
     rows = []
     for item in items:
+        max_qty, availability = _ticket_purchase_limit(item.event, item.ticket_type)
+        if max_qty <= 0 or item.quantity > max_qty:
+            label = item.ticket_type.name if item.ticket_type else "Tickets"
+            remaining_label = availability["remaining"] if availability["remaining"] is not None else max_qty
+            flash(
+                f"Only {remaining_label} {label} ticket{'s are' if remaining_label != 1 else ' is'} still available. Update your cart to continue.",
+                "error",
+            )
+            return redirect(url_for("user.spectator_cart"))
         unit = item.ticket_type.price_cents if item.ticket_type else 0
         line = unit * item.quantity
         subtotal_cents += line
@@ -945,6 +1011,16 @@ def spectator_paypal_return(order_id):
         return redirect(url_for("user.spectator_checkout"))
     if order.payment_status == "paid":
         return redirect(url_for("user.spectator_order_success", order_id=order.id))
+    if not reservation_is_active(order):
+        event_ids = sorted({item.event_id for item in order.items})
+        Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+        if not spectator_order_fits_capacity(order):
+            order.payment_status = "failed"
+            order.status = "failed"
+            order.failure_reason = "Ticket capacity was reached before PayPal payment approval."
+            db.session.commit()
+            flash("Those tickets sold out before PayPal approval. Your payment was not captured.", "error")
+            return redirect(url_for("user.spectator_order_success", order_id=order.id))
     credentials = _paypal_credentials_for_order(spectator_order=order)
     try:
         captured = capture_paypal_order(
@@ -977,6 +1053,15 @@ def driver_paypal_return(order_id):
         flash("PayPal could not confirm this order.", "error")
         return redirect(url_for("user.driver_event_checkout", event_id=order.event_id))
     if order.payment_status != "paid":
+        if not reservation_is_active(order):
+            Event.query.filter_by(id=order.event_id).with_for_update().one()
+            if not driver_order_fits_capacity(order):
+                order.payment_status = "failed"
+                order.status = "failed"
+                order.failure_reason = "Driver capacity was reached before PayPal payment approval."
+                db.session.commit()
+                flash("Driver tickets sold out before PayPal approval. Your payment was not captured.", "error")
+                return redirect(url_for("user.dashboard"))
         credentials = _paypal_credentials_for_order(driver_ticket_order=order)
         try:
             captured = capture_paypal_order(
@@ -1044,6 +1129,21 @@ def paypal_webhook():
 
     try:
         if event_type == "CHECKOUT.ORDER.APPROVED":
+            target = spectator_order or driver_ticket_order
+            if not reservation_is_active(target):
+                if spectator_order:
+                    event_ids = sorted({item.event_id for item in spectator_order.items})
+                    Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+                    capacity_available = spectator_order_fits_capacity(spectator_order)
+                else:
+                    Event.query.filter_by(id=driver_ticket_order.event_id).with_for_update().one()
+                    capacity_available = driver_order_fits_capacity(driver_ticket_order)
+                if not capacity_available:
+                    target.payment_status = "failed"
+                    target.status = "failed"
+                    target.failure_reason = "Ticket capacity was reached before PayPal payment approval."
+                    db.session.commit()
+                    return "ok", 200
             captured = capture_paypal_order(
                 credentials,
                 paypal_order_id,
@@ -1227,6 +1327,9 @@ def community():
     event_signup_counts = {
         event.id: EventRegistration.query.filter_by(event_id=event.id).count() for event in events
     }
+    driver_availability_by_event = {
+        event.id: ticket_availability(event, "driver") for event in events
+    }
     user_cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
     signups = {
         reg.event_id: reg
@@ -1243,6 +1346,7 @@ def community():
         cars=cars,
         events=events,
         event_signup_counts=event_signup_counts,
+        driver_availability_by_event=driver_availability_by_event,
         signups=signups,
         signup_form=signup_form,
         comment_form=comment_form,
@@ -1354,8 +1458,15 @@ def signup_event(event_id):
     if event.event_date < date.today():
         flash("Cannot sign up for past events.", "error")
         return redirect(url_for("user.dashboard"))
-    if EventRegistration.query.filter_by(event_id=event.id, user_id=current_user.id).first():
-        flash("Already signed up for this event.", "error")
+    if driver_already_has_ticket(event.id, current_user.id):
+        flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
+        return redirect(url_for("user.dashboard"))
+    if driver_payment_in_progress(event.id, current_user.id):
+        flash("A driver ticket payment is already in progress for this event. Your spot is being held for up to 35 minutes.", "error")
+        return redirect(url_for("user.dashboard"))
+    availability = ticket_availability(event, "driver")
+    if availability["sold_out"]:
+        flash("Driver tickets are sold out for this event.", "error")
         return redirect(url_for("user.dashboard"))
 
     form = EventSignupForm()
@@ -1386,8 +1497,17 @@ def driver_event_checkout(event_id):
     if event.event_date < date.today():
         flash("Cannot sign up for past events.", "error")
         return redirect(url_for("user.dashboard"))
-    if EventRegistration.query.filter_by(event_id=event.id, user_id=current_user.id).first():
-        flash("Already signed up for this event.", "error")
+    if request.method == "POST":
+        event = Event.query.filter_by(id=event.id).with_for_update().one()
+    if driver_already_has_ticket(event.id, current_user.id):
+        flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
+        return redirect(url_for("user.dashboard"))
+    if driver_payment_in_progress(event.id, current_user.id):
+        flash("A driver ticket payment is already in progress for this event. Your spot is being held for up to 35 minutes.", "error")
+        return redirect(url_for("user.dashboard"))
+    availability = ticket_availability(event, "driver")
+    if availability["sold_out"]:
+        flash("Driver tickets are sold out for this event.", "error")
         return redirect(url_for("user.dashboard"))
 
     car_id = session.get(f"driver_checkout_car_{event.id}")
@@ -1411,6 +1531,13 @@ def driver_event_checkout(event_id):
         form.payment_method.data = payment_choices[0][0]
 
     if form.validate_on_submit():
+        if driver_already_has_ticket(event.id, current_user.id):
+            flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
+            return redirect(url_for("user.dashboard"))
+        availability = ticket_availability(event, "driver")
+        if availability["sold_out"]:
+            flash("The final driver ticket was just purchased. This event is now sold out for drivers.", "error")
+            return redirect(url_for("user.dashboard"))
         payment_credentials = _payment_credentials(event.track, form.payment_method.data)
         driver_ticket_order = DriverTicketOrder(
             event_id=event.id,
@@ -1499,6 +1626,7 @@ def driver_event_checkout(event_id):
         selected_car=selected_car,
         amount_cents=driver_amount_cents,
         payment_choices=payment_choices,
+        availability=availability,
     )
 
 

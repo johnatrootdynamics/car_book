@@ -38,23 +38,28 @@
           {% set event_ticket_types = ticket_types_by_event.get(event.id, {}) %}
           {% set ticket_type = event_ticket_types.get('spectator') %}
           {% set vendor_type = event_ticket_types.get('vendor') %}
+          {% set spectator_availability = availability_by_event.get(event.id, {}).get('spectator') %}
           <div class="spectator-event-price">
             <strong>{{ money(ticket_type.price_cents if ticket_type else 0) }}</strong>
             <span>{{ ticket_type.name if ticket_type else 'General Admission' }}</span>
             {% if vendor_type %}<small>Vendor {{ money(vendor_type.price_cents) }}</small>{% endif %}
           </div>
-          <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-buy-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="event_id" value="{{ event.id }}">
-            {% if ticket_type %}<input type="hidden" name="ticket_type_id" value="{{ ticket_type.id }}">{% endif %}
-            <label class="sr-only" for="spectator-quantity-{{ event.id }}">Quantity for {{ event.event_name }}</label>
-            <select id="spectator-quantity-{{ event.id }}" name="quantity" aria-label="Ticket quantity">
-              {% for qty in range(1, ((ticket_type.max_per_order if ticket_type else 10) or 10) + 1) %}
-                <option value="{{ qty }}">{{ qty }}</option>
-              {% endfor %}
-            </select>
-            <button class="btn" type="submit">Add to cart</button>
-          </form>
+          {% if spectator_availability and spectator_availability.sold_out %}
+            <span class="ticket-capacity-state sold-out"><strong>Sold out</strong></span>
+          {% else %}
+            {% set purchase_limit = (ticket_type.max_per_order if ticket_type else 10) or 10 %}
+            {% if spectator_availability and not spectator_availability.unlimited %}{% set purchase_limit = [purchase_limit, spectator_availability.remaining]|min %}{% endif %}
+            <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-buy-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="event_id" value="{{ event.id }}">
+              {% if ticket_type %}<input type="hidden" name="ticket_type_id" value="{{ ticket_type.id }}">{% endif %}
+              <label class="sr-only" for="spectator-quantity-{{ event.id }}">Quantity for {{ event.event_name }}</label>
+              <select id="spectator-quantity-{{ event.id }}" name="quantity" aria-label="Ticket quantity">
+                {% for qty in range(1, purchase_limit + 1) %}<option value="{{ qty }}">{{ qty }}</option>{% endfor %}
+              </select>
+              <button class="btn" type="submit">Add to cart</button>
+            </form>
+          {% endif %}
         </div>
       </article>
       {% endfor %}

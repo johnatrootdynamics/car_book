@@ -44,6 +44,7 @@ from .services.email_service import (
     send_spectator_order_receipt,
 )
 from .services.storage_service import upload_public_image
+from .services.capacity_service import ticket_availability
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status, payment_is_confirmed
 from .services.ticket_service import ensure_order_ticket_codes, normalize_ticket_code
@@ -1170,6 +1171,9 @@ def event_new():
         form.driver_price.data = Decimal("0.00")
         form.spectator_price.data = Decimal("25.00")
         form.vendor_price.data = Decimal("100.00")
+        form.driver_capacity.data = 50
+        form.spectator_capacity.data = 100
+        form.vendor_capacity.data = 4
     if form.validate_on_submit():
         if form.event_start_time.data and form.event_end_time.data:
             if form.event_end_time.data <= form.event_start_time.data:
@@ -1182,6 +1186,9 @@ def event_new():
             driver_price_cents=_to_cents(form.driver_price.data),
             spectator_price_cents=_to_cents(form.spectator_price.data),
             vendor_price_cents=_to_cents(form.vendor_price.data),
+            driver_capacity=form.driver_capacity.data,
+            spectator_capacity=form.spectator_capacity.data,
+            vendor_capacity=form.vendor_capacity.data,
             event_start_time=form.event_start_time.data,
             event_end_time=form.event_end_time.data,
         )
@@ -1227,11 +1234,33 @@ def event_edit(event_id):
         form.driver_price.data = Decimal(event.driver_price_cents or 0) / Decimal(100)
         form.spectator_price.data = Decimal(event.spectator_price_cents or 0) / Decimal(100)
         form.vendor_price.data = Decimal(event.vendor_price_cents or 0) / Decimal(100)
+        form.driver_capacity.data = event.driver_capacity or 0
+        form.spectator_capacity.data = event.spectator_capacity or 0
+        form.vendor_capacity.data = event.vendor_capacity or 0
     if form.validate_on_submit():
         if form.event_start_time.data and form.event_end_time.data:
             if form.event_end_time.data <= form.event_start_time.data:
                 flash("Event end time must be after start time.", "error")
                 return render_template("employee/event_form.html", form=form, title="Edit Event")
+        requested_capacities = {
+            "driver": form.driver_capacity.data,
+            "spectator": form.spectator_capacity.data,
+            "vendor": form.vendor_capacity.data,
+        }
+        for category, requested_capacity in requested_capacities.items():
+            sold = ticket_availability(event, category)["sold"]
+            if requested_capacity and requested_capacity < sold:
+                flash(
+                    f"{category.title()} capacity cannot be lower than the {sold} tickets already issued.",
+                    "error",
+                )
+                return render_template(
+                    "employee/event_form.html",
+                    form=form,
+                    title="Edit Event",
+                    track_layouts=layouts,
+                    event=event,
+                )
         layout_error = _apply_event_layout_selection(event, active_track_id())
         if layout_error:
             flash(layout_error, "error")
@@ -1241,6 +1270,9 @@ def event_edit(event_id):
         event.driver_price_cents = _to_cents(form.driver_price.data)
         event.spectator_price_cents = _to_cents(form.spectator_price.data)
         event.vendor_price_cents = _to_cents(form.vendor_price.data)
+        event.driver_capacity = form.driver_capacity.data
+        event.spectator_capacity = form.spectator_capacity.data
+        event.vendor_capacity = form.vendor_capacity.data
         event.event_start_time = form.event_start_time.data
         event.event_end_time = form.event_end_time.data
         upload = form.thumbnail_image.data
@@ -1433,6 +1465,10 @@ def event_detail(event_id):
     return render_template(
         "employee/event_detail.html",
         event=event,
+        event_capacity={
+            category: ticket_availability(event, category)
+            for category in ("driver", "spectator", "vendor")
+        },
         track_layouts=track_layouts,
         total_signups=len(regs),
         signup_trend=signup_trend,

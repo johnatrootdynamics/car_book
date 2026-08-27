@@ -8,7 +8,8 @@
   <p class="muted-line"><strong>{{ event.event_name }}</strong> • {{ event.track.name }} • {{ event.event_date }}</p>
   <p class="muted-line">Car: {{ selected_car.car_year }} {{ selected_car.make }} {{ selected_car.model }}</p>
   <p class="muted-line">Ticket Price: <strong>${{ '%.2f'|format((amount_cents or 0) / 100) }}</strong></p>
-  <p class="hint">Complete checkout to purchase your driver ticket before signup is finalized.</p>
+  {% if not availability.unlimited %}<p class="ticket-capacity-state"><strong>{{ availability.remaining }} driver spot{{ '' if availability.remaining == 1 else 's' }} remaining</strong><span>{{ availability.sold }} filled{% if availability.held %} · {{ availability.held }} in checkout{% endif %}</span></p>{% endif %}
+  <p class="hint">Complete checkout to purchase your driver ticket before signup is finalized. Each driver may purchase one ticket per event.</p>
   <form method="post" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Full Name

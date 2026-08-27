@@ -10,6 +10,7 @@
   {% if events %}
     <div class="event-tile-grid">
       {% for event in events %}
+      {% set driver_availability = driver_availability_by_event.get(event.id) %}
       <div class="event-tile">
         {% if event.thumbnail_image_path %}
           {% set event_image = asset_url(event.thumbnail_image_path) %}
@@ -27,11 +28,15 @@
               <button type="submit" class="btn btn-secondary btn-sm">Cancel Signup</button>
             </form>
           {% else %}
-            <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
-              {{ signup_form.hidden_tag() }}
-              {{ signup_form.car_id() }}
-              {{ signup_form.submit(class_='btn btn-sm') }}
-            </form>
+            {% if driver_availability and driver_availability.sold_out %}
+              <p class="ticket-capacity-state sold-out"><strong>Driver tickets sold out</strong></p>
+            {% else %}
+              <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
+                {{ signup_form.hidden_tag() }}
+                {{ signup_form.car_id() }}
+                {{ signup_form.submit(class_='btn btn-sm') }}
+              </form>
+            {% endif %}
           {% endif %}
         </div>
       </div>

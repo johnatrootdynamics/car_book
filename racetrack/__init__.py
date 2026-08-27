@@ -271,6 +271,15 @@ def create_app():
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS vendor_price_cents INT NOT NULL DEFAULT 10000"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS driver_capacity INT NOT NULL DEFAULT 0"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS spectator_capacity INT NOT NULL DEFAULT 0"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS vendor_capacity INT NOT NULL DEFAULT 0"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS driver_price_cents INT NOT NULL DEFAULT 0"
             )
             conn.exec_driver_sql(

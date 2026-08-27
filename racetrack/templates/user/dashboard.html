@@ -106,6 +106,7 @@
       <div class="event-tile-grid">
       {% for event in subscribed_events %}
         {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
+        {% set driver_availability = driver_availability_by_event.get(event.id) %}
         <div class="event-tile">
           <div class="event-tile-body">
             <h3 class="event-track-name">{{ event.track.name }}</h3>
@@ -118,11 +119,16 @@
                 <span>Not Signed Up</span>
               </span>
             </div>
-            <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
-              {{ signup_form.hidden_tag() }}
-              {{ signup_form.car_id() }}
-              {{ signup_form.submit(class_='btn btn-sm') }}
-            </form>
+            {% if driver_availability and driver_availability.sold_out %}
+              <p class="ticket-capacity-state sold-out"><strong>Driver tickets sold out</strong><span>{{ driver_availability.sold }} / {{ driver_availability.capacity }} filled</span></p>
+            {% else %}
+              <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
+                {{ signup_form.hidden_tag() }}
+                {{ signup_form.car_id() }}
+                {{ signup_form.submit(class_='btn btn-sm') }}
+              </form>
+              {% if driver_availability and not driver_availability.unlimited %}<p class="ticket-capacity-state"><strong>{{ driver_availability.remaining }} driver spots remaining</strong></p>{% endif %}
+            {% endif %}
             <p><a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_tickets', event_id=event.id) }}">Buy Event Tickets</a></p>
           </div>
         </div>

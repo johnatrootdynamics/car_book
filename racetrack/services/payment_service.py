@@ -1,4 +1,5 @@
 from datetime import datetime
+from time import time
 
 import requests
 
@@ -212,6 +213,7 @@ def create_stripe_checkout_session(stripe_client, order, rows, success_url, canc
 
     session = stripe_client.checkout.Session.create(
         mode="payment",
+        expires_at=int(time()) + 1860,
         line_items=line_items,
         success_url=success_url,
         cancel_url=cancel_url,
@@ -224,6 +226,7 @@ def create_driver_stripe_checkout_session(stripe_client, driver_ticket_order, su
     event = driver_ticket_order.event
     session = stripe_client.checkout.Session.create(
         mode="payment",
+        expires_at=int(time()) + 1860,
         line_items=[
             {
                 "price_data": {

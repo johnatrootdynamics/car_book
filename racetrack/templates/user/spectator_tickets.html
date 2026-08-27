@@ -29,6 +29,9 @@
 
     <div class="ticket-purchase-options">
       {% for ticket_type in [spectator_ticket_type, vendor_ticket_type] %}
+        {% set ticket_availability = availability.get(ticket_type.ticket_category) %}
+        {% set purchase_limit = ticket_type.max_per_order or 10 %}
+        {% if ticket_availability and not ticket_availability.unlimited %}{% set purchase_limit = [purchase_limit, ticket_availability.remaining]|min %}{% endif %}
         <aside class="spectator-purchase-card {% if ticket_type.ticket_category == 'vendor' %}vendor-purchase-card{% endif %}">
           <div class="spectator-purchase-heading">
             <div>
@@ -38,18 +41,21 @@
             <i class="bi {{ 'bi-shop' if ticket_type.ticket_category == 'vendor' else 'bi-ticket-perforated' }}" aria-hidden="true"></i>
           </div>
           <p>{% if ticket_type.ticket_category == 'vendor' %}Paid admission for each vendor representative working on site.{% else %}General gate admission for event spectators.{% endif %}</p>
-          <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-detail-buy-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="event_id" value="{{ event.id }}">
-            <input type="hidden" name="ticket_type_id" value="{{ ticket_type.id }}">
-            <label for="ticket-quantity-{{ ticket_type.id }}">Quantity</label>
-            <select id="ticket-quantity-{{ ticket_type.id }}" name="quantity">
-              {% for qty in range(1, (ticket_type.max_per_order or 10) + 1) %}
-                <option value="{{ qty }}">{{ qty }} {{ 'ticket' if qty == 1 else 'tickets' }}</option>
-              {% endfor %}
-            </select>
-            <button class="btn" type="submit"><i class="bi bi-bag-plus" aria-hidden="true"></i> Add to cart</button>
-          </form>
+          {% if ticket_availability and ticket_availability.sold_out %}
+            <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ ticket_availability.sold }} sold{% if ticket_availability.held %} · {{ ticket_availability.held }} in checkout{% endif %}</span></div>
+          {% else %}
+            <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-detail-buy-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="event_id" value="{{ event.id }}">
+              <input type="hidden" name="ticket_type_id" value="{{ ticket_type.id }}">
+              <label for="ticket-quantity-{{ ticket_type.id }}">Quantity</label>
+              <select id="ticket-quantity-{{ ticket_type.id }}" name="quantity">
+                {% for qty in range(1, purchase_limit + 1) %}<option value="{{ qty }}">{{ qty }} {{ 'ticket' if qty == 1 else 'tickets' }}</option>{% endfor %}
+              </select>
+              <button class="btn" type="submit"><i class="bi bi-bag-plus" aria-hidden="true"></i> Add to cart</button>
+            </form>
+            {% if ticket_availability and not ticket_availability.unlimited %}<div class="ticket-capacity-state"><strong>{{ ticket_availability.remaining }} remaining</strong><span>{{ ticket_availability.sold }} sold{% if ticket_availability.held %} · {{ ticket_availability.held }} in checkout{% endif %}</span></div>{% endif %}
+          {% endif %}
         </aside>
       {% endfor %}
       <div class="spectator-purchase-note ticket-options-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>No account required. Each person receives a separate QR ticket.</span></div>

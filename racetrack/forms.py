@@ -2,7 +2,7 @@ from datetime import date
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
-from wtforms import BooleanField, DateField, DecimalField, PasswordField, SelectField, StringField, SubmitField, TextAreaField, TimeField
+from wtforms import BooleanField, DateField, DecimalField, IntegerField, PasswordField, SelectField, StringField, SubmitField, TextAreaField, TimeField
 from wtforms.validators import DataRequired, Email, InputRequired, Length, NumberRange, Optional, ValidationError
 
 
@@ -47,6 +47,9 @@ class EventForm(FlaskForm):
     driver_price = DecimalField("Driver Price", places=2, validators=[InputRequired(), NumberRange(min=0)])
     spectator_price = DecimalField("Spectator Price", places=2, validators=[InputRequired(), NumberRange(min=0)])
     vendor_price = DecimalField("Vendor Price", places=2, validators=[InputRequired(), NumberRange(min=0)])
+    driver_capacity = IntegerField("Driver Capacity", validators=[InputRequired(), NumberRange(min=0)])
+    spectator_capacity = IntegerField("Spectator Capacity", validators=[InputRequired(), NumberRange(min=0)])
+    vendor_capacity = IntegerField("Vendor Capacity", validators=[InputRequired(), NumberRange(min=0)])
     thumbnail_image = FileField(
         "Event Thumbnail",
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],

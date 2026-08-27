@@ -3556,6 +3556,20 @@ details > summary { font-size: .92rem; }
 
 .event-form-page input[type="file"]::file-selector-button:hover { background: #f2f4f7; }
 
+.event-capacity-fields {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+}
+.event-capacity-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.event-capacity-heading h3 { margin: 2px 0 0; color: #101828; font-size: 1rem; }
+.event-capacity-heading p { margin: 0; color: #667085; font-size: .72rem; }
+.event-capacity-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+
 .event-layout-source {
   margin: 3px 0 2px;
   padding: 14px;
@@ -4272,6 +4286,11 @@ details > summary { font-size: .92rem; }
   font-size: 1.05rem;
 }
 .spectator-purchase-card > p { margin: 0; color: #667085; font-size: .8rem; line-height: 1.55; }
+.ticket-capacity-state { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 0; color: #2457ff; font-size: .72rem; }
+.ticket-capacity-state strong { font-size: .75rem; }
+.ticket-capacity-state span { color: #667085; }
+.ticket-capacity-state.sold-out { color: #b42318; }
+.ticket-capacity-state.sold-out span { color: #b54708; }
 .spectator-detail-buy-form { display: grid; grid-template-columns: 95px minmax(0, 1fr); gap: 7px; }
 .spectator-detail-buy-form label {
   grid-column: 1 / -1;
@@ -5238,4 +5257,9 @@ details > summary { font-size: .92rem; }
   .ticket-scan-card > form { grid-template-columns: 1fr; }
   .ticket-result-facts:not(.ticket-result-facts-used) { grid-template-columns: 1fr; gap: 10px; }
   .ticket-result-facts-used { gap: 13px 18px; padding: 16px; }
+}
+
+@media (max-width: 680px) {
+  .event-capacity-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .event-capacity-grid { grid-template-columns: 1fr; }
 }
