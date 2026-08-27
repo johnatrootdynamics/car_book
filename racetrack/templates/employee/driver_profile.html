@@ -18,7 +18,7 @@
 
   <section class="driver-profile-metrics" aria-label="Driver summary">
     <article><small>Events attended</small><strong>{{ attended_count }}</strong><span>Checked in at {{ track.name }}</span></article>
-    <article><small>Total registrations</small><strong>{{ registrations|length }}</strong><span>{{ (registrations|length) - attended_count }} without check-in</span></article>
+    <article><small>Total registrations</small><strong>{{ registrations|length }}</strong><span>{{ (registrations|length) - attended_count }} registered only</span></article>
     <article><small>Inspections passed</small><strong>{{ passed_inspection_count }}</strong><span>Across this track’s events</span></article>
     <article><small>Internal notes</small><strong>{{ notes|length }}</strong><span>Visible only to track staff</span></article>
   </section>
@@ -100,7 +100,7 @@
               <tr>
                 <td><a href="{{ url_for('employee.event_detail', event_id=registration.event.id, view='participants') }}"><strong>{{ registration.event.event_name }}</strong><span>{{ registration.event.event_date.strftime('%b %-d, %Y') }}</span></a></td>
                 <td>{{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}</td>
-                <td>{% if registration.checked_in_at %}<span class="badge badge-signed">Attended</span><small>{{ registration.checked_in_at.strftime('%-I:%M %p') }}</small>{% else %}<span class="badge badge-viewed">Registered only</span>{% endif %}</td>
+                <td>{% if registration.id in attended_registration_ids %}<span class="badge badge-signed">Attended</span>{% if registration.checked_in_at %}<small>{{ registration.checked_in_at.strftime('%-I:%M %p') }}</small>{% endif %}{% else %}<span class="badge badge-viewed">Registered only</span>{% endif %}</td>
                 <td>{% if inspection %}<span class="badge {{ 'badge-signed' if inspection.passed else 'badge-failed' }}">{{ 'Passed' if inspection.passed else 'Needs work' }}</span>{% else %}<span class="muted-line">Not inspected</span>{% endif %}</td>
                 <td>{{ registration.created_at.strftime('%b %-d, %Y') }}</td>
               </tr>

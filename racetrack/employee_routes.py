@@ -1907,10 +1907,20 @@ def drivers():
             db.session.query(
                 EventRegistration.user_id,
                 func.count(EventRegistration.id),
-                func.sum(case((EventRegistration.checked_in_at.isnot(None), 1), else_=0)),
+                func.sum(
+                    case(
+                        (
+                            (EventRegistration.checked_in_at.isnot(None))
+                            | (Inspection.id.isnot(None)),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ),
                 func.max(Event.event_date),
             )
             .join(Event, Event.id == EventRegistration.event_id)
+            .outerjoin(Inspection, Inspection.event_registration_id == EventRegistration.id)
             .filter(Event.track_id == track_id, EventRegistration.user_id.in_(driver_ids or [-1]))
             .group_by(EventRegistration.user_id)
             .all()
@@ -1970,7 +1980,12 @@ def driver_profile(user_id):
             Inspection.event_registration_id.in_(registration_ids or [-1])
         ).all()
     }
-    attended_count = sum(1 for registration in registrations if registration.checked_in_at)
+    attended_registration_ids = {
+        registration.id
+        for registration in registrations
+        if registration.checked_in_at or inspections.get(registration.id)
+    }
+    attended_count = len(attended_registration_ids)
     passed_inspection_count = sum(
         1
         for registration in registrations
@@ -2000,6 +2015,7 @@ def driver_profile(user_id):
         registrations=registrations,
         inspections=inspections,
         attended_count=attended_count,
+        attended_registration_ids=attended_registration_ids,
         passed_inspection_count=passed_inspection_count,
         class_record=class_record,
         current_driver_class=class_record.driver_class if class_record else "C",
