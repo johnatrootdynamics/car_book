@@ -425,6 +425,45 @@ class TrackDriverClass(db.Model):
     )
 
 
+class DriverClassChange(db.Model):
+    __tablename__ = "driver_class_changes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    previous_class = db.Column(db.String(1), nullable=False)
+    new_class = db.Column(db.String(1), nullable=False)
+    changed_by_type = db.Column(db.String(20), nullable=False)
+    changed_by_id = db.Column(db.Integer, nullable=False)
+    changed_by_name = db.Column(db.String(150), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    driver = db.relationship("User")
+
+    __table_args__ = (
+        db.Index("idx_driver_class_change_track_user_date", "track_id", "user_id", "created_at"),
+    )
+
+
+class DriverNote(db.Model):
+    __tablename__ = "driver_notes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    note_text = db.Column(db.Text, nullable=False)
+    author_type = db.Column(db.String(20), nullable=False)
+    author_id = db.Column(db.Integer, nullable=False)
+    author_name = db.Column(db.String(150), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    driver = db.relationship("User")
+
+    __table_args__ = (
+        db.Index("idx_driver_note_track_user_date", "track_id", "user_id", "created_at"),
+    )
+
+
 class RunGroup(db.Model):
     __tablename__ = "run_groups"
 

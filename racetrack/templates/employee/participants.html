@@ -19,7 +19,7 @@
         <tbody>
           {% for reg in registrations %}
             <tr>
-              <td>{{ reg.user.first_name }} {{ reg.user.last_name }}</td>
+              <td><a class="employee-text-link" href="{{ url_for('employee.driver_profile', user_id=reg.user_id) }}">{{ reg.user.first_name }} {{ reg.user.last_name }}</a></td>
               <td>
                 {% set active_class = class_by_user.get(reg.user_id, 'C') %}
                 <span class="driver-class-pill driver-class-{{ active_class }}">{{ active_class }}</span>

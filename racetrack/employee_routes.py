@@ -5,13 +5,15 @@ from decimal import Decimal
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import case, func
 from werkzeug.security import generate_password_hash
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
 from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackEmailTemplateForm, TrackProfileForm
 from .models import (
+    DriverClassChange,
+    DriverNote,
     DriverTicketOrder,
     Employee,
     Event,
@@ -133,6 +135,30 @@ def _get_or_create_track_driver_class(track_id, user_id):
         db.session.add(record)
         db.session.flush()
     return record
+
+
+def _current_staff_actor():
+    if current_user.account_type == "admin":
+        return "admin", current_user.id, current_user.full_name
+    return "employee", current_user.id, current_user.full_name
+
+
+def _track_driver_query(track_id):
+    registered_driver_ids = (
+        db.session.query(EventRegistration.user_id)
+        .join(Event, Event.id == EventRegistration.event_id)
+        .filter(Event.track_id == track_id)
+    )
+    classified_driver_ids = db.session.query(TrackDriverClass.user_id).filter(
+        TrackDriverClass.track_id == track_id
+    )
+    return User.query.filter(
+        (User.id.in_(registered_driver_ids)) | (User.id.in_(classified_driver_ids))
+    )
+
+
+def _load_track_driver(track_id, user_id):
+    return _track_driver_query(track_id).filter(User.id == user_id).first_or_404()
 
 
 def _create_track_layout_from_upload(track_id, name, file_storage):
@@ -1844,6 +1870,176 @@ def inspect_search(event_id):
     return jsonify({"ok": True, "rows": payload}), 200
 
 
+@employee_bp.route("/drivers")
+@login_required
+def drivers():
+    guard = require_employee()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    query_text = (request.args.get("q") or "").strip()
+    query = _track_driver_query(track_id)
+    if query_text:
+        like = f"%{query_text}%"
+        query = query.filter(
+            (User.first_name.ilike(like))
+            | (User.last_name.ilike(like))
+            | (User.username.ilike(like))
+            | (User.email.ilike(like))
+            | (User.phone.ilike(like))
+        )
+    driver_users = query.order_by(User.last_name.asc(), User.first_name.asc()).limit(200).all()
+    driver_ids = [driver.id for driver in driver_users]
+    class_records = {
+        item.user_id: item
+        for item in TrackDriverClass.query.filter(
+            TrackDriverClass.track_id == track_id,
+            TrackDriverClass.user_id.in_(driver_ids or [-1]),
+        ).all()
+    }
+    registration_stats = {
+        user_id: {
+            "registered_count": int(registered_count or 0),
+            "attended_count": int(attended_count or 0),
+            "last_event_date": last_event_date,
+        }
+        for user_id, registered_count, attended_count, last_event_date in (
+            db.session.query(
+                EventRegistration.user_id,
+                func.count(EventRegistration.id),
+                func.sum(case((EventRegistration.checked_in_at.isnot(None), 1), else_=0)),
+                func.max(Event.event_date),
+            )
+            .join(Event, Event.id == EventRegistration.event_id)
+            .filter(Event.track_id == track_id, EventRegistration.user_id.in_(driver_ids or [-1]))
+            .group_by(EventRegistration.user_id)
+            .all()
+        )
+    }
+    note_counts = {
+        user_id: int(note_count or 0)
+        for user_id, note_count in (
+            db.session.query(DriverNote.user_id, func.count(DriverNote.id))
+            .filter(DriverNote.track_id == track_id, DriverNote.user_id.in_(driver_ids or [-1]))
+            .group_by(DriverNote.user_id)
+            .all()
+        )
+    }
+    rows = []
+    for driver in driver_users:
+        stats = registration_stats.get(
+            driver.id,
+            {"registered_count": 0, "attended_count": 0, "last_event_date": None},
+        )
+        rows.append(
+            {
+                "driver": driver,
+                "driver_class": class_records.get(driver.id).driver_class if class_records.get(driver.id) else "C",
+                "registered_count": stats["registered_count"],
+                "attended_count": stats["attended_count"],
+                "last_event_date": stats["last_event_date"],
+                "note_count": note_counts.get(driver.id, 0),
+            }
+        )
+    return render_template(
+        "employee/drivers.html",
+        rows=rows,
+        query_text=query_text,
+        track=Track.query.get_or_404(track_id),
+    )
+
+
+@employee_bp.route("/drivers/<int:user_id>")
+@login_required
+def driver_profile(user_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    driver = _load_track_driver(track_id, user_id)
+    registrations = (
+        EventRegistration.query.join(Event, Event.id == EventRegistration.event_id)
+        .filter(Event.track_id == track_id, EventRegistration.user_id == driver.id)
+        .order_by(Event.event_date.desc(), EventRegistration.created_at.desc())
+        .all()
+    )
+    registration_ids = [registration.id for registration in registrations]
+    inspections = {
+        inspection.event_registration_id: inspection
+        for inspection in Inspection.query.filter(
+            Inspection.event_registration_id.in_(registration_ids or [-1])
+        ).all()
+    }
+    attended_count = sum(1 for registration in registrations if registration.checked_in_at)
+    passed_inspection_count = sum(
+        1
+        for registration in registrations
+        if inspections.get(registration.id) and inspections[registration.id].passed
+    )
+    class_record = TrackDriverClass.query.filter_by(track_id=track_id, user_id=driver.id).first()
+    class_changes = (
+        DriverClassChange.query.filter_by(track_id=track_id, user_id=driver.id)
+        .order_by(DriverClassChange.created_at.desc())
+        .all()
+    )
+    notes = (
+        DriverNote.query.filter_by(track_id=track_id, user_id=driver.id)
+        .order_by(DriverNote.created_at.desc())
+        .all()
+    )
+    used_cars = []
+    seen_car_ids = set()
+    for registration in registrations:
+        if registration.car_id not in seen_car_ids:
+            used_cars.append(registration.car)
+            seen_car_ids.add(registration.car_id)
+    return render_template(
+        "employee/driver_profile.html",
+        driver=driver,
+        track=Track.query.get_or_404(track_id),
+        registrations=registrations,
+        inspections=inspections,
+        attended_count=attended_count,
+        passed_inspection_count=passed_inspection_count,
+        class_record=class_record,
+        current_driver_class=class_record.driver_class if class_record else "C",
+        class_changes=class_changes,
+        notes=notes,
+        used_cars=used_cars,
+    )
+
+
+@employee_bp.route("/drivers/<int:user_id>/notes", methods=["POST"])
+@login_required
+def add_driver_note(user_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    driver = _load_track_driver(track_id, user_id)
+    note_text = (request.form.get("note_text") or "").strip()
+    if not note_text:
+        flash("Enter a note before saving.", "error")
+        return redirect(url_for("employee.driver_profile", user_id=driver.id, _anchor="notes"))
+    if len(note_text) > 2000:
+        flash("Driver notes must be 2,000 characters or fewer.", "error")
+        return redirect(url_for("employee.driver_profile", user_id=driver.id, _anchor="notes"))
+    actor_type, actor_id, actor_name = _current_staff_actor()
+    db.session.add(
+        DriverNote(
+            track_id=track_id,
+            user_id=driver.id,
+            note_text=note_text,
+            author_type=actor_type,
+            author_id=actor_id,
+            author_name=actor_name,
+        )
+    )
+    db.session.commit()
+    flash("Driver note added for your track staff.", "success")
+    return redirect(url_for("employee.driver_profile", user_id=driver.id, _anchor="notes"))
+
+
 @employee_bp.route("/tracks/<int:track_id>/drivers/search")
 @login_required
 def search_track_drivers(track_id):
@@ -1859,9 +2055,8 @@ def search_track_drivers(track_id):
 
     like = f"%{q}%"
     rows = (
-        TrackDriverClass.query.join(User, User.id == TrackDriverClass.user_id)
+        _track_driver_query(track_id)
         .filter(
-            TrackDriverClass.track_id == track_id,
             (User.first_name.ilike(like))
             | (User.last_name.ilike(like))
             | (User.email.ilike(like))
@@ -1873,15 +2068,18 @@ def search_track_drivers(track_id):
     )
 
     payload = []
-    for item in rows:
-        full_name = f"{item.user.first_name} {item.user.last_name}".strip()
+    for driver in rows:
+        class_record = TrackDriverClass.query.filter_by(track_id=track_id, user_id=driver.id).first()
+        driver_class = class_record.driver_class if class_record else "C"
+        full_name = f"{driver.first_name} {driver.last_name}".strip()
         payload.append(
             {
-                "user_id": item.user_id,
+                "user_id": driver.id,
                 "name": full_name,
-                "email": item.user.email,
-                "driver_class": item.driver_class,
-                "update_url": url_for("employee.update_driver_class", track_id=track_id, user_id=item.user_id),
+                "email": driver.email,
+                "driver_class": driver_class,
+                "profile_url": url_for("employee.driver_profile", user_id=driver.id),
+                "update_url": url_for("employee.update_driver_class", track_id=track_id, user_id=driver.id),
             }
         )
 
@@ -1897,6 +2095,7 @@ def update_driver_class(track_id, user_id):
     if track_id != active_track_id():
         flash("You can only update classes for your track.", "error")
         return redirect(url_for("employee.dashboard"))
+    driver = _load_track_driver(track_id, user_id)
 
     selected = (request.form.get("driver_class") or "").strip().upper()
     if selected not in {"A", "B", "C"}:
@@ -1904,12 +2103,28 @@ def update_driver_class(track_id, user_id):
         return redirect(request.referrer or url_for("employee.dashboard"))
 
     record = _get_or_create_track_driver_class(track_id, user_id)
+    previous_class = record.driver_class
+    if previous_class == selected:
+        flash(f"{driver.first_name} is already in class {selected}.", "success")
+        return redirect(request.referrer or url_for("employee.driver_profile", user_id=user_id))
+    actor_type, actor_id, actor_name = _current_staff_actor()
     record.driver_class = selected
     if current_user.account_type == "employee":
         record.updated_by_employee_id = current_user.id
+    db.session.add(
+        DriverClassChange(
+            track_id=track_id,
+            user_id=user_id,
+            previous_class=previous_class,
+            new_class=selected,
+            changed_by_type=actor_type,
+            changed_by_id=actor_id,
+            changed_by_name=actor_name,
+        )
+    )
     db.session.commit()
-    flash("Driver class updated.", "success")
-    return redirect(request.referrer or url_for("employee.dashboard"))
+    flash(f"{driver.first_name} {driver.last_name} moved from class {previous_class} to {selected}.", "success")
+    return redirect(request.referrer or url_for("employee.driver_profile", user_id=user_id))
 
 
 @employee_bp.route("/inspection-rules", methods=["POST"])

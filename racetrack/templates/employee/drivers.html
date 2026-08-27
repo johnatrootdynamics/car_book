@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="driver-directory-page">
+  <header class="driver-directory-header">
+    <div>
+      <span class="event-page-kicker">Track records</span>
+      <h2>Drivers</h2>
+      <p>Track-specific attendance, history, internal notes, and class management for {{ track.name }}.</p>
+    </div>
+    <span class="driver-directory-count">{{ rows|length }} shown</span>
+  </header>
+
+  <form method="get" class="driver-directory-search">
+    <label for="driver-directory-query"><i class="bi bi-search" aria-hidden="true"></i><span class="sr-only">Search drivers</span></label>
+    <input id="driver-directory-query" type="search" name="q" value="{{ query_text }}" placeholder="Search name, username, email, or phone" autocomplete="off">
+    <button class="btn btn-sm" type="submit">Search</button>
+    {% if query_text %}<a href="{{ url_for('employee.drivers') }}">Clear</a>{% endif %}
+  </form>
+
+  {% if rows %}
+    <section class="driver-directory-list" aria-label="Driver records">
+      {% for row in rows %}
+        <a class="driver-directory-row" href="{{ url_for('employee.driver_profile', user_id=row.driver.id) }}">
+          <span class="driver-directory-avatar">{{ row.driver.first_name[:1]|upper }}{{ row.driver.last_name[:1]|upper }}</span>
+          <span class="driver-directory-identity">
+            <strong>{{ row.driver.first_name }} {{ row.driver.last_name }}</strong>
+            <small>@{{ row.driver.username or ('driver' ~ row.driver.id) }} · {{ row.driver.email }}</small>
+          </span>
+          <span class="driver-directory-stat"><small>Attended</small><strong>{{ row.attended_count }}</strong></span>
+          <span class="driver-directory-stat"><small>Registered</small><strong>{{ row.registered_count }}</strong></span>
+          <span class="driver-directory-stat driver-directory-last-event"><small>Last event</small><strong>{{ row.last_event_date.strftime('%b %-d, %Y') if row.last_event_date else '—' }}</strong></span>
+          <span class="driver-class-pill driver-class-{{ row.driver_class }}">Class {{ row.driver_class }}</span>
+          {% if row.note_count %}<span class="driver-note-count"><i class="bi bi-sticky" aria-hidden="true"></i> {{ row.note_count }}</span>{% endif %}
+          <i class="bi bi-chevron-right driver-directory-arrow" aria-hidden="true"></i>
+        </a>
+      {% endfor %}
+    </section>
+  {% else %}
+    <section class="card driver-directory-empty">
+      <i class="bi bi-person-search" aria-hidden="true"></i>
+      <h3>No drivers found</h3>
+      <p>{% if query_text %}No track driver matches “{{ query_text }}”.{% else %}Drivers appear after they register with or subscribe to this track.{% endif %}</p>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

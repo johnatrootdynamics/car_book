@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="driver-profile-page">
+  <header class="driver-profile-header">
+    <div class="driver-profile-heading">
+      <a class="driver-profile-back" href="{{ url_for('employee.drivers') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Drivers</a>
+      <div class="driver-profile-person">
+        <span class="driver-profile-avatar">{{ driver.first_name[:1]|upper }}{{ driver.last_name[:1]|upper }}</span>
+        <div>
+          <span class="event-page-kicker">{{ track.name }} driver record</span>
+          <h2>{{ driver.first_name }} {{ driver.last_name }}</h2>
+          <p>@{{ driver.username or ('driver' ~ driver.id) }} · {{ driver.email }} · {{ driver.phone }}</p>
+        </div>
+      </div>
+    </div>
+    <span class="driver-class-pill driver-class-{{ current_driver_class }} driver-profile-class">Class {{ current_driver_class }}</span>
+  </header>
+
+  <section class="driver-profile-metrics" aria-label="Driver summary">
+    <article><small>Events attended</small><strong>{{ attended_count }}</strong><span>Checked in at {{ track.name }}</span></article>
+    <article><small>Total registrations</small><strong>{{ registrations|length }}</strong><span>{{ (registrations|length) - attended_count }} without check-in</span></article>
+    <article><small>Inspections passed</small><strong>{{ passed_inspection_count }}</strong><span>Across this track’s events</span></article>
+    <article><small>Internal notes</small><strong>{{ notes|length }}</strong><span>Visible only to track staff</span></article>
+  </section>
+
+  <div class="driver-profile-top-grid">
+    <section class="card driver-class-panel">
+      <div class="driver-profile-section-head">
+        <div><span>Track-specific</span><h3>Driver class</h3></div>
+        <span class="driver-class-pill driver-class-{{ current_driver_class }}">Current {{ current_driver_class }}</span>
+      </div>
+      <p class="muted-line">Class changes apply to future scheduling and run-group generation at {{ track.name }}.</p>
+      <div class="driver-profile-class-actions">
+        {% for class_code, class_name in [('A', 'Advanced'), ('B', 'Intermediate'), ('C', 'Novice')] %}
+          <form method="post" action="{{ url_for('employee.update_driver_class', track_id=track.id, user_id=driver.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="driver_class" value="{{ class_code }}">
+            <button type="submit" class="driver-profile-class-option driver-class-option-{{ class_code }} {% if current_driver_class == class_code %}active{% endif %}">
+              <strong>{{ class_code }}</strong><span>{{ class_name }}</span>{% if current_driver_class == class_code %}<i class="bi bi-check-circle-fill" aria-hidden="true"></i>{% endif %}
+            </button>
+          </form>
+        {% endfor %}
+      </div>
+      {% if class_changes %}
+        <p class="driver-class-last-change">Last changed by <strong>{{ class_changes[0].changed_by_name }}</strong> on {{ class_changes[0].created_at.strftime('%b %-d, %Y at %-I:%M %p') }}.</p>
+      {% elif class_record %}
+        <p class="driver-class-last-change">Current assignment last updated {% if class_record.updated_by %}by <strong>{{ class_record.updated_by.full_name }}</strong> {% endif %}on {{ class_record.updated_at.strftime('%b %-d, %Y at %-I:%M %p') }}. Detailed history starts with the next change.</p>
+      {% endif %}
+    </section>
+
+    <section class="card driver-vehicle-panel">
+      <div class="driver-profile-section-head"><div><span>At this track</span><h3>Cars used</h3></div><span>{{ used_cars|length }}</span></div>
+      {% if used_cars %}
+        <div class="driver-vehicle-list">
+          {% for car in used_cars %}
+            <article><i class="bi bi-car-front" aria-hidden="true"></i><div><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong><span>{{ car.color or 'Color not recorded' }}</span></div></article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted-line">No cars have been registered at this track.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section id="notes" class="card driver-notes-panel">
+    <div class="driver-profile-section-head">
+      <div><span>Internal only</span><h3>Track staff notes</h3></div>
+      <span>{{ notes|length }}</span>
+    </div>
+    <p class="muted-line">Use this for operational context other staff may need. Notes remain attached only to this track’s record.</p>
+    <form method="post" action="{{ url_for('employee.add_driver_note', user_id=driver.id) }}" class="driver-note-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="driver-note-text" class="sr-only">Add a track staff note</label>
+      <textarea id="driver-note-text" name="note_text" maxlength="2000" rows="3" placeholder="Add relevant context for other track staff…" required></textarea>
+      <button class="btn btn-sm" type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add note</button>
+    </form>
+    {% if notes %}
+      <div class="driver-note-list">
+        {% for note in notes %}
+          <article>
+            <div><strong>{{ note.author_name }}</strong><time>{{ note.created_at.strftime('%b %-d, %Y at %-I:%M %p') }}</time></div>
+            <p>{{ note.note_text }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="driver-profile-empty compact"><i class="bi bi-sticky" aria-hidden="true"></i><span>No internal notes yet.</span></div>
+    {% endif %}
+  </section>
+
+  <section class="card driver-history-panel">
+    <div class="driver-profile-section-head"><div><span>{{ track.name }}</span><h3>Event history</h3></div><span>{{ registrations|length }} registrations</span></div>
+    {% if registrations %}
+      <div class="table-wrap">
+        <table class="driver-history-table">
+          <thead><tr><th>Event</th><th>Car</th><th>Attendance</th><th>Inspection</th><th>Registered</th></tr></thead>
+          <tbody>
+            {% for registration in registrations %}
+              {% set inspection = inspections.get(registration.id) %}
+              <tr>
+                <td><a href="{{ url_for('employee.event_detail', event_id=registration.event.id, view='participants') }}"><strong>{{ registration.event.event_name }}</strong><span>{{ registration.event.event_date.strftime('%b %-d, %Y') }}</span></a></td>
+                <td>{{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}</td>
+                <td>{% if registration.checked_in_at %}<span class="badge badge-signed">Attended</span><small>{{ registration.checked_in_at.strftime('%-I:%M %p') }}</small>{% else %}<span class="badge badge-viewed">Registered only</span>{% endif %}</td>
+                <td>{% if inspection %}<span class="badge {{ 'badge-signed' if inspection.passed else 'badge-failed' }}">{{ 'Passed' if inspection.passed else 'Needs work' }}</span>{% else %}<span class="muted-line">Not inspected</span>{% endif %}</td>
+                <td>{{ registration.created_at.strftime('%b %-d, %Y') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="driver-profile-empty"><i class="bi bi-calendar-x" aria-hidden="true"></i><span>No event registrations at this track.</span></div>
+    {% endif %}
+  </section>
+
+  <section class="card driver-class-history-panel">
+    <div class="driver-profile-section-head"><div><span>Audit trail</span><h3>Class change history</h3></div><span>{{ class_changes|length }}</span></div>
+    {% if class_changes %}
+      <div class="driver-class-history-list">
+        {% for change in class_changes %}
+          <article>
+            <span class="driver-class-history-transition"><b class="driver-class-pill driver-class-{{ change.previous_class }}">{{ change.previous_class }}</b><i class="bi bi-arrow-right" aria-hidden="true"></i><b class="driver-class-pill driver-class-{{ change.new_class }}">{{ change.new_class }}</b></span>
+            <span><strong>{{ change.changed_by_name }}</strong><small>{{ 'Enterprise admin' if change.changed_by_type == 'admin' else 'Track staff' }} · {{ change.created_at.strftime('%b %-d, %Y at %-I:%M %p') }}</small></span>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="driver-profile-empty compact"><i class="bi bi-clock-history" aria-hidden="true"></i><span>No recorded class changes yet.</span></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -21,7 +21,7 @@
 <section class="card">
   <h3>Matched Driver</h3>
   <p>
-    {{ registration.user.first_name }} {{ registration.user.last_name }} •
+    <a class="employee-text-link" href="{{ url_for('employee.driver_profile', user_id=registration.user_id) }}">{{ registration.user.first_name }} {{ registration.user.last_name }}</a> •
     {{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}
   </p>
   <p>

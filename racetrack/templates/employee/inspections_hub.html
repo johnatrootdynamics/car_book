@@ -70,7 +70,7 @@
             {% set inspection = item.inspection %}
             <article class="inspection-queue-row {% if inspection and inspection.passed %}is-passed{% elif registration.checked_in_at %}is-ready{% endif %}">
               <div class="inspection-driver-copy">
-                <strong>{{ registration.user.first_name }} {{ registration.user.last_name }}</strong>
+                <a class="employee-text-link" href="{{ url_for('employee.driver_profile', user_id=registration.user_id) }}"><strong>{{ registration.user.first_name }} {{ registration.user.last_name }}</strong></a>
                 <span>{{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}</span>
                 <code>{{ registration.checkin_code }}</code>
               </div>

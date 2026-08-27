@@ -128,20 +128,12 @@
   </div>
 
   <div class="employee-dashboard-secondary-grid">
-    <section class="card employee-class-manager-card">
+    <section class="card employee-class-manager-card driver-records-promo">
       <div class="employee-dashboard-section-head">
-        <div><span>Drivers</span><h3>Driver class manager</h3></div>
+        <div><span>Drivers</span><h3>Driver records</h3></div>
       </div>
-      <p class="muted-line">Search across {{ track.name }} and update a driver’s class without opening an event.</p>
-      <div class="class-search employee-class-search" data-class-search data-search-url="{{ url_for('employee.search_track_drivers', track_id=track.id) }}" data-csrf-token="{{ csrf_token() }}">
-        <label class="sr-only" for="dashboard-driver-search">Find driver by name, username, or email</label>
-        <div class="employee-class-search-control">
-          <i class="bi bi-search" aria-hidden="true"></i>
-          <input id="dashboard-driver-search" type="search" class="class-search-input" placeholder="Search name, username, or email" autocomplete="off">
-        </div>
-        <p class="hint">Enter at least 2 characters.</p>
-        <div class="class-search-results"></div>
-      </div>
+      <p class="muted-line">Review a driver’s attendance, event history, internal notes, cars, and class changes in one place.</p>
+      <a class="driver-records-promo-link" href="{{ url_for('employee.drivers') }}"><span><i class="bi bi-person-vcard" aria-hidden="true"></i><strong>Open driver lookup</strong></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
     </section>
 
     <section class="card employee-last-event-card">
