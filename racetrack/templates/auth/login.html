@@ -1,14 +1,93 @@
 {% extends "base.html" %}
+{% block body_class %}auth-login auth-login-{{ login_role }}{% endblock %}
 {% block content %}
-<section class="card narrow">
-  <h2>{{ title }}</h2>
-  <form method="post" class="form-grid" data-enhanced>
-    {{ form.hidden_tag() }}
-    <label>Email {{ form.email() }}</label>
-    {% for error in form.email.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
-    <label>Password {{ form.password() }}</label>
-    {% for error in form.password.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
-    {{ form.submit(class_='btn') }}
-  </form>
+{% if login_role == 'employee' %}
+  {% set role_label = 'Track team access' %}
+  {% set role_icon = 'bi-person-workspace' %}
+  {% set showcase_title = 'Run the day without the noise.' %}
+  {% set showcase_copy = 'Check in drivers, inspect vehicles, scan tickets, and keep the entire event moving.' %}
+  {% set point_one = 'Fast trackside workflows' %}
+  {% set point_two = 'One shared operational view' %}
+{% elif login_role == 'admin' %}
+  {% set role_label = 'Enterprise access' %}
+  {% set role_icon = 'bi-shield-check' %}
+  {% set showcase_title = 'Every track. One clear view.' %}
+  {% set showcase_copy = 'Manage track accounts, platform settings, orders, and operations from one secure workspace.' %}
+  {% set point_one = 'Cross-track oversight' %}
+  {% set point_two = 'Centralized platform controls' %}
+{% else %}
+  {% set role_label = 'Driver access' %}
+  {% set role_icon = 'bi-speedometer2' %}
+  {% set showcase_title = 'Your next track day starts here.' %}
+  {% set showcase_copy = 'Register for events, manage your cars and waivers, and keep every ticket in one place.' %}
+  {% set point_one = 'Events and registrations' %}
+  {% set point_two = 'Cars, waivers, and tickets' %}
+{% endif %}
+
+<section class="login-shell">
+  <aside class="login-showcase">
+    <div class="login-track-mark" aria-hidden="true"><span></span><span></span></div>
+    <a class="login-brand" href="{{ url_for('auth.home') }}" aria-label="Track Ops home">
+      <span class="login-brand-icon"><i class="bi bi-flag-fill" aria-hidden="true"></i></span>
+      <span><strong>Track Ops</strong><small>Race day, organized.</small></span>
+    </a>
+
+    <div class="login-showcase-content">
+      <span class="login-role-label"><i class="bi {{ role_icon }}" aria-hidden="true"></i>{{ role_label }}</span>
+      <h1>{{ showcase_title }}</h1>
+      <p>{{ showcase_copy }}</p>
+      <div class="login-showcase-points" aria-label="Portal features">
+        <span><i class="bi bi-check2" aria-hidden="true"></i>{{ point_one }}</span>
+        <span><i class="bi bi-check2" aria-hidden="true"></i>{{ point_two }}</span>
+      </div>
+    </div>
+
+    <p class="login-showcase-footer"><i class="bi bi-lock" aria-hidden="true"></i> Secure access to your Track Ops workspace</p>
+  </aside>
+
+  <div class="login-panel">
+    <div class="login-card">
+      <div class="login-card-icon"><i class="bi {{ role_icon }}" aria-hidden="true"></i></div>
+      <span class="login-card-kicker">Welcome back</span>
+      <h2>{{ title }}</h2>
+      <p class="login-card-intro">Enter your account details to continue.</p>
+
+      <form method="post" class="login-form" data-enhanced>
+        {{ form.hidden_tag() }}
+        <div class="login-field{% if form.email.errors %} has-error{% endif %}">
+          <label for="{{ form.email.id }}">Email address</label>
+          <div class="login-input-wrap">
+            <i class="bi bi-envelope" aria-hidden="true"></i>
+            {{ form.email(placeholder='you@example.com', autocomplete='email', autofocus=true) }}
+          </div>
+          {% for error in form.email.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        </div>
+
+        <div class="login-field{% if form.password.errors %} has-error{% endif %}">
+          <label for="{{ form.password.id }}">Password</label>
+          <div class="login-input-wrap">
+            <i class="bi bi-key" aria-hidden="true"></i>
+            {{ form.password(placeholder='Enter your password', autocomplete='current-password') }}
+          </div>
+          {% for error in form.password.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        </div>
+
+        {{ form.submit(class_='login-submit') }}
+      </form>
+
+      {% if login_role == 'driver' %}
+        <p class="login-account-prompt">New to Track Ops? <a href="{{ url_for('auth.user_register') }}">Create a driver account</a></p>
+      {% else %}
+        <p class="login-account-prompt">Need help signing in? Contact your {{ 'enterprise administrator' if login_role == 'employee' else 'platform administrator' }}.</p>
+      {% endif %}
+
+      <div class="login-portal-divider"><span>Switch portal</span></div>
+      <nav class="login-portal-switcher" aria-label="Choose login portal">
+        <a class="{{ 'active' if login_role == 'driver' else '' }}" href="{{ url_for('auth.user_login') }}"><i class="bi bi-speedometer2" aria-hidden="true"></i>Driver</a>
+        <a class="{{ 'active' if login_role == 'employee' else '' }}" href="{{ url_for('auth.employee_login') }}"><i class="bi bi-person-workspace" aria-hidden="true"></i>Employee</a>
+        <a class="{{ 'active' if login_role == 'admin' else '' }}" href="{{ url_for('auth.admin_login') }}"><i class="bi bi-shield-check" aria-hidden="true"></i>Admin</a>
+      </nav>
+    </div>
+  </div>
 </section>
 {% endblock %}

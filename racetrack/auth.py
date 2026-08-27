@@ -109,7 +109,12 @@ def user_login():
             flash("Invalid credentials.", "error")
         except SQLAlchemyError:
             flash("Database unavailable. Please try again shortly.", "error")
-    return render_template("auth/login.html", form=form, title="User Login")
+    return render_template(
+        "auth/login.html",
+        form=form,
+        title="Driver sign in",
+        login_role="driver",
+    )
 
 
 @auth_bp.route("/employee/login", methods=["GET", "POST"])
@@ -126,7 +131,12 @@ def employee_login():
             flash("Invalid credentials.", "error")
         except SQLAlchemyError:
             flash("Database unavailable. Please try again shortly.", "error")
-    return render_template("auth/login.html", form=form, title="Employee Login")
+    return render_template(
+        "auth/login.html",
+        form=form,
+        title="Employee sign in",
+        login_role="employee",
+    )
 
 
 @auth_bp.route("/admin/login", methods=["GET", "POST"])
@@ -146,7 +156,12 @@ def admin_login():
             flash("Invalid credentials.", "error")
         except SQLAlchemyError:
             flash("Database unavailable. Please try again shortly.", "error")
-    return render_template("auth/login.html", form=form, title="Enterprise Admin Login")
+    return render_template(
+        "auth/login.html",
+        form=form,
+        title="Admin sign in",
+        login_role="admin",
+    )
 
 
 @auth_bp.route("/logout")
