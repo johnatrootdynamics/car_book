@@ -24,13 +24,17 @@
           <span class="driver-directory-avatar">{{ row.driver.first_name[:1]|upper }}{{ row.driver.last_name[:1]|upper }}</span>
           <span class="driver-directory-identity">
             <strong>{{ row.driver.first_name }} {{ row.driver.last_name }}</strong>
-            <small>@{{ row.driver.username or ('driver' ~ row.driver.id) }} · {{ row.driver.email }}</small>
+            <small>{{ row.driver.email }}</small>
           </span>
-          <span class="driver-directory-stat"><small>Attended</small><strong>{{ row.attended_count }}</strong></span>
-          <span class="driver-directory-stat"><small>Registered</small><strong>{{ row.registered_count }}</strong></span>
-          <span class="driver-directory-stat driver-directory-last-event"><small>Last event</small><strong>{{ row.last_event_date.strftime('%b %-d, %Y') if row.last_event_date else '—' }}</strong></span>
-          <span class="driver-class-pill driver-class-{{ row.driver_class }}">Class {{ row.driver_class }}</span>
-          {% if row.note_count %}<span class="driver-note-count"><i class="bi bi-sticky" aria-hidden="true"></i> {{ row.note_count }}</span>{% endif %}
+          <span class="driver-directory-activity">
+            <strong>{{ row.attended_count }} attended</strong>
+            <small>
+              {{ row.registered_count }} registration{{ '' if row.registered_count == 1 else 's' }}
+              {% if row.last_event_date %}<span aria-hidden="true">·</span> Last {{ row.last_event_date.strftime('%b %-d, %Y') }}{% endif %}
+              {% if row.note_count %}<span aria-hidden="true">·</span> {{ row.note_count }} note{{ '' if row.note_count == 1 else 's' }}{% endif %}
+            </small>
+          </span>
+          <span class="driver-directory-class driver-directory-class-{{ row.driver_class }}" title="Class {{ row.driver_class }}" aria-label="Class {{ row.driver_class }}">{{ row.driver_class }}</span>
           <i class="bi bi-chevron-right driver-directory-arrow" aria-hidden="true"></i>
         </a>
       {% endfor %}
