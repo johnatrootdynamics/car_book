@@ -2417,6 +2417,14 @@ summary { color: #253047; }
 .mk-subbrand { color: #9eabc1; }
 .mk-links a { color: #d6deeb; border-radius: 6px; }
 .mk-links a:hover { color: #111827; background: #c7f33c; border-color: #c7f33c; }
+.mk-links .mk-login-link {
+  padding-inline: 16px;
+  color: #111827;
+  background: #c7f33c;
+  border-color: #c7f33c;
+  font-weight: 800;
+}
+.mk-links .mk-login-link:hover { color: #111827; background: #d7ff52; border-color: #d7ff52; }
 
 .mk-main { gap: 26px; }
 
