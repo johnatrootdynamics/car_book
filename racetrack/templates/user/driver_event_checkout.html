@@ -1,48 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card narrow">
-  <div class="row-space">
-    <h2>Driver Event Checkout</h2>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.dashboard') }}">Back</a>
-  </div>
-  <p class="muted-line"><strong>{{ event.event_name }}</strong> • {{ event.track.name }} • {{ event.event_date }}</p>
-  <p class="muted-line">Car: {{ selected_car.car_year }} {{ selected_car.make }} {{ selected_car.model }}</p>
-  <p class="muted-line">Ticket Price: <strong>${{ '%.2f'|format((amount_cents or 0) / 100) }}</strong></p>
-  {% if not availability.unlimited %}<p class="ticket-capacity-state"><strong>{{ availability.remaining }} driver spot{{ '' if availability.remaining == 1 else 's' }} remaining</strong><span>{{ availability.sold }} filled{% if availability.held %} · {{ availability.held }} in checkout{% endif %}</span></p>{% endif %}
-  <p class="hint">Complete checkout to purchase your driver ticket before signup is finalized. Each driver may purchase one ticket per event.</p>
-  <form method="post" class="form-grid" data-enhanced>
+<div class="driver-checkout-page">
+  <nav class="driver-checkout-nav">
+    <a href="{{ url_for('user.event_detail', event_id=event.id) }}"><i class="bi bi-chevron-left" aria-hidden="true"></i> Event details</a>
+    <span><i class="bi bi-person-check" aria-hidden="true"></i> {{ current_user.email }}</span>
+  </nav>
+
+  <header class="driver-checkout-header">
+    <div><span class="event-page-kicker">Driver admission</span><h2>Complete your registration</h2><p>Your profile information is already attached to this ticket.</p></div>
+    <span class="driver-checkout-secure"><i class="bi bi-shield-check" aria-hidden="true"></i> Secure checkout</span>
+  </header>
+
+  <form method="post" class="driver-checkout-layout" data-enhanced>
     {{ form.hidden_tag() }}
-    <label>Full Name
-      <input type="text" value="{{ form.full_name.data }}" disabled>
-      {{ form.full_name(type='hidden') }}
-    </label>
-    <label>Email
-      <input type="text" value="{{ form.email.data }}" disabled>
-      {{ form.email(type='hidden') }}
-    </label>
-    <label>Phone
-      <input type="text" value="{{ form.phone.data }}" disabled>
-      {{ form.phone(type='hidden') }}
-    </label>
-    <div>
-      <label>Payment Method</label>
-      <div class="payment-choice-list">
+    {{ form.full_name(type='hidden') }}
+    {{ form.email(type='hidden') }}
+    {{ form.phone(type='hidden') }}
+
+    <section class="card driver-checkout-summary">
+      <div class="driver-checkout-event">
+        <time datetime="{{ event.event_date.isoformat() }}"><span>{{ event.event_date.strftime('%b') }}</span><strong>{{ event.event_date.strftime('%-d') }}</strong><small>{{ event.event_date.strftime('%Y') }}</small></time>
+        <div><span>{{ event.track.name }}</span><h3>{{ event.event_name }}</h3><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}{% if event.event_start_time %} · {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}</p></div>
+      </div>
+
+      <dl class="driver-checkout-details">
+        <div><dt><i class="bi bi-car-front" aria-hidden="true"></i> Driver vehicle</dt><dd>{{ selected_car.car_year }} {{ selected_car.make }} {{ selected_car.model }}</dd></div>
+        <div><dt><i class="bi bi-ticket-perforated" aria-hidden="true"></i> Driver ticket</dt><dd>${{ '%.2f'|format((amount_cents or 0) / 100) }}</dd></div>
+      </dl>
+
+      {% if not availability.unlimited %}
+        <div class="driver-checkout-capacity"><span><i class="bi bi-people" aria-hidden="true"></i> {{ availability.remaining }} spot{{ '' if availability.remaining == 1 else 's' }} left</span><small>{{ availability.sold }} of {{ availability.capacity }} filled{% if availability.held %} · {{ availability.held }} currently held{% endif %}</small></div>
+      {% endif %}
+      <p class="driver-checkout-one-ticket"><i class="bi bi-info-circle" aria-hidden="true"></i> One driver ticket is allowed per driver for this event.</p>
+    </section>
+
+    <section class="card driver-checkout-payment">
+      <header><span>Payment</span><h3>Choose how to pay</h3></header>
+      <div class="driver-payment-options">
         {% for value, label in payment_choices %}
-          <label class="payment-choice-card">
+          <label class="driver-payment-option provider-{{ value }}">
             <input type="radio" name="payment_method" value="{{ value }}" {% if form.payment_method.data == value or (not form.payment_method.data and loop.first) %}checked{% endif %}>
-            <span>
-              <strong>{{ label }}</strong>
-              {% if value in ['stripe', 'paypal'] %}
-                <p class="muted-line">Continue to {{ 'Stripe' if value == 'stripe' else 'PayPal' }} to complete payment securely.</p>
-              {% else %}
-                <p class="muted-line">Use the track's recorded/manual payment workflow.</p>
-              {% endif %}
-            </span>
+            <span class="driver-provider-icon"><i class="bi {{ 'bi-paypal' if value == 'paypal' else ('bi-stripe' if value == 'stripe' else 'bi-credit-card') }}" aria-hidden="true"></i></span>
+            <span class="driver-provider-copy"><strong>{{ label|replace(' (Test mode)', '') }}</strong><small>{% if value == 'paypal' %}Continue to PayPal{% elif value == 'stripe' %}Pay securely with Stripe{% else %}Track payment method{% endif %}</small></span>
+            {% if 'Test mode' in label %}<span class="driver-payment-test">Test</span>{% endif %}
+            <i class="bi bi-check-circle-fill driver-provider-check" aria-hidden="true"></i>
           </label>
         {% endfor %}
       </div>
-    </div>
-    {{ form.submit(class_='btn') }}
+      <button type="submit" class="btn driver-checkout-submit">{% if payment_choices|length == 1 and payment_choices[0][0] == 'paypal' %}Continue to PayPal{% elif payment_choices|length == 1 and payment_choices[0][0] == 'stripe' %}Continue to Stripe{% else %}Continue securely{% endif %} <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+      <p class="driver-payment-note"><i class="bi bi-lock" aria-hidden="true"></i> Your registration is finalized only after payment is confirmed.</p>
+    </section>
   </form>
-</section>
+</div>
 {% endblock %}
