@@ -2425,6 +2425,14 @@ summary { color: #253047; }
   font-weight: 800;
 }
 .mk-links .mk-login-link:hover { color: #111827; background: #d7ff52; border-color: #d7ff52; }
+.public-topbar .mk-links a.active {
+  color: #fff;
+  background: rgba(255, 255, 255, .09);
+  border-color: rgba(255, 255, 255, .12);
+}
+.public-shell:not(.auth-login) .app-shell { display: block; min-height: calc(100vh - 76px); }
+.public-shell:not(.auth-login) .main-content-wrap { width: 100%; }
+.public-shell:not(.auth-login) .main-content { padding-top: 34px; }
 
 .mk-main { gap: 26px; }
 
@@ -5499,7 +5507,8 @@ details > summary { font-size: .92rem; }
 }
 .auth-login .sidebar,
 .auth-login .sidebar-toggle,
-.auth-login .sidebar-overlay { display: none; }
+.auth-login .sidebar-overlay,
+.auth-login .public-topbar { display: none; }
 .auth-login .app-shell,
 .auth-login .main-content-wrap { width: 100%; min-height: 100vh; }
 .auth-login .main-content-wrap { background: #f3f5f8; }
