@@ -6035,21 +6035,26 @@ details > summary { font-size: .92rem; }
 
 .vendor-public-profile {
   display: grid;
-  justify-items: center;
-  width: min(620px, 100%);
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  align-items: center;
+  gap: 30px;
+  width: min(820px, 100%);
   margin: clamp(30px, 8vh, 90px) auto;
-  padding: clamp(28px, 6vw, 58px);
+  padding: clamp(24px, 4vw, 34px);
   color: #1d2939;
   background: #fff;
   border: 1px solid #e4e7ec;
   border-radius: 16px;
   box-shadow: 0 22px 65px rgba(16, 24, 40, .12);
-  text-align: center;
+  text-align: left;
 }
 .vendor-public-logo { width: 92px; height: 92px; margin-bottom: 21px; border-radius: 20px; font-size: 1.8rem; }
 .vendor-public-logo img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
-.vendor-public-profile h2 { margin: 6px 0 12px; color: #101828; font-size: clamp(1.8rem, 5vw, 2.55rem); letter-spacing: -.04em; }
-.vendor-public-profile > p { max-width: 490px; margin: 0 0 23px; color: #667085; font-size: .84rem; line-height: 1.7; white-space: pre-line; }
+.vendor-public-profile h2 { margin: 5px 0 9px; color: #101828; font-size: clamp(1.35rem, 3vw, 1.75rem); letter-spacing: -.025em; }
+.vendor-public-profile-copy { display: grid; justify-items: start; min-width: 0; }
+.vendor-public-profile-copy > p { max-width: 440px; margin: 0 0 15px; color: #667085; font-size: .76rem; line-height: 1.6; white-space: pre-line; }
+.vendor-public-website { color: #3159d5; font-size: .7rem; font-weight: 750; text-decoration: none; }
+.vendor-public-website:hover { color: #2447b8; }
 
 .vendor-account-required { display: grid; gap: 6px; padding: 13px; background: #fafbfc; border: 1px solid #e4e7ec; border-radius: 8px; }
 .vendor-account-required strong { color: #344054; font-size: .75rem; }
@@ -6357,9 +6362,9 @@ details > summary { font-size: .92rem; }
 
 /* Preserve the full vendor mark on public profiles. */
 .vendor-public-profile .vendor-public-logo {
-  width: min(440px, 100%);
-  height: 220px;
-  margin-bottom: 25px;
+  width: 100%;
+  height: 170px;
+  margin: 0;
   background: #fff;
   border: 1px solid #e4e7ec;
   border-radius: 16px;
@@ -6373,6 +6378,8 @@ details > summary { font-size: .92rem; }
   object-fit: contain;
 }
 
-@media (max-width: 520px) {
-  .vendor-public-profile .vendor-public-logo { height: 170px; }
+@media (max-width: 680px) {
+  .vendor-public-profile { grid-template-columns: 1fr; gap: 20px; text-align: center; }
+  .vendor-public-profile .vendor-public-logo { height: 160px; }
+  .vendor-public-profile-copy { justify-items: center; }
 }
