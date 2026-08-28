@@ -73,6 +73,10 @@ def dashboard():
         tracks=tracks,
         impersonating_track_id=impersonating_track_id,
         create_form=create_form,
+        track_count=len(tracks),
+        staff_count=Employee.query.count(),
+        driver_count=User.query.count(),
+        vendor_count=VendorAccount.query.count(),
     )
 
 
@@ -392,6 +396,7 @@ def reset_account_password(account_type, account_id):
     account = model.query.get_or_404(account_id)
     plaintext_password = generate_random_password()
     account.password_hash = generate_password_hash(plaintext_password)
+    account.must_change_password = True
     try:
         db.session.flush()
         if account_type == "driver":
@@ -447,16 +452,54 @@ def create_track():
         if existing:
             flash("Track name already exists.", "error")
         else:
+            owner_email = form.owner_email.data.lower().strip()
+            email_in_use = any(
+                model.query.filter_by(email=owner_email).first()
+                for model in (User, Employee, EnterpriseAdmin, VendorAccount)
+            )
+            if email_in_use:
+                flash("That onboarding email is already used by another Track Ops account.", "error")
+                return redirect(url_for("admin.dashboard"))
+            plaintext_password = generate_random_password()
             track = Track(
                 name=form.name.data.strip(),
                 city=form.city.data.strip(),
                 state=form.state.data.strip(),
             )
             db.session.add(track)
+            try:
+                db.session.flush()
+                owner = Employee(
+                    track_id=track.id,
+                    full_name=form.owner_name.data.strip(),
+                    email=owner_email,
+                    password_hash=generate_password_hash(plaintext_password),
+                    must_change_password=True,
+                    role="office_staff",
+                )
+                db.session.add(owner)
+                db.session.flush()
+                sent = send_employee_login_email(
+                    owner,
+                    plaintext_password,
+                    track,
+                    url_for("auth.user_login", _external=True),
+                )
+            except Exception:
+                current_app.logger.exception("Could not onboard the first office user")
+                sent = False
+            if not sent:
+                db.session.rollback()
+                flash(
+                    "The track was not created because the first user’s welcome email could not be delivered.",
+                    "error",
+                )
+                return redirect(url_for("admin.dashboard"))
             db.session.commit()
-            flash("Track created.", "success")
+            flash(f"{track.name} was created and a welcome email was sent to {owner.email}.", "success")
     else:
-        flash("Could not create track.", "error")
+        errors = [error for field in form for error in field.errors]
+        flash(errors[0] if errors else "Could not create track.", "error")
     return redirect(url_for("admin.dashboard"))
 
 
@@ -490,6 +533,7 @@ def waivers():
     if guard:
         return guard
     track_id = session.get("impersonate_track_id")
+    track = Track.query.get(track_id) if track_id else None
     templates = []
     waiver_records = []
     boldsign_templates = []
@@ -515,6 +559,7 @@ def waivers():
         waiver_records=waiver_records,
         boldsign_templates=boldsign_templates,
         track_id=track_id,
+        track=track,
     )
 
 

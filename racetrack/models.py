@@ -25,6 +25,7 @@ class User(db.Model, UserMixin):
     state = db.Column(db.String(100), nullable=False)
     postal_code = db.Column(db.String(20), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -153,6 +154,7 @@ class Employee(db.Model, UserMixin):
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False)
     role = db.Column(db.String(20), nullable=False, default="track_staff")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -175,6 +177,7 @@ class EnterpriseAdmin(db.Model, UserMixin):
     full_name = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     @property
@@ -198,6 +201,7 @@ class VendorAccount(db.Model, UserMixin):
     logo_image_path = db.Column(db.String(500), nullable=True)
     description = db.Column(db.Text, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False

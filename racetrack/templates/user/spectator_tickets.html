@@ -28,7 +28,8 @@
     </div>
 
     <div class="ticket-purchase-options">
-      {% for ticket_type in [spectator_ticket_type, vendor_ticket_type] %}
+      {% set visible_ticket_types = [spectator_ticket_type] + ([vendor_ticket_type] if is_vendor and vendor_ticket_type else []) %}
+      {% for ticket_type in visible_ticket_types %}
         {% set ticket_availability = availability.get(ticket_type.ticket_category) %}
         {% set purchase_limit = ticket_type.max_per_order or 10 %}
         {% if ticket_availability and not ticket_availability.unlimited %}{% set purchase_limit = [purchase_limit, ticket_availability.remaining]|min %}{% endif %}
@@ -43,16 +44,6 @@
           <p>{% if ticket_type.ticket_category == 'vendor' %}Paid admission for each vendor representative working on site.{% else %}General gate admission for event spectators.{% endif %}</p>
           {% if ticket_availability and ticket_availability.sold_out %}
             <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ ticket_availability.sold }} sold{% if ticket_availability.held %} · {{ ticket_availability.held }} in checkout{% endif %}</span></div>
-          {% elif ticket_type.ticket_category == 'vendor' and (not current_user.is_authenticated or current_user.account_type != 'vendor') %}
-            <div class="vendor-account-required">
-              <strong>Vendor account required</strong>
-              <span>Sign in with a business account before adding vendor admission.</span>
-              {% if current_user.is_authenticated %}
-                <small>You are currently signed in as a {{ 'driver' if current_user.account_type == 'user' else current_user.account_type }}. Sign out to use a vendor account.</small>
-              {% else %}
-                <div><a class="btn" href="{{ url_for('auth.user_login', next=url_for('user.spectator_tickets', event_id=event.id)) }}">Sign in</a><a href="{{ url_for('auth.vendor_register') }}">Create vendor account</a></div>
-              {% endif %}
-            </div>
           {% else %}
             <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-detail-buy-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -68,14 +59,14 @@
           {% endif %}
         </aside>
       {% endfor %}
-      <div class="spectator-purchase-note ticket-options-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>Spectator tickets need no account. Vendor admission requires a reusable vendor profile. Each person receives a separate QR ticket.</span></div>
+      <div class="spectator-purchase-note ticket-options-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>{% if is_vendor %}Vendor admission is available only inside your vendor account. {% endif %}Each person receives a separate QR ticket.</span></div>
     </div>
   </section>
 
   <section class="spectator-detail-benefits" aria-label="Ticket information">
     <article><i class="bi bi-phone" aria-hidden="true"></i><div><strong>Mobile ready</strong><span>Keep your confirmation handy at the gate.</span></div></article>
     <article><i class="bi bi-envelope-check" aria-hidden="true"></i><div><strong>Email confirmation</strong><span>Order details are delivered to the buyer.</span></div></article>
-    <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>One easy cart</strong><span>Combine spectator and vendor admission in one checkout.</span></div></article>
+    <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>One easy cart</strong><span>{% if is_vendor %}Combine spectator and business admission in one checkout.{% else %}Purchase multiple admissions in one checkout.{% endif %}</span></div></article>
   </section>
 </div>
 {% endblock %}

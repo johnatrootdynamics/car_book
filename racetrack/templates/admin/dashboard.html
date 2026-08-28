@@ -1,54 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <h2>Enterprise Admin Dashboard</h2>
-  <p>Select a track to impersonate and operate employee tools for support.</p>
-  <p class="inline">
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.orders') }}"><i class="bi bi-receipt" aria-hidden="true"></i> All Orders</a>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.accounts') }}"><i class="bi bi-key" aria-hidden="true"></i> Account Passwords</a>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.settings') }}"><i class="bi bi-envelope-gear" aria-hidden="true"></i> Email Settings</a>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.waivers') }}">Manage Waiver Templates</a>
-  </p>
+<div class="enterprise-dashboard">
+  <header class="enterprise-dashboard-header">
+    <div><span class="event-page-kicker">Enterprise control</span><h2>Track Ops administration</h2><p>Onboard venues, support their teams, and monitor the platform from one workspace.</p></div>
+    <div class="enterprise-header-actions"><a class="btn btn-secondary" href="{{ url_for('admin.orders') }}"><i class="bi bi-receipt" aria-hidden="true"></i> Review orders</a><a class="btn" href="#onboard-track"><i class="bi bi-plus-lg" aria-hidden="true"></i> Onboard track</a></div>
+  </header>
+
   {% if impersonating_track_id %}
-    <form method="post" action="{{ url_for('admin.clear_impersonation') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-secondary">Clear Impersonation</button>
-    </form>
+    {% set impersonated_track = tracks|selectattr('id', 'equalto', impersonating_track_id)|first %}
+    <aside class="enterprise-impersonation-banner"><i class="bi bi-binoculars" aria-hidden="true"></i><div><strong>Viewing {{ impersonated_track.name if impersonated_track else 'a track' }} as support</strong><span>Track tools are using that venue’s scope.</span></div><form method="post" action="{{ url_for('admin.clear_impersonation') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Exit track view</button></form></aside>
   {% endif %}
-</section>
 
-<section class="card">
-  <h3>Create Track</h3>
-  <form method="post" action="{{ url_for('admin.create_track') }}" class="form-grid two-col" data-enhanced>
-    {{ create_form.hidden_tag() }}
-    <label>Track Name {{ create_form.name() }}</label>
-    <label>City {{ create_form.city() }}</label>
-    <label>State {{ create_form.state() }}</label>
-    <div class="full">{{ create_form.submit(class_='btn') }}</div>
-  </form>
-</section>
+  <section class="enterprise-metrics" aria-label="Platform summary">
+    <article><span class="enterprise-metric-icon tracks"><i class="bi bi-signpost-split" aria-hidden="true"></i></span><div><small>Tracks</small><strong>{{ track_count }}</strong><span>Active venues</span></div></article>
+    <article><span class="enterprise-metric-icon staff"><i class="bi bi-person-workspace" aria-hidden="true"></i></span><div><small>Track teams</small><strong>{{ staff_count }}</strong><span>Staff accounts</span></div></article>
+    <article><span class="enterprise-metric-icon drivers"><i class="bi bi-speedometer2" aria-hidden="true"></i></span><div><small>Drivers</small><strong>{{ driver_count }}</strong><span>Community accounts</span></div></article>
+    <article><span class="enterprise-metric-icon vendors"><i class="bi bi-shop" aria-hidden="true"></i></span><div><small>Vendors</small><strong>{{ vendor_count }}</strong><span>Business accounts</span></div></article>
+  </section>
 
-<section class="card">
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Track</th><th>Location</th><th>Action</th></tr></thead>
-      <tbody>
-      {% for track in tracks %}
-        <tr>
-          <td>{{ track.name }}</td>
-          <td>{{ track.city }}, {{ track.state }}</td>
-          <td>
-            <form method="post" action="{{ url_for('admin.impersonate_track', track_id=track.id) }}" class="inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm {{ 'btn-secondary' if impersonating_track_id == track.id else '' }}">
-                {{ 'Impersonating' if impersonating_track_id == track.id else 'Impersonate' }}
-              </button>
-            </form>
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
+  <section class="enterprise-dashboard-grid">
+    <div class="enterprise-main-column">
+      <section class="card enterprise-track-list-card">
+        <div class="enterprise-section-head"><div><span>Venue network</span><h3>Tracks</h3></div><strong>{{ tracks|length }}</strong></div>
+        {% if tracks %}
+          <div class="enterprise-track-list">
+            {% for track in tracks %}
+              <article>
+                <span class="enterprise-track-avatar">{{ track.name[:2]|upper }}</span>
+                <div class="enterprise-track-copy"><strong>{{ track.name }}</strong><span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ track.city }}, {{ track.state }} · {{ track.employees|length }} staff</span></div>
+                <form method="post" action="{{ url_for('admin.impersonate_track', track_id=track.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-secondary btn-sm"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Open track</button>
+                </form>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}<div class="admin-account-empty">No tracks have been onboarded yet.</div>{% endif %}
+      </section>
+    </div>
+
+    <aside class="enterprise-side-column">
+      <section class="card enterprise-quick-card">
+        <div class="enterprise-section-head"><div><span>Management</span><h3>Quick access</h3></div></div>
+        <nav>
+          <a href="{{ url_for('admin.accounts') }}"><i class="bi bi-people" aria-hidden="true"></i><span><strong>Account security</strong><small>Passwords and access</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+          <a href="{{ url_for('admin.settings') }}"><i class="bi bi-envelope-gear" aria-hidden="true"></i><span><strong>Email delivery</strong><small>SMTP configuration</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+          <a href="{{ url_for('admin.waivers') }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span><strong>Waiver support</strong><small>Templates and records</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+        </nav>
+      </section>
+    </aside>
+  </section>
+
+  <section id="onboard-track" class="card enterprise-onboard-card">
+    <div class="enterprise-onboard-intro"><span class="enterprise-onboard-icon"><i class="bi bi-building-add" aria-hidden="true"></i></span><span class="event-page-kicker">New venue</span><h3>Onboard a track and its first office user</h3><p>The first user receives a welcome email with a temporary password and will choose a permanent password at sign-in.</p></div>
+    <form method="post" action="{{ url_for('admin.create_track') }}" class="enterprise-onboard-form" data-enhanced>
+      {{ create_form.hidden_tag() }}
+      <div class="enterprise-form-section"><span>Track details</span><div class="form-grid three-col"><label>Track Name {{ create_form.name(placeholder='Summit Raceway') }}</label><label>City {{ create_form.city(placeholder='Austin') }}</label><label>State {{ create_form.state(placeholder='TX') }}</label></div></div>
+      <div class="enterprise-form-section"><span>First office user</span><div class="form-grid two-col"><label>Full Name {{ create_form.owner_name(placeholder='Jordan Lee') }}</label><label>Email {{ create_form.owner_email(placeholder='jordan@track.com', autocomplete='email') }}</label></div></div>
+      <div class="enterprise-onboard-footer"><p><i class="bi bi-envelope-check" aria-hidden="true"></i> Creation completes only after the welcome email is accepted by SMTP.</p>{{ create_form.submit(class_='btn') }}</div>
+    </form>
+  </section>
+</div>
 {% endblock %}

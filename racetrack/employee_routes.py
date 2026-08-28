@@ -1173,6 +1173,7 @@ def create_employee():
                 full_name=form.full_name.data.strip(),
                 email=form.email.data.lower().strip(),
                 password_hash=generate_password_hash(plaintext_password),
+                must_change_password=True,
                 role=form.role.data,
             )
             db.session.add(employee)
@@ -1254,6 +1255,7 @@ def reset_employee_password(employee_id):
 
     plaintext_password = generate_random_password()
     employee.password_hash = generate_password_hash(plaintext_password)
+    employee.must_change_password = True
     try:
         db.session.flush()
         sent = send_employee_login_email(

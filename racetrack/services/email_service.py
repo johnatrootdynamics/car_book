@@ -164,7 +164,7 @@ def send_user_login_email(user, plaintext_password, login_url, is_reset=False):
             f"Login: {login_url}\n"
             f"Email: {user.email}\n"
             f"Password: {plaintext_password}\n\n"
-            "Please sign in and keep this information secure.\n\n"
+            "When you sign in, you will be required to choose a new password before continuing.\n\n"
             "Thanks,\nCarBook"
         ),
     )
@@ -186,7 +186,7 @@ def send_vendor_login_email(vendor, plaintext_password, login_url, is_reset=Fals
             f"Login: {login_url}\n"
             f"Email: {vendor.email}\n"
             f"Password: {plaintext_password}\n\n"
-            "Please sign in and keep this information secure.\n\n"
+            "When you sign in, you will be required to choose a new password before continuing.\n\n"
             "Thanks,\nTrack Ops"
         ),
     )
@@ -219,7 +219,7 @@ def send_employee_login_email(
             f"Email: {employee.email}\n"
             f"Password: {plaintext_password}\n\n"
             f"Role: {role_label}\n\n"
-            "Please sign in and keep this information secure.\n\n"
+            "When you sign in, you will be required to choose a new password before continuing.\n\n"
             f"Thanks,\n{track.name}"
         ),
     )
@@ -244,7 +244,7 @@ def send_admin_login_email(admin, plaintext_password, login_url, is_reset=True):
             f"Login: {login_url}\n"
             f"Email: {admin.email}\n"
             f"Password: {plaintext_password}\n\n"
-            "Please sign in and keep this information secure.\n\n"
+            "When you sign in, you will be required to choose a new password before continuing.\n\n"
             "Thanks,\nCarBook"
         ),
     )

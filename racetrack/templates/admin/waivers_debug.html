@@ -1,23 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <h2>BoldSign Debug</h2>
-  <p>Recent waiver records and statuses.</p>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>ID</th><th>Driver</th><th>Doc ID</th><th>Status</th><th>Updated</th></tr></thead>
-      <tbody>
-      {% for w in waivers %}
-        <tr>
-          <td>{{ w.id }}</td>
-          <td>@{{ w.driver.username or ('driver' ~ w.driver.id) }}</td>
-          <td><code>{{ w.boldsign_document_id or '-' }}</code></td>
-          <td>{{ w.status }}</td>
-          <td>{{ w.updated_at }}</td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
+<div class="admin-waivers-page">
+  <header class="admin-waivers-header"><div><span class="event-page-kicker">Enterprise diagnostics</span><h2>Waiver activity</h2><p>Recent BoldSign document identifiers and lifecycle states for troubleshooting.</p></div><a class="btn btn-secondary" href="{{ url_for('admin.dashboard') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Admin dashboard</a></header>
+  <section class="card admin-waiver-section">
+    <div class="enterprise-section-head"><div><span>Diagnostic feed</span><h3>Recent records</h3></div><strong>{{ waivers|length }}</strong></div>
+    {% if waivers %}<div class="table-wrap"><table class="admin-waiver-table"><thead><tr><th>Driver</th><th>Document ID</th><th>Status</th><th>Updated</th></tr></thead><tbody>{% for waiver in waivers %}<tr><td><strong>@{{ waiver.driver.username or ('driver' ~ waiver.driver.id) }}</strong><small>{{ waiver.driver.email }}</small></td><td><code>{{ waiver.boldsign_document_id or 'Not assigned' }}</code></td><td><span class="badge badge-{{ waiver.status }}">{{ waiver.status|replace('_', ' ')|title }}</span></td><td>{{ waiver.updated_at.strftime('%b %-d, %Y at %-I:%M %p') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="admin-waiver-inline-empty"><i class="bi bi-activity" aria-hidden="true"></i><span>No waiver activity has been recorded.</span></div>{% endif %}
+  </section>
+</div>
 {% endblock %}

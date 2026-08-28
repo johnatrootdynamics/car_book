@@ -16,7 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .forms import LoginForm, UserRegistrationForm, VendorRegistrationForm
+from .forms import LoginForm, PasswordChangeForm, UserRegistrationForm, VendorRegistrationForm
 from .models import Employee, EnterpriseAdmin, User, VendorAccount, db
 from .security import generate_random_password
 from .services.email_service import send_user_login_email, send_vendor_login_email
@@ -24,6 +24,15 @@ from .services.storage_service import upload_public_image
 
 
 auth_bp = Blueprint("auth", __name__)
+
+
+@auth_bp.before_app_request
+def enforce_automated_password_change():
+    if not current_user.is_authenticated or not getattr(current_user, "must_change_password", False):
+        return None
+    if request.endpoint in {"auth.change_password", "auth.logout", "static"}:
+        return None
+    return redirect(url_for("auth.change_password"))
 
 
 def _safe_next_url(default_endpoint):
@@ -98,6 +107,7 @@ def user_register():
             state="N/A",
             postal_code="N/A",
             password_hash=generate_password_hash(plaintext_password),
+            must_change_password=True,
         )
         db.session.add(user)
         try:
@@ -115,7 +125,7 @@ def user_register():
             flash("Account was not created because the login email could not be delivered.", "error")
             return render_template("auth/register.html", form=form)
         db.session.commit()
-        flash("Account created. Your password has been emailed to you.", "success")
+        flash("Account created. A temporary password has been emailed to you.", "success")
         return redirect(url_for("auth.user_login"))
     return render_template("auth/register.html", form=form)
 
@@ -140,6 +150,7 @@ def vendor_register():
             website=_normalized_website(form.website.data),
             description=(form.description.data or "").strip() or None,
             password_hash=generate_password_hash(plaintext_password),
+            must_change_password=True,
         )
         db.session.add(vendor)
         try:
@@ -167,7 +178,7 @@ def vendor_register():
             flash("Account was not created because the login email could not be delivered.", "error")
             return render_template("auth/vendor_register.html", form=form)
         db.session.commit()
-        flash("Vendor account created. Your password has been emailed to you.", "success")
+        flash("Vendor account created. A temporary password has been emailed to you.", "success")
         return redirect(url_for("auth.user_login"))
     return render_template("auth/vendor_register.html", form=form)
 
@@ -195,6 +206,8 @@ def user_login():
                 login_user(account)
                 if account.account_type == "admin":
                     session.pop("impersonate_track_id", None)
+                if account.must_change_password:
+                    return redirect(url_for("auth.change_password"))
                 return redirect(_safe_next_url(_account_home(account)))
             if len(candidates) > 1:
                 flash("This email matches multiple accounts. Contact an administrator for help.", "error")
@@ -218,6 +231,24 @@ def employee_login():
 @auth_bp.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     return redirect(url_for("auth.user_login", next=request.args.get("next")))
+
+
+@auth_bp.route("/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if not getattr(current_user, "must_change_password", False):
+        return redirect(url_for(_account_home(current_user)))
+    form = PasswordChangeForm()
+    if form.validate_on_submit():
+        if check_password_hash(current_user.password_hash, form.new_password.data):
+            form.new_password.errors.append("Choose a password different from the temporary password.")
+        else:
+            current_user.password_hash = generate_password_hash(form.new_password.data)
+            current_user.must_change_password = False
+            db.session.commit()
+            flash("Password updated. Welcome to Track Ops.", "success")
+            return redirect(url_for(_account_home(current_user)))
+    return render_template("auth/change_password.html", form=form)
 
 
 @auth_bp.route("/logout")

@@ -3,7 +3,7 @@ from datetime import date
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from wtforms import BooleanField, DateField, DecimalField, IntegerField, PasswordField, SelectField, StringField, SubmitField, TextAreaField, TimeField
-from wtforms.validators import DataRequired, Email, InputRequired, Length, NumberRange, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, InputRequired, Length, NumberRange, Optional, ValidationError
 
 
 def validate_not_past(form, field):
@@ -57,6 +57,18 @@ class LoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Length(max=255)])
     password = PasswordField("Password", validators=[DataRequired(), Length(max=255)])
     submit = SubmitField("Sign In")
+
+
+class PasswordChangeForm(FlaskForm):
+    new_password = PasswordField(
+        "New Password",
+        validators=[DataRequired(), Length(min=10, max=255)],
+    )
+    confirm_password = PasswordField(
+        "Confirm New Password",
+        validators=[DataRequired(), EqualTo("new_password", message="Passwords must match.")],
+    )
+    submit = SubmitField("Set New Password")
 
 
 class CarForm(FlaskForm):
@@ -131,7 +143,12 @@ class TrackCreateForm(FlaskForm):
     name = StringField("Track Name", validators=[DataRequired(), Length(max=200)])
     city = StringField("City", validators=[DataRequired(), Length(max=100)])
     state = StringField("State", validators=[DataRequired(), Length(max=100)])
-    submit = SubmitField("Create Track")
+    owner_name = StringField("First Office User Name", validators=[DataRequired(), Length(max=150)])
+    owner_email = StringField(
+        "First Office User Email",
+        validators=[DataRequired(), Email(), Length(max=255)],
+    )
+    submit = SubmitField("Create Track & Send Welcome")
 
 
 class InspectionRuleForm(FlaskForm):

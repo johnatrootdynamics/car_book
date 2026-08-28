@@ -1,14 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card narrow">
-  <h2>New Waiver Template</h2>
-  <form method="post" class="form-grid" data-enhanced>
-    {{ form.hidden_tag() }}
-    <label>Waiver Title {{ form.title() }}</label>
-    <label>BoldSign Template ID {{ form.boldsign_template_id() }}</label>
-    <label class="check-row">{{ form.is_active() }} <span>Active</span></label>
-    <label class="check-row">{{ form.required_for_checkin() }} <span>Required for check-in</span></label>
-    {{ form.submit(class_='btn') }}
-  </form>
-</section>
+<div class="admin-waiver-new-page">
+  <header class="admin-waivers-header"><div><span class="event-page-kicker">Waiver configuration</span><h2>Link a BoldSign template</h2><p>Connect an existing provider template to the track currently open in enterprise support.</p></div><a class="btn btn-secondary" href="{{ url_for('admin.waivers') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Waivers</a></header>
+  <div class="admin-waiver-new-grid">
+    <form method="post" class="card admin-waiver-new-form" data-enhanced>
+      {{ form.hidden_tag() }}
+      <div class="vendor-form-section-head public"><span>Template link</span><p>Use the exact template identifier supplied by BoldSign.</p></div>
+      <label>Display Title {{ form.title(placeholder='Annual Driver Waiver') }}{% for error in form.title.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+      <label>BoldSign Template ID {{ form.boldsign_template_id(placeholder='Template identifier', spellcheck='false') }}{% for error in form.boldsign_template_id.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+      <div class="admin-waiver-toggle-list"><label class="settings-toggle-row"><span><strong>Active</strong><small>Allow this template to participate in the track workflow.</small></span>{{ form.is_active() }}</label><label class="settings-toggle-row"><span><strong>Required for check-in</strong><small>Block inspection and check-in until the waiver is signed.</small></span>{{ form.required_for_checkin() }}</label></div>
+      {{ form.submit(class_='btn') }}
+    </form>
+    <aside class="admin-waiver-help"><span><i class="bi bi-lightbulb" aria-hidden="true"></i></span><h3>Before linking</h3><p>Create and publish the waiver in BoldSign first. Track Ops stores the template relationship and follows each driver’s document status.</p><ul><li>Confirm the template belongs to the correct BoldSign account.</li><li>Use a clear title the track office will recognize.</li><li>Only mark it required when it should block race-day processing.</li></ul></aside>
+  </div>
+</div>
 {% endblock %}

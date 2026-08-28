@@ -1,19 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card register-shell">
-  <div class="register-intro">
-    <h2>Create Driver Account</h2>
-    <p>Join your local track community, sign up for events, and get inspection-ready with your unique check-in code.</p>
-    <p class="register-password-note"><i class="bi bi-envelope-check" aria-hidden="true"></i> We’ll generate a secure password and email it directly to you.</p>
-    <p class="register-account-switch">Registering a business? <a href="{{ url_for('auth.vendor_register') }}">Create a vendor account</a></p>
+<div class="vendor-register-page driver-register-page">
+  <header class="vendor-register-header">
+    <div>
+      <span class="event-page-kicker">Driver community</span>
+      <h2>Create your driver account</h2>
+      <p>One profile keeps your cars, track subscriptions, event registrations, waivers, and reusable inspection QR together.</p>
+    </div>
+    <a href="{{ url_for('auth.vendor_register') }}">Register a business instead</a>
+  </header>
+
+  <div class="vendor-register-layout">
+    <form method="post" class="card vendor-profile-form driver-register-form" data-enhanced>
+      {{ form.hidden_tag() }}
+      <div class="vendor-form-section-head public"><span>Driver profile</span><p>Use information the track team can recognize on event day.</p></div>
+      <div class="form-grid two-col">
+        <label>Full Name {{ form.full_name(placeholder='Alex Morgan', autocomplete='name') }}</label>
+        <label>Username {{ form.username(placeholder='alexmorgan', autocomplete='username') }}</label>
+        <label>Email {{ form.email(placeholder='alex@example.com', autocomplete='email') }}</label>
+        <label>Phone {{ form.phone(placeholder='(555) 555-5555', autocomplete='tel') }}</label>
+      </div>
+      {% for field in [form.full_name, form.username, form.email, form.phone] %}
+        {% for error in field.errors %}<small class="field-error">{{ field.label.text }}: {{ error }}</small>{% endfor %}
+      {% endfor %}
+      <div class="vendor-register-submit">{{ form.submit(class_='btn') }}<span><i class="bi bi-envelope-check" aria-hidden="true"></i> We’ll email a temporary password, then ask you to replace it at first sign-in.</span></div>
+    </form>
+
+    <aside class="vendor-register-aside driver-register-aside">
+      <div class="vendor-register-icon"><i class="bi bi-speedometer2" aria-hidden="true"></i></div>
+      <h3>Ready before you reach the gate</h3>
+      <p>Your Track Ops account gives every participating track the right event-day information without making you build a new profile each time.</p>
+      <ul>
+        <li><i class="bi bi-check2" aria-hidden="true"></i> Register cars and purchase driver admission</li>
+        <li><i class="bi bi-check2" aria-hidden="true"></i> Complete waivers before arriving</li>
+        <li><i class="bi bi-check2" aria-hidden="true"></i> Show one reusable QR for inspections</li>
+      </ul>
+    </aside>
   </div>
-  <form method="post" class="form-grid narrow register-form" data-enhanced>
-    {{ form.hidden_tag() }}
-    <label>Username {{ form.username() }}</label>
-    <label>Full Name {{ form.full_name() }}</label>
-    <label>Email {{ form.email() }}</label>
-    <label>Phone {{ form.phone() }}</label>
-    <div>{{ form.submit(class_='btn') }}</div>
-  </form>
-</section>
+</div>
 {% endblock %}

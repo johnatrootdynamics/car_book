@@ -31,7 +31,7 @@
       {% for field in [form.full_name, form.business_name, form.email, form.phone, form.business_address, form.website, form.logo, form.description] %}
         {% for error in field.errors %}<small class="field-error">{{ field.label.text }}: {{ error }}</small>{% endfor %}
       {% endfor %}
-      <div class="vendor-register-submit">{{ form.submit(class_='btn') }}<span><i class="bi bi-envelope-check" aria-hidden="true"></i> A generated password will be emailed to you.</span></div>
+      <div class="vendor-register-submit">{{ form.submit(class_='btn') }}<span><i class="bi bi-envelope-check" aria-hidden="true"></i> We’ll email a temporary password, then ask you to replace it at first sign-in.</span></div>
     </form>
 
     <aside class="vendor-register-aside">

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Track Ops</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260827f') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260827g') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}{% if not current_user.is_authenticated %} public-shell{% endif %}">
   {% if not current_user.is_authenticated %}
@@ -97,13 +97,13 @@
           {% endif %}
         {% endif %}
         {% if current_user.is_authenticated and is_admin %}
-          <a class="side-link {% if ep == 'admin.dashboard' %}active{% endif %}" href="{{ url_for('admin.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-shield-check"></i></span><span class="sidebar-label">Admin Dashboard</span></a>
-          <a class="side-link {% if ep in ['admin.orders','admin.order_detail'] %}active{% endif %}" href="{{ url_for('admin.orders') }}"><span class="sidebar-icon"><i class="bi bi-receipt"></i></span><span class="sidebar-label">All Orders</span></a>
-          <a class="side-link {% if ep in ['admin.accounts','admin.reset_account_password'] %}active{% endif %}" href="{{ url_for('admin.accounts') }}"><span class="sidebar-icon"><i class="bi bi-key"></i></span><span class="sidebar-label">Account Passwords</span></a>
-          <a class="side-link {% if ep in ['admin.settings','admin.update_smtp_settings','admin.test_smtp_settings'] %}active{% endif %}" href="{{ url_for('admin.settings') }}"><span class="sidebar-icon"><i class="bi bi-envelope-gear"></i></span><span class="sidebar-label">Admin Settings</span></a>
+          <a class="side-link {% if ep == 'admin.dashboard' %}active{% endif %}" href="{{ url_for('admin.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">Dashboard</span></a>
+          <a class="side-link {% if ep in ['admin.orders','admin.order_detail'] %}active{% endif %}" href="{{ url_for('admin.orders') }}"><span class="sidebar-icon"><i class="bi bi-receipt"></i></span><span class="sidebar-label">Orders</span></a>
+          <a class="side-link {% if ep in ['admin.accounts','admin.reset_account_password'] %}active{% endif %}" href="{{ url_for('admin.accounts') }}"><span class="sidebar-icon"><i class="bi bi-people"></i></span><span class="sidebar-label">Accounts</span></a>
+          <a class="side-link {% if ep in ['admin.settings','admin.update_smtp_settings','admin.test_smtp_settings'] %}active{% endif %}" href="{{ url_for('admin.settings') }}"><span class="sidebar-icon"><i class="bi bi-envelope-gear"></i></span><span class="sidebar-label">Email Settings</span></a>
           <a class="side-link {% if ep == 'admin.waivers' %}active{% endif %}" href="{{ url_for('admin.waivers') }}"><span class="sidebar-icon"><i class="bi bi-file-earmark-text"></i></span><span class="sidebar-label">Waivers</span></a>
-          <a class="side-link {% if ep == 'waiver.waiver_debug' %}active{% endif %}" href="{{ url_for('waiver.waiver_debug') }}"><span class="sidebar-icon"><i class="bi bi-bug"></i></span><span class="sidebar-label">Waiver Debug</span></a>
-          <a class="side-link" href="{{ url_for('employee.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-binoculars"></i></span><span class="sidebar-label">Track View</span></a>
+          <a class="side-link {% if ep == 'waiver.waiver_debug' %}active{% endif %}" href="{{ url_for('waiver.waiver_debug') }}"><span class="sidebar-icon"><i class="bi bi-activity"></i></span><span class="sidebar-label">Diagnostics</span></a>
+          {% if session.get('impersonate_track_id') %}<a class="side-link" href="{{ url_for('employee.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-binoculars"></i></span><span class="sidebar-label">Track Workspace</span></a>{% endif %}
         {% endif %}
         <a class="side-link" href="{{ url_for('auth.logout') }}"><span class="sidebar-icon"><i class="bi bi-box-arrow-right"></i></span><span class="sidebar-label">Logout</span></a>
       </nav>

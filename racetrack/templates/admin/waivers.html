@@ -1,96 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="row-space">
-    <h2>Waiver Templates</h2>
-    <a class="btn" href="{{ url_for('admin.waivers_new') }}">New Waiver Template</a>
-  </div>
-  {% if not track_id %}
-    <p>Select a track to impersonate first from Admin Dashboard.</p>
-  {% elif templates %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Title</th><th>Template ID</th><th>Active</th><th>Required</th><th>Updated</th><th>Action</th></tr></thead>
-        <tbody>
-          {% for t in templates %}
-            <tr>
-              <td>{{ t.title }}</td>
-              <td><code>{{ t.boldsign_template_id }}</code></td>
-              <td>{{ 'Yes' if t.is_active else 'No' }}</td>
-              <td>{{ 'Yes' if t.required_for_checkin else 'No' }}</td>
-              <td>{{ t.updated_at }}</td>
-              <td>
-                <form method="post" action="{{ url_for('admin.waivers_delete_template', template_id=t.id) }}" class="inline" data-enhanced>
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p>No templates yet.</p>
-  {% endif %}
-</section>
+<div class="admin-waivers-page">
+  <header class="admin-waivers-header"><div><span class="event-page-kicker">Enterprise support</span><h2>Waiver management</h2><p>{% if track %}Templates and driver records for {{ track.name }}.{% else %}Choose a track before managing its waiver workflow.{% endif %}</p></div><div>{% if track %}<a class="btn" href="{{ url_for('admin.waivers_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Link template</a>{% endif %}<a class="btn btn-secondary" href="{{ url_for('admin.dashboard') }}">Track selection</a></div></header>
 
-<section class="card">
-  <h3>BoldSign Account Templates</h3>
   {% if not track_id %}
-    <p>Select a track to impersonate first from Admin Dashboard.</p>
-  {% elif boldsign_templates %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Title</th><th>Template ID</th><th>Action</th></tr></thead>
-        <tbody>
-          {% for bt in boldsign_templates %}
-            <tr>
-              <td>{{ bt.title }}</td>
-              <td><code>{{ bt.template_id }}</code></td>
-              <td>
-                <a class="btn btn-sm" href="{{ url_for('admin.waivers_new', template_id=bt.template_id, title=bt.title) }}">Use Template</a>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <section class="card admin-waiver-empty"><span><i class="bi bi-signpost-split" aria-hidden="true"></i></span><h3>Select a track first</h3><p>Open a track from the enterprise dashboard, then return here to manage its templates and waiver records.</p><a class="btn" href="{{ url_for('admin.dashboard') }}">Choose a track</a></section>
   {% else %}
-    <p>No templates returned from BoldSign for this API key.</p>
-  {% endif %}
-</section>
+    <section class="admin-waiver-metrics"><article><span>Linked templates</span><strong>{{ templates|length }}</strong></article><article><span>Driver records</span><strong>{{ waiver_records|length }}</strong></article><article><span>BoldSign library</span><strong>{{ boldsign_templates|length }}</strong></article></section>
 
-<section class="card">
-  <h3>Driver Waiver Records</h3>
-  {% if not track_id %}
-    <p>Select a track to impersonate first from Admin Dashboard.</p>
-  {% elif waiver_records %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ID</th><th>Driver</th><th>Template</th><th>Status</th><th>Document ID</th><th>Updated</th><th>Action</th></tr></thead>
-        <tbody>
-          {% for w in waiver_records %}
-            <tr>
-              <td>{{ w.id }}</td>
-              <td>{{ w.driver.username or w.driver.email }}</td>
-              <td>{{ w.waiver_template.title }}</td>
-              <td><span class="badge badge-{{ w.status }}">{{ w.status|upper }}</span></td>
-              <td><code>{{ w.boldsign_document_id or '-' }}</code></td>
-              <td>{{ w.updated_at }}</td>
-              <td>
-                <form method="post" action="{{ url_for('admin.waivers_delete_record', waiver_id=w.id) }}" class="inline" data-enhanced>
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p>No driver waiver records for this track yet.</p>
+    <section class="card admin-waiver-section">
+      <div class="enterprise-section-head"><div><span>Track configuration</span><h3>Linked waiver templates</h3></div><strong>{{ templates|length }}</strong></div>
+      {% if templates %}<div class="admin-waiver-list">{% for template in templates %}<article><span class="admin-waiver-doc-icon"><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span><div><strong>{{ template.title }}</strong><code>{{ template.boldsign_template_id }}</code></div><div class="admin-waiver-tags"><span class="{{ 'ready' if template.is_active else 'off' }}">{{ 'Active' if template.is_active else 'Inactive' }}</span>{% if template.required_for_checkin %}<span class="required">Required</span>{% endif %}</div><form method="post" action="{{ url_for('admin.waivers_delete_template', template_id=template.id) }}" data-enhanced><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="admin-waiver-delete" aria-label="Delete {{ template.title }}"><i class="bi bi-trash3" aria-hidden="true"></i></button></form></article>{% endfor %}</div>{% else %}<div class="admin-waiver-inline-empty"><i class="bi bi-file-earmark-plus" aria-hidden="true"></i><span>No templates linked to this track yet.</span><a href="{{ url_for('admin.waivers_new') }}">Link the first template</a></div>{% endif %}
+    </section>
+
+    <section class="card admin-waiver-section">
+      <div class="enterprise-section-head"><div><span>Provider library</span><h3>BoldSign account templates</h3></div><strong>{{ boldsign_templates|length }}</strong></div>
+      {% if boldsign_templates %}<div class="admin-boldsign-grid">{% for template in boldsign_templates %}<article><span><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span><div><strong>{{ template.title }}</strong><code>{{ template.template_id }}</code></div><a class="btn btn-secondary btn-sm" href="{{ url_for('admin.waivers_new', template_id=template.template_id, title=template.title) }}">Use template</a></article>{% endfor %}</div>{% else %}<div class="admin-waiver-inline-empty"><i class="bi bi-cloud-slash" aria-hidden="true"></i><span>No templates were returned from BoldSign.</span></div>{% endif %}
+    </section>
+
+    <section class="card admin-waiver-section">
+      <div class="enterprise-section-head"><div><span>Latest activity</span><h3>Driver waiver records</h3></div><strong>{{ waiver_records|length }}</strong></div>
+      {% if waiver_records %}<div class="table-wrap"><table class="admin-waiver-table"><thead><tr><th>Driver</th><th>Template</th><th>Status</th><th>Document</th><th>Updated</th><th></th></tr></thead><tbody>{% for waiver in waiver_records %}<tr><td><strong>{{ waiver.driver.username or waiver.driver.email }}</strong></td><td>{{ waiver.waiver_template.title }}</td><td><span class="badge badge-{{ waiver.status }}">{{ waiver.status|replace('_', ' ')|title }}</span></td><td><code>{{ waiver.boldsign_document_id or 'Not assigned' }}</code></td><td>{{ waiver.updated_at.strftime('%b %-d, %Y') }}</td><td><form method="post" action="{{ url_for('admin.waivers_delete_record', waiver_id=waiver.id) }}" data-enhanced><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="admin-waiver-delete" aria-label="Delete waiver record"><i class="bi bi-trash3" aria-hidden="true"></i></button></form></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="admin-waiver-inline-empty"><i class="bi bi-person-check" aria-hidden="true"></i><span>No driver waiver activity for this track yet.</span></div>{% endif %}
+    </section>
   {% endif %}
-</section>
+</div>
 {% endblock %}

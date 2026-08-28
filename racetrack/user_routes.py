@@ -587,7 +587,15 @@ def spectator_tickets(event_id):
         flash("Spectator tickets are no longer available for this event.", "error")
         return redirect(url_for("user.spectator_events"))
     spectator_ticket_type = _get_or_create_default_ticket_type(event, "spectator")
-    vendor_ticket_type = _get_or_create_default_ticket_type(event, "vendor")
+    is_vendor_account = (
+        current_user.is_authenticated
+        and getattr(current_user, "account_type", None) == "vendor"
+    )
+    vendor_ticket_type = (
+        _get_or_create_default_ticket_type(event, "vendor")
+        if is_vendor_account
+        else None
+    )
     cart = _get_or_create_spectator_cart()
     availability = _event_ticket_availability(event)
     return render_template(
@@ -619,8 +627,12 @@ def spectator_events():
     for event in events:
         ticket_types_by_event[event.id] = {
             "spectator": _get_or_create_default_ticket_type(event, "spectator"),
-            "vendor": _get_or_create_default_ticket_type(event, "vendor"),
         }
+        if current_user.is_authenticated and getattr(current_user, "account_type", None) == "vendor":
+            ticket_types_by_event[event.id]["vendor"] = _get_or_create_default_ticket_type(
+                event,
+                "vendor",
+            )
         availability_by_event[event.id] = _event_ticket_availability(event)
     cart = _get_or_create_spectator_cart()
     return render_template(
