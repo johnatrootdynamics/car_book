@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import case, func
+from sqlalchemy import case, func, or_
 from werkzeug.security import generate_password_hash
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -35,6 +35,7 @@ from .models import (
     TrackPaymentMethod,
     TrackWaiverTemplate,
     User,
+    VendorAccount,
     db,
 )
 from .services.boldsign_service import create_embedded_template_url
@@ -93,7 +94,7 @@ STAFF_ROLE_LABELS = {
 def require_employee():
     if not current_user.is_authenticated:
         flash("Please sign in as a track employee.", "error")
-        return redirect(url_for("auth.employee_login"))
+        return redirect(url_for("auth.user_login"))
     if current_user.account_type == "admin":
         if session.get("impersonate_track_id"):
             return None
@@ -616,11 +617,18 @@ def vendors():
                 continue
             haystack = " ".join(
                 [
-                    item.order.vendor_business_name or "",
-                    item.order.guest_full_name or "",
-                    item.order.guest_email or "",
+                    item.order.vendor.business_name if item.order.vendor else (item.order.vendor_business_name or ""),
                     item.order.order_number or "",
                     item.qr_code or "",
+                    *(
+                        [
+                            item.order.vendor.full_name if item.order.vendor else (item.order.guest_full_name or ""),
+                            item.order.vendor.email if item.order.vendor else (item.order.guest_email or ""),
+                            item.order.vendor.phone if item.order.vendor else (item.order.guest_phone or ""),
+                        ]
+                        if has_office_access()
+                        else []
+                    ),
                 ]
             ).lower()
             if query_text and query_text not in haystack:
@@ -630,7 +638,11 @@ def vendors():
     checked_in_count = sum(1 for item in vendor_tickets if item.checked_in_at)
     business_count = len(
         {
-            (item.order.vendor_business_name or item.order.guest_full_name or "Unknown").casefold()
+            (
+                item.order.vendor.business_name
+                if item.order.vendor
+                else (item.order.vendor_business_name or item.order.guest_full_name or "Unknown")
+            ).casefold()
             for item in vendor_tickets
         }
     )
@@ -645,6 +657,35 @@ def vendors():
     )
 
 
+@employee_bp.route("/vendor-directory")
+@login_required
+def vendor_directory():
+    guard = require_office_staff()
+    if guard:
+        return guard
+    query_text = (request.args.get("q") or "").strip()
+    query = VendorAccount.query
+    if query_text:
+        pattern = f"%{query_text}%"
+        query = query.filter(
+            or_(
+                VendorAccount.business_name.ilike(pattern),
+                VendorAccount.full_name.ilike(pattern),
+                VendorAccount.email.ilike(pattern),
+                VendorAccount.phone.ilike(pattern),
+                VendorAccount.business_address.ilike(pattern),
+                VendorAccount.website.ilike(pattern),
+                VendorAccount.description.ilike(pattern),
+            )
+        )
+    vendors = query.order_by(VendorAccount.business_name.asc()).limit(250).all()
+    return render_template(
+        "employee/vendor_directory.html",
+        vendors=vendors,
+        query_text=query_text,
+    )
+
+
 @employee_bp.route("/orders")
 @login_required
 def orders():
@@ -652,6 +693,11 @@ def orders():
     if guard:
         return guard
     scoped_rows = load_order_rows(track_id=active_track_id())
+    if not has_office_access():
+        for row in scoped_rows:
+            if "vendor" in row.get("ticket_categories", set()):
+                row["buyer_name"] = row.get("vendor_business_name") or "Vendor"
+                row["buyer_email"] = ""
     search = (request.args.get("q") or "").strip()
     payment_status = (request.args.get("status") or "").strip().lower()
     kind = (request.args.get("kind") or "").strip().lower()
@@ -1089,7 +1135,7 @@ def create_employee():
                     employee,
                     plaintext_password,
                     track,
-                    url_for("auth.employee_login", _external=True),
+                    url_for("auth.user_login", _external=True),
                 )
             except Exception:
                 current_app.logger.exception("Could not send employee login email")
@@ -1167,7 +1213,7 @@ def reset_employee_password(employee_id):
             employee,
             plaintext_password,
             employee.track,
-            url_for("auth.employee_login", _external=True),
+            url_for("auth.user_login", _external=True),
             is_reset=True,
         )
     except Exception:
@@ -1665,7 +1711,16 @@ def ticket_checkin(event_id, item_id):
     if current_user.account_type == "employee":
         item.checked_in_by_employee_id = current_user.id
     db.session.commit()
-    flash(f"{item.ticket_type_name} ticket checked in for {item.order.guest_full_name or 'guest'}.", "success")
+    checkin_label = (
+        item.order.vendor.business_name
+        if item.ticket_category == "vendor" and item.order.vendor
+        else (
+            item.order.vendor_business_name
+            if item.ticket_category == "vendor"
+            else (item.order.guest_full_name or "guest")
+        )
+    )
+    flash(f"{item.ticket_type_name} ticket checked in for {checkin_label or 'vendor'}.", "success")
     return redirect(scanner_url)
 
 

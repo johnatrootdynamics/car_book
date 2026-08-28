@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="vendor-public-profile">
+  {% set logo_url = asset_url(vendor.logo_image_path) %}
+  <div class="vendor-public-logo">{% if logo_url %}<img src="{{ logo_url }}" alt="{{ vendor.business_name }} logo">{% else %}<span>{{ vendor.business_name[:1]|upper }}</span>{% endif %}</div>
+  <span class="event-page-kicker">Track Ops vendor</span>
+  <h2>{{ vendor.business_name }}</h2>
+  {% if vendor.description %}<p>{{ vendor.description }}</p>{% else %}<p>This vendor has not added a public description yet.</p>{% endif %}
+  {% if vendor.website %}<a class="btn" href="{{ vendor.website }}" target="_blank" rel="noopener">Visit website <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>{% endif %}
+</article>
+{% endblock %}

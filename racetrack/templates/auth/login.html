@@ -1,28 +1,12 @@
 {% extends "base.html" %}
 {% block body_class %}auth-login auth-login-{{ login_role }}{% endblock %}
 {% block content %}
-{% if login_role == 'employee' %}
-  {% set role_label = 'Track team access' %}
-  {% set role_icon = 'bi-person-workspace' %}
-  {% set showcase_title = 'Run the day without the noise.' %}
-  {% set showcase_copy = 'Check in drivers, inspect vehicles, scan tickets, and keep the entire event moving.' %}
-  {% set point_one = 'Fast trackside workflows' %}
-  {% set point_two = 'One shared operational view' %}
-{% elif login_role == 'admin' %}
-  {% set role_label = 'Enterprise access' %}
-  {% set role_icon = 'bi-shield-check' %}
-  {% set showcase_title = 'Every track. One clear view.' %}
-  {% set showcase_copy = 'Manage track accounts, platform settings, orders, and operations from one secure workspace.' %}
-  {% set point_one = 'Cross-track oversight' %}
-  {% set point_two = 'Centralized platform controls' %}
-{% else %}
-  {% set role_label = 'Driver access' %}
-  {% set role_icon = 'bi-speedometer2' %}
-  {% set showcase_title = 'Your next track day starts here.' %}
-  {% set showcase_copy = 'Register for events, manage your cars and waivers, and keep every ticket in one place.' %}
-  {% set point_one = 'Events and registrations' %}
-  {% set point_two = 'Cars, waivers, and tickets' %}
-{% endif %}
+{% set role_label = 'One account access' %}
+{% set role_icon = 'bi-person-check' %}
+{% set showcase_title = 'One login. Every Track Ops account.' %}
+{% set showcase_copy = 'Drivers, vendors, track teams, and enterprise administrators all enter through the same secure door.' %}
+{% set point_one = 'No portal hunting' %}
+{% set point_two = 'Your account opens the right workspace' %}
 
 <section class="login-shell">
   <aside class="login-showcase">
@@ -75,18 +59,7 @@
         {{ form.submit(class_='login-submit') }}
       </form>
 
-      {% if login_role == 'driver' %}
-        <p class="login-account-prompt">New to Track Ops? <a href="{{ url_for('auth.user_register') }}">Create a driver account</a></p>
-      {% else %}
-        <p class="login-account-prompt">Need help signing in? Contact your {{ 'enterprise administrator' if login_role == 'employee' else 'platform administrator' }}.</p>
-      {% endif %}
-
-      <div class="login-portal-divider"><span>Switch portal</span></div>
-      <nav class="login-portal-switcher" aria-label="Choose login portal">
-        <a class="{{ 'active' if login_role == 'driver' else '' }}" href="{{ url_for('auth.user_login') }}"><i class="bi bi-speedometer2" aria-hidden="true"></i>Driver</a>
-        <a class="{{ 'active' if login_role == 'employee' else '' }}" href="{{ url_for('auth.employee_login') }}"><i class="bi bi-person-workspace" aria-hidden="true"></i>Employee</a>
-        <a class="{{ 'active' if login_role == 'admin' else '' }}" href="{{ url_for('auth.admin_login') }}"><i class="bi bi-shield-check" aria-hidden="true"></i>Admin</a>
-      </nav>
+      <p class="login-account-prompt">Need an account? <a href="{{ url_for('auth.user_register') }}">Register as a driver</a> or <a href="{{ url_for('auth.vendor_register') }}">register a business</a>.</p>
     </div>
   </div>
 </section>

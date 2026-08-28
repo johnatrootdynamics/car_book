@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 {% set order_number = order.order_number if kind == 'spectator' else 'DR-%06d'|format(order.id) %}
+{% set vendor_order = kind == 'spectator' and items|selectattr('ticket_category', 'equalto', 'vendor')|list|length > 0 %}
 <section class="card order-detail-hero">
   <div class="row-space">
     <div>
@@ -29,10 +30,12 @@
     <h3>Customer</h3>
     {% if kind == 'spectator' %}
       <dl class="order-facts">
-        <div><dt>Name</dt><dd>{{ order.guest_full_name or 'Guest' }}</dd></div>
-        <div><dt>Email</dt><dd>{{ order.guest_email or 'Not provided' }}</dd></div>
-        <div><dt>Phone</dt><dd>{{ order.guest_phone or 'Not provided' }}</dd></div>
-        {% if order.vendor_business_name %}<div><dt>Vendor business</dt><dd>{{ order.vendor_business_name }}</dd></div>{% endif %}
+        {% if vendor_order %}<div><dt>Vendor business</dt><dd>{% if order.vendor %}<a href="{{ url_for('vendor.public_profile', vendor_id=order.vendor.id) }}">{{ order.vendor.business_name }}</a>{% else %}{{ order.vendor_business_name or 'Legacy vendor' }}{% endif %}</dd></div>{% endif %}
+        {% if not vendor_order or is_office_staff %}
+          <div><dt>Name</dt><dd>{{ order.vendor.full_name if order.vendor else (order.guest_full_name or 'Guest') }}</dd></div>
+          <div><dt>Email</dt><dd>{{ order.vendor.email if order.vendor else (order.guest_email or 'Not provided') }}</dd></div>
+          <div><dt>Phone</dt><dd>{{ order.vendor.phone if order.vendor else (order.guest_phone or 'Not provided') }}</dd></div>
+        {% elif vendor_order %}<div><dt>Contact</dt><dd>Available to office staff</dd></div>{% endif %}
       </dl>
     {% else %}
       <dl class="order-facts">

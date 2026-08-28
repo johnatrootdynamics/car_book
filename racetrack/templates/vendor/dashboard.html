@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="vendor-dashboard-page">
+  <header class="vendor-dashboard-header">
+    <div class="vendor-dashboard-identity">
+      {% set logo_url = asset_url(current_user.logo_image_path) %}
+      {% if logo_url %}<img src="{{ logo_url }}" alt="{{ current_user.business_name }} logo">
+      {% else %}<span>{{ current_user.business_name[:1]|upper }}</span>{% endif %}
+      <div><span class="event-page-kicker">Vendor workspace</span><h2>{{ current_user.business_name }}</h2><p>Manage your profile and vendor admission across every Track Ops venue.</p></div>
+    </div>
+    <div class="vendor-dashboard-actions"><a class="btn btn-secondary" href="{{ url_for('vendor.profile') }}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit profile</a><a class="btn" href="{{ url_for('user.spectator_events') }}"><i class="bi bi-ticket-perforated" aria-hidden="true"></i> Find events</a></div>
+  </header>
+
+  <section class="vendor-dashboard-metrics" aria-label="Vendor summary">
+    <article><span>Purchased passes</span><strong>{{ ticket_count }}</strong></article>
+    <article><span>Upcoming passes</span><strong>{{ upcoming_count }}</strong></article>
+    <article><span>Profile</span><strong>{{ 'Ready' if current_user.description and current_user.logo_image_path else 'Needs details' }}</strong></article>
+  </section>
+
+  <section class="card vendor-dashboard-orders">
+    <div class="driver-profile-section-head"><div><span>Across all tracks</span><h3>Vendor ticket history</h3></div><span>{{ orders|length }} orders</span></div>
+    {% if orders %}
+      <div class="vendor-order-list">
+        {% for row in orders %}
+          <article>
+            <div><strong>{{ row.order.order_number }}</strong><span>{{ row.order.created_at.strftime('%b %-d, %Y') }}</span></div>
+            <div class="vendor-order-events">
+              {% for item in row.items %}<span><i class="bi bi-geo-alt" aria-hidden="true"></i><strong>{{ item.event.event_name }}</strong><small>{{ item.event.track.name }} · {{ item.event.event_date.strftime('%b %-d, %Y') }}</small></span>{% endfor %}
+            </div>
+            <span class="order-status-pill paid">Paid</span>
+            <a href="{{ url_for('user.spectator_order_success', order_id=row.order.id) }}">View tickets <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="driver-profile-empty"><i class="bi bi-shop" aria-hidden="true"></i><span>No vendor passes purchased yet.</span></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -28,6 +28,7 @@ from .models import (
     TrackPaymentMethod,
     TrackSubscription,
     TrackWaiverTemplate,
+    VendorAccount,
     db,
 )
 from .services.storage_service import upload_public_image
@@ -195,11 +196,12 @@ def _ticket_purchase_limit(event, ticket_type):
 
 
 def _get_or_create_spectator_cart():
-    user_id = None
-    if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
-        user_id = current_user.id
-    if user_id:
-        user_cart = SpectatorCart.query.filter_by(user_id=user_id).first()
+    account_type = getattr(current_user, "account_type", None) if current_user.is_authenticated else None
+    owner_field = "user_id" if account_type == "user" else ("vendor_id" if account_type == "vendor" else None)
+    owner_id = current_user.id if owner_field else None
+    if owner_id:
+        owner_filter = {owner_field: owner_id}
+        account_cart = SpectatorCart.query.filter_by(**owner_filter).first()
         guest_token = session.get("spectator_cart_token")
         guest_cart = (
             SpectatorCart.query.filter_by(session_token=guest_token).first()
@@ -207,23 +209,23 @@ def _get_or_create_spectator_cart():
             else None
         )
 
-        if guest_cart and guest_cart.id != getattr(user_cart, "id", None):
-            if not user_cart:
-                guest_cart.user_id = user_id
+        if guest_cart and guest_cart.id != getattr(account_cart, "id", None):
+            if not account_cart:
+                setattr(guest_cart, owner_field, owner_id)
                 guest_cart.session_token = None
                 session.pop("spectator_cart_token", None)
                 db.session.commit()
                 return guest_cart
 
             guest_items = list(guest_cart.items)
-            user_items = list(user_cart.items)
+            account_items = list(account_cart.items)
             guest_track_ids = {item.event.track_id for item in guest_items}
-            user_track_ids = {item.event.track_id for item in user_items}
-            can_merge = not guest_items or not user_items or guest_track_ids == user_track_ids
+            account_track_ids = {item.event.track_id for item in account_items}
+            can_merge = not guest_items or not account_items or guest_track_ids == account_track_ids
             if can_merge:
                 for guest_item in guest_items:
                     existing = SpectatorCartItem.query.filter_by(
-                        cart_id=user_cart.id,
+                        cart_id=account_cart.id,
                         event_id=guest_item.event_id,
                         ticket_type_id=guest_item.ticket_type_id,
                     ).first()
@@ -235,7 +237,7 @@ def _get_or_create_spectator_cart():
                         )
                         db.session.delete(guest_item)
                     else:
-                        guest_item.cart = user_cart
+                        guest_item.cart = account_cart
                 db.session.delete(guest_cart)
                 session.pop("spectator_cart_token", None)
                 session.pop("spectator_cart_merge_notice", None)
@@ -246,14 +248,14 @@ def _get_or_create_spectator_cart():
                     "Your saved account cart is for another track, so it was kept separate from the guest cart.",
                     "error",
                 )
-            return user_cart
+            return account_cart
 
-        if user_cart:
-            return user_cart
-        user_cart = SpectatorCart(user_id=user_id)
-        db.session.add(user_cart)
+        if account_cart:
+            return account_cart
+        account_cart = SpectatorCart(**owner_filter)
+        db.session.add(account_cart)
         db.session.commit()
-        return user_cart
+        return account_cart
 
     token = session.get("spectator_cart_token")
     if not token:
@@ -400,7 +402,8 @@ def _finalize_spectator_order(order, transaction_id=None):
             SpectatorTicketOrder(
                 event_id=order_item.event_id,
                 user_id=order.user_id,
-                buyer_type="user" if order.user_id else "guest",
+                vendor_id=order.vendor_id,
+                buyer_type="vendor" if order.vendor_id else ("user" if order.user_id else "guest"),
                 guest_full_name=order.guest_full_name,
                 guest_email=order.guest_email,
                 guest_phone=order.guest_phone,
@@ -412,6 +415,11 @@ def _finalize_spectator_order(order, transaction_id=None):
         )
     if order.user_id:
         cart = SpectatorCart.query.filter_by(user_id=order.user_id).first()
+        if cart:
+            for item in list(cart.items):
+                db.session.delete(item)
+    elif order.vendor_id:
+        cart = SpectatorCart.query.filter_by(vendor_id=order.vendor_id).first()
         if cart:
             for item in list(cart.items):
                 db.session.delete(item)
@@ -624,6 +632,19 @@ def spectator_cart_add():
         ).first_or_404()
     else:
         ticket_type = _get_or_create_default_ticket_type(event, "spectator")
+    if ticket_type.ticket_category == "vendor" and (
+        not current_user.is_authenticated
+        or getattr(current_user, "account_type", None) != "vendor"
+    ):
+        flash("Vendor admission requires a vendor account.", "error")
+        if current_user.is_authenticated:
+            return redirect(url_for("user.spectator_tickets", event_id=event.id))
+        return redirect(
+            url_for(
+                "auth.user_login",
+                next=url_for("user.spectator_tickets", event_id=event.id),
+            )
+        )
     purchase_limit, availability = _ticket_purchase_limit(event, ticket_type)
     if purchase_limit <= 0:
         flash(f"{ticket_type.name} is sold out for this event.", "error")
@@ -749,6 +770,14 @@ def spectator_checkout():
         item.ticket_type and item.ticket_type.ticket_category == "vendor"
         for item in items
     )
+    if has_vendor_tickets and (
+        not current_user.is_authenticated
+        or getattr(current_user, "account_type", None) != "vendor"
+    ):
+        flash("Sign in with a vendor account to purchase vendor admission.", "error")
+        if current_user.is_authenticated:
+            return redirect(url_for("user.spectator_cart"))
+        return redirect(url_for("auth.user_login", next=url_for("user.spectator_checkout")))
     payment_track = items[0].event.track
     payment_choices = _configured_payment_choices(payment_track, subtotal_cents)
     if not payment_choices:
@@ -757,10 +786,17 @@ def spectator_checkout():
 
     form = SpectatorCheckoutForm()
     form.payment_method.choices = payment_choices
-    if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" and request.method == "GET":
-        form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
+    account_type = getattr(current_user, "account_type", None) if current_user.is_authenticated else None
+    if account_type in {"user", "vendor"} and request.method == "GET":
+        form.full_name.data = (
+            f"{current_user.first_name} {current_user.last_name}".strip()
+            if account_type == "user"
+            else current_user.full_name
+        )
         form.email.data = current_user.email
         form.phone.data = current_user.phone
+        if account_type == "vendor":
+            form.vendor_business_name.data = current_user.business_name
     if request.method == "GET":
         form.payment_method.data = payment_choices[0][0]
 
@@ -773,7 +809,8 @@ def spectator_checkout():
     if form_is_valid:
         provider = form.payment_method.data
         payment_credentials = _payment_credentials(payment_track, provider)
-        user_id = current_user.id if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user" else None
+        user_id = current_user.id if account_type == "user" else None
+        vendor_id = current_user.id if account_type == "vendor" else None
         buyer_name = form.full_name.data.strip()
         buyer_email = form.email.data.strip().lower()
         buyer_phone = form.phone.data.strip()
@@ -781,10 +818,16 @@ def spectator_checkout():
             buyer_name = f"{current_user.first_name} {current_user.last_name}".strip()
             buyer_email = current_user.email
             buyer_phone = current_user.phone
+        elif vendor_id:
+            buyer_name = current_user.full_name
+            buyer_email = current_user.email
+            buyer_phone = current_user.phone
+            vendor_business_name = current_user.business_name
 
         order = SpectatorOrder(
             order_number=f"SP-{secrets.token_hex(4).upper()}",
             user_id=user_id,
+            vendor_id=vendor_id,
             guest_full_name=buyer_name,
             guest_email=buyer_email,
             guest_phone=buyer_phone,
@@ -881,7 +924,8 @@ def spectator_checkout():
                 SpectatorTicketOrder(
                     event_id=item.event_id,
                     user_id=user_id,
-                    buyer_type="user" if user_id else "guest",
+                    vendor_id=vendor_id,
+                    buyer_type="vendor" if vendor_id else ("user" if user_id else "guest"),
                     guest_full_name=buyer_name,
                     guest_email=buyer_email,
                     guest_phone=buyer_phone,
@@ -915,6 +959,12 @@ def spectator_checkout():
 @user_bp.route("/spectator/order/<int:order_id>")
 def spectator_order_success(order_id):
     order = SpectatorOrder.query.get_or_404(order_id)
+    if order.vendor_id and (
+        not current_user.is_authenticated
+        or getattr(current_user, "account_type", None) != "vendor"
+        or current_user.id != order.vendor_id
+    ):
+        return "Order not found", 404
     items = SpectatorOrderItem.query.filter_by(order_id=order.id).all()
     return render_template("user/spectator_order_success.html", order=order, items=items, money=_money)
 

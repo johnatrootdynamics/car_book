@@ -20,6 +20,7 @@ from .models import (
     SpectatorOrderItem,
     Track,
     User,
+    VendorAccount,
 )
 from .services.storage_service import build_presigned_read_url
 
@@ -43,6 +44,8 @@ def load_user(user_id):
         return Employee.query.get(object_id)
     if user_type == "admin":
         return EnterpriseAdmin.query.get(object_id)
+    if user_type == "vendor":
+        return VendorAccount.query.get(object_id)
     return None
 
 
@@ -133,11 +136,13 @@ def create_app():
     from .auth import auth_bp
     from .employee_routes import employee_bp
     from .user_routes import user_bp
+    from .vendor_routes import vendor_bp
     from .waiver_routes import waiver_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(user_bp)
+    app.register_blueprint(vendor_bp)
     app.register_blueprint(employee_bp)
     app.register_blueprint(waiver_bp)
     csrf.exempt(app.view_functions["waiver.boldsign_webhook"])
@@ -179,6 +184,7 @@ def create_app():
             "inspections",
             "inspection_items",
             "enterprise_admins",
+            "vendor_accounts",
             "social_posts",
             "social_comments",
             "community_groups",
@@ -355,6 +361,15 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS vendor_business_name VARCHAR(150) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_orders ADD COLUMN IF NOT EXISTS vendor_id INT NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_carts ADD COLUMN IF NOT EXISTS vendor_id INT NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE spectator_ticket_orders ADD COLUMN IF NOT EXISTS vendor_id INT NULL"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE spectator_ticket_orders ADD COLUMN IF NOT EXISTS guest_phone VARCHAR(30) NULL"
@@ -574,6 +589,7 @@ def create_app():
             "is_user": getattr(current_user, "account_type", None) == "user",
             "is_employee": getattr(current_user, "account_type", None) == "employee",
             "is_admin": getattr(current_user, "account_type", None) == "admin",
+            "is_vendor": getattr(current_user, "account_type", None) == "vendor",
             "is_office_staff": (
                 getattr(current_user, "account_type", None) == "admin"
                 or (
@@ -602,6 +618,7 @@ def create_app():
             "inspections",
             "inspection_items",
             "enterprise_admins",
+            "vendor_accounts",
             "social_posts",
             "social_comments",
             "community_groups",

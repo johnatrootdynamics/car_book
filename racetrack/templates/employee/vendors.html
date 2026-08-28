@@ -7,7 +7,7 @@
       <h2>On-site Vendors</h2>
       <p class="muted-line">Paid vendor representatives and their individual gate status.</p>
     </div>
-    <a class="btn" href="{{ url_for('employee.ticket_verification') }}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Open scanner</a>
+    <div class="vendor-header-actions">{% if is_office_staff %}<a class="btn btn-secondary" href="{{ url_for('employee.vendor_directory') }}"><i class="bi bi-building" aria-hidden="true"></i> Vendor directory</a>{% endif %}<a class="btn" href="{{ url_for('employee.ticket_verification') }}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Open scanner</a></div>
   </header>
 
   <section class="card vendor-ops-toolbar">
@@ -42,13 +42,13 @@
       {% if vendor_tickets %}
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Business</th><th>Representative</th><th>Contact</th><th>Order</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Business</th>{% if is_office_staff %}<th>Representative</th><th>Contact</th>{% endif %}<th>Order</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {% for item in vendor_tickets %}
                 <tr>
-                  <td><strong>{{ item.order.vendor_business_name or 'Not provided' }}</strong></td>
-                  <td>{{ item.order.guest_full_name or 'Guest' }}</td>
-                  <td>{{ item.order.guest_email }}<small>{{ item.order.guest_phone or '' }}</small></td>
+                  <td>{% if item.order.vendor %}<a href="{{ url_for('vendor.public_profile', vendor_id=item.order.vendor.id) }}"><strong>{{ item.order.vendor.business_name }}</strong></a>{% else %}<strong>{{ item.order.vendor_business_name or 'Legacy vendor' }}</strong>{% endif %}</td>
+                  {% if is_office_staff %}<td>{{ item.order.vendor.full_name if item.order.vendor else (item.order.guest_full_name or 'Guest') }}</td>
+                  <td>{{ item.order.vendor.email if item.order.vendor else item.order.guest_email }}<small>{{ item.order.vendor.phone if item.order.vendor else (item.order.guest_phone or '') }}</small></td>{% endif %}
                   <td>{{ item.order.order_number }}</td>
                   <td>{% if item.checked_in_at %}<span class="order-status-pill paid">On site</span><small>{{ item.checked_in_at.strftime('%-I:%M %p') }}</small>{% else %}<span class="order-status-pill ready">Ready</span>{% endif %}</td>
                   <td><a class="btn btn-secondary btn-sm" href="{{ url_for('employee.ticket_verification', code=item.qr_code) }}">Verify</a></td>

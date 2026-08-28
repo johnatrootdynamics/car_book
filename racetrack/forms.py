@@ -19,6 +19,40 @@ class UserRegistrationForm(FlaskForm):
     submit = SubmitField("Create Account & Email Password")
 
 
+class VendorRegistrationForm(FlaskForm):
+    full_name = StringField("Contact Name", validators=[DataRequired(), Length(max=150)])
+    business_name = StringField("Business Name", validators=[DataRequired(), Length(max=150)])
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    phone = StringField("Phone", validators=[DataRequired(), Length(max=30)])
+    business_address = TextAreaField(
+        "Business Address", validators=[DataRequired(), Length(max=500)]
+    )
+    website = StringField("Website", validators=[Optional(), Length(max=500)])
+    logo = FileField(
+        "Picture or Logo",
+        validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
+    )
+    description = TextAreaField("Public Description", validators=[Optional(), Length(max=2000)])
+    submit = SubmitField("Create Vendor Account & Email Password")
+
+
+class VendorProfileForm(FlaskForm):
+    full_name = StringField("Contact Name", validators=[DataRequired(), Length(max=150)])
+    business_name = StringField("Business Name", validators=[DataRequired(), Length(max=150)])
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    phone = StringField("Phone", validators=[DataRequired(), Length(max=30)])
+    business_address = TextAreaField(
+        "Business Address", validators=[DataRequired(), Length(max=500)]
+    )
+    website = StringField("Website", validators=[Optional(), Length(max=500)])
+    logo = FileField(
+        "Replace Picture or Logo",
+        validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
+    )
+    description = TextAreaField("Public Description", validators=[Optional(), Length(max=2000)])
+    submit = SubmitField("Save Vendor Profile")
+
+
 class LoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Length(max=255)])
     password = PasswordField("Password", validators=[DataRequired(), Length(max=255)])

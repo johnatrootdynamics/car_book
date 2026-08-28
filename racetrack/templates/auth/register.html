@@ -5,6 +5,7 @@
     <h2>Create Driver Account</h2>
     <p>Join your local track community, sign up for events, and get inspection-ready with your unique check-in code.</p>
     <p class="register-password-note"><i class="bi bi-envelope-check" aria-hidden="true"></i> We’ll generate a secure password and email it directly to you.</p>
+    <p class="register-account-switch">Registering a business? <a href="{{ url_for('auth.vendor_register') }}">Create a vendor account</a></p>
   </div>
   <form method="post" class="form-grid narrow register-form" data-enhanced>
     {{ form.hidden_tag() }}

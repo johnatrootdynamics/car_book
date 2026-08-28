@@ -54,11 +54,11 @@
         </div>
         <dl class="ticket-result-facts ticket-result-facts-used">
           <div><dt>Event</dt><dd>{{ item.event.event_name }}<small>{{ item.event.event_date.strftime('%b %-d, %Y') }} &middot; {{ item.event.track.name }}</small></dd></div>
-          <div><dt>Guest</dt><dd>{{ item.order.guest_full_name or 'Guest' }}</dd></div>
+          <div><dt>{{ 'Business' if item.ticket_category == 'vendor' else 'Guest' }}</dt><dd>{% if item.ticket_category == 'vendor' %}{{ item.order.vendor.business_name if item.order.vendor else (item.order.vendor_business_name or 'Vendor') }}{% else %}{{ item.order.guest_full_name or 'Guest' }}{% endif %}</dd></div>
           <div><dt>Ticket</dt><dd>{{ 'Vendor' if item.ticket_category == 'vendor' else 'Spectator' }} &middot; {{ item.ticket_type_name }}</dd></div>
           <div><dt>Order</dt><dd>{{ item.order.order_number }}</dd></div>
           <div><dt>First used</dt><dd>{{ item.checked_in_at.strftime('%b %-d, %Y at %-I:%M %p') }}</dd></div>
-          <div><dt>{{ 'Business' if item.ticket_category == 'vendor' else 'Checked in by' }}</dt><dd>{{ item.order.vendor_business_name if item.ticket_category == 'vendor' else (item.checked_in_by.full_name if item.checked_in_by else 'Track staff') }}</dd></div>
+          <div><dt>{{ 'Contact' if item.ticket_category == 'vendor' else 'Checked in by' }}</dt><dd>{% if item.ticket_category == 'vendor' %}{{ (item.order.vendor.full_name if item.order.vendor else (item.order.guest_full_name or 'Guest')) if is_office_staff else 'Available to office staff' }}{% else %}{{ item.checked_in_by.full_name if item.checked_in_by else 'Track staff' }}{% endif %}</dd></div>
         </dl>
       {% else %}
         <div class="ticket-result-status">
@@ -70,10 +70,10 @@
           </div>
         </div>
         <dl class="ticket-result-facts">
-          <div><dt>Guest</dt><dd>{{ item.order.guest_full_name or 'Guest' }}</dd></div>
+          <div><dt>{{ 'Business' if item.ticket_category == 'vendor' else 'Guest' }}</dt><dd>{% if item.ticket_category == 'vendor' %}{{ item.order.vendor.business_name if item.order.vendor else (item.order.vendor_business_name or 'Vendor') }}{% else %}{{ item.order.guest_full_name or 'Guest' }}{% endif %}</dd></div>
           <div><dt>Ticket</dt><dd>{{ 'Vendor' if item.ticket_category == 'vendor' else 'Spectator' }} &middot; {{ item.ticket_type_name }}</dd></div>
           <div><dt>Order</dt><dd>{{ item.order.order_number }}</dd></div>
-          <div><dt>{{ 'Business' if item.ticket_category == 'vendor' else 'Code' }}</dt><dd>{% if item.ticket_category == 'vendor' %}{{ item.order.vendor_business_name or 'Not provided' }}{% else %}<code>{{ item.qr_code }}</code>{% endif %}</dd></div>
+          <div><dt>{{ 'Contact' if item.ticket_category == 'vendor' else 'Code' }}</dt><dd>{% if item.ticket_category == 'vendor' %}{{ (item.order.vendor.full_name if item.order.vendor else (item.order.guest_full_name or 'Guest')) if is_office_staff else 'Available to office staff' }}{% else %}<code>{{ item.qr_code }}</code>{% endif %}</dd></div>
         </dl>
         <form method="post" action="{{ url_for('employee.ticket_checkin', event_id=item.event_id, item_id=item.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

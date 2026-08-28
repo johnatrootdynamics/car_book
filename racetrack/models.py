@@ -185,6 +185,32 @@ class EnterpriseAdmin(db.Model, UserMixin):
         return f"admin:{self.id}"
 
 
+class VendorAccount(db.Model, UserMixin):
+    __tablename__ = "vendor_accounts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(150), nullable=False)
+    business_name = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    phone = db.Column(db.String(30), nullable=False)
+    business_address = db.Column(db.String(500), nullable=False)
+    website = db.Column(db.String(500), nullable=True)
+    logo_image_path = db.Column(db.String(500), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    @property
+    def account_type(self):
+        return "vendor"
+
+    def get_id(self):
+        return f"vendor:{self.id}"
+
+
 class SystemEmailSettings(db.Model):
     __tablename__ = "system_email_settings"
 
@@ -523,6 +549,7 @@ class SpectatorTicketOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey("vendor_accounts.id"), nullable=True)
     buyer_type = db.Column(db.String(20), nullable=False, default="guest")
     guest_full_name = db.Column(db.String(150), nullable=True)
     guest_email = db.Column(db.String(255), nullable=True)
@@ -534,6 +561,7 @@ class SpectatorTicketOrder(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     buyer = db.relationship("User")
+    vendor = db.relationship("VendorAccount")
 
     __table_args__ = (
         db.CheckConstraint("quantity > 0", name="chk_spectator_ticket_quantity"),
@@ -581,12 +609,14 @@ class SpectatorCart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_token = db.Column(db.String(64), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey("vendor_accounts.id"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
     items = db.relationship("SpectatorCartItem", backref="cart", cascade="all, delete-orphan")
+    vendor = db.relationship("VendorAccount")
 
 
 class SpectatorCartItem(db.Model):
@@ -609,6 +639,7 @@ class SpectatorOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(40), nullable=False, unique=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey("vendor_accounts.id"), nullable=True)
     guest_full_name = db.Column(db.String(150), nullable=True)
     guest_email = db.Column(db.String(255), nullable=True)
     guest_phone = db.Column(db.String(30), nullable=True)
@@ -625,6 +656,7 @@ class SpectatorOrder(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     buyer = db.relationship("User")
+    vendor = db.relationship("VendorAccount")
     items = db.relationship(
         "SpectatorOrderItem",
         backref="order",

@@ -25,6 +25,7 @@ from .models import (
     Track,
     TrackWaiverTemplate,
     User,
+    VendorAccount,
     db,
 )
 from .security import generate_random_password
@@ -38,6 +39,7 @@ from .services.email_service import (
     send_employee_login_email,
     send_spectator_order_receipt,
     send_user_login_email,
+    send_vendor_login_email,
 )
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status
@@ -50,7 +52,7 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 def require_admin():
     if not current_user.is_authenticated:
         flash("Please sign in as enterprise admin.", "error")
-        return redirect(url_for("auth.admin_login"))
+        return redirect(url_for("auth.user_login"))
     if current_user.account_type != "admin":
         flash("Enterprise admin access required.", "error")
         return redirect(url_for("auth.home"))
@@ -323,6 +325,7 @@ def accounts():
     employees_query = Employee.query.join(Track)
     users_query = User.query
     admins_query = EnterpriseAdmin.query
+    vendors_query = VendorAccount.query
     if query:
         pattern = f"%{query}%"
         employees_query = employees_query.filter(
@@ -346,14 +349,23 @@ def accounts():
                 EnterpriseAdmin.email.ilike(pattern),
             )
         )
+        vendors_query = vendors_query.filter(
+            or_(
+                VendorAccount.business_name.ilike(pattern),
+                VendorAccount.full_name.ilike(pattern),
+                VendorAccount.email.ilike(pattern),
+            )
+        )
     employees = employees_query.order_by(Employee.created_at.desc()).limit(100).all()
     users = users_query.order_by(User.created_at.desc()).limit(100).all()
     admins = admins_query.order_by(EnterpriseAdmin.created_at.desc()).limit(100).all()
+    vendors = vendors_query.order_by(VendorAccount.created_at.desc()).limit(100).all()
     return render_template(
         "admin/accounts.html",
         employees=employees,
         users=users,
         admins=admins,
+        vendors=vendors,
         query=query,
     )
 
@@ -371,6 +383,7 @@ def reset_account_password(account_type, account_id):
         "driver": User,
         "employee": Employee,
         "admin": EnterpriseAdmin,
+        "vendor": VendorAccount,
     }
     model = account_models.get(account_type)
     if not model:
@@ -393,14 +406,21 @@ def reset_account_password(account_type, account_id):
                 account,
                 plaintext_password,
                 account.track,
-                url_for("auth.employee_login", _external=True),
+                url_for("auth.user_login", _external=True),
                 is_reset=True,
             )
-        else:
+        elif account_type == "admin":
             sent = send_admin_login_email(
                 account,
                 plaintext_password,
-                url_for("auth.admin_login", _external=True),
+                url_for("auth.user_login", _external=True),
+                is_reset=True,
+            )
+        else:
+            sent = send_vendor_login_email(
+                account,
+                plaintext_password,
+                url_for("auth.user_login", _external=True),
                 is_reset=True,
             )
     except Exception:

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="vendor-profile-page">
+  <header class="vendor-register-header">
+    <div><span class="event-page-kicker">Vendor workspace</span><h2>Business profile</h2><p>Keep your reusable public business page and private track contact information current.</p></div>
+    <a href="{{ url_for('vendor.public_profile', vendor_id=current_user.id) }}">View public profile <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+  </header>
+  <form method="post" enctype="multipart/form-data" class="card vendor-profile-form" data-enhanced>
+    {{ form.hidden_tag() }}
+    <div class="vendor-form-section-head"><span>Private contact</span><p>Only office staff and enterprise administrators can see these fields.</p></div>
+    <div class="form-grid two-col">
+      <label>Contact Name {{ form.full_name() }}</label>
+      <label>Email {{ form.email() }}</label>
+      <label>Phone {{ form.phone() }}</label>
+      <label class="full">Business Address {{ form.business_address(rows='3') }}</label>
+    </div>
+    <div class="vendor-form-section-head public"><span>Public business profile</span><p>Visible when your vendor profile is shared or featured.</p></div>
+    <div class="form-grid two-col">
+      <label>Business Name {{ form.business_name() }}</label>
+      <label>Website {{ form.website() }}</label>
+      <label class="full">Replace Picture or Logo {{ form.logo(accept='image/png,image/jpeg,image/webp') }}</label>
+      <label class="full">Description {{ form.description(rows='6', data_autoresize='') }}</label>
+    </div>
+    {% for field in [form.full_name, form.business_name, form.email, form.phone, form.business_address, form.website, form.logo, form.description] %}{% for error in field.errors %}<small class="field-error">{{ field.label.text }}: {{ error }}</small>{% endfor %}{% endfor %}
+    <div class="vendor-register-submit">{{ form.submit(class_='btn') }}</div>
+  </form>
+</div>
+{% endblock %}

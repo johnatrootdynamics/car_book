@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="vendor-register-page">
+  <header class="vendor-register-header">
+    <div>
+      <span class="event-page-kicker">Vendor network</span>
+      <h2>Create a vendor account</h2>
+      <p>Build one business profile, then use it to purchase vendor admission from any Track Ops venue.</p>
+    </div>
+    <a href="{{ url_for('auth.user_register') }}">Register as a driver</a>
+  </header>
+
+  <div class="vendor-register-layout">
+    <form method="post" enctype="multipart/form-data" class="card vendor-profile-form" data-enhanced>
+      {{ form.hidden_tag() }}
+      <div class="vendor-form-section-head"><span>Private contact</span><p>Visible only to track office staff and enterprise administrators.</p></div>
+      <div class="form-grid two-col">
+        <label>Contact Name {{ form.full_name(placeholder='Alex Morgan') }}</label>
+        <label>Email {{ form.email(placeholder='alex@business.com', autocomplete='email') }}</label>
+        <label>Phone {{ form.phone(placeholder='(555) 555-5555') }}</label>
+        <label class="full">Business Address {{ form.business_address(placeholder='Street, city, state, and postal code', rows='3') }}</label>
+      </div>
+
+      <div class="vendor-form-section-head public"><span>Public business profile</span><p>These details can appear anywhere your business is featured.</p></div>
+      <div class="form-grid two-col">
+        <label>Business Name {{ form.business_name(placeholder='Morgan Motorsports') }}</label>
+        <label>Website {{ form.website(placeholder='https://example.com') }}</label>
+        <label class="full">Picture or Logo {{ form.logo(accept='image/png,image/jpeg,image/webp') }}</label>
+        <label class="full">Description {{ form.description(placeholder='Tell event guests what your business offers…', rows='5') }}</label>
+      </div>
+      {% for field in [form.full_name, form.business_name, form.email, form.phone, form.business_address, form.website, form.logo, form.description] %}
+        {% for error in field.errors %}<small class="field-error">{{ field.label.text }}: {{ error }}</small>{% endfor %}
+      {% endfor %}
+      <div class="vendor-register-submit">{{ form.submit(class_='btn') }}<span><i class="bi bi-envelope-check" aria-hidden="true"></i> A generated password will be emailed to you.</span></div>
+    </form>
+
+    <aside class="vendor-register-aside">
+      <div class="vendor-register-icon"><i class="bi bi-shop" aria-hidden="true"></i></div>
+      <h3>One profile for every track</h3>
+      <p>Your business identity follows you across Track Ops. Tracks see the information they need, while guests see only your public profile.</p>
+      <ul>
+        <li><i class="bi bi-check2" aria-hidden="true"></i> Purchase and manage vendor passes</li>
+        <li><i class="bi bi-check2" aria-hidden="true"></i> Keep business details consistent</li>
+        <li><i class="bi bi-check2" aria-hidden="true"></i> Prepare for future event and community features</li>
+      </ul>
+    </aside>
+  </div>
+</div>
+{% endblock %}

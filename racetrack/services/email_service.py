@@ -170,6 +170,28 @@ def send_user_login_email(user, plaintext_password, login_url, is_reset=False):
     )
 
 
+def send_vendor_login_email(vendor, plaintext_password, login_url, is_reset=False):
+    intro = (
+        "Your Track Ops vendor password has been reset."
+        if is_reset
+        else "Your Track Ops vendor account is ready."
+    )
+    return send_email(
+        vendor.email,
+        "Your new Track Ops vendor password" if is_reset else "Welcome to Track Ops",
+        (
+            f"Hi {vendor.full_name},\n\n"
+            f"{intro}\n\n"
+            f"Business: {vendor.business_name}\n"
+            f"Login: {login_url}\n"
+            f"Email: {vendor.email}\n"
+            f"Password: {plaintext_password}\n\n"
+            "Please sign in and keep this information secure.\n\n"
+            "Thanks,\nTrack Ops"
+        ),
+    )
+
+
 def send_employee_login_email(
     employee,
     plaintext_password,

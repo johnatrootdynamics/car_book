@@ -17,19 +17,19 @@
       <span>Confirmation</span>
     </div>
 
-    {% if current_user.is_authenticated and current_user.account_type == 'user' %}
+    {% if current_user.is_authenticated and current_user.account_type in ['user', 'vendor'] %}
       <div class="checkout-account-card">
         <i class="bi bi-person-check"></i>
         <div>
           <strong>Checking out as {{ current_user.email }}</strong>
-          <p class="muted-line">We'll use your saved profile details for this order.</p>
+          <p class="muted-line">We'll use your saved {{ 'vendor' if current_user.account_type == 'vendor' else 'driver' }} profile details for this order.</p>
         </div>
       </div>
     {% else %}
       <div class="checkout-account-card checkout-account-highlight">
         <i class="bi bi-lightning-charge"></i>
         <div>
-          <strong>Already have a driver account?</strong>
+          <strong>Already have a Track Ops account?</strong>
           <p class="muted-line">Log in for faster checkout, or continue as a guest below.</p>
         </div>
         <a class="btn btn-sm" href="{{ url_for('auth.user_login', next=url_for('user.spectator_checkout')) }}">Log In</a>
@@ -47,7 +47,7 @@
           </div>
         </div>
         <div class="form-grid two-col">
-          {% if current_user.is_authenticated and current_user.account_type == 'user' %}
+          {% if current_user.is_authenticated and current_user.account_type in ['user', 'vendor'] %}
             <label>Full Name
               <input type="text" value="{{ form.full_name.data }}" disabled>
               {{ form.full_name(type='hidden') }}
@@ -66,10 +66,17 @@
             <label>Phone {{ form.phone(placeholder='(555) 555-5555') }}</label>
           {% endif %}
           {% if has_vendor_tickets %}
-            <label>Vendor Business Name {{ form.vendor_business_name(placeholder='Business or organization name', required=true) }}</label>
+            {% if current_user.is_authenticated and current_user.account_type == 'vendor' %}
+              <label>Vendor Business Name
+                <input type="text" value="{{ current_user.business_name }}" disabled>
+                {{ form.vendor_business_name(type='hidden') }}
+              </label>
+            {% else %}
+              <label>Vendor Business Name {{ form.vendor_business_name(placeholder='Business or organization name', required=true) }}</label>
+            {% endif %}
           {% endif %}
         </div>
-        {% if has_vendor_tickets %}<p class="hint"><i class="bi bi-shop" aria-hidden="true"></i> This name will appear in the track’s vendor check-in list.</p>{% endif %}
+        {% if has_vendor_tickets %}<p class="hint"><i class="bi bi-shop" aria-hidden="true"></i> Vendor admission is linked to your reusable business profile.</p>{% endif %}
       </section>
 
       <section class="checkout-section-card">

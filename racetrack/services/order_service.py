@@ -45,6 +45,9 @@ def load_order_rows(track_id=None):
             f"{order.buyer.first_name} {order.buyer.last_name}" if order.buyer else "Guest"
         )
         buyer_email = order.guest_email or (order.buyer.email if order.buyer else "")
+        if order.vendor:
+            buyer_name = order.vendor.full_name
+            buyer_email = order.vendor.email
         rows.append(
             {
                 "kind": "spectator",
@@ -56,7 +59,9 @@ def load_order_rows(track_id=None):
                 "event_names": event_names,
                 "buyer_name": buyer_name,
                 "buyer_email": buyer_email,
-                "vendor_business_name": order.vendor_business_name or "",
+                "vendor_business_name": (
+                    order.vendor.business_name if order.vendor else (order.vendor_business_name or "")
+                ),
                 "ticket_categories": ticket_categories,
                 "amount_cents": (
                     order.total_cents or 0
