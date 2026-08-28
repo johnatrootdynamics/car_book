@@ -4,7 +4,7 @@ import json
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
@@ -52,7 +52,7 @@ from .services.payment_service import (
     paypal_capture_details,
     verify_paypal_webhook_signature,
 )
-from .services.ticket_service import ensure_order_ticket_codes, generate_ticket_code
+from .services.ticket_service import code_qr_png, ensure_order_ticket_codes, generate_ticket_code
 
 try:
     import stripe
@@ -458,6 +458,9 @@ def dashboard():
     guard = require_user()
     if guard:
         return guard
+    if not current_user.static_qr_code:
+        current_user.static_qr_code = _generate_user_qr_code()
+        db.session.commit()
     cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
     signups = {
         reg.event_id: reg
@@ -558,6 +561,22 @@ def dashboard():
         subscribed_track_ids=subscribed_track_ids,
         track_class_by_track_id=track_class_by_track_id,
         driver_availability_by_event=driver_availability_by_event,
+    )
+
+
+@user_bp.route("/inspection-qr.png")
+@login_required
+def inspection_qr_image():
+    guard = require_user()
+    if guard:
+        return guard
+    if not current_user.static_qr_code:
+        current_user.static_qr_code = _generate_user_qr_code()
+        db.session.commit()
+    return Response(
+        code_qr_png(current_user.static_qr_code),
+        mimetype="image/png",
+        headers={"Cache-Control": "private, max-age=300"},
     )
 
 

@@ -143,9 +143,14 @@
     {% endif %}
   </article>
 
-  <article class="card dashboard-cell dashboard-placeholder">
-    <h3>More Coming Soon</h3>
-    <p class="muted-line">Grid slot reserved for upcoming features.</p>
+  <article class="card dashboard-cell driver-inspection-pass">
+    <div class="driver-inspection-pass-copy">
+      <span class="event-page-kicker">Track inspection</span>
+      <h3>My Inspection QR</h3>
+      <p>Show this reusable code to the track team. They can scan it to open your registration and begin the vehicle inspection.</p>
+      <code>{{ current_user.static_qr_code }}</code>
+    </div>
+    <div class="driver-inspection-qr"><img src="{{ url_for('user.inspection_qr_image') }}" alt="Driver inspection QR code"></div>
   </article>
 </section>
 

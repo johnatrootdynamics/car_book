@@ -16,12 +16,12 @@
   </p>
   <div class="inspection-header-actions">
     <code class="inspection-checkin-code">{{ registration.checkin_code }}</code>
-    <a class="btn btn-secondary btn-sm" href="{% if return_to == 'hub' %}{{ url_for('employee.inspections_hub', event_id=event.id) }}{% else %}{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}{% endif %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</a>
+    <a class="btn btn-secondary btn-sm" href="{% if return_to == 'hub' %}{{ url_for('employee.inspections_hub', event_id=event.id, scanner=1 if scanner_active else None) }}{% else %}{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}{% endif %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</a>
   </div>
 </header>
 
 <section class="card inspection-checklist-card">
-  <form method="post" class="form-grid" data-enhanced>
+  <form method="post" action="{{ url_for('employee.inspect_registration', event_id=event.id, registration_id=registration.id, return_to=return_to, scanner=1 if scanner_active else None) }}" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     {% for rule in rules %}
       <label class="check-row">

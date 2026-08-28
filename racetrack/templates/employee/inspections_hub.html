@@ -13,7 +13,7 @@
   </header>
 
   {% if events %}
-    <section class="card inspections-toolbar">
+    <section class="card inspections-toolbar inspections-event-toolbar">
       <form method="get" class="inspections-event-picker">
         <label for="inspection-event">Event</label>
         <select id="inspection-event" name="event_id" onchange="this.form.submit()">
@@ -24,19 +24,45 @@
           {% endfor %}
         </select>
       </form>
+      <div class="inspections-event-context"><i class="bi bi-calendar2-check" aria-hidden="true"></i><span><strong>{{ selected_event.event_name }}</strong><small>Select the event before scanning or searching.</small></span></div>
+    </section>
 
-      <form method="get" class="inspections-search">
-        <input type="hidden" name="event_id" value="{{ selected_event.id }}">
-        <label for="inspection-search">Driver, car, or check-in code</label>
-        <div class="inspections-search-row">
-          <div class="inspections-search-control">
-            <i class="bi bi-search" aria-hidden="true"></i>
-            <input id="inspection-search" type="search" name="q" value="{{ query }}" placeholder="Search the inspection queue" autocomplete="off">
-            {% if query %}<a href="{{ url_for('employee.inspections_hub', event_id=selected_event.id) }}">Clear</a>{% endif %}
-          </div>
-          <button class="btn btn-secondary btn-sm" type="submit">Search</button>
-        </div>
-      </form>
+    <section class="card inspection-intake" data-inspection-scanner data-scanner-active="{{ '1' if scanner_active else '0' }}" data-current-code="{{ scan_code or '' }}">
+      <div class="inspection-intake-head"><div><span>Find a driver</span><h3>Scan their QR or enter their name</h3></div>{% if scanner_active %}<span class="ticket-scanner-live"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Scanner on</span>{% endif %}</div>
+      <div class="inspection-intake-grid">
+        <article class="inspection-intake-option is-scan">
+          <span class="inspection-intake-icon"><i class="bi bi-qr-code-scan" aria-hidden="true"></i></span>
+          <div class="inspection-intake-copy"><strong>Scan QR code</strong><p>Use the driver’s reusable inspection QR, vehicle QR, or check-in code.</p></div>
+          <form method="get" data-inspection-qr-form>
+            <input type="hidden" name="event_id" value="{{ selected_event.id }}">
+            <input type="hidden" name="scanner" value="1" data-inspection-scanner-active>
+            <label class="sr-only" for="inspection-scan-code">QR or check-in code</label>
+            <div class="inspection-scan-entry"><input id="inspection-scan-code" type="text" name="scan_code" value="{{ scan_code }}" placeholder="DRV-… or CAR-…" autocomplete="off" autocapitalize="characters" spellcheck="false" data-inspection-qr-input><button class="btn btn-secondary btn-sm" type="submit">Look up</button></div>
+            <button class="btn inspection-camera-button" type="button" data-inspection-camera-start><i class="bi bi-camera" aria-hidden="true"></i> {{ 'Resume camera' if scanner_active else 'Use camera' }}</button>
+          </form>
+          <div class="inspection-camera-panel" data-inspection-camera-panel hidden><div id="inspection-qr-reader" data-inspection-qr-reader></div><p data-inspection-camera-status>Point the camera at the driver’s QR code.</p></div>
+        </article>
+
+        <span class="inspection-intake-divider">or</span>
+
+        <article class="inspection-intake-option is-search">
+          <span class="inspection-intake-icon"><i class="bi bi-person-search" aria-hidden="true"></i></span>
+          <div class="inspection-intake-copy"><strong>Search by name</strong><p>Enter a driver’s first name, last name, username, or vehicle.</p></div>
+          <form method="get" class="inspections-search">
+            <input type="hidden" name="event_id" value="{{ selected_event.id }}">
+            {% if scanner_active %}<input type="hidden" name="scanner" value="1">{% endif %}
+            <label class="sr-only" for="inspection-search">Driver name or vehicle</label>
+            <div class="inspections-search-row">
+              <div class="inspections-search-control">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input id="inspection-search" type="search" name="q" value="{{ query }}" placeholder="Start typing a driver’s name" autocomplete="off">
+                {% if query %}<a href="{{ url_for('employee.inspections_hub', event_id=selected_event.id, scanner=1 if scanner_active else None) }}">Clear</a>{% endif %}
+              </div>
+              <button class="btn btn-secondary btn-sm" type="submit">Search</button>
+            </div>
+          </form>
+        </article>
+      </div>
     </section>
 
     <section class="inspection-summary" aria-label="Inspection summary">
@@ -99,7 +125,7 @@
 
               <div class="inspection-queue-action">
                 {% if item.waiver_ok and active_rule_count %}
-                  <a class="btn {% if inspection and inspection.passed %}btn-secondary{% endif %} btn-sm" href="{{ url_for('employee.inspect_registration', event_id=selected_event.id, registration_id=registration.id, return_to='hub') }}">
+                  <a class="btn {% if inspection and inspection.passed %}btn-secondary{% endif %} btn-sm" href="{{ url_for('employee.inspect_registration', event_id=selected_event.id, registration_id=registration.id, return_to='hub', scanner=1 if scanner_active else None) }}">
                     {% if inspection and inspection.passed %}Review{% elif inspection %}Reinspect{% else %}Inspect{% endif %}
                   </a>
                 {% elif not active_rule_count %}
@@ -127,4 +153,7 @@
     </section>
   {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 {% endblock %}

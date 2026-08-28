@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 
 from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackEmailTemplateForm, TrackProfileForm
 from .models import (
+    Car,
     DriverClassChange,
     DriverNote,
     DriverTicketOrder,
@@ -403,6 +404,8 @@ def inspections_hub():
     elif events:
         selected_event = events[0]
 
+    scanner_active = request.args.get("scanner") == "1"
+    scan_code = normalize_ticket_code(request.args.get("scan_code"))
     query = (request.args.get("q") or "").strip()
     work_items = []
     counts = {
@@ -412,6 +415,46 @@ def inspections_hub():
         "passed": 0,
         "checked_in": 0,
     }
+
+    if selected_event and scan_code:
+        scanned_registration = (
+            EventRegistration.query.join(User, User.id == EventRegistration.user_id)
+            .join(Car, Car.id == EventRegistration.car_id)
+            .filter(
+                EventRegistration.event_id == selected_event.id,
+                or_(
+                    EventRegistration.checkin_code == scan_code,
+                    User.static_qr_code == scan_code,
+                    Car.static_qr_code == scan_code,
+                ),
+            )
+            .first()
+        )
+        if scanned_registration:
+            from .waiver_routes import get_required_waiver_status
+
+            waiver_state, _ = get_required_waiver_status(
+                selected_event.track_id,
+                scanned_registration.user_id,
+                selected_event.id,
+            )
+            if not active_rule_count:
+                flash("Inspection setup is required before this vehicle can be inspected.", "error")
+            elif waiver_state not in {"signed", "not_required"}:
+                flash("This driver's waiver must be completed before inspection.", "error")
+            else:
+                return redirect(
+                    url_for(
+                        "employee.inspect_registration",
+                        event_id=selected_event.id,
+                        registration_id=scanned_registration.id,
+                        return_to="hub",
+                        scanner=1,
+                    )
+                )
+            query = f"{scanned_registration.user.first_name} {scanned_registration.user.last_name}".strip()
+        else:
+            flash("That QR code does not match a driver registered for this event.", "error")
 
     if selected_event:
         registrations = (
@@ -474,7 +517,9 @@ def inspections_hub():
                         item["registration"].user.first_name or "",
                         item["registration"].user.last_name or "",
                         item["registration"].user.username or "",
+                        item["registration"].user.static_qr_code or "",
                         item["registration"].checkin_code or "",
+                        item["registration"].car.static_qr_code or "",
                         str(item["registration"].car.car_year or ""),
                         item["registration"].car.make or "",
                         item["registration"].car.model or "",
@@ -508,6 +553,8 @@ def inspections_hub():
         work_items=work_items,
         counts=counts,
         query=query,
+        scan_code=scan_code,
+        scanner_active=scanner_active,
         today=date.today(),
         active_rule_count=active_rule_count,
     )
@@ -2355,10 +2402,22 @@ def inspection_lookup(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
-    code = request.args.get("code", "").strip().upper()
+    code = normalize_ticket_code(request.args.get("code"))
     registration = None
     if code:
-        registration = EventRegistration.query.filter_by(event_id=event.id, checkin_code=code).first()
+        registration = (
+            EventRegistration.query.join(User, User.id == EventRegistration.user_id)
+            .join(Car, Car.id == EventRegistration.car_id)
+            .filter(
+                EventRegistration.event_id == event.id,
+                or_(
+                    EventRegistration.checkin_code == code,
+                    User.static_qr_code == code,
+                    Car.static_qr_code == code,
+                ),
+            )
+            .first()
+        )
         if not registration:
             flash("No signup found for that scan code in this event.", "error")
     waiver_ctx = None
@@ -2392,7 +2451,13 @@ def inspect_registration(event_id, registration_id):
     if not rules:
         flash("An active inspection checklist is required before inspecting cars.", "error")
         if request.args.get("return_to") == "hub":
-            return redirect(url_for("employee.inspections_hub", event_id=event_id))
+            return redirect(
+                url_for(
+                    "employee.inspections_hub",
+                    event_id=event_id,
+                    **({"scanner": 1} if request.args.get("scanner") == "1" else {}),
+                )
+            )
         return redirect(url_for("employee.event_detail", event_id=event_id, view="inspect"))
 
     inspection = Inspection.query.filter_by(event_registration_id=registration.id).first()
@@ -2418,7 +2483,13 @@ def inspect_registration(event_id, registration_id):
         db.session.commit()
         flash("Inspection saved.", "success")
         if request.args.get("return_to") == "hub":
-            return redirect(url_for("employee.inspections_hub", event_id=event_id))
+            return redirect(
+                url_for(
+                    "employee.inspections_hub",
+                    event_id=event_id,
+                    **({"scanner": 1} if request.args.get("scanner") == "1" else {}),
+                )
+            )
         return redirect(url_for("employee.participants", event_id=event_id))
 
     track_class = _get_or_create_track_driver_class(registration.event.track_id, registration.user_id)
@@ -2433,4 +2504,5 @@ def inspect_registration(event_id, registration_id):
         form=form,
         inspection=inspection,
         return_to=request.args.get("return_to"),
+        scanner_active=request.args.get("scanner") == "1",
     )

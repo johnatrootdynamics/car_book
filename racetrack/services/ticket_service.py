@@ -66,13 +66,17 @@ def ticket_verification_url(code):
     return url_for("employee.ticket_verification", code=code, _external=True)
 
 
-def ticket_qr_png(code):
+def code_qr_png(code):
     try:
         import qrcode
     except ImportError as exc:
         raise RuntimeError("QR image support is not installed.") from exc
 
-    image = qrcode.make(ticket_verification_url(code))
+    image = qrcode.make(code)
     output = BytesIO()
     image.save(output, format="PNG")
     return output.getvalue()
+
+
+def ticket_qr_png(code):
+    return code_qr_png(ticket_verification_url(code))

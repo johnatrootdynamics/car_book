@@ -403,6 +403,84 @@ function setupTicketQrScanner() {
   }
 }
 
+function setupInspectionQrScanner() {
+  const root = document.querySelector("[data-inspection-scanner]")
+  if (!root) return
+
+  const form = root.querySelector("[data-inspection-qr-form]")
+  const input = root.querySelector("[data-inspection-qr-input]")
+  const startButton = root.querySelector("[data-inspection-camera-start]")
+  const panel = root.querySelector("[data-inspection-camera-panel]")
+  const status = root.querySelector("[data-inspection-camera-status]")
+  const reader = root.querySelector("[data-inspection-qr-reader]")
+  const activeInput = root.querySelector("[data-inspection-scanner-active]")
+  if (!form || !input || !startButton || !panel || !reader || !activeInput) return
+
+  const extractCode = (value) => {
+    const raw = (value || "").trim()
+    if (!raw.toLowerCase().startsWith("http")) return raw
+    try {
+      return new URL(raw).searchParams.get("code") || raw
+    } catch (error) {
+      return raw
+    }
+  }
+
+  let scanner = null
+  let submitted = false
+  let starting = false
+  const currentCode = (root.dataset.currentCode || "").trim().toUpperCase()
+
+  const startScanner = async () => {
+    if (starting || scanner) return
+    if (typeof window.Html5Qrcode === "undefined") {
+      panel.hidden = false
+      if (status) status.textContent = "Camera scanning could not load. Enter the QR code manually or search by name."
+      return
+    }
+    starting = true
+    panel.hidden = false
+    startButton.disabled = true
+    startButton.innerHTML = '<i class="bi bi-broadcast-pin" aria-hidden="true"></i> Camera active'
+    activeInput.value = "1"
+    if (status) status.textContent = "Starting camera…"
+    try {
+      scanner = new window.Html5Qrcode(reader.id)
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 230, height: 230 }, aspectRatio: 1 },
+        (decodedText) => {
+          if (submitted) return
+          const decodedCode = extractCode(decodedText).trim().toUpperCase()
+          if (!decodedCode) return
+          if (decodedCode === currentCode) {
+            if (status) status.textContent = "That code was just checked. Move it away, then present the next driver’s QR."
+            return
+          }
+          submitted = true
+          input.value = decodedCode
+          if (status) status.textContent = "Driver found. Opening inspection…"
+          form.requestSubmit()
+        },
+        () => {}
+      )
+      if (status) status.textContent = currentCode
+        ? "Ready for the next driver. Point the camera at their QR code."
+        : "Scanner ready. Point the camera at the driver’s QR code."
+    } catch (error) {
+      scanner = null
+      startButton.disabled = false
+      startButton.innerHTML = '<i class="bi bi-camera" aria-hidden="true"></i> Resume camera'
+      if (status) status.textContent = "Camera access was unavailable. Check permission, enter the code, or search by name."
+    } finally {
+      starting = false
+    }
+  }
+
+  startButton.addEventListener("click", startScanner)
+  if (root.dataset.scannerActive === "1") window.setTimeout(startScanner, 120)
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupEnhancedForms()
   setupCounters()
@@ -415,4 +493,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupLiveTrackSearch()
   setupInspectionNameSearch()
   setupTicketQrScanner()
+  setupInspectionQrScanner()
 })
