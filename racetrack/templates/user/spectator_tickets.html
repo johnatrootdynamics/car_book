@@ -72,7 +72,7 @@
 
   <section class="event-vendors-section" aria-labelledby="event-vendors-title">
     <header>
-      <div><span class="event-page-kicker">At the event</span><h3 id="event-vendors-title">Vendors onsite</h3><p>Businesses with confirmed vendor admission for this event.</p></div>
+      <div><span class="event-page-kicker">At the event</span><h3 id="event-vendors-title">Vendors onsite</h3><p>Confirmed businesses appearing at this event.</p></div>
       {% if onsite_vendors %}<strong>{{ onsite_vendors|length }} confirmed</strong>{% endif %}
     </header>
     {% if onsite_vendors %}
@@ -83,7 +83,7 @@
             <a class="event-vendor-logo" href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}" aria-label="View {{ vendor.business_name }} profile">
               {% if logo_url %}<img src="{{ logo_url }}" alt="{{ vendor.business_name }} logo">{% else %}<span>{{ vendor.business_name[:1]|upper }}</span>{% endif %}
             </a>
-            <div><h4><a href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}">{{ vendor.business_name }}</a></h4><p>{{ vendor.description or 'Public vendor details are coming soon.' }}</p>{% if vendor.website %}<a class="event-vendor-website" href="{{ vendor.website }}" target="_blank" rel="noopener">Website <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>{% endif %}</div>
+            <div><h4><a href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}">{{ vendor.business_name }}</a></h4><a class="event-vendor-profile-link" href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}">View vendor <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
           </article>
         {% endfor %}
       </div>
