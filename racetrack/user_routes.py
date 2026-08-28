@@ -49,6 +49,7 @@ from .services.payment_service import (
     create_stripe_checkout_session,
     mark_driver_ticket_paid,
     mark_order_paid,
+    payment_is_confirmed,
     paypal_capture_details,
     verify_paypal_webhook_signature,
 )
@@ -580,8 +581,7 @@ def inspection_qr_image():
     )
 
 
-@user_bp.route("/events/<int:event_id>/spectator-tickets")
-def spectator_tickets(event_id):
+def _event_detail_response(event_id):
     event = Event.query.get_or_404(event_id)
     if event.event_date < date.today():
         flash("Spectator tickets are no longer available for this event.", "error")
@@ -598,6 +598,29 @@ def spectator_tickets(event_id):
     )
     cart = _get_or_create_spectator_cart()
     availability = _event_ticket_availability(event)
+    vendor_items = (
+        SpectatorOrderItem.query.join(
+            SpectatorOrder,
+            SpectatorOrder.id == SpectatorOrderItem.order_id,
+        )
+        .filter(
+            SpectatorOrderItem.event_id == event.id,
+            SpectatorOrderItem.ticket_category == "vendor",
+            SpectatorOrder.vendor_id.isnot(None),
+        )
+        .order_by(SpectatorOrder.created_at.asc())
+        .all()
+    )
+    onsite_vendors_by_id = {}
+    for item in vendor_items:
+        order = item.order
+        if order.vendor and payment_is_confirmed(
+            order.payment_status,
+            order.payment_method,
+            order.total_cents,
+            order.provider_transaction_id,
+        ):
+            onsite_vendors_by_id.setdefault(order.vendor.id, order.vendor)
     return render_template(
         "user/spectator_tickets.html",
         event=event,
@@ -606,7 +629,18 @@ def spectator_tickets(event_id):
         availability=availability,
         money=_money,
         cart_count=_cart_item_count(cart),
+        onsite_vendors=list(onsite_vendors_by_id.values()),
     )
+
+
+@user_bp.route("/events/<int:event_id>")
+def event_detail(event_id):
+    return _event_detail_response(event_id)
+
+
+@user_bp.route("/events/<int:event_id>/spectator-tickets")
+def spectator_tickets(event_id):
+    return redirect(url_for("user.event_detail", event_id=event_id))
 
 
 @user_bp.route("/spectator/events")
@@ -669,17 +703,17 @@ def spectator_cart_add():
     ):
         flash("Vendor admission requires a vendor account.", "error")
         if current_user.is_authenticated:
-            return redirect(url_for("user.spectator_tickets", event_id=event.id))
+            return redirect(url_for("user.event_detail", event_id=event.id))
         return redirect(
             url_for(
                 "auth.user_login",
-                next=url_for("user.spectator_tickets", event_id=event.id),
+                next=url_for("user.event_detail", event_id=event.id),
             )
         )
     purchase_limit, availability = _ticket_purchase_limit(event, ticket_type)
     if purchase_limit <= 0:
         flash(f"{ticket_type.name} is sold out for this event.", "error")
-        return redirect(url_for("user.spectator_tickets", event_id=event.id))
+        return redirect(url_for("user.event_detail", event_id=event.id))
     quantity = max(1, min(quantity, purchase_limit))
     cart = _get_or_create_spectator_cart()
     existing_items = SpectatorCartItem.query.filter_by(cart_id=cart.id).all()

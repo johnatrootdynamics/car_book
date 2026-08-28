@@ -71,6 +71,22 @@ class PasswordChangeForm(FlaskForm):
     submit = SubmitField("Set New Password")
 
 
+class PasswordUpdateForm(FlaskForm):
+    current_password = PasswordField(
+        "Current Password",
+        validators=[DataRequired(), Length(max=255)],
+    )
+    new_password = PasswordField(
+        "New Password",
+        validators=[DataRequired(), Length(min=10, max=255)],
+    )
+    confirm_password = PasswordField(
+        "Confirm New Password",
+        validators=[DataRequired(), EqualTo("new_password", message="Passwords must match.")],
+    )
+    submit = SubmitField("Update Password")
+
+
 class CarForm(FlaskForm):
     make = StringField("Make", validators=[DataRequired(), Length(max=100)])
     model = StringField("Model", validators=[DataRequired(), Length(max=100)])

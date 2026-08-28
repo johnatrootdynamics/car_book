@@ -18,12 +18,13 @@
         <small>{{ event.event_date.strftime('%Y') }}</small>
       </div>
       <div class="spectator-detail-copy">
-        <p class="spectator-detail-track">{{ event.track.name }}</p>
+        <p class="spectator-detail-track">Event details · {{ event.track.name }}</p>
         <h2>{{ event.event_name }}</h2>
         <p class="spectator-detail-location"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}</p>
         {% if event.event_start_time %}
-          <p class="spectator-detail-location"><i class="bi bi-clock" aria-hidden="true"></i> Gates and event timing begin at {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}</p>
+          <p class="spectator-detail-location"><i class="bi bi-clock" aria-hidden="true"></i> {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}{% if event.event_end_time %}–{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}</p>
         {% endif %}
+        {% if event.track_layout %}<p class="spectator-detail-location"><i class="bi bi-signpost-split" aria-hidden="true"></i> {{ event.track_layout.name }} layout</p>{% endif %}
       </div>
     </div>
 
@@ -67,6 +68,28 @@
     <article><i class="bi bi-phone" aria-hidden="true"></i><div><strong>Mobile ready</strong><span>Keep your confirmation handy at the gate.</span></div></article>
     <article><i class="bi bi-envelope-check" aria-hidden="true"></i><div><strong>Email confirmation</strong><span>Order details are delivered to the buyer.</span></div></article>
     <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>One easy cart</strong><span>{% if is_vendor %}Combine spectator and business admission in one checkout.{% else %}Purchase multiple admissions in one checkout.{% endif %}</span></div></article>
+  </section>
+
+  <section class="event-vendors-section" aria-labelledby="event-vendors-title">
+    <header>
+      <div><span class="event-page-kicker">At the event</span><h3 id="event-vendors-title">Vendors onsite</h3><p>Businesses with confirmed vendor admission for this event.</p></div>
+      {% if onsite_vendors %}<strong>{{ onsite_vendors|length }} confirmed</strong>{% endif %}
+    </header>
+    {% if onsite_vendors %}
+      <div class="event-vendor-grid">
+        {% for vendor in onsite_vendors %}
+          {% set logo_url = asset_url(vendor.logo_image_path) %}
+          <article>
+            <a class="event-vendor-logo" href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}" aria-label="View {{ vendor.business_name }} profile">
+              {% if logo_url %}<img src="{{ logo_url }}" alt="{{ vendor.business_name }} logo">{% else %}<span>{{ vendor.business_name[:1]|upper }}</span>{% endif %}
+            </a>
+            <div><h4><a href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}">{{ vendor.business_name }}</a></h4><p>{{ vendor.description or 'Public vendor details are coming soon.' }}</p>{% if vendor.website %}<a class="event-vendor-website" href="{{ vendor.website }}" target="_blank" rel="noopener">Website <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>{% endif %}</div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="event-vendors-empty"><i class="bi bi-shop-window" aria-hidden="true"></i><div><strong>Vendor lineup coming soon</strong><span>Confirmed businesses will appear here as the event gets closer.</span></div></div>
+    {% endif %}
   </section>
 </div>
 {% endblock %}

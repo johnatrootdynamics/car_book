@@ -16,7 +16,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .forms import LoginForm, PasswordChangeForm, UserRegistrationForm, VendorRegistrationForm
+from .forms import (
+    LoginForm,
+    PasswordChangeForm,
+    PasswordUpdateForm,
+    UserRegistrationForm,
+    VendorRegistrationForm,
+)
 from .models import Employee, EnterpriseAdmin, User, VendorAccount, db
 from .security import generate_random_password
 from .services.email_service import send_user_login_email, send_vendor_login_email
@@ -249,6 +255,25 @@ def change_password():
             flash("Password updated. Welcome to Track Ops.", "success")
             return redirect(url_for(_account_home(current_user)))
     return render_template("auth/change_password.html", form=form)
+
+
+@auth_bp.route("/security", methods=["GET", "POST"])
+@login_required
+def security():
+    if getattr(current_user, "must_change_password", False):
+        return redirect(url_for("auth.change_password"))
+    form = PasswordUpdateForm()
+    if form.validate_on_submit():
+        if not check_password_hash(current_user.password_hash, form.current_password.data):
+            form.current_password.errors.append("Current password is incorrect.")
+        elif check_password_hash(current_user.password_hash, form.new_password.data):
+            form.new_password.errors.append("Choose a password different from your current password.")
+        else:
+            current_user.password_hash = generate_password_hash(form.new_password.data)
+            db.session.commit()
+            flash("Your password has been updated.", "success")
+            return redirect(url_for("auth.security"))
+    return render_template("auth/security.html", form=form)
 
 
 @auth_bp.route("/logout")

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Track Ops</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260827g') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260827h') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}{% if not current_user.is_authenticated %} public-shell{% endif %}">
   {% if not current_user.is_authenticated %}
@@ -16,7 +16,7 @@
           <span class="mk-subbrand">A Root Dynamics product</span>
         </a>
         <nav class="mk-links" aria-label="Public navigation">
-          <a class="{% if (request.endpoint or '') in ['user.spectator_events','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}">Event Tickets</a>
+          <a class="{% if (request.endpoint or '') in ['user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}">Event Tickets</a>
           <a href="{{ url_for('auth.user_register') }}">Register</a>
           <a class="mk-login-link" href="{{ url_for('auth.user_login') }}">Login</a>
         </nav>
@@ -72,14 +72,14 @@
         {% if current_user.is_authenticated and is_user %}
           <a class="side-link {% if ep == 'user.dashboard' %}active{% endif %}" href="{{ url_for('user.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">User Dashboard</span></a>
           <a class="side-link {% if ep == 'user.tracks_directory' %}active{% endif %}" href="{{ url_for('user.tracks_directory') }}"><span class="sidebar-icon"><i class="bi bi-signpost-split"></i></span><span class="sidebar-label">Tracks</span></a>
-          <a class="side-link {% if ep in ['user.spectator_events','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}"><span class="sidebar-icon"><i class="bi bi-ticket-perforated"></i></span><span class="sidebar-label">Event Tickets</span></a>
+          <a class="side-link {% if ep in ['user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}"><span class="sidebar-icon"><i class="bi bi-ticket-perforated"></i></span><span class="sidebar-label">Event Tickets</span></a>
           <a class="side-link {% if ep.startswith('waiver.driver_waivers') or ep.startswith('waiver.driver_sign_waiver') %}active{% endif %}" href="{{ url_for('waiver.driver_waivers') }}"><span class="sidebar-icon"><i class="bi bi-file-earmark-text"></i></span><span class="sidebar-label">Waivers</span></a>
           <a class="side-link {% if ep.startswith('user.community') %}active{% endif %}" href="{{ url_for('user.community') }}"><span class="sidebar-icon"><i class="bi bi-people"></i></span><span class="sidebar-label">Community</span></a>
         {% endif %}
         {% if is_vendor %}
           <a class="side-link {% if ep == 'vendor.dashboard' %}active{% endif %}" href="{{ url_for('vendor.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">Vendor Dashboard</span></a>
           <a class="side-link {% if ep == 'vendor.profile' %}active{% endif %}" href="{{ url_for('vendor.profile') }}"><span class="sidebar-icon"><i class="bi bi-shop-window"></i></span><span class="sidebar-label">Business Profile</span></a>
-          <a class="side-link {% if ep in ['user.spectator_events','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}"><span class="sidebar-icon"><i class="bi bi-ticket-perforated"></i></span><span class="sidebar-label">Event Tickets</span></a>
+          <a class="side-link {% if ep in ['user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}"><span class="sidebar-icon"><i class="bi bi-ticket-perforated"></i></span><span class="sidebar-label">Event Tickets</span></a>
         {% endif %}
         {% if current_user.is_authenticated and is_employee %}
           <a class="side-link {% if ep == 'employee.dashboard' %}active{% endif %}" href="{{ url_for('employee.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-speedometer2"></i></span><span class="sidebar-label">Dashboard</span></a>
@@ -105,6 +105,7 @@
           <a class="side-link {% if ep == 'waiver.waiver_debug' %}active{% endif %}" href="{{ url_for('waiver.waiver_debug') }}"><span class="sidebar-icon"><i class="bi bi-activity"></i></span><span class="sidebar-label">Diagnostics</span></a>
           {% if session.get('impersonate_track_id') %}<a class="side-link" href="{{ url_for('employee.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-binoculars"></i></span><span class="sidebar-label">Track Workspace</span></a>{% endif %}
         {% endif %}
+        {% if current_user.is_authenticated %}<a class="side-link {% if ep in ['auth.security','auth.change_password'] %}active{% endif %}" href="{{ url_for('auth.security') }}"><span class="sidebar-icon"><i class="bi bi-shield-lock"></i></span><span class="sidebar-label">Security</span></a>{% endif %}
         <a class="side-link" href="{{ url_for('auth.logout') }}"><span class="sidebar-icon"><i class="bi bi-box-arrow-right"></i></span><span class="sidebar-label">Logout</span></a>
       </nav>
     </aside>

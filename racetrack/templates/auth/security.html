@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="account-security-page">
+  <header class="account-security-header">
+    <div><span class="event-page-kicker">Account security</span><h2>Change your password</h2><p>Update the password used for your Track Ops account.</p></div>
+    <span class="account-security-status"><i class="bi bi-shield-check" aria-hidden="true"></i> Signed in as {{ current_user.email }}</span>
+  </header>
+
+  <div class="account-security-layout">
+    <form method="post" class="card account-security-form" data-enhanced>
+      {{ form.hidden_tag() }}
+      <div class="account-security-form-head"><span><i class="bi bi-key" aria-hidden="true"></i></span><div><h3>Password</h3><p>Confirm your current password before choosing a new one.</p></div></div>
+      <label>Current Password
+        {{ form.current_password(autocomplete='current-password') }}
+        {% for error in form.current_password.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </label>
+      <label>New Password
+        {{ form.new_password(placeholder='At least 10 characters', autocomplete='new-password') }}
+        {% for error in form.new_password.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </label>
+      <label>Confirm New Password
+        {{ form.confirm_password(autocomplete='new-password') }}
+        {% for error in form.confirm_password.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </label>
+      {{ form.submit(class_='btn') }}
+    </form>
+
+    <aside class="account-security-help"><i class="bi bi-lock" aria-hidden="true"></i><h3>Keep it secure</h3><ul><li>Use at least 10 characters.</li><li>Choose a password you do not use elsewhere.</li><li>Track Ops will never display or email your chosen password.</li></ul></aside>
+  </div>
+</div>
+{% endblock %}

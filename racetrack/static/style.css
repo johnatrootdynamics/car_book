@@ -6288,3 +6288,71 @@ details > summary { font-size: .92rem; }
   .admin-waiver-tags { grid-column: 2; }
   .admin-waiver-list article > form { grid-column: 3; grid-row: 1; }
 }
+
+/* Event vendor lineup */
+.event-vendors-section {
+  margin-top: 12px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 11px;
+}
+.event-vendors-section > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #eaecf0;
+}
+.event-vendors-section > header h3 { margin: 3px 0 2px; color: #1d2939; font-size: 1rem; }
+.event-vendors-section > header p { margin: 0; color: #7a8699; font-size: .7rem; }
+.event-vendors-section > header > strong { padding: 5px 9px; color: #187044; background: #eaf8f0; border-radius: 999px; font-size: .66rem; white-space: nowrap; }
+.event-vendor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 13px; }
+.event-vendor-grid article { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: start; gap: 12px; min-height: 112px; padding: 13px; background: #fafbfc; border: 1px solid #eaecf0; border-radius: 9px; }
+.event-vendor-logo { display: grid; width: 54px; height: 54px; overflow: hidden; color: #3159d5; background: #eef3ff; border: 1px solid #dce5ff; border-radius: 11px; place-items: center; text-decoration: none; font-size: 1.05rem; font-weight: 800; }
+.event-vendor-logo img { width: 100%; height: 100%; object-fit: cover; }
+.event-vendor-grid article > div { display: grid; min-width: 0; gap: 4px; }
+.event-vendor-grid h4 { margin: 0; font-size: .8rem; }
+.event-vendor-grid h4 a { color: #344054; text-decoration: none; }
+.event-vendor-grid h4 a:hover { color: #3159d5; }
+.event-vendor-grid p { display: -webkit-box; overflow: hidden; margin: 0; color: #7a8699; font-size: .67rem; line-height: 1.48; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.event-vendor-website { justify-self: start; margin-top: 2px; color: #3159d5; font-size: .65rem; font-weight: 750; text-decoration: none; }
+.event-vendors-empty { display: flex; align-items: center; justify-content: center; gap: 11px; min-height: 112px; padding: 24px; color: #98a2b3; }
+.event-vendors-empty > i { font-size: 1.25rem; }
+.event-vendors-empty > div { display: grid; gap: 2px; }
+.event-vendors-empty strong { color: #667085; font-size: .77rem; }
+.event-vendors-empty span { font-size: .68rem; }
+
+/* Self-service account security */
+.account-security-page { display: grid; width: min(850px, 100%); margin: 0 auto; gap: 14px; }
+.account-security-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 6px 2px; }
+.account-security-header h2 { margin: 3px 0 2px; color: #101828; font-size: 1.48rem; }
+.account-security-header p { margin: 0; color: #667085; font-size: .8rem; }
+.account-security-status { display: inline-flex; align-items: center; gap: 6px; max-width: 300px; padding: 7px 10px; color: #475467; background: #f2f4f7; border-radius: 999px; font-size: .67rem; white-space: nowrap; }
+.account-security-status i { color: #187044; }
+.account-security-layout { display: grid; grid-template-columns: minmax(0, 1fr) 255px; align-items: start; gap: 14px; }
+.account-security-form { display: grid; gap: 13px; margin: 0; padding: 20px; }
+.account-security-form-head { display: flex; align-items: center; gap: 11px; margin: -2px -2px 4px; padding-bottom: 15px; border-bottom: 1px solid #eaecf0; }
+.account-security-form-head > span { display: grid; flex: none; width: 36px; height: 36px; color: #3159d5; background: #eef3ff; border-radius: 8px; place-items: center; }
+.account-security-form-head h3 { margin: 0; color: #344054; font-size: .9rem; }
+.account-security-form-head p { margin: 2px 0 0; color: #7a8699; font-size: .68rem; }
+.account-security-form > label { display: grid; gap: 5px; color: #475467; font-size: .7rem; font-weight: 700; }
+.account-security-form > .btn { justify-content: center; margin-top: 3px; }
+.account-security-help { padding: 22px; color: #dce5f5; background: linear-gradient(155deg, #111827, #1d2a44); border-radius: 11px; }
+.account-security-help > i { display: grid; width: 38px; height: 38px; color: #fff; background: #3159d5; border-radius: 9px; place-items: center; }
+.account-security-help h3 { margin: 18px 0 8px; color: #fff; font-size: .95rem; }
+.account-security-help ul { display: grid; gap: 9px; margin: 0; padding-left: 17px; color: #b7c3d5; font-size: .68rem; line-height: 1.5; }
+
+@media (max-width: 720px) {
+  .event-vendor-grid { grid-template-columns: 1fr; }
+  .account-security-layout { grid-template-columns: 1fr; }
+  .account-security-header { flex-direction: column; }
+  .account-security-status { max-width: 100%; white-space: normal; }
+}
+
+@media (max-width: 480px) {
+  .event-vendors-section > header { align-items: flex-start; flex-direction: column; }
+  .event-vendor-grid article { grid-template-columns: 46px minmax(0, 1fr); }
+  .event-vendor-logo { width: 46px; height: 46px; }
+}

@@ -30,7 +30,7 @@
           <small>{{ event.event_date.strftime('%Y') }}</small>
         </time>
         <div class="spectator-event-info">
-          <h3><a class="spectator-event-title-link" href="{{ url_for('user.spectator_tickets', event_id=event.id) }}">{{ event.event_name }}</a></h3>
+          <h3><a class="spectator-event-title-link" href="{{ url_for('user.event_detail', event_id=event.id) }}">{{ event.event_name }}</a></h3>
           <p>{{ event.track.name }}</p>
           <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}</span>
         </div>
