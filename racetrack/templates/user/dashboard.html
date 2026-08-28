@@ -1,157 +1,179 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="dashboard-grid">
-  <article class="card dashboard-cell">
-    <div class="row-space">
-      <h3>Cars</h3>
-      <a class="btn btn-sm" href="{{ url_for('user.car_new') }}">Add Car</a>
+<div class="driver-dashboard">
+  <header class="driver-dashboard-header">
+    <div>
+      <span class="driver-dashboard-kicker">Driver workspace</span>
+      <h2>Welcome back, {{ current_user.first_name }}</h2>
+      <p>Your next track day, garage, and inspection pass—all in one place.</p>
     </div>
-    {% if cars %}
-      <div class="car-grid">
-        {% for car in cars %}
-          <a class="car-item car-tile-link" href="{{ url_for('user.car_edit', car_id=car.id) }}">
-            {% if car.image_url %}
-              {% set car_image = asset_url(car.image_url) %}
-              {% if car_image %}<img class="car-thumb-large" src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% endif %}
-            {% else %}
-              <div class="event-fallback">{{ car.make }}</div>
-            {% endif %}
-            <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
-          </a>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="muted-line">No cars yet.</p>
-    {% endif %}
-  </article>
+    <div class="driver-dashboard-header-actions">
+      <a class="btn btn-secondary" href="{{ url_for('user.spectator_events') }}"><i class="bi bi-ticket-perforated" aria-hidden="true"></i> Browse events</a>
+      <a class="btn" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add vehicle</a>
+    </div>
+  </header>
 
-  <article class="card dashboard-cell">
-    <div class="row-space">
-      <h3>Upcoming Events</h3>
-      <a class="btn btn-secondary btn-sm" href="{{ url_for('user.tracks_directory') }}">Track Directory</a>
-    </div>
-    {% if events %}
-      <div class="event-tile-grid">
-      {% for event in events %}
-        {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
-        {% set ww = waiver_by_event.get(event.id, {}).get('waiver') %}
-        {% set is_ready = ws == 'signed' or ws == 'not_required' %}
-        <div class="event-tile event-tile-clickable">
-          {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
-          <div class="event-tile-body">
-            <div class="event-actions-top">
-              <details class="event-actions-menu" onclick="event.stopPropagation()">
-                <summary class="event-actions-trigger" aria-label="Event actions"><i class="bi bi-three-dots-vertical"></i></summary>
-                <div class="event-actions-list">
-                  <a class="event-action-item" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Open Event</a>
-                  <a class="event-action-item" href="{{ url_for('user.event_detail', event_id=event.id) }}">Event Details & Tickets</a>
-                  {% if ws != 'signed' and ws != 'not_required' %}
-                    {% if ww %}
-                      <a class="event-action-item" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=ww.id) }}">Sign Waiver</a>
-                    {% else %}
-                      <a class="event-action-item" href="{{ url_for('waiver.driver_waivers') }}">Sign Waiver</a>
-                    {% endif %}
-                  {% endif %}
-                  <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="event-action-item event-action-danger">Cancel Signup</button>
-                  </form>
-                </div>
+  <section class="driver-dashboard-metrics" aria-label="Driver account summary">
+    <article><span><i class="bi bi-calendar3" aria-hidden="true"></i></span><div><small>Upcoming events</small><strong>{{ events|length }}</strong></div></article>
+    <article><span><i class="bi bi-car-front" aria-hidden="true"></i></span><div><small>Vehicles</small><strong>{{ cars|length }}</strong></div></article>
+    <article><span><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span><div><small>Followed tracks</small><strong>{{ subscribed_tracks|length }}</strong></div></article>
+  </section>
+
+  <div class="driver-dashboard-primary-grid">
+    <section class="card driver-next-event-card">
+      <div class="driver-dashboard-section-head">
+        <div><span>Up next</span><h3>Your track days</h3></div>
+        <a href="{{ url_for('user.spectator_events') }}">All events <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      </div>
+
+      {% if events %}
+        {% set next_event = events[0] %}
+        {% set next_status = waiver_by_event.get(next_event.id, {}).get('status') %}
+        {% set next_waiver = waiver_by_event.get(next_event.id, {}).get('waiver') %}
+        {% set next_ready = next_status == 'signed' or next_status == 'not_required' %}
+        {% set next_class = track_class_by_track_id.get(next_event.track_id, 'C') %}
+        <article class="driver-featured-event">
+          <div class="driver-featured-date"><span>{{ next_event.event_date.strftime('%b') }}</span><strong>{{ next_event.event_date.strftime('%-d') }}</strong><small>{{ next_event.event_date.strftime('%a') }}</small></div>
+          <div class="driver-featured-event-copy">
+            <span class="driver-featured-track">{{ next_event.track.name }}</span>
+            <h4>{{ next_event.event_name }}</h4>
+            <div class="driver-event-chips">
+              <span class="driver-class-pill driver-class-{{ next_class }}">Class {{ next_class }}</span>
+              <span class="driver-readiness {% if next_ready %}is-ready{% else %}needs-action{% endif %}"><i class="bi {% if next_ready %}bi-check-circle{% else %}bi-exclamation-circle{% endif %}" aria-hidden="true"></i> {% if next_ready %}Ready to drive{% else %}Waiver needed{% endif %}</span>
+              {% if slot_time_by_event.get(next_event.id) %}<span><i class="bi bi-clock" aria-hidden="true"></i> {{ slot_time_by_event.get(next_event.id) }}</span>{% endif %}
+            </div>
+            {% if slot_notice_by_event.get(next_event.id) %}<p class="driver-event-notice"><i class="bi bi-megaphone" aria-hidden="true"></i> {{ slot_notice_by_event.get(next_event.id) }}</p>{% endif %}
+            <div class="driver-featured-actions">
+              <a class="btn btn-sm" href="{{ url_for('user.event_schedule', event_id=next_event.id) }}">Open schedule</a>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=next_event.id) }}">Event details</a>
+              {% if not next_ready %}<a class="driver-waiver-link" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=next_waiver.id) if next_waiver else url_for('waiver.driver_waivers') }}">Complete waiver <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
+              <details class="driver-registration-menu">
+                <summary aria-label="Registration options"><i class="bi bi-three-dots" aria-hidden="true"></i></summary>
+                <form method="post" action="{{ url_for('user.cancel_signup', event_id=next_event.id) }}" onsubmit="return confirm('Cancel your registration for this event?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit">Cancel registration</button>
+                </form>
               </details>
             </div>
-            <h3 class="event-track-name">{{ event.track.name }}</h3>
-            <h4>{{ event.event_name }}</h4>
-            <p class="muted-line"><span class="event-date-icon">📅 {{ event.event_date }}</span></p>
-            <div class="event-meta-row">
-              <span class="driver-class-pill driver-class-{{ current_class }}">Class {{ current_class }}</span>
-              <span class="status-bubble {% if is_ready %}status-ok{% else %}status-warn{% endif %}">
-                <span class="status-icon">{% if is_ready %}✓{% else %}!{% endif %}</span>
-                <span>{% if is_ready %}Ready{% else %}Action Needed{% endif %}</span>
-              </span>
-              {% if slot_time_by_event.get(event.id) %}
-                <span class="drive-time-chip"><span class="drive-time-icon">🛞</span><span>{{ slot_time_by_event.get(event.id) }}</span></span>
-              {% endif %}
-            </div>
-            {% if slot_notice_by_event.get(event.id) %}
-              <p class="badge badge-viewed">{{ slot_notice_by_event.get(event.id) }}</p>
-            {% endif %}
-            <p><a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=event.id) }}">Event Details & Tickets</a></p>
           </div>
-          <a class="event-tile-hit" href="{{ url_for('user.event_schedule', event_id=event.id) }}" aria-label="Open {{ event.event_name }}"></a>
-        </div>
-      {% endfor %}
-      </div>
-    {% else %}
-      <p class="muted-line">You have not signed up for any events yet.</p>
-    {% endif %}
-  </article>
+        </article>
 
-  <article class="card dashboard-cell">
-    <div class="row-space">
-      <h3>Events From Subscribed Tracks</h3>
-      {% if subscribed_tracks %}
-        <form method="get" class="inline" onclick="event.stopPropagation()">
-          <label class="inline">Track
-            <select name="track_id" onchange="this.form.submit()">
-              <option value="">All Tracks</option>
-              {% for track in subscribed_tracks %}
-                <option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>
-              {% endfor %}
-            </select>
-          </label>
-        </form>
-      {% endif %}
-    </div>
-    {% if subscribed_events %}
-      <div class="event-tile-grid">
-      {% for event in subscribed_events %}
-        {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
-        {% set driver_availability = driver_availability_by_event.get(event.id) %}
-        <div class="event-tile">
-          <div class="event-tile-body">
-            <h3 class="event-track-name">{{ event.track.name }}</h3>
-            <h4>{{ event.event_name }}</h4>
-            <p class="muted-line"><span class="event-date-icon">📅 {{ event.event_date }}</span></p>
-            <div class="event-meta-row">
-              <span class="driver-class-pill driver-class-{{ current_class }}">Class {{ current_class }}</span>
-              <span class="status-bubble status-warn">
-                <span class="status-icon">!</span>
-                <span>Not Signed Up</span>
-              </span>
-            </div>
-            {% if driver_availability and driver_availability.sold_out %}
-              <p class="ticket-capacity-state sold-out"><strong>Driver tickets sold out</strong><span>{{ driver_availability.sold }} / {{ driver_availability.capacity }} filled</span></p>
-            {% else %}
-              <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
-                {{ signup_form.hidden_tag() }}
-                {{ signup_form.car_id() }}
-                {{ signup_form.submit(class_='btn btn-sm') }}
-              </form>
-              {% if driver_availability and not driver_availability.unlimited %}<p class="ticket-capacity-state"><strong>{{ driver_availability.remaining }} driver spots remaining</strong></p>{% endif %}
-            {% endif %}
-            <p><a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=event.id) }}">Event Details & Tickets</a></p>
+        {% if events|length > 1 %}
+          <div class="driver-registered-list">
+            {% for event in events[1:4] %}
+              {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
+              {% set is_ready = ws == 'signed' or ws == 'not_required' %}
+              <article>
+                <a href="{{ url_for('user.event_schedule', event_id=event.id) }}">
+                  <span class="driver-registered-date">{{ event.event_date.strftime('%b %-d') }}</span>
+                  <span><strong>{{ event.event_name }}</strong><small>{{ event.track.name }}</small></span>
+                  <span class="driver-registered-status {% if is_ready %}is-ready{% else %}needs-action{% endif %}">{% if is_ready %}Ready{% else %}Action needed{% endif %}</span>
+                  <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
+                <details class="driver-registration-menu">
+                  <summary aria-label="Registration options for {{ event.event_name }}"><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></summary>
+                  <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" onsubmit="return confirm('Cancel your registration for this event?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Cancel registration</button>
+                  </form>
+                </details>
+              </article>
+            {% endfor %}
           </div>
-        </div>
-      {% endfor %}
-      </div>
-    {% else %}
-      {% if subscribed_tracks %}
-        <p class="muted-line">No upcoming events for this track yet.</p>
+        {% endif %}
       {% else %}
-        <p class="muted-line">Subscribe to tracks in Track Directory to see upcoming events.</p>
+        <div class="driver-dashboard-empty">
+          <span><i class="bi bi-calendar2-plus" aria-hidden="true"></i></span>
+          <div><strong>No track days booked</strong><p>Find an upcoming event and reserve your driver ticket.</p></div>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_events') }}">Browse events</a>
+        </div>
       {% endif %}
-    {% endif %}
-  </article>
+    </section>
 
-  <article class="card dashboard-cell driver-inspection-pass">
-    <div class="driver-inspection-pass-copy">
-      <span class="event-page-kicker">Track inspection</span>
-      <h3>My Inspection QR</h3>
-      <p>Show this reusable code to the track team. They can scan it to open your registration and begin the vehicle inspection.</p>
-      <code>{{ current_user.static_qr_code }}</code>
-    </div>
-    <div class="driver-inspection-qr"><img src="{{ url_for('user.inspection_qr_image') }}" alt="Driver inspection QR code"></div>
-  </article>
-</section>
+    <aside class="card driver-garage-card">
+      <div class="driver-dashboard-section-head">
+        <div><span>Your vehicles</span><h3>Garage</h3></div>
+        <a href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add</a>
+      </div>
+      {% if cars %}
+        <div class="driver-garage-list">
+          {% for car in cars[:3] %}
+            <a href="{{ url_for('user.car_edit', car_id=car.id) }}">
+              {% if car.image_url %}
+                {% set car_image = asset_url(car.image_url) %}
+                {% if car_image %}<img src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% else %}<span class="driver-car-fallback"><i class="bi bi-car-front" aria-hidden="true"></i></span>{% endif %}
+              {% else %}<span class="driver-car-fallback"><i class="bi bi-car-front" aria-hidden="true"></i></span>{% endif %}
+              <span><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong><small>{{ car.color or 'Vehicle profile' }}</small></span>
+              <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </a>
+          {% endfor %}
+        </div>
+        {% if cars|length > 3 %}<p class="driver-garage-more">And {{ cars|length - 3 }} more in your garage</p>{% endif %}
+      {% else %}
+        <div class="driver-dashboard-empty compact"><span><i class="bi bi-car-front" aria-hidden="true"></i></span><div><strong>Your garage is empty</strong><p>Add a vehicle before registering to drive.</p></div></div>
+        <a class="driver-garage-add" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add your first vehicle</a>
+      {% endif %}
+    </aside>
+  </div>
 
+  <div class="driver-dashboard-secondary-grid">
+    <section class="card driver-discover-card">
+      <div class="driver-dashboard-section-head driver-discover-head">
+        <div><span>From followed tracks</span><h3>Upcoming events</h3></div>
+        {% if subscribed_tracks %}
+          <form method="get" class="driver-track-filter">
+            <label for="driver-track-filter">Track</label>
+            <select id="driver-track-filter" name="track_id" onchange="this.form.submit()">
+              <option value="">All tracks</option>
+              {% for track in subscribed_tracks %}<option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>{% endfor %}
+            </select>
+          </form>
+        {% endif %}
+      </div>
+
+      {% if subscribed_events %}
+        <div class="driver-discover-list">
+          {% for event in subscribed_events[:6] %}
+            {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
+            {% set driver_availability = driver_availability_by_event.get(event.id) %}
+            <article>
+              <div class="driver-discover-date"><strong>{{ event.event_date.strftime('%-d') }}</strong><span>{{ event.event_date.strftime('%b') }}</span></div>
+              <div class="driver-discover-copy"><a href="{{ url_for('user.event_detail', event_id=event.id) }}">{{ event.event_name }}</a><span>{{ event.track.name }} · Class {{ current_class }}</span></div>
+              <div class="driver-discover-action">
+                {% if driver_availability and driver_availability.sold_out %}
+                  <span class="driver-sold-out">Sold out</span>
+                {% elif cars %}
+                  <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}">
+                    {{ signup_form.hidden_tag() }}
+                    {{ signup_form.car_id(id='car_id_' ~ event.id, aria_label='Vehicle') }}
+                    {{ signup_form.submit(class_='btn btn-sm') }}
+                  </form>
+                {% else %}
+                  <a class="btn btn-secondary btn-sm" href="{{ url_for('user.car_new') }}">Add vehicle</a>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+        {% if subscribed_events|length > 6 %}<a class="driver-list-footer" href="{{ url_for('user.spectator_events') }}">See all upcoming events <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% else %}
+        <div class="driver-dashboard-empty">
+          <span><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
+          <div><strong>{% if subscribed_tracks %}Nothing upcoming yet{% else %}Follow your favorite tracks{% endif %}</strong><p>{% if subscribed_tracks %}New events from this track will appear here.{% else %}Follow tracks to keep their upcoming events on your dashboard.{% endif %}</p></div>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('user.tracks_directory') }}">Track directory</a>
+        </div>
+      {% endif %}
+    </section>
+
+    <aside class="card driver-qr-card">
+      <div class="driver-qr-copy">
+        <span class="driver-dashboard-kicker">Inspection pass</span>
+        <h3>Ready when the track team is</h3>
+        <p>Show this code at tech inspection. It opens your driver record and registered vehicle.</p>
+        <span class="driver-qr-hint"><i class="bi bi-brightness-high" aria-hidden="true"></i> Turn up screen brightness before scanning</span>
+      </div>
+      <div class="driver-qr-image"><img src="{{ url_for('user.inspection_qr_image') }}" alt="Driver inspection QR code"></div>
+    </aside>
+  </div>
+</div>
 {% endblock %}
