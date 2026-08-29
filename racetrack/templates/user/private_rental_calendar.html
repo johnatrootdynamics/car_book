@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="rental-driver-page">
+  <header class="rental-driver-header">
+    <div><a class="rental-back-link" href="{{ url_for('user.private_rental_tracks') }}"><i class="bi bi-arrow-left"></i> All tracks</a><span class="event-page-kicker">Private rentals</span><h2>{{ track.name }}</h2><p>{{ track.city }}, {{ track.state }} · Select an available time directly from the track calendar.</p></div>
+    <span class="rental-private-badge"><i class="bi bi-lock"></i> Signed-in drivers only</span>
+  </header>
+
+  {% if my_bookings %}
+    <section class="rental-my-bookings">
+      {% for booking in my_bookings %}
+        <article class="{% if booking.status == 'confirmed' %}is-confirmed{% else %}is-pending{% endif %}">
+          <span><i class="bi {% if booking.status == 'confirmed' %}bi-check-circle{% else %}bi-clock-history{% endif %}"></i></span>
+          <div><strong>{% if booking.status == 'confirmed' %}Your private day is confirmed{% else %}Your time is held for checkout{% endif %}</strong><small>{{ booking.slot.slot_date.strftime('%B %-d, %Y') }} · {{ booking.slot.start_time.strftime('%-I:%M %p') }}–{{ booking.slot.end_time.strftime('%-I:%M %p') }}</small></div>
+          {% if booking.status == 'confirmed' and booking.event_id %}<a href="{{ url_for('user.event_detail', event_id=booking.event_id) }}">Open event <i class="bi bi-arrow-right"></i></a>
+          {% elif booking.provider_checkout_url %}<a href="{{ booking.provider_checkout_url }}">Continue payment <i class="bi bi-arrow-right"></i></a>{% endif %}
+          {% if booking.status == 'pending' %}<form method="post" action="{{ url_for('user.private_rental_booking_release', booking_id=booking.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Release</button></form>{% endif %}
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <div class="rental-driver-layout">
+    <section class="card rental-calendar-card">
+      <div class="rental-calendar-toolbar">
+        <div><span>Choose your day</span><h3>{{ calendar.label }}</h3></div>
+        <nav aria-label="Rental calendar months">
+          <a href="{{ url_for('user.private_rental_calendar', track_id=track.id, month=calendar.previous_value) }}" aria-label="Previous month"><i class="bi bi-chevron-left"></i></a>
+          <a href="{{ url_for('user.private_rental_calendar', track_id=track.id) }}">Today</a>
+          <a href="{{ url_for('user.private_rental_calendar', track_id=track.id, month=calendar.next_value) }}" aria-label="Next month"><i class="bi bi-chevron-right"></i></a>
+        </nav>
+      </div>
+      <div class="rental-calendar-legend"><span><i class="is-available"></i> Available</span><span><i class="is-held"></i> Held</span><span><i class="is-booked"></i> Booked</span></div>
+      <div class="rental-calendar rental-driver-calendar" role="grid" aria-label="{{ calendar.label }} private rental availability">
+        {% for weekday in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] %}<div class="rental-weekday" role="columnheader">{{ weekday }}</div>{% endfor %}
+        {% for week in calendar.weeks %}
+          {% for day in week %}
+            <div class="rental-calendar-day {% if day.month != calendar.first.month %}outside-month{% endif %} {% if day == today %}is-today{% endif %}" role="gridcell">
+              <time datetime="{{ day }}">{{ day.day }}</time>
+              <div class="rental-day-slots">
+                {% for slot in slots_by_date.get(day, []) %}
+                  {% set booking = bookings_by_slot.get(slot.id) %}
+                  {% if day >= today and not booking %}
+                    <button type="button" class="rental-slot-pill is-available" data-rental-slot="{{ slot.id }}">
+                      <strong>{{ slot.start_time.strftime('%-I:%M %p') }}</strong><small>{{ money(slot.price_cents) }}</small>
+                    </button>
+                  {% elif booking %}
+                    <span class="rental-slot-pill {% if booking.user_id == current_user.id and booking.status == 'pending' %}is-held{% else %}is-booked{% endif %}"><strong>{{ slot.start_time.strftime('%-I:%M %p') }}</strong><small>{% if booking.user_id == current_user.id and booking.status == 'pending' %}Your hold{% elif booking.user_id == current_user.id %}Your rental{% else %}Booked{% endif %}</small></span>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="card rental-booking-card">
+      {% set ns = namespace(bookable=false) %}
+      {% for slot in slots %}
+        {% set booking = bookings_by_slot.get(slot.id) %}
+        {% if slot.slot_date >= today and not booking %}
+          {% set ns.bookable = true %}
+          <section data-rental-panel="{{ slot.id }}" hidden>
+            <span class="event-page-kicker">Selected rental</span>
+            <h3>{{ slot.name }}</h3>
+            <p class="rental-selected-date">{{ slot.slot_date.strftime('%A, %B %-d') }}</p>
+            <dl class="rental-selected-details">
+              <div><dt>Track time</dt><dd>{{ slot.start_time.strftime('%-I:%M %p') }}–{{ slot.end_time.strftime('%-I:%M %p') }}</dd></div>
+              <div><dt>Private price</dt><dd>{{ money(slot.price_cents) }}</dd></div>
+              <div><dt>Driver limit</dt><dd>Up to {{ slot.driver_limit }}</dd></div>
+            </dl>
+            {% if cars and payment_choices_by_slot.get(slot.id) %}
+              <form method="post" action="{{ url_for('user.private_rental_book', slot_id=slot.id) }}" class="rental-booking-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label>Primary vehicle<select name="car_id" required>{% for car in cars %}<option value="{{ car.id }}">{{ car.car_year }} {{ car.make }} {{ car.model }}</option>{% endfor %}</select></label>
+                <fieldset><legend>Payment method</legend>{% for value, label in payment_choices_by_slot.get(slot.id) %}<label class="rental-provider-option"><input type="radio" name="payment_method" value="{{ value }}" {% if loop.first %}checked{% endif %}><i class="bi {% if value == 'paypal' %}bi-paypal{% elif value == 'stripe' %}bi-stripe{% else %}bi-credit-card{% endif %}"></i><span>{{ label }}</span><i class="bi bi-check-circle-fill"></i></label>{% endfor %}</fieldset>
+                <button type="submit" class="btn">Continue to secure payment <i class="bi bi-arrow-right"></i></button>
+              </form>
+            {% elif not cars %}
+              <div class="rental-booking-blocked"><i class="bi bi-car-front"></i><strong>Add a vehicle first</strong><p>A primary vehicle is required to create your private event.</p><a class="btn btn-secondary btn-sm" href="{{ url_for('user.car_new') }}">Add vehicle</a></div>
+            {% else %}
+              <div class="rental-booking-blocked"><i class="bi bi-credit-card"></i><strong>Payment setup needed</strong><p>This track has not enabled an online payment method for this price.</p></div>
+            {% endif %}
+          </section>
+        {% endif %}
+      {% endfor %}
+      <div class="rental-booking-placeholder" data-rental-placeholder {% if not ns.bookable %}data-empty{% endif %}><i class="bi bi-calendar2-check"></i><h3>{% if ns.bookable %}Select an available time{% else %}No open times this month{% endif %}</h3><p>{% if ns.bookable %}Choose a green slot on the calendar to see its price, driver limit, and checkout options.{% else %}Use the month arrows to look for more private rental availability.{% endif %}</p></div>
+    </aside>
+  </div>
+</div>
+<script>
+  (() => {
+    const buttons = [...document.querySelectorAll('[data-rental-slot]')]
+    const panels = [...document.querySelectorAll('[data-rental-panel]')]
+    const placeholder = document.querySelector('[data-rental-placeholder]')
+    const selectSlot = (id) => {
+      buttons.forEach((button) => button.classList.toggle('selected', button.dataset.rentalSlot === id))
+      panels.forEach((panel) => { panel.hidden = panel.dataset.rentalPanel !== id })
+      if (placeholder) placeholder.hidden = panels.some((panel) => !panel.hidden)
+    }
+    buttons.forEach((button) => button.addEventListener('click', () => selectSlot(button.dataset.rentalSlot)))
+    const firstAvailable = buttons.find((button) => document.querySelector(`[data-rental-panel="${button.dataset.rentalSlot}"]`))
+    if (firstAvailable) selectSlot(firstAvailable.dataset.rentalSlot)
+  })()
+</script>
+{% endblock %}

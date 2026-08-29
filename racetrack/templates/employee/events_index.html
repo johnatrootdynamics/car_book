@@ -7,7 +7,7 @@
       <h2>Events</h2>
       <p class="muted-line">Plan and manage track days at {{ track.name }}.</p>
     </div>
-    {% if is_office_staff %}<a class="btn" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create Event</a>{% endif %}
+    {% if is_office_staff %}<div class="inline"><a class="btn btn-secondary" href="{{ url_for('employee.private_rentals') }}"><i class="bi bi-calendar2-week" aria-hidden="true"></i> Rental Calendar</a><a class="btn" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create Event</a></div>{% endif %}
   </div>
 </section>
 
@@ -20,11 +20,11 @@
         <tbody>
           {% for event in upcoming_events %}
           <tr>
-            <td><a class="event-row-link" href="{{ url_for('employee.event_detail', event_id=event.id) }}">{{ event.event_name }}</a></td>
+            <td><a class="event-row-link" href="{{ url_for('employee.event_detail', event_id=event.id) }}">{{ event.event_name }}</a>{% if event.event_type == 'private' %} <span class="event-type-badge"><i class="bi bi-lock-fill"></i> Private rental</span>{% endif %}</td>
             <td>{{ event.event_date }}</td>
             <td>{{ signup_counts.get(event.id, 0) }}</td>
             <td>
-              {% if is_office_staff %}
+              {% if is_office_staff and event.event_type != 'private' %}
               <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
               <form method="post" action="{{ url_for('employee.event_delete', event_id=event.id) }}" class="inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -54,11 +54,11 @@
           <tbody>
             {% for event in past_events %}
             <tr>
-              <td><a class="event-row-link" href="{{ url_for('employee.event_detail', event_id=event.id) }}">{{ event.event_name }}</a></td>
+              <td><a class="event-row-link" href="{{ url_for('employee.event_detail', event_id=event.id) }}">{{ event.event_name }}</a>{% if event.event_type == 'private' %} <span class="event-type-badge"><i class="bi bi-lock-fill"></i> Private rental</span>{% endif %}</td>
               <td>{{ event.event_date }}</td>
               <td>{{ signup_counts.get(event.id, 0) }}</td>
               <td>
-                {% if is_office_staff %}
+                {% if is_office_staff and event.event_type != 'private' %}
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>
                 {% else %}
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open</a>

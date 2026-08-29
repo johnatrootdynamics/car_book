@@ -342,3 +342,27 @@ def send_driver_purchase_receipt(driver_ticket_order):
         f"Driver ticket confirmed: {event.event_name}",
         f"Hi {user.first_name},\n\nYour driver ticket for {event.event_name} is confirmed.\n\nNext steps: complete any required waiver, then inspection before you are ready to race.\n\nTotal: {values['order_total']}\n\nThanks,\nCarBook",
     )
+
+
+def send_private_rental_confirmation(booking):
+    slot = booking.slot
+    user = booking.buyer
+    date_label = slot.slot_date.strftime("%B %-d, %Y")
+    time_label = (
+        f"{slot.start_time.strftime('%-I:%M %p')}–"
+        f"{slot.end_time.strftime('%-I:%M %p')}"
+    )
+    return send_email(
+        user.email,
+        f"Private track rental confirmed: {slot.track.name}",
+        (
+            f"Hi {user.first_name},\n\n"
+            f"Your private track rental at {slot.track.name} is confirmed.\n\n"
+            f"Date: {date_label}\n"
+            f"Time: {time_label}\n"
+            f"Driver limit: {slot.driver_limit}\n"
+            f"Total: {_money(booking.amount_cents)}\n\n"
+            "The private day is now in your dashboard. The track office can help coordinate additional drivers.\n\n"
+            "Thanks,\nTrack Ops"
+        ),
+    )

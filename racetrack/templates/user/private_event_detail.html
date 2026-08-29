@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="private-event-page">
+  <a class="rental-back-link" href="{{ url_for('user.dashboard') }}"><i class="bi bi-arrow-left"></i> Dashboard</a>
+  <header class="private-event-header">
+    <div><span class="event-page-kicker"><i class="bi bi-lock-fill"></i> Private track rental</span><h2>{{ event.event_name }}</h2><p>{{ event.track.name }} · {{ event.track.city }}, {{ event.track.state }}</p></div>
+    <span class="private-event-date"><small>{{ event.event_date.strftime('%b') }}</small><strong>{{ event.event_date.strftime('%-d') }}</strong><span>{{ event.event_date.strftime('%Y') }}</span></span>
+  </header>
+  <div class="private-event-grid">
+    <section class="card private-event-details">
+      <div><span><i class="bi bi-clock"></i></span><dl><dt>Reserved track time</dt><dd>{{ event.event_start_time.strftime('%-I:%M %p') }}–{{ event.event_end_time.strftime('%-I:%M %p') }}</dd></dl></div>
+      <div><span><i class="bi bi-people"></i></span><dl><dt>Driver limit</dt><dd>Up to {{ event.driver_capacity }} drivers</dd></dl></div>
+      {% if booking %}<div><span><i class="bi bi-receipt"></i></span><dl><dt>Rental total</dt><dd>{{ money(booking.amount_cents) }} · Paid</dd></dl></div>{% endif %}
+      {% if registration %}<div><span><i class="bi bi-car-front"></i></span><dl><dt>Primary vehicle</dt><dd>{{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}</dd></dl></div>{% endif %}
+    </section>
+    <aside class="card private-event-next"><span class="event-page-kicker">Your private day</span><h3>Everything is reserved</h3><p>This event is hidden from public ticket listings. Only drivers coordinated for this rental will participate.</p><a class="btn" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Open track schedule <i class="bi bi-arrow-right"></i></a><a href="{{ url_for('waiver.driver_waivers') }}">Review waivers</a></aside>
+  </div>
+</div>
+{% endblock %}

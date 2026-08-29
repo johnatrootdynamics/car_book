@@ -20,6 +20,7 @@ from .models import (
     Employee,
     EnterpriseAdmin,
     EventRegistration,
+    PrivateRentalBooking,
     SpectatorOrder,
     SystemEmailSettings,
     Track,
@@ -37,6 +38,7 @@ from .services.email_service import (
     send_admin_login_email,
     send_driver_purchase_receipt,
     send_employee_login_email,
+    send_private_rental_confirmation,
     send_spectator_order_receipt,
     send_user_login_email,
     send_vendor_login_email,
@@ -225,7 +227,7 @@ def orders():
     return render_template(
         "shared/orders.html",
         title="All Orders",
-        subtitle="Every driver and spectator order across all tracks.",
+        subtitle="Driver tickets, event tickets, and private rentals across every track.",
         rows=page_rows,
         summary=summarize_orders(rows),
         providers=sorted({row["provider"] for row in all_rows}),
@@ -266,6 +268,17 @@ def order_detail(kind, order_id):
             event_id=order.event_id,
             user_id=order.user_id,
         ).first()
+    elif kind == "rental":
+        order = PrivateRentalBooking.query.get_or_404(order_id)
+        track = order.slot.track
+        registration = (
+            EventRegistration.query.filter_by(
+                event_id=order.event_id,
+                user_id=order.user_id,
+            ).first()
+            if order.event_id
+            else None
+        )
     else:
         return "Unknown order type", 404
     return render_template(
@@ -301,6 +314,11 @@ def resend_order_email(kind, order_id):
         recipient = order.buyer.email
         send_fn = send_driver_purchase_receipt
         success_message = f"Driver confirmation was resent to {recipient}."
+    elif kind == "rental":
+        order = PrivateRentalBooking.query.get_or_404(order_id)
+        recipient = order.buyer.email
+        send_fn = send_private_rental_confirmation
+        success_message = f"Private rental confirmation was resent to {recipient}."
     else:
         return "Unknown order type", 404
 

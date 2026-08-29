@@ -1,4 +1,11 @@
-from ..models import DriverTicketOrder, Event, SpectatorOrder, SpectatorOrderItem
+from ..models import (
+    DriverTicketOrder,
+    Event,
+    PrivateRentalBooking,
+    PrivateRentalSlot,
+    SpectatorOrder,
+    SpectatorOrderItem,
+)
 from .payment_service import effective_payment_status
 
 
@@ -22,6 +29,13 @@ def load_order_rows(track_id=None):
     driver_query = DriverTicketOrder.query.join(Event, Event.id == DriverTicketOrder.event_id)
     if track_id is not None:
         driver_query = driver_query.filter(Event.track_id == track_id)
+
+    rental_query = PrivateRentalBooking.query.join(
+        PrivateRentalSlot,
+        PrivateRentalSlot.id == PrivateRentalBooking.slot_id,
+    )
+    if track_id is not None:
+        rental_query = rental_query.filter(PrivateRentalSlot.track_id == track_id)
 
     rows = []
     for order in spectator_query.all():
@@ -101,6 +115,37 @@ def load_order_rows(track_id=None):
                 "created_at": order.created_at,
                 "paid_at": order.paid_at,
                 "order": order,
+            }
+        )
+
+    for booking in rental_query.all():
+        buyer = booking.buyer
+        slot = booking.slot
+        rows.append(
+            {
+                "kind": "rental",
+                "kind_label": "Private rental",
+                "id": booking.id,
+                "number": f"PR-{booking.id:06d}",
+                "track": slot.track,
+                "track_id": slot.track_id,
+                "event_names": [
+                    f"{slot.name} · {slot.slot_date.strftime('%b %-d, %Y')}"
+                ],
+                "buyer_name": (
+                    f"{buyer.first_name} {buyer.last_name}".strip()
+                    if buyer
+                    else "Unknown driver"
+                ),
+                "buyer_email": buyer.email if buyer else "",
+                "amount_cents": booking.amount_cents or 0,
+                "provider": booking.payment_method or "other",
+                "mode": booking.payment_mode or "live",
+                "payment_status": effective_payment_status(booking),
+                "transaction_id": booking.provider_transaction_id,
+                "created_at": booking.created_at,
+                "paid_at": booking.paid_at,
+                "order": booking,
             }
         )
 

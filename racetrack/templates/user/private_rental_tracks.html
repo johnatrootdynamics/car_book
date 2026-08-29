@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="rental-driver-page rental-track-picker">
+  <header class="rental-driver-header">
+    <div><span class="event-page-kicker">Private track time</span><h2>Book the track for your group</h2><p>Choose a track to see its private rental availability. Calendars are available only to signed-in drivers.</p></div>
+    <a class="btn btn-secondary" href="{{ url_for('user.dashboard') }}"><i class="bi bi-arrow-left"></i> Dashboard</a>
+  </header>
+  {% if track_options %}
+    <section class="rental-track-grid">
+      {% for option in track_options %}
+        <a class="card rental-track-card" href="{{ url_for('user.private_rental_calendar', track_id=option.track.id, month=option.next_date.strftime('%Y-%m')) }}">
+          <span class="rental-track-icon"><i class="bi bi-calendar2-week"></i></span>
+          <div><span>{{ option.track.city }}, {{ option.track.state }}</span><h3>{{ option.track.name }}</h3><p>{% if option.count %}Next opening {{ option.next_date.strftime('%B %-d') }} · from {{ money(option.from_cents) }}{% else %}Review your private rental{% endif %}</p></div>
+          <span class="rental-track-count">{% if option.has_booking %}Your booking{% else %}{{ option.count }} slot{{ '' if option.count == 1 else 's' }}{% endif %}</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+      {% endfor %}
+    </section>
+  {% else %}
+    <section class="card rental-driver-empty"><i class="bi bi-calendar2"></i><h3>No private rental dates are open yet</h3><p>Track offices will appear here as soon as they publish availability.</p><a href="{{ url_for('user.tracks_directory') }}">Browse tracks</a></section>
+  {% endif %}
+</div>
+{% endblock %}

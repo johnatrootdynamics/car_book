@@ -120,6 +120,26 @@ class EventForm(FlaskForm):
     submit = SubmitField("Create Event")
 
 
+class PrivateRentalSlotForm(FlaskForm):
+    name = StringField(
+        "Slot Name",
+        validators=[DataRequired(), Length(max=120)],
+        default="Private track rental",
+    )
+    slot_date = DateField(
+        "Available Date", validators=[DataRequired(), validate_not_past], format="%Y-%m-%d"
+    )
+    start_time = TimeField("Start Time", validators=[DataRequired()])
+    end_time = TimeField("End Time", validators=[DataRequired()])
+    price = DecimalField(
+        "Rental Price", places=2, validators=[InputRequired(), NumberRange(min=0)]
+    )
+    driver_limit = IntegerField(
+        "Driver Limit", validators=[InputRequired(), NumberRange(min=1, max=500)]
+    )
+    submit = SubmitField("Add Available Slot")
+
+
 class EventSignupForm(FlaskForm):
     car_id = SelectField("Select Car", coerce=int, validators=[DataRequired()])
     submit = SubmitField("Sign Up")

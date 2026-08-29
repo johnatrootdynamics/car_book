@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-{% set order_number = order.order_number if kind == 'spectator' else 'DR-%06d'|format(order.id) %}
+{% set order_number = order.order_number if kind == 'spectator' else ('PR-%06d'|format(order.id) if kind == 'rental' else 'DR-%06d'|format(order.id)) %}
 {% set vendor_order = kind == 'spectator' and items|selectattr('ticket_category', 'equalto', 'vendor')|list|length > 0 %}
+{% set kind_label = 'Spectator' if kind == 'spectator' else ('Private rental' if kind == 'rental' else 'Driver') %}
 <section class="card order-detail-hero">
   <div class="row-space">
     <div>
       <a class="order-back-link" href="{{ url_for(back_endpoint) }}"><i class="bi bi-arrow-left"></i> Orders</a>
-      <p class="shop-eyebrow">{{ 'Spectator' if kind == 'spectator' else 'Driver' }} order</p>
+      <p class="shop-eyebrow">{{ kind_label }} order</p>
       <h2>{{ order_number }}</h2>
       <p class="muted-line">{{ track.name }} &middot; Created {{ order.created_at.strftime('%B %-d, %Y at %-I:%M %p') }}</p>
     </div>
@@ -37,11 +38,17 @@
           <div><dt>Phone</dt><dd>{{ order.vendor.phone if order.vendor else (order.guest_phone or 'Not provided') }}</dd></div>
         {% elif vendor_order %}<div><dt>Contact</dt><dd>Available to office staff</dd></div>{% endif %}
       </dl>
-    {% else %}
+    {% elif kind == 'driver' %}
       <dl class="order-facts">
         <div><dt>Name</dt><dd>{{ order.buyer.first_name }} {{ order.buyer.last_name }}</dd></div>
         <div><dt>Email</dt><dd>{{ order.buyer.email }}</dd></div>
         <div><dt>Car</dt><dd>{{ order.car.car_year }} {{ order.car.make }} {{ order.car.model }}</dd></div>
+      </dl>
+    {% else %}
+      <dl class="order-facts">
+        <div><dt>Name</dt><dd>{{ order.buyer.first_name }} {{ order.buyer.last_name }}</dd></div>
+        <div><dt>Email</dt><dd>{{ order.buyer.email }}</dd></div>
+        <div><dt>Primary vehicle</dt><dd>{{ order.car.car_year }} {{ order.car.make }} {{ order.car.model }}</dd></div>
       </dl>
     {% endif %}
   </section>
@@ -60,7 +67,7 @@
 </div>
 
 <section class="card order-line-items">
-  <h3>{{ 'Tickets' if kind == 'spectator' else 'Event registration' }}</h3>
+  <h3>{{ 'Tickets' if kind == 'spectator' else ('Rental details' if kind == 'rental' else 'Event registration') }}</h3>
   {% if kind == 'spectator' %}
     <div class="table-wrap">
       <table>
@@ -83,12 +90,20 @@
         </tbody>
       </table>
     </div>
-  {% else %}
+  {% elif kind == 'driver' %}
     <dl class="order-facts order-driver-event">
       <div><dt>Event</dt><dd>{{ order.event.event_name }}</dd></div>
       <div><dt>Date</dt><dd>{{ order.event.event_date }}</dd></div>
       <div><dt>Signup</dt><dd>{% if registration %}Created{% elif payment_status == 'paid' %}Processing{% else %}Locked until paid{% endif %}</dd></div>
       <div><dt>Check-in</dt><dd>{{ 'Checked in' if registration and registration.checked_in_at else 'Not checked in' }}</dd></div>
+    </dl>
+  {% else %}
+    <dl class="order-facts order-driver-event">
+      <div><dt>Rental</dt><dd>{{ order.slot.name }}</dd></div>
+      <div><dt>Date</dt><dd>{{ order.slot.slot_date.strftime('%B %-d, %Y') }}</dd></div>
+      <div><dt>Track time</dt><dd>{{ order.slot.start_time.strftime('%-I:%M %p') }}–{{ order.slot.end_time.strftime('%-I:%M %p') }}</dd></div>
+      <div><dt>Driver limit</dt><dd>Up to {{ order.slot.driver_limit }}</dd></div>
+      <div><dt>Private event</dt><dd>{% if order.event_id %}Created{% elif payment_status == 'paid' %}Processing{% else %}Locked until paid{% endif %}</dd></div>
     </dl>
   {% endif %}
 </section>

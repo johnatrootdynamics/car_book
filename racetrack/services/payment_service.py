@@ -244,6 +244,34 @@ def create_driver_stripe_checkout_session(stripe_client, driver_ticket_order, su
     return session
 
 
+def create_private_rental_stripe_checkout_session(stripe_client, booking, success_url, cancel_url):
+    slot = booking.slot
+    session = stripe_client.checkout.Session.create(
+        mode="payment",
+        expires_at=int(time()) + 1860,
+        line_items=[
+            {
+                "price_data": {
+                    "currency": "usd",
+                    "unit_amount": int(booking.amount_cents or 0),
+                    "product_data": {
+                        "name": f"Private track rental - {slot.track.name}",
+                        "description": (
+                            f"{slot.slot_date:%B %-d, %Y} · "
+                            f"{slot.start_time.strftime('%-I:%M %p')}–{slot.end_time.strftime('%-I:%M %p')}"
+                        ),
+                    },
+                },
+                "quantity": 1,
+            }
+        ],
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"order_type": "private_rental", "private_rental_booking_id": str(booking.id)},
+    )
+    return session
+
+
 def mark_order_paid(order, transaction_id=None):
     if (
         int(order.total_cents or 0) > 0
@@ -270,3 +298,17 @@ def mark_driver_ticket_paid(driver_ticket_order, transaction_id=None):
     driver_ticket_order.paid_at = datetime.utcnow()
     if transaction_id:
         driver_ticket_order.provider_transaction_id = transaction_id
+
+
+def mark_private_rental_paid(booking, transaction_id=None):
+    if (
+        int(booking.amount_cents or 0) > 0
+        and booking.payment_method in ONLINE_PAYMENT_PROVIDERS
+        and not transaction_id
+    ):
+        raise ValueError("Online private rental bookings require a provider transaction ID.")
+    booking.payment_status = "paid"
+    booking.status = "confirmed"
+    booking.paid_at = datetime.utcnow()
+    if transaction_id:
+        booking.provider_transaction_id = transaction_id

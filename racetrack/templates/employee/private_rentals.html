@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="rental-admin-page">
+  <header class="rental-page-header">
+    <div>
+      <span class="event-page-kicker">Office staff</span>
+      <h2>Private rentals</h2>
+      <p>Publish bookable track time for {{ track.name }} without risking a double booking.</p>
+    </div>
+    <a class="btn btn-secondary" href="{{ url_for('employee.events_index') }}"><i class="bi bi-calendar-event" aria-hidden="true"></i> Event list</a>
+  </header>
+
+  <div class="rental-admin-layout">
+    <section class="card rental-calendar-card">
+      <div class="rental-calendar-toolbar">
+        <div><span>Track availability</span><h3>{{ calendar.label }}</h3></div>
+        <nav aria-label="Rental calendar months">
+          <a href="{{ url_for('employee.private_rentals', month=calendar.previous_value) }}" aria-label="Previous month"><i class="bi bi-chevron-left"></i></a>
+          <a href="{{ url_for('employee.private_rentals') }}">Today</a>
+          <a href="{{ url_for('employee.private_rentals', month=calendar.next_value) }}" aria-label="Next month"><i class="bi bi-chevron-right"></i></a>
+        </nav>
+      </div>
+      <div class="rental-calendar-legend" aria-label="Calendar legend">
+        <span><i class="is-available"></i> Available</span>
+        <span><i class="is-held"></i> Checkout hold</span>
+        <span><i class="is-booked"></i> Booked</span>
+      </div>
+      <div class="rental-calendar" role="grid" aria-label="{{ calendar.label }} private rental availability">
+        {% for weekday in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] %}<div class="rental-weekday" role="columnheader">{{ weekday }}</div>{% endfor %}
+        {% for week in calendar.weeks %}
+          {% for day in week %}
+            <div class="rental-calendar-day {% if day.month != calendar.first.month %}outside-month{% endif %} {% if day == today %}is-today{% endif %}" role="gridcell">
+              <time datetime="{{ day }}">{{ day.day }}</time>
+              <div class="rental-day-slots">
+                {% for slot in slots_by_date.get(day, []) %}
+                  {% set booking = bookings_by_slot.get(slot.id) %}
+                  <span class="rental-slot-pill {% if booking and booking.status == 'confirmed' %}is-booked{% elif booking %}is-held{% else %}is-available{% endif %}" title="{{ slot.name }} · {{ money(slot.price_cents) }} · up to {{ slot.driver_limit }} drivers">
+                    <strong>{{ slot.start_time.strftime('%-I:%M %p') }}</strong>
+                    <small>{% if booking and booking.status == 'confirmed' %}Booked{% elif booking %}Held{% else %}{{ money(slot.price_cents) }}{% endif %}</small>
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="card rental-slot-form-card">
+      <div class="rental-form-heading"><span>New availability</span><h3>Add a rental slot</h3><p>Times are checked against events and other rental windows.</p></div>
+      <form method="post" class="form-grid" data-enhanced>
+        {{ form.hidden_tag() }}
+        {% if form.errors %}
+          <div class="form-error-summary" role="alert">
+            <strong>Check the slot details.</strong>
+            <ul>{% for field_name, errors in form.errors.items() %}{% for error in errors %}<li>{{ form[field_name].label.text }}: {{ error }}</li>{% endfor %}{% endfor %}</ul>
+          </div>
+        {% endif %}
+        <label>{{ form.name.label }} {{ form.name(placeholder='Private track rental') }}</label>
+        <label>{{ form.slot_date.label }} {{ form.slot_date(min=today.strftime('%Y-%m-%d')) }}</label>
+        <div class="rental-time-grid">
+          <label>{{ form.start_time.label }} {{ form.start_time(step='1800') }}</label>
+          <label>{{ form.end_time.label }} {{ form.end_time(step='1800') }}</label>
+        </div>
+        <div class="rental-time-grid">
+          <label>{{ form.price.label }} {{ form.price(min='0', step='0.01') }}</label>
+          <label>{{ form.driver_limit.label }} {{ form.driver_limit(min='1', max='500', step='1') }}</label>
+        </div>
+        <p class="rental-form-note"><i class="bi bi-shield-check" aria-hidden="true"></i> A slot cannot overlap an event or another private rental.</p>
+        {{ form.submit(class_='btn') }}
+      </form>
+    </aside>
+  </div>
+
+  <section class="card rental-upcoming-card">
+    <div class="rental-section-head"><div><span>Schedule</span><h3>Upcoming rental slots</h3></div><span>{{ upcoming_slots|length }}</span></div>
+    {% if upcoming_slots %}
+      <div class="rental-upcoming-list">
+        {% for slot in upcoming_slots %}
+          {% set booking = upcoming_bookings.get(slot.id) %}
+          <article>
+            <time><span>{{ slot.slot_date.strftime('%b') }}</span><strong>{{ slot.slot_date.strftime('%-d') }}</strong></time>
+            <div class="rental-upcoming-main"><strong>{{ slot.name }}</strong><span>{{ slot.start_time.strftime('%-I:%M %p') }}–{{ slot.end_time.strftime('%-I:%M %p') }} · {{ money(slot.price_cents) }} · {{ slot.driver_limit }} drivers</span></div>
+            <div class="rental-booking-person">
+              {% if booking and booking.status == 'confirmed' %}<strong>{{ booking.buyer.first_name }} {{ booking.buyer.last_name }}</strong><span>Confirmed renter</span>
+              {% elif booking %}<strong>{{ booking.buyer.first_name }} {{ booking.buyer.last_name }}</strong><span>Payment hold</span>
+              {% else %}<strong>Available</strong><span>Visible to drivers</span>{% endif %}
+            </div>
+            <span class="rental-status {% if booking and booking.status == 'confirmed' %}is-booked{% elif booking %}is-held{% else %}is-available{% endif %}">{% if booking and booking.status == 'confirmed' %}Booked{% elif booking %}Held{% else %}Open{% endif %}</span>
+            {% if not booking %}
+              <form method="post" action="{{ url_for('employee.private_rental_slot_remove', slot_id=slot.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="rental-remove-btn" type="submit" onclick="return confirm('Remove this rental slot?')" aria-label="Remove {{ slot.name }}"><i class="bi bi-trash3"></i></button>
+              </form>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="driver-dashboard-empty"><span><i class="bi bi-calendar2-plus"></i></span><div><strong>No rental availability yet</strong><p>Add the first open date using the form above.</p></div></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -15,6 +15,8 @@ from .models import (
     EventClassSlot,
     DriverTicketOrder,
     EventRegistration,
+    PrivateRentalBooking,
+    PrivateRentalSlot,
     SocialComment,
     SocialPost,
     SpectatorCart,
@@ -28,11 +30,12 @@ from .models import (
     TrackPaymentMethod,
     TrackSubscription,
     TrackWaiverTemplate,
+    User,
     VendorAccount,
     db,
 )
 from .services.storage_service import upload_public_image
-from .services.email_service import send_driver_purchase_receipt, send_spectator_order_receipt
+from .services.email_service import send_driver_purchase_receipt, send_private_rental_confirmation, send_spectator_order_receipt
 from .services.capacity_service import (
     driver_already_has_ticket,
     driver_order_fits_capacity,
@@ -46,12 +49,20 @@ from .services.payment_service import (
     capture_paypal_order,
     create_paypal_order,
     create_driver_stripe_checkout_session,
+    create_private_rental_stripe_checkout_session,
     create_stripe_checkout_session,
     mark_driver_ticket_paid,
+    mark_private_rental_paid,
     mark_order_paid,
     payment_is_confirmed,
     paypal_capture_details,
     verify_paypal_webhook_signature,
+)
+from .services.rental_service import (
+    BOOKING_HOLD_MINUTES,
+    active_bookings_by_slot,
+    booking_is_active,
+    rental_month_context,
 )
 from .services.ticket_service import code_qr_png, ensure_order_ticket_codes, generate_ticket_code
 
@@ -105,6 +116,13 @@ def _generate_car_qr_code():
     while True:
         code = f"CAR-{secrets.token_hex(4).upper()}"
         if not Car.query.filter_by(static_qr_code=code).first():
+            return code
+
+
+def _generate_user_qr_code():
+    while True:
+        code = f"DRV-{secrets.token_hex(4).upper()}"
+        if not User.query.filter_by(static_qr_code=code).first():
             return code
 
 
@@ -314,7 +332,7 @@ def _create_driver_post_purchase_steps(driver_ticket_order):
     if not track_class:
         db.session.add(TrackDriverClass(track_id=event.track_id, user_id=user.id, driver_class="C"))
 
-    if not SocialPost.query.filter_by(event_registration_id=reg.id).first():
+    if event.event_type != "private" and not SocialPost.query.filter_by(event_registration_id=reg.id).first():
         db.session.add(
             SocialPost(
                 user_id=user.id,
@@ -326,6 +344,10 @@ def _create_driver_post_purchase_steps(driver_ticket_order):
             )
         )
 
+    return _ensure_driver_event_waivers(event, user)
+
+
+def _ensure_driver_event_waivers(event, user):
     from .models import DriverWaiver
 
     required_templates = TrackWaiverTemplate.query.filter_by(
@@ -387,6 +409,75 @@ def _finalize_driver_ticket_order(driver_ticket_order, transaction_id=None):
     return needs_waiver_action, created_waiver_id
 
 
+def _finalize_private_rental_booking(booking, transaction_id=None):
+    if booking.status == "confirmed" and booking.event_id:
+        if transaction_id and not booking.provider_transaction_id:
+            booking.provider_transaction_id = transaction_id
+            booking.paid_at = booking.paid_at or datetime.utcnow()
+            db.session.commit()
+        return booking.event
+
+    slot = PrivateRentalSlot.query.filter_by(id=booking.slot_id).with_for_update().one()
+    conflicting_booking = (
+        PrivateRentalBooking.query.filter(
+            PrivateRentalBooking.slot_id == slot.id,
+            PrivateRentalBooking.id != booking.id,
+            PrivateRentalBooking.status == "confirmed",
+            PrivateRentalBooking.payment_status == "paid",
+        )
+        .order_by(PrivateRentalBooking.created_at.asc())
+        .first()
+    )
+    if conflicting_booking:
+        raise ValueError("That private rental slot has already been booked.")
+
+    mark_private_rental_paid(booking, transaction_id=transaction_id)
+    event = Event(
+        track_id=slot.track_id,
+        event_name=slot.name,
+        event_date=slot.slot_date,
+        event_type="private",
+        private_owner_user_id=booking.user_id,
+        driver_price_cents=0,
+        spectator_price_cents=0,
+        vendor_price_cents=0,
+        driver_capacity=slot.driver_limit,
+        spectator_capacity=0,
+        vendor_capacity=0,
+        event_start_time=slot.start_time,
+        event_end_time=slot.end_time,
+    )
+    db.session.add(event)
+    db.session.flush()
+    if not booking.car.static_qr_code:
+        booking.car.static_qr_code = _generate_car_qr_code()
+    db.session.add(
+        EventRegistration(
+            event_id=event.id,
+            user_id=booking.user_id,
+            car_id=booking.car_id,
+            checkin_code=booking.car.static_qr_code,
+        )
+    )
+    if not TrackDriverClass.query.filter_by(
+        track_id=slot.track_id,
+        user_id=booking.user_id,
+    ).first():
+        db.session.add(
+            TrackDriverClass(track_id=slot.track_id, user_id=booking.user_id, driver_class="C")
+        )
+    if not TrackSubscription.query.filter_by(
+        track_id=slot.track_id,
+        user_id=booking.user_id,
+    ).first():
+        db.session.add(TrackSubscription(track_id=slot.track_id, user_id=booking.user_id))
+    booking.event_id = event.id
+    _ensure_driver_event_waivers(event, booking.buyer)
+    db.session.commit()
+    _safe_send_email(send_private_rental_confirmation, booking)
+    return event
+
+
 def _finalize_spectator_order(order, transaction_id=None):
     ticket_codes_added = ensure_order_ticket_codes(order)
     if order.payment_status == "paid":
@@ -428,10 +519,17 @@ def _finalize_spectator_order(order, transaction_id=None):
     _safe_send_email(send_spectator_order_receipt, order)
 
 
-def _paypal_credentials_for_order(spectator_order=None, driver_ticket_order=None):
+def _paypal_credentials_for_order(
+    spectator_order=None,
+    driver_ticket_order=None,
+    private_rental_booking=None,
+):
     if spectator_order:
         track = spectator_order.items[0].event.track if spectator_order.items else None
         mode = spectator_order.payment_mode
+    elif private_rental_booking:
+        track = private_rental_booking.slot.track
+        mode = private_rental_booking.payment_mode
     else:
         track = driver_ticket_order.event.track if driver_ticket_order else None
         mode = driver_ticket_order.payment_mode if driver_ticket_order else None
@@ -529,6 +627,7 @@ def dashboard():
         event_query = Event.query.filter(
             Event.track_id.in_(subscribed_track_ids),
             Event.event_date >= date.today(),
+            Event.event_type == "public",
         )
         if selected_track_id:
             event_query = event_query.filter(Event.track_id == selected_track_id)
@@ -565,6 +664,273 @@ def dashboard():
     )
 
 
+@user_bp.route("/private-rentals")
+@login_required
+def private_rental_tracks():
+    guard = require_user()
+    if guard:
+        return guard
+    slots = (
+        PrivateRentalSlot.query.filter(
+            PrivateRentalSlot.slot_date >= date.today(),
+            PrivateRentalSlot.is_active.is_(True),
+        )
+        .order_by(PrivateRentalSlot.slot_date.asc(), PrivateRentalSlot.start_time.asc())
+        .all()
+    )
+    bookings_by_slot = active_bookings_by_slot([slot.id for slot in slots])
+    availability_by_track = {}
+    for slot in slots:
+        booking = bookings_by_slot.get(slot.id)
+        if booking and booking.user_id != current_user.id:
+            continue
+        summary = availability_by_track.setdefault(
+            slot.track_id,
+            {
+                "track": slot.track,
+                "count": 0,
+                "from_cents": slot.price_cents,
+                "next_date": slot.slot_date,
+                "has_booking": False,
+            },
+        )
+        if booking:
+            summary["has_booking"] = True
+        else:
+            summary["count"] += 1
+        summary["from_cents"] = min(summary["from_cents"], slot.price_cents)
+        summary["next_date"] = min(summary["next_date"], slot.slot_date)
+    return render_template(
+        "user/private_rental_tracks.html",
+        track_options=sorted(
+            availability_by_track.values(),
+            key=lambda item: (item["next_date"], item["track"].name.lower()),
+        ),
+        money=_money,
+    )
+
+
+@user_bp.route("/tracks/<int:track_id>/private-rentals")
+@login_required
+def private_rental_calendar(track_id):
+    guard = require_user()
+    if guard:
+        return guard
+    track = Track.query.get_or_404(track_id)
+    calendar = rental_month_context(request.args.get("month"))
+    slots = (
+        PrivateRentalSlot.query.filter(
+            PrivateRentalSlot.track_id == track.id,
+            PrivateRentalSlot.slot_date >= calendar["range_start"],
+            PrivateRentalSlot.slot_date <= calendar["range_end"],
+            PrivateRentalSlot.is_active.is_(True),
+        )
+        .order_by(PrivateRentalSlot.slot_date.asc(), PrivateRentalSlot.start_time.asc())
+        .all()
+    )
+    bookings_by_slot = active_bookings_by_slot([slot.id for slot in slots])
+    slots_by_date = {}
+    payment_choices_by_slot = {}
+    for slot in slots:
+        slots_by_date.setdefault(slot.slot_date, []).append(slot)
+        payment_choices_by_slot[slot.id] = _configured_payment_choices(track, slot.price_cents)
+    cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
+    my_bookings = (
+        PrivateRentalBooking.query.join(
+            PrivateRentalSlot,
+            PrivateRentalSlot.id == PrivateRentalBooking.slot_id,
+        )
+        .filter(
+            PrivateRentalBooking.user_id == current_user.id,
+            PrivateRentalSlot.track_id == track.id,
+            PrivateRentalSlot.slot_date >= date.today(),
+            PrivateRentalBooking.status.in_(("pending", "confirmed")),
+        )
+        .order_by(PrivateRentalSlot.slot_date.asc(), PrivateRentalSlot.start_time.asc())
+        .all()
+    )
+    my_bookings = [booking for booking in my_bookings if booking_is_active(booking)]
+    return render_template(
+        "user/private_rental_calendar.html",
+        track=track,
+        calendar=calendar,
+        slots=slots,
+        slots_by_date=slots_by_date,
+        bookings_by_slot=bookings_by_slot,
+        payment_choices_by_slot=payment_choices_by_slot,
+        cars=cars,
+        my_bookings=my_bookings,
+        today=date.today(),
+        money=_money,
+    )
+
+
+@user_bp.route("/private-rentals/slots/<int:slot_id>/book", methods=["POST"])
+@login_required
+def private_rental_book(slot_id):
+    guard = require_user()
+    if guard:
+        return guard
+    slot = PrivateRentalSlot.query.filter_by(id=slot_id).with_for_update().first_or_404()
+    calendar_url = url_for(
+        "user.private_rental_calendar",
+        track_id=slot.track_id,
+        month=slot.slot_date.strftime("%Y-%m"),
+    )
+    calendar_external_url = url_for(
+        "user.private_rental_calendar",
+        track_id=slot.track_id,
+        month=slot.slot_date.strftime("%Y-%m"),
+        _external=True,
+    )
+    if not slot.is_active or slot.slot_date < date.today():
+        flash("That private rental slot is no longer available.", "error")
+        return redirect(calendar_url)
+
+    active_booking = active_bookings_by_slot([slot.id]).get(slot.id)
+    if active_booking:
+        if active_booking.user_id == current_user.id and active_booking.status == "pending":
+            if active_booking.provider_checkout_url:
+                return redirect(active_booking.provider_checkout_url)
+        flash("That private rental slot is already booked or currently in checkout.", "error")
+        return redirect(calendar_url)
+
+    car_id = request.form.get("car_id", type=int)
+    car = Car.query.filter_by(id=car_id, user_id=current_user.id).first()
+    if not car:
+        flash("Choose one of your vehicles before booking.", "error")
+        return redirect(calendar_url)
+
+    payment_choices = _configured_payment_choices(slot.track, slot.price_cents)
+    allowed_providers = {value for value, _label in payment_choices}
+    payment_method = (request.form.get("payment_method") or "").strip().lower()
+    if payment_method not in allowed_providers:
+        flash("Choose an available payment method.", "error")
+        return redirect(calendar_url)
+    credentials = _payment_credentials(slot.track, payment_method)
+    booking = PrivateRentalBooking(
+        slot_id=slot.id,
+        user_id=current_user.id,
+        car_id=car.id,
+        amount_cents=max(0, slot.price_cents or 0),
+        payment_method=payment_method,
+        payment_mode=credentials["mode"],
+        payment_status="pending",
+        status="pending",
+        expires_at=datetime.utcnow() + timedelta(minutes=BOOKING_HOLD_MINUTES),
+    )
+    db.session.add(booking)
+    db.session.flush()
+
+    if booking.amount_cents <= 0:
+        event = _finalize_private_rental_booking(booking)
+        flash("Your private track rental is confirmed.", "success")
+        return redirect(url_for("user.event_schedule", event_id=event.id))
+
+    if payment_method == "stripe" and stripe and credentials["secret_key"] and credentials["webhook_secret"]:
+        try:
+            stripe.api_key = credentials["secret_key"]
+            checkout_session = create_private_rental_stripe_checkout_session(
+                stripe,
+                booking,
+                success_url=url_for(
+                    "user.private_rental_booking_success",
+                    booking_id=booking.id,
+                    _external=True,
+                ),
+                cancel_url=calendar_external_url,
+            )
+            booking.provider_session_id = checkout_session.id
+            booking.provider_checkout_url = checkout_session.url
+            db.session.commit()
+            return redirect(checkout_session.url)
+        except Exception:
+            current_app.logger.exception("Stripe private rental checkout creation failed")
+            db.session.rollback()
+            flash("Stripe could not start the private rental checkout.", "error")
+            return redirect(calendar_url)
+
+    if payment_method == "paypal" and credentials["public_key"] and credentials["secret_key"] and credentials["webhook_secret"]:
+        try:
+            paypal_order, approve_url = create_paypal_order(
+                credentials,
+                booking.amount_cents,
+                f"Private track rental - {slot.track.name}",
+                f"private-rental:{booking.id}",
+                url_for(
+                    "user.private_rental_paypal_return",
+                    booking_id=booking.id,
+                    _external=True,
+                ),
+                calendar_external_url,
+                f"private-rental-create-{booking.id}",
+            )
+            booking.provider_session_id = paypal_order["id"]
+            booking.provider_checkout_url = approve_url
+            db.session.commit()
+            return redirect(approve_url)
+        except PayPalError:
+            current_app.logger.exception("PayPal private rental checkout creation failed")
+            db.session.rollback()
+            flash("PayPal could not start the private rental checkout.", "error")
+            return redirect(calendar_url)
+
+    db.session.rollback()
+    flash("That payment provider cannot confirm private rental payments yet.", "error")
+    return redirect(calendar_url)
+
+
+@user_bp.route("/private-rentals/bookings/<int:booking_id>/success")
+@login_required
+def private_rental_booking_success(booking_id):
+    guard = require_user()
+    if guard:
+        return guard
+    booking = PrivateRentalBooking.query.filter_by(
+        id=booking_id,
+        user_id=current_user.id,
+    ).first_or_404()
+    if booking.status == "confirmed" and booking.event_id:
+        flash("Your private track rental is confirmed and added to your dashboard.", "success")
+        return redirect(url_for("user.dashboard"))
+    flash("Payment is processing. Your rental remains held while confirmation completes.", "success")
+    return redirect(
+        url_for(
+            "user.private_rental_calendar",
+            track_id=booking.slot.track_id,
+            month=booking.slot.slot_date.strftime("%Y-%m"),
+        )
+    )
+
+
+@user_bp.route("/private-rentals/bookings/<int:booking_id>/release", methods=["POST"])
+@login_required
+def private_rental_booking_release(booking_id):
+    guard = require_user()
+    if guard:
+        return guard
+    booking = PrivateRentalBooking.query.filter_by(
+        id=booking_id,
+        user_id=current_user.id,
+        status="pending",
+    ).first_or_404()
+    if booking.payment_status == "paid":
+        flash("A paid rental cannot be released from the calendar.", "error")
+    else:
+        booking.status = "canceled"
+        booking.payment_status = "canceled"
+        booking.failure_reason = "Released by driver before payment confirmation."
+        db.session.commit()
+        flash("The rental hold was released.", "success")
+    return redirect(
+        url_for(
+            "user.private_rental_calendar",
+            track_id=booking.slot.track_id,
+            month=booking.slot.slot_date.strftime("%Y-%m"),
+        )
+    )
+
+
 @user_bp.route("/inspection-qr.png")
 @login_required
 def inspection_qr_image():
@@ -583,6 +949,27 @@ def inspection_qr_image():
 
 def _event_detail_response(event_id):
     event = Event.query.get_or_404(event_id)
+    if event.event_type == "private":
+        if (
+            not current_user.is_authenticated
+            or getattr(current_user, "account_type", None) != "user"
+        ):
+            flash("Sign in to view that private event.", "error")
+            return redirect(url_for("auth.user_login", next=url_for("user.event_detail", event_id=event.id)))
+        registration = EventRegistration.query.filter_by(
+            event_id=event.id,
+            user_id=current_user.id,
+        ).first()
+        if not registration and event.private_owner_user_id != current_user.id:
+            return "Event not found", 404
+        booking = PrivateRentalBooking.query.filter_by(event_id=event.id).first()
+        return render_template(
+            "user/private_event_detail.html",
+            event=event,
+            registration=registration,
+            booking=booking,
+            money=_money,
+        )
     if event.event_date < date.today():
         flash("Spectator tickets are no longer available for this event.", "error")
         return redirect(url_for("user.spectator_events"))
@@ -646,7 +1033,10 @@ def spectator_tickets(event_id):
 @user_bp.route("/spectator/events")
 def spectator_events():
     q = (request.args.get("q") or "").strip()
-    query = Event.query.join(Track, Track.id == Event.track_id).filter(Event.event_date >= date.today())
+    query = Event.query.join(Track, Track.id == Event.track_id).filter(
+        Event.event_date >= date.today(),
+        Event.event_type == "public",
+    )
     if q:
         like = f"%{q}%"
         query = query.filter(
@@ -686,6 +1076,9 @@ def spectator_cart_add():
     ticket_type_id = request.form.get("ticket_type_id", type=int)
     quantity = request.form.get("quantity", type=int) or 1
     event = Event.query.get_or_404(event_id)
+    if event.event_type == "private":
+        flash("Private rentals do not offer public admission.", "error")
+        return redirect(url_for("user.spectator_events"))
     if event.event_date < date.today():
         flash("Spectator tickets are no longer available for this event.", "error")
         return redirect(url_for("user.spectator_events"))
@@ -1049,9 +1442,14 @@ def stripe_webhook():
         return "invalid", 400
     order = SpectatorOrder.query.filter_by(provider_session_id=session_id).first()
     driver_ticket_order = None
+    private_rental_booking = None
     if not order:
         driver_ticket_order = DriverTicketOrder.query.filter_by(provider_session_id=session_id).first()
     if not order and not driver_ticket_order:
+        private_rental_booking = PrivateRentalBooking.query.filter_by(
+            provider_session_id=session_id
+        ).first()
+    if not order and not driver_ticket_order and not private_rental_booking:
         return "ok", 200
     if order:
         payment_track = order.items[0].event.track if order.items else None
@@ -1060,11 +1458,17 @@ def stripe_webhook():
             if payment_track
             else None
         )
-    else:
+    elif driver_ticket_order:
         webhook_secret = _payment_credentials(
             driver_ticket_order.event.track,
             "stripe",
             mode=driver_ticket_order.payment_mode,
+        )["webhook_secret"]
+    else:
+        webhook_secret = _payment_credentials(
+            private_rental_booking.slot.track,
+            "stripe",
+            mode=private_rental_booking.payment_mode,
         )["webhook_secret"]
     if not webhook_secret:
         return "ignored", 200
@@ -1078,7 +1482,7 @@ def stripe_webhook():
         return "invalid", 400
 
     if event.get("type") in {"checkout.session.async_payment_failed", "checkout.session.expired"}:
-        target = order or driver_ticket_order
+        target = order or driver_ticket_order or private_rental_booking
         if target.payment_status != "paid":
             target.payment_status = "failed"
             target.status = "failed"
@@ -1093,8 +1497,8 @@ def stripe_webhook():
     if event.get("type") in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
         session_obj = event["data"]["object"]
         session_id = session_obj.get("id")
-        target = order or driver_ticket_order
-        expected_cents = order.total_cents if order else driver_ticket_order.amount_cents
+        target = order or driver_ticket_order or private_rental_booking
+        expected_cents = order.total_cents if order else target.amount_cents
         if (
             session_obj.get("payment_status") != "paid"
             or session_obj.get("currency", "").lower() != "usd"
@@ -1103,7 +1507,7 @@ def stripe_webhook():
             current_app.logger.warning(
                 "Ignored unconfirmed or mismatched Stripe checkout session %s for %s order %s",
                 session_id,
-                "spectator" if order else "driver",
+                "spectator" if order else ("driver" if driver_ticket_order else "private rental"),
                 target.id,
             )
             return "ok", 200
@@ -1112,6 +1516,11 @@ def stripe_webhook():
         elif driver_ticket_order and driver_ticket_order.payment_status != "paid":
             _finalize_driver_ticket_order(
                 driver_ticket_order,
+                transaction_id=session_obj.get("payment_intent"),
+            )
+        elif private_rental_booking and private_rental_booking.payment_status != "paid":
+            _finalize_private_rental_booking(
+                private_rental_booking,
                 transaction_id=session_obj.get("payment_intent"),
             )
     return "ok", 200
@@ -1196,6 +1605,61 @@ def driver_paypal_return(order_id):
     return redirect(url_for("user.driver_event_checkout_success", order_id=order.id))
 
 
+@user_bp.route("/payments/paypal/private-rental/<int:booking_id>/return")
+@login_required
+def private_rental_paypal_return(booking_id):
+    guard = require_user()
+    if guard:
+        return guard
+    booking = PrivateRentalBooking.query.filter_by(
+        id=booking_id,
+        user_id=current_user.id,
+    ).first_or_404()
+    paypal_order_id = request.args.get("token", "").strip()
+    calendar_url = url_for(
+        "user.private_rental_calendar",
+        track_id=booking.slot.track_id,
+        month=booking.slot.slot_date.strftime("%Y-%m"),
+    )
+    if (
+        booking.payment_method != "paypal"
+        or not paypal_order_id
+        or paypal_order_id != booking.provider_session_id
+    ):
+        flash("PayPal could not confirm this private rental.", "error")
+        return redirect(calendar_url)
+    if booking.payment_status != "paid":
+        PrivateRentalSlot.query.filter_by(id=booking.slot_id).with_for_update().one()
+        blocking_booking = active_bookings_by_slot([booking.slot_id]).get(booking.slot_id)
+        if blocking_booking and blocking_booking.id != booking.id:
+            booking.payment_status = "failed"
+            booking.status = "failed"
+            booking.failure_reason = "The rental slot was booked before PayPal approval."
+            db.session.commit()
+            flash("That rental slot is no longer available. Your payment was not captured.", "error")
+            return redirect(calendar_url)
+        credentials = _paypal_credentials_for_order(private_rental_booking=booking)
+        try:
+            captured = capture_paypal_order(
+                credentials,
+                paypal_order_id,
+                f"private-rental-capture-{booking.id}",
+            )
+            transaction_id = _validated_paypal_capture(
+                paypal_capture_details(captured),
+                booking.amount_cents,
+            )
+            _finalize_private_rental_booking(booking, transaction_id=transaction_id)
+        except (PayPalError, TypeError, KeyError, ValueError):
+            current_app.logger.exception(
+                "PayPal private rental capture failed for booking %s",
+                booking.id,
+            )
+            flash("PayPal is still processing this private rental payment.", "error")
+            return redirect(calendar_url)
+    return redirect(url_for("user.private_rental_booking_success", booking_id=booking.id))
+
+
 @user_bp.route("/payments/paypal/webhook", methods=["POST"])
 def paypal_webhook():
     event = request.get_json(silent=True) or {}
@@ -1215,17 +1679,24 @@ def paypal_webhook():
         payment_method="paypal",
     ).first()
     driver_ticket_order = None
+    private_rental_booking = None
     if not spectator_order:
         driver_ticket_order = DriverTicketOrder.query.filter_by(
             provider_session_id=paypal_order_id,
             payment_method="paypal",
         ).first()
     if not spectator_order and not driver_ticket_order:
+        private_rental_booking = PrivateRentalBooking.query.filter_by(
+            provider_session_id=paypal_order_id,
+            payment_method="paypal",
+        ).first()
+    if not spectator_order and not driver_ticket_order and not private_rental_booking:
         return "ok", 200
 
     credentials = _paypal_credentials_for_order(
         spectator_order=spectator_order,
         driver_ticket_order=driver_ticket_order,
+        private_rental_booking=private_rental_booking,
     )
     if not credentials or not credentials.get("webhook_secret"):
         return "ignored", 200
@@ -1244,15 +1715,26 @@ def paypal_webhook():
 
     try:
         if event_type == "CHECKOUT.ORDER.APPROVED":
-            target = spectator_order or driver_ticket_order
+            target = spectator_order or driver_ticket_order or private_rental_booking
             if not reservation_is_active(target):
                 if spectator_order:
                     event_ids = sorted({item.event_id for item in spectator_order.items})
                     Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
                     capacity_available = spectator_order_fits_capacity(spectator_order)
-                else:
+                elif driver_ticket_order:
                     Event.query.filter_by(id=driver_ticket_order.event_id).with_for_update().one()
                     capacity_available = driver_order_fits_capacity(driver_ticket_order)
+                else:
+                    PrivateRentalSlot.query.filter_by(
+                        id=private_rental_booking.slot_id
+                    ).with_for_update().one()
+                    blocking_booking = active_bookings_by_slot(
+                        [private_rental_booking.slot_id]
+                    ).get(private_rental_booking.slot_id)
+                    capacity_available = (
+                        blocking_booking is None
+                        or blocking_booking.id == private_rental_booking.id
+                    )
                 if not capacity_available:
                     target.payment_status = "failed"
                     target.status = "failed"
@@ -1265,7 +1747,11 @@ def paypal_webhook():
                 (
                     f"spectator-capture-{spectator_order.id}"
                     if spectator_order
-                    else f"driver-capture-{driver_ticket_order.id}"
+                    else (
+                        f"driver-capture-{driver_ticket_order.id}"
+                        if driver_ticket_order
+                        else f"private-rental-capture-{private_rental_booking.id}"
+                    )
                 ),
             )
             details = paypal_capture_details(captured)
@@ -1278,7 +1764,7 @@ def paypal_webhook():
                 "value": amount.get("value"),
             }
         elif event_type == "PAYMENT.CAPTURE.DENIED":
-            target = spectator_order or driver_ticket_order
+            target = spectator_order or driver_ticket_order or private_rental_booking
             if target.payment_status != "paid":
                 target.payment_status = "failed"
                 target.failure_reason = "PayPal declined the payment capture."
@@ -1287,13 +1773,18 @@ def paypal_webhook():
         else:
             return "ok", 200
 
-        target = spectator_order or driver_ticket_order
-        expected_cents = spectator_order.total_cents if spectator_order else driver_ticket_order.amount_cents
+        target = spectator_order or driver_ticket_order or private_rental_booking
+        expected_cents = spectator_order.total_cents if spectator_order else target.amount_cents
         transaction_id = _validated_paypal_capture(details, expected_cents)
         if spectator_order:
             _finalize_spectator_order(spectator_order, transaction_id=transaction_id)
-        else:
+        elif driver_ticket_order:
             _finalize_driver_ticket_order(driver_ticket_order, transaction_id=transaction_id)
+        else:
+            _finalize_private_rental_booking(
+                private_rental_booking,
+                transaction_id=transaction_id,
+            )
     except PayPalError:
         current_app.logger.exception("PayPal webhook processing failed for order %s", paypal_order_id)
         return "retry", 500
@@ -1437,8 +1928,15 @@ def community():
         return guard
     posts = SocialPost.query.order_by(SocialPost.created_at.desc()).limit(100).all()
     cars = Car.query.order_by(Car.created_at.desc()).limit(100).all()
-    events = Event.query.order_by(Event.event_date.asc()).limit(24).all()
-    events = [event for event in events if event.event_date >= date.today()]
+    events = (
+        Event.query.filter(
+            Event.event_type == "public",
+            Event.event_date >= date.today(),
+        )
+        .order_by(Event.event_date.asc())
+        .limit(24)
+        .all()
+    )
     event_signup_counts = {
         event.id: EventRegistration.query.filter_by(event_id=event.id).count() for event in events
     }
@@ -1554,8 +2052,12 @@ def car_delete(car_id):
         return guard
     car = Car.query.filter_by(id=car_id, user_id=current_user.id).first_or_404()
     in_use = EventRegistration.query.filter_by(car_id=car.id).first()
-    if in_use:
-        flash("Car cannot be deleted while used in an event signup.", "error")
+    rental_in_use = PrivateRentalBooking.query.filter(
+        PrivateRentalBooking.car_id == car.id,
+        PrivateRentalBooking.status.in_(("pending", "confirmed")),
+    ).first()
+    if in_use or rental_in_use:
+        flash("Car cannot be deleted while used in an event signup or private rental.", "error")
         return redirect(url_for("user.dashboard"))
     db.session.delete(car)
     db.session.commit()
@@ -1570,6 +2072,9 @@ def signup_event(event_id):
     if guard:
         return guard
     event = Event.query.get_or_404(event_id)
+    if event.event_type == "private":
+        flash("Private rental attendance is managed by the renter and track office.", "error")
+        return redirect(url_for("user.dashboard"))
     if event.event_date < date.today():
         flash("Cannot sign up for past events.", "error")
         return redirect(url_for("user.dashboard"))
@@ -1609,6 +2114,9 @@ def driver_event_checkout(event_id):
     if guard:
         return guard
     event = Event.query.get_or_404(event_id)
+    if event.event_type == "private":
+        flash("Private rentals do not use individual driver checkout.", "error")
+        return redirect(url_for("user.event_detail", event_id=event.id))
     if event.event_date < date.today():
         flash("Cannot sign up for past events.", "error")
         return redirect(url_for("user.dashboard"))

@@ -262,6 +262,8 @@ class Event(db.Model):
     track_layout_id = db.Column(db.Integer, db.ForeignKey("track_layouts.id"), nullable=True)
     event_name = db.Column(db.String(200), nullable=False)
     event_date = db.Column(db.Date, nullable=False)
+    event_type = db.Column(db.String(20), nullable=False, default="public")
+    private_owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     driver_price_cents = db.Column(db.Integer, nullable=False, default=0)
     spectator_price_cents = db.Column(db.Integer, nullable=False, default=2500)
     vendor_price_cents = db.Column(db.Integer, nullable=False, default=10000)
@@ -292,6 +294,78 @@ class Event(db.Model):
         "SpectatorTicketType", backref="event", cascade="all, delete-orphan"
     )
     track_layout = db.relationship("TrackLayout")
+    private_owner = db.relationship("User", foreign_keys=[private_owner_user_id])
+
+
+class PrivateRentalSlot(db.Model):
+    __tablename__ = "private_rental_slots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
+    name = db.Column(db.String(120), nullable=False, default="Private track rental")
+    slot_date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    price_cents = db.Column(db.Integer, nullable=False, default=0)
+    driver_limit = db.Column(db.Integer, nullable=False, default=1)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_by_employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    track = db.relationship("Track")
+    created_by = db.relationship("Employee")
+    bookings = db.relationship(
+        "PrivateRentalBooking", backref="slot", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "track_id",
+            "slot_date",
+            "start_time",
+            "end_time",
+            name="uniq_private_rental_slot_window",
+        ),
+        db.CheckConstraint("end_time > start_time", name="chk_private_rental_slot_time"),
+        db.CheckConstraint("price_cents >= 0", name="chk_private_rental_slot_price"),
+        db.CheckConstraint("driver_limit > 0", name="chk_private_rental_driver_limit"),
+    )
+
+
+class PrivateRentalBooking(db.Model):
+    __tablename__ = "private_rental_bookings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    slot_id = db.Column(db.Integer, db.ForeignKey("private_rental_slots.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True, unique=True)
+    amount_cents = db.Column(db.Integer, nullable=False, default=0)
+    payment_method = db.Column(db.String(50), nullable=False, default="stripe")
+    payment_mode = db.Column(db.String(10), nullable=False, default="live")
+    payment_status = db.Column(db.String(30), nullable=False, default="pending")
+    provider_session_id = db.Column(db.String(255), nullable=True)
+    provider_checkout_url = db.Column(db.Text, nullable=True)
+    provider_transaction_id = db.Column(db.String(255), nullable=True)
+    paid_at = db.Column(db.DateTime, nullable=True)
+    failure_reason = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(30), nullable=False, default="pending")
+    expires_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    buyer = db.relationship("User")
+    car = db.relationship("Car")
+    event = db.relationship("Event")
+
+    __table_args__ = (
+        db.Index("idx_private_rental_booking_slot_status", "slot_id", "status"),
+    )
 
 
 class EventRegistration(db.Model):

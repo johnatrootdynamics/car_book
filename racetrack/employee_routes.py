@@ -6,11 +6,12 @@ from decimal import Decimal
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import case, func, or_
+from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
-from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, TrackEmailTemplateForm, TrackProfileForm
+from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, PrivateRentalSlotForm, TrackEmailTemplateForm, TrackProfileForm
 from .models import (
     Car,
     DriverClassChange,
@@ -23,6 +24,8 @@ from .models import (
     Inspection,
     InspectionItem,
     InspectionRule,
+    PrivateRentalBooking,
+    PrivateRentalSlot,
     RunGroup,
     RunGroupAssignment,
     SpectatorOrder,
@@ -45,12 +48,20 @@ from .security import generate_random_password
 from .services.email_service import (
     send_driver_purchase_receipt,
     send_employee_login_email,
+    send_private_rental_confirmation,
     send_spectator_order_receipt,
 )
 from .services.storage_service import upload_public_image
 from .services.capacity_service import ticket_availability
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status, payment_is_confirmed
+from .services.rental_service import (
+    active_bookings_by_slot,
+    event_conflicts_with_rental_slot,
+    rental_month_context,
+    slot_conflicts_with_event,
+    slot_conflicts_with_slot,
+)
 from .services.ticket_service import ensure_order_ticket_codes, normalize_ticket_code
 
 
@@ -366,6 +377,136 @@ def events_index():
         upcoming_events=upcoming_events,
         past_events=past_events,
         signup_counts=signup_counts,
+    )
+
+
+@employee_bp.route("/private-rentals", methods=["GET", "POST"])
+@login_required
+def private_rentals():
+    guard = require_office_staff()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    track = Track.query.get_or_404(track_id)
+    calendar = rental_month_context(request.args.get("month"))
+    form = PrivateRentalSlotForm()
+    if request.method == "GET":
+        form.slot_date.data = max(date.today(), calendar["first"])
+        form.start_time.data = datetime.strptime("09:00", "%H:%M").time()
+        form.end_time.data = datetime.strptime("17:00", "%H:%M").time()
+        form.price.data = Decimal("2500.00")
+        form.driver_limit.data = 20
+
+    if form.validate_on_submit():
+        if form.end_time.data <= form.start_time.data:
+            flash("Rental end time must be after the start time.", "error")
+        else:
+            Track.query.filter_by(id=track_id).with_for_update().one()
+            conflicting_slot = slot_conflicts_with_slot(
+                track_id,
+                form.slot_date.data,
+                form.start_time.data,
+                form.end_time.data,
+            )
+            conflicting_event = slot_conflicts_with_event(
+                track_id,
+                form.slot_date.data,
+                form.start_time.data,
+                form.end_time.data,
+            )
+            if conflicting_slot:
+                flash("That time overlaps another private rental slot.", "error")
+            elif conflicting_event:
+                flash(
+                    f"That time overlaps {conflicting_event.event_name}. Choose another window.",
+                    "error",
+                )
+            else:
+                slot = PrivateRentalSlot(
+                    track_id=track_id,
+                    name=form.name.data.strip(),
+                    slot_date=form.slot_date.data,
+                    start_time=form.start_time.data,
+                    end_time=form.end_time.data,
+                    price_cents=_to_cents(form.price.data),
+                    driver_limit=form.driver_limit.data,
+                    created_by_employee_id=(
+                        current_user.id if current_user.account_type == "employee" else None
+                    ),
+                )
+                db.session.add(slot)
+                try:
+                    db.session.commit()
+                except IntegrityError:
+                    db.session.rollback()
+                    flash("That exact rental slot already exists.", "error")
+                else:
+                    flash("Private rental availability added.", "success")
+                    return redirect(
+                        url_for(
+                            "employee.private_rentals",
+                            month=slot.slot_date.strftime("%Y-%m"),
+                        )
+                    )
+
+    slots = (
+        PrivateRentalSlot.query.filter(
+            PrivateRentalSlot.track_id == track_id,
+            PrivateRentalSlot.slot_date >= calendar["range_start"],
+            PrivateRentalSlot.slot_date <= calendar["range_end"],
+            PrivateRentalSlot.is_active.is_(True),
+        )
+        .order_by(PrivateRentalSlot.slot_date.asc(), PrivateRentalSlot.start_time.asc())
+        .all()
+    )
+    bookings_by_slot = active_bookings_by_slot([slot.id for slot in slots])
+    slots_by_date = {}
+    for slot in slots:
+        slots_by_date.setdefault(slot.slot_date, []).append(slot)
+    upcoming_slots = (
+        PrivateRentalSlot.query.filter(
+            PrivateRentalSlot.track_id == track_id,
+            PrivateRentalSlot.slot_date >= date.today(),
+            PrivateRentalSlot.is_active.is_(True),
+        )
+        .order_by(PrivateRentalSlot.slot_date.asc(), PrivateRentalSlot.start_time.asc())
+        .limit(80)
+        .all()
+    )
+    upcoming_bookings = active_bookings_by_slot([slot.id for slot in upcoming_slots])
+    return render_template(
+        "employee/private_rentals.html",
+        track=track,
+        form=form,
+        calendar=calendar,
+        slots_by_date=slots_by_date,
+        bookings_by_slot=bookings_by_slot,
+        upcoming_slots=upcoming_slots,
+        upcoming_bookings=upcoming_bookings,
+        today=date.today(),
+        money=format_money,
+    )
+
+
+@employee_bp.route("/private-rentals/<int:slot_id>/remove", methods=["POST"])
+@login_required
+def private_rental_slot_remove(slot_id):
+    guard = require_office_staff()
+    if guard:
+        return guard
+    slot = PrivateRentalSlot.query.filter_by(
+        id=slot_id,
+        track_id=active_track_id(),
+    ).first_or_404()
+    active_booking = active_bookings_by_slot([slot.id]).get(slot.id)
+    if active_booking:
+        flash("Booked or held rental slots cannot be removed.", "error")
+    else:
+        slot.is_active = False
+        db.session.commit()
+        flash("Private rental slot removed from the calendar.", "success")
+    return redirect(
+        url_for("employee.private_rentals", month=slot.slot_date.strftime("%Y-%m"))
     )
 
 
@@ -741,6 +882,7 @@ def orders():
         return guard
     scoped_rows = load_order_rows(track_id=active_track_id())
     if not has_office_access():
+        scoped_rows = [row for row in scoped_rows if row["kind"] != "rental"]
         for row in scoped_rows:
             if "vendor" in row.get("ticket_categories", set()):
                 row["buyer_name"] = row.get("vendor_business_name") or "Vendor"
@@ -764,7 +906,7 @@ def orders():
     return render_template(
         "shared/orders.html",
         title="Track Orders",
-        subtitle="Driver and spectator orders for your track.",
+        subtitle="Driver tickets, event tickets, and private rentals for your track.",
         rows=page_rows,
         summary=summarize_orders(rows),
         providers=sorted({row["provider"] for row in scoped_rows}),
@@ -817,6 +959,30 @@ def order_detail(kind, order_id):
             event_id=order.event_id,
             user_id=order.user_id,
         ).first()
+    elif kind == "rental":
+        guard = require_office_staff()
+        if guard:
+            return guard
+        order = (
+            PrivateRentalBooking.query.join(
+                PrivateRentalSlot,
+                PrivateRentalSlot.id == PrivateRentalBooking.slot_id,
+            )
+            .filter(
+                PrivateRentalBooking.id == order_id,
+                PrivateRentalSlot.track_id == track_id,
+            )
+            .first_or_404()
+        )
+        track = order.slot.track
+        registration = (
+            EventRegistration.query.filter_by(
+                event_id=order.event_id,
+                user_id=order.user_id,
+            ).first()
+            if order.event_id
+            else None
+        )
     else:
         return "Unknown order type", 404
     return render_template(
@@ -866,6 +1032,24 @@ def resend_order_email(kind, order_id):
         recipient = order.buyer.email
         send_fn = send_driver_purchase_receipt
         success_message = f"Driver confirmation was resent to {recipient}."
+    elif kind == "rental":
+        guard = require_office_staff()
+        if guard:
+            return guard
+        order = (
+            PrivateRentalBooking.query.join(
+                PrivateRentalSlot,
+                PrivateRentalSlot.id == PrivateRentalBooking.slot_id,
+            )
+            .filter(
+                PrivateRentalBooking.id == order_id,
+                PrivateRentalSlot.track_id == track_id,
+            )
+            .first_or_404()
+        )
+        recipient = order.buyer.email
+        send_fn = send_private_rental_confirmation
+        success_message = f"Private rental confirmation was resent to {recipient}."
     else:
         return "Unknown order type", 404
 
@@ -1300,6 +1484,25 @@ def event_new():
             if form.event_end_time.data <= form.event_start_time.data:
                 flash("Event end time must be after start time.", "error")
                 return render_template("employee/event_form.html", form=form, title="Create Event")
+        Track.query.filter_by(id=active_track_id()).with_for_update().one()
+        rental_conflict = event_conflicts_with_rental_slot(
+            active_track_id(),
+            form.event_date.data,
+            form.event_start_time.data,
+            form.event_end_time.data,
+        )
+        if rental_conflict:
+            flash(
+                "This event overlaps private-rental availability. Remove that slot or choose another date and time.",
+                "error",
+            )
+            return render_template(
+                "employee/event_form.html",
+                form=form,
+                title="Create Event",
+                track_layouts=layouts,
+                event=None,
+            )
         event = Event(
             track_id=active_track_id(),
             event_name=form.event_name.data.strip(),
@@ -1345,6 +1548,9 @@ def event_edit(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    if event.event_type == "private" and request.method == "POST":
+        flash("Private rental dates and times are managed from the rental calendar.", "error")
+        return redirect(url_for("employee.private_rentals", month=event.event_date.strftime("%Y-%m")))
     form = EventForm(obj=event)
     layouts = TrackLayout.query.filter_by(track_id=active_track_id()).order_by(TrackLayout.name.asc()).all()
     form.track_layout_id.choices = [(0, "Default Track Layout")] + [
@@ -1363,6 +1569,25 @@ def event_edit(event_id):
             if form.event_end_time.data <= form.event_start_time.data:
                 flash("Event end time must be after start time.", "error")
                 return render_template("employee/event_form.html", form=form, title="Edit Event")
+        Track.query.filter_by(id=active_track_id()).with_for_update().one()
+        rental_conflict = event_conflicts_with_rental_slot(
+            active_track_id(),
+            form.event_date.data,
+            form.event_start_time.data,
+            form.event_end_time.data,
+        )
+        if rental_conflict:
+            flash(
+                "This event overlaps private-rental availability. Remove that slot or choose another date and time.",
+                "error",
+            )
+            return render_template(
+                "employee/event_form.html",
+                form=form,
+                title="Edit Event",
+                track_layouts=layouts,
+                event=event,
+            )
         requested_capacities = {
             "driver": form.driver_capacity.data,
             "spectator": form.spectator_capacity.data,
@@ -1422,6 +1647,9 @@ def event_delete(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    if event.event_type == "private":
+        flash("Private rental events cannot be deleted from the event list.", "error")
+        return redirect(url_for("employee.private_rentals", month=event.event_date.strftime("%Y-%m")))
     db.session.delete(event)
     db.session.commit()
     flash("Event deleted.", "success")

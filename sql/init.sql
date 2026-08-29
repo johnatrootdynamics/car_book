@@ -287,3 +287,58 @@ WHERE t.name = 'Demo Speedway'
 
 ALTER TABLE tracks
   ADD COLUMN IF NOT EXISTS layout_image_path VARCHAR(255) NULL;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) NOT NULL DEFAULT 'public',
+  ADD COLUMN IF NOT EXISTS private_owner_user_id INT NULL;
+
+CREATE TABLE IF NOT EXISTS private_rental_slots (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  track_id INT NOT NULL,
+  name VARCHAR(120) NOT NULL DEFAULT 'Private track rental',
+  slot_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  price_cents INT NOT NULL DEFAULT 0,
+  driver_limit INT NOT NULL DEFAULT 1,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_by_employee_id INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_private_rental_slots_track FOREIGN KEY (track_id) REFERENCES tracks(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_private_rental_slots_employee FOREIGN KEY (created_by_employee_id) REFERENCES employees(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT uniq_private_rental_slot_window UNIQUE (track_id, slot_date, start_time, end_time),
+  INDEX idx_private_rental_slots_track_date (track_id, slot_date)
+);
+
+CREATE TABLE IF NOT EXISTS private_rental_bookings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  slot_id INT NOT NULL,
+  user_id INT NOT NULL,
+  car_id INT NOT NULL,
+  event_id INT NULL UNIQUE,
+  amount_cents INT NOT NULL DEFAULT 0,
+  payment_method VARCHAR(50) NOT NULL DEFAULT 'stripe',
+  payment_mode VARCHAR(10) NOT NULL DEFAULT 'live',
+  payment_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  provider_session_id VARCHAR(255) NULL,
+  provider_checkout_url TEXT NULL,
+  provider_transaction_id VARCHAR(255) NULL,
+  paid_at DATETIME NULL,
+  failure_reason VARCHAR(255) NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'pending',
+  expires_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_private_rental_bookings_slot FOREIGN KEY (slot_id) REFERENCES private_rental_slots(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_private_rental_bookings_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_private_rental_bookings_car FOREIGN KEY (car_id) REFERENCES cars(id)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_private_rental_bookings_event FOREIGN KEY (event_id) REFERENCES events(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX idx_private_rental_booking_slot_status (slot_id, status)
+);

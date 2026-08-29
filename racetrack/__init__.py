@@ -206,6 +206,8 @@ def create_app():
             "track_layouts",
             "track_waiver_templates",
             "driver_waivers",
+            "private_rental_slots",
+            "private_rental_bookings",
         }
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -307,6 +309,12 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS track_layout_id INT NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) NOT NULL DEFAULT 'public'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS private_owner_user_id INT NULL"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS spectator_payment_provider VARCHAR(50) NOT NULL DEFAULT 'stripe'"
@@ -652,6 +660,8 @@ def create_app():
             "track_layouts",
             "track_waiver_templates",
             "driver_waivers",
+            "private_rental_slots",
+            "private_rental_bookings",
         }
         try:
             inspector = inspect(db.engine)

@@ -27,6 +27,7 @@
         <div class="event-tile-body">
           <h4>{{ track.name }}</h4>
           <p class="muted-line">{{ track.city }}, {{ track.state }}</p>
+          <p><a class="employee-text-link" href="{{ url_for('user.private_rental_calendar', track_id=track.id) }}"><i class="bi bi-calendar2-week"></i> Private rental calendar</a></p>
           {% if track.id in subscribed_track_ids %}
             <form method="post" action="{{ url_for('user.unsubscribe_track', track_id=track.id) }}" class="inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

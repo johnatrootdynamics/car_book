@@ -3,7 +3,7 @@
 <div class="event-workspace">
   <header class="event-page-header">
     <div>
-      <span class="event-page-kicker">{{ 'Past event' if event.event_date < today else 'Event' }}</span>
+      <span class="event-page-kicker">{% if event.event_type == 'private' %}<i class="bi bi-lock-fill"></i> Private rental{% else %}{{ 'Past event' if event.event_date < today else 'Event' }}{% endif %}</span>
       <h2>{{ event.event_name }}</h2>
       <p class="muted-line"><i class="bi bi-calendar3" aria-hidden="true"></i> {{ event.event_date }} <span>·</span> {{ event.track.name }}</p>
     </div>
@@ -36,7 +36,7 @@
 
           <div class="general-head">
             <h3 style="margin:0;" class="general-static" data-static>{{ event.event_name }}</h3>
-            {% if is_office_staff %}<button type="button" class="btn btn-secondary btn-sm" data-general-edit-btn>Edit</button>{% endif %}
+            {% if is_office_staff and event.event_type != 'private' %}<button type="button" class="btn btn-secondary btn-sm" data-general-edit-btn>Edit</button>{% endif %}
           </div>
 
           <div class="event-general-meta general-static" data-static>
@@ -44,8 +44,8 @@
             <p class="event-general-row"><i class="bi bi-calendar-event"></i> <strong>Date:</strong> {{ event.event_date }}</p>
             <p class="event-general-row"><i class="bi bi-clock"></i> <strong>Time:</strong> {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') if event.event_start_time else 'Not set' }} - {{ event.event_end_time.strftime('%I:%M %p').lstrip('0') if event.event_end_time else 'Not set' }}</p>
             <p class="event-general-row"><i class="bi bi-map"></i> <strong>Layout:</strong> {{ selected_layout_name }}</p>
-            {% if is_office_staff %}<p class="event-general-row"><i class="bi bi-cash-stack"></i> <strong>Prices:</strong> Driver {{ '$%.2f'|format(event.driver_price_cents / 100) }} · Spectator {{ '$%.2f'|format(event.spectator_price_cents / 100) }} · Vendor {{ '$%.2f'|format(event.vendor_price_cents / 100) }}</p>{% endif %}
-            {% if is_office_staff %}<p class="event-general-row"><i class="bi bi-people"></i> <strong>Capacity:</strong> Driver {{ event_capacity.driver.sold }} / {{ event_capacity.driver.capacity if not event_capacity.driver.unlimited else 'Unlimited' }} · Spectator {{ event_capacity.spectator.sold }} / {{ event_capacity.spectator.capacity if not event_capacity.spectator.unlimited else 'Unlimited' }} · Vendor {{ event_capacity.vendor.sold }} / {{ event_capacity.vendor.capacity if not event_capacity.vendor.unlimited else 'Unlimited' }}</p>{% endif %}
+            {% if is_office_staff and event.event_type != 'private' %}<p class="event-general-row"><i class="bi bi-cash-stack"></i> <strong>Prices:</strong> Driver {{ '$%.2f'|format(event.driver_price_cents / 100) }} · Spectator {{ '$%.2f'|format(event.spectator_price_cents / 100) }} · Vendor {{ '$%.2f'|format(event.vendor_price_cents / 100) }}</p>{% endif %}
+            {% if is_office_staff %}<p class="event-general-row"><i class="bi bi-people"></i> <strong>Capacity:</strong> Driver {{ event_capacity.driver.sold }} / {{ event_capacity.driver.capacity if not event_capacity.driver.unlimited else 'Unlimited' }}{% if event.event_type != 'private' %} · Spectator {{ event_capacity.spectator.sold }} / {{ event_capacity.spectator.capacity if not event_capacity.spectator.unlimited else 'Unlimited' }} · Vendor {{ event_capacity.vendor.sold }} / {{ event_capacity.vendor.capacity if not event_capacity.vendor.unlimited else 'Unlimited' }}{% else %} · Driver-only private event{% endif %}</p>{% endif %}
           </div>
 
           <label data-edit-field hidden>Event Name
