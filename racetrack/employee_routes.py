@@ -546,18 +546,24 @@ def inspections_hub():
         selected_event = events[0]
 
     scanner_active = request.args.get("scanner") == "1"
-    scan_code = normalize_ticket_code(request.args.get("scan_code"))
-    query = (request.args.get("q") or "").strip()
+    raw_lookup = request.args.get("lookup")
+    if raw_lookup is None:
+        # Keep old links/bookmarks working while the page moves to one lookup field.
+        raw_lookup = request.args.get("scan_code") or request.args.get("q")
+    query = (raw_lookup or "").strip()
+    scan_code = normalize_ticket_code(query)
+    code_lookup = query.lower().startswith(("http://", "https://")) or scan_code.startswith(
+        ("DRV-", "CAR-", "DRT-")
+    )
     work_items = []
     counts = {
         "total": 0,
         "pending": 0,
         "needs_work": 0,
         "passed": 0,
-        "checked_in": 0,
     }
 
-    if selected_event and scan_code:
+    if selected_event and query:
         scanned_registration = (
             EventRegistration.query.join(User, User.id == EventRegistration.user_id)
             .join(Car, Car.id == EventRegistration.car_id)
@@ -590,11 +596,11 @@ def inspections_hub():
                         event_id=selected_event.id,
                         registration_id=scanned_registration.id,
                         return_to="hub",
-                        scanner=1,
+                        **({"scanner": 1} if scanner_active else {}),
                     )
                 )
             query = f"{scanned_registration.user.first_name} {scanned_registration.user.last_name}".strip()
-        else:
+        elif code_lookup:
             flash("That QR code does not match a driver registered for this event.", "error")
 
     if selected_event:
@@ -643,10 +649,6 @@ def inspections_hub():
             for item in work_items
             if item["inspection"] is not None and item["inspection"].passed
         )
-        counts["checked_in"] = sum(
-            1 for item in work_items if item["registration"].checked_in_at
-        )
-
         if query:
             needle = query.casefold()
             work_items = [
@@ -658,6 +660,7 @@ def inspections_hub():
                         item["registration"].user.first_name or "",
                         item["registration"].user.last_name or "",
                         item["registration"].user.username or "",
+                        item["registration"].user.email or "",
                         item["registration"].user.static_qr_code or "",
                         item["registration"].checkin_code or "",
                         item["registration"].car.static_qr_code or "",
@@ -695,6 +698,7 @@ def inspections_hub():
         counts=counts,
         query=query,
         scan_code=scan_code,
+        code_lookup=code_lookup,
         scanner_active=scanner_active,
         today=date.today(),
         active_rule_count=active_rule_count,
@@ -2200,8 +2204,8 @@ def inspect_search(event_id):
             ((Inspection.id.is_(None)) | (Inspection.passed.is_(False))),
             (User.first_name.ilike(like))
             | (User.last_name.ilike(like))
-            | (User.username.ilike(like)),
-            
+            | (User.username.ilike(like))
+            | (User.email.ilike(like)),
         )
         .order_by(User.first_name.asc(), User.last_name.asc())
         .limit(15)

@@ -435,7 +435,7 @@ function setupInspectionQrScanner() {
     if (starting || scanner) return
     if (typeof window.Html5Qrcode === "undefined") {
       panel.hidden = false
-      if (status) status.textContent = "Camera scanning could not load. Enter the QR code manually or search by name."
+      if (status) status.textContent = "Camera scanning could not load. Enter a QR code, name, or email above."
       return
     }
     starting = true
@@ -471,7 +471,7 @@ function setupInspectionQrScanner() {
       scanner = null
       startButton.disabled = false
       startButton.innerHTML = '<i class="bi bi-camera" aria-hidden="true"></i> Resume camera'
-      if (status) status.textContent = "Camera access was unavailable. Check permission, enter the code, or search by name."
+      if (status) status.textContent = "Camera access was unavailable. Check permission or use the lookup field above."
     } finally {
       starting = false
     }

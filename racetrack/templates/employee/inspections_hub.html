@@ -13,8 +13,14 @@
   </header>
 
   {% if events %}
-    <section class="card inspections-toolbar inspections-event-toolbar">
+    <section
+      class="card inspection-command-bar"
+      data-inspection-scanner
+      data-scanner-active="{{ '1' if scanner_active else '0' }}"
+      data-current-code="{{ scan_code if code_lookup else '' }}"
+    >
       <form method="get" class="inspections-event-picker">
+        {% if scanner_active %}<input type="hidden" name="scanner" value="1">{% endif %}
         <label for="inspection-event">Event</label>
         <select id="inspection-event" name="event_id" onchange="this.form.submit()">
           {% for event in events %}
@@ -24,50 +30,32 @@
           {% endfor %}
         </select>
       </form>
-      <div class="inspections-event-context"><i class="bi bi-calendar2-check" aria-hidden="true"></i><span><strong>{{ selected_event.event_name }}</strong><small>Select the event before scanning or searching.</small></span></div>
-    </section>
-
-    <section class="card inspection-intake" data-inspection-scanner data-scanner-active="{{ '1' if scanner_active else '0' }}" data-current-code="{{ scan_code or '' }}">
-      <div class="inspection-intake-head"><div><span>Find a driver</span><h3>Scan their QR or enter their name</h3></div>{% if scanner_active %}<span class="ticket-scanner-live"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Scanner on</span>{% endif %}</div>
-      <div class="inspection-intake-grid">
-        <article class="inspection-intake-option is-scan">
-          <span class="inspection-intake-icon"><i class="bi bi-qr-code-scan" aria-hidden="true"></i></span>
-          <div class="inspection-intake-copy"><strong>Scan QR code</strong><p>Use the driver’s reusable inspection QR, vehicle QR, or check-in code.</p></div>
-          <form method="get" data-inspection-qr-form>
-            <input type="hidden" name="event_id" value="{{ selected_event.id }}">
-            <input type="hidden" name="scanner" value="1" data-inspection-scanner-active>
-            <label class="sr-only" for="inspection-scan-code">QR or check-in code</label>
-            <div class="inspection-scan-entry"><input id="inspection-scan-code" type="text" name="scan_code" value="{{ scan_code }}" placeholder="DRV-… or CAR-…" autocomplete="off" autocapitalize="characters" spellcheck="false" data-inspection-qr-input><button class="btn btn-secondary btn-sm" type="submit">Look up</button></div>
-            <button class="btn inspection-camera-button" type="button" data-inspection-camera-start><i class="bi bi-camera" aria-hidden="true"></i> {{ 'Resume camera' if scanner_active else 'Use camera' }}</button>
-          </form>
-          <div class="inspection-camera-panel" data-inspection-camera-panel hidden><div id="inspection-qr-reader" data-inspection-qr-reader></div><p data-inspection-camera-status>Point the camera at the driver’s QR code.</p></div>
-        </article>
-
-        <span class="inspection-intake-divider">or</span>
-
-        <article class="inspection-intake-option is-search">
-          <span class="inspection-intake-icon"><i class="bi bi-person-search" aria-hidden="true"></i></span>
-          <div class="inspection-intake-copy"><strong>Search by name</strong><p>Enter a driver’s first name, last name, username, or vehicle.</p></div>
-          <form method="get" class="inspections-search">
-            <input type="hidden" name="event_id" value="{{ selected_event.id }}">
-            {% if scanner_active %}<input type="hidden" name="scanner" value="1">{% endif %}
-            <label class="sr-only" for="inspection-search">Driver name or vehicle</label>
-            <div class="inspections-search-row">
-              <div class="inspections-search-control">
-                <i class="bi bi-search" aria-hidden="true"></i>
-                <input id="inspection-search" type="search" name="q" value="{{ query }}" placeholder="Start typing a driver’s name" autocomplete="off">
-                {% if query %}<a href="{{ url_for('employee.inspections_hub', event_id=selected_event.id, scanner=1 if scanner_active else None) }}">Clear</a>{% endif %}
-              </div>
-              <button class="btn btn-secondary btn-sm" type="submit">Search</button>
+      <div class="inspection-unified-lookup">
+        <div class="inspection-lookup-heading">
+          <label for="inspection-lookup">Find a driver</label>
+          {% if scanner_active %}<span class="ticket-scanner-live"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Camera on</span>{% endif %}
+        </div>
+        <form method="get" data-inspection-qr-form>
+          <input type="hidden" name="event_id" value="{{ selected_event.id }}">
+          <input type="hidden" name="scanner" value="{{ '1' if scanner_active else '0' }}" data-inspection-scanner-active>
+          <div class="inspection-unified-entry">
+            <div class="inspection-unified-control">
+              <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+              <input id="inspection-lookup" type="search" name="lookup" value="{{ query }}" placeholder="Scan QR or enter name or email" autocomplete="off" spellcheck="false" data-inspection-qr-input autofocus>
+              {% if query %}<a href="{{ url_for('employee.inspections_hub', event_id=selected_event.id, scanner=1 if scanner_active else None) }}" aria-label="Clear lookup">Clear</a>{% endif %}
             </div>
-          </form>
-        </article>
+            <button class="btn btn-sm" type="submit">Find</button>
+            <button class="btn btn-secondary btn-sm inspection-camera-button" type="button" data-inspection-camera-start><i class="bi bi-camera" aria-hidden="true"></i> {{ 'Resume' if scanner_active else 'Camera' }}</button>
+          </div>
+        </form>
+        <p>Accepts driver or vehicle QR codes, check-in codes, names, usernames, emails, and vehicles.</p>
       </div>
+      <div class="inspection-camera-panel" data-inspection-camera-panel hidden><div id="inspection-qr-reader" data-inspection-qr-reader></div><p data-inspection-camera-status>Point the camera at the driver’s QR code.</p></div>
     </section>
 
     <section class="inspection-summary" aria-label="Inspection summary">
-      <article><span>Checked in</span><strong>{{ counts.checked_in }}</strong></article>
-      <article><span>Pending</span><strong>{{ counts.pending }}</strong></article>
+      <article><span>Drivers</span><strong>{{ counts.total }}</strong></article>
+      <article><span>To inspect</span><strong>{{ counts.pending }}</strong></article>
       <article><span>Needs work</span><strong>{{ counts.needs_work }}</strong></article>
       <article class="is-complete"><span>Passed</span><strong>{{ counts.passed }}</strong></article>
     </section>
@@ -82,10 +70,7 @@
 
     <section class="card inspection-queue-card">
       <div class="inspection-queue-head">
-        <div>
-          <h3>Driver queue</h3>
-          <p>{{ selected_event.event_name }} <span>·</span> {{ selected_event.event_date.strftime('%B %-d, %Y') }}</p>
-        </div>
+        <h3>Inspection queue</h3>
         <span>{{ work_items|length }}{% if query %} found{% else %} drivers{% endif %}</span>
       </div>
 
@@ -98,7 +83,6 @@
               <div class="inspection-driver-copy">
                 <a class="employee-text-link" href="{{ url_for('employee.driver_profile', user_id=registration.user_id) }}"><strong>{{ registration.user.first_name }} {{ registration.user.last_name }}</strong></a>
                 <span>{{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}</span>
-                <code>{{ registration.checkin_code }}</code>
               </div>
 
               <div class="inspection-queue-state">
@@ -118,15 +102,13 @@
                   <span class="inspection-result is-passed"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Passed</span>
                 {% elif inspection %}
                   <span class="inspection-result is-needs-work"><i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i> Needs work</span>
-                {% else %}
-                  <span class="inspection-result"><i class="bi bi-circle" aria-hidden="true"></i> Pending</span>
                 {% endif %}
               </div>
 
               <div class="inspection-queue-action">
                 {% if item.waiver_ok and active_rule_count %}
                   <a class="btn {% if inspection and inspection.passed %}btn-secondary{% endif %} btn-sm" href="{{ url_for('employee.inspect_registration', event_id=selected_event.id, registration_id=registration.id, return_to='hub', scanner=1 if scanner_active else None) }}">
-                    {% if inspection and inspection.passed %}Review{% elif inspection %}Reinspect{% else %}Inspect{% endif %}
+                    {% if inspection and inspection.passed %}Review{% elif inspection %}Reinspect{% else %}Inspect vehicle{% endif %}
                   </a>
                 {% elif not active_rule_count %}
                   <span class="inspection-action-disabled">Setup needed</span>

@@ -3865,7 +3865,7 @@ details > summary { font-size: .92rem; }
 .inspection-checklist-card input[type="checkbox"] { accent-color: #2457ff; }
 
 .inspections-hub {
-  width: min(1040px, 100%);
+  width: min(960px, 100%);
   margin: 0 auto;
 }
 
@@ -3874,7 +3874,7 @@ details > summary { font-size: .92rem; }
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 16px;
+  margin-bottom: 11px;
 }
 
 .inspections-hub-header h2 { margin: 0; color: #101828; font-size: 1.5rem; }
@@ -3891,98 +3891,58 @@ details > summary { font-size: .92rem; }
 }
 .inspection-setup-link:hover { color: #2457ff; }
 
-.inspections-toolbar {
+.inspection-command-bar {
   display: grid;
-  grid-template-columns: minmax(220px, .8fr) minmax(300px, 1.2fr);
-  gap: 14px;
-  margin-bottom: 12px;
-  padding: 14px;
+  grid-template-columns: minmax(210px, .72fr) minmax(420px, 1.55fr);
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 9px;
+  padding: 13px 14px;
 }
-.inspections-event-toolbar { grid-template-columns: minmax(260px, .8fr) minmax(260px, 1.2fr); align-items: end; }
-.inspections-event-context { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 7px 10px; color: #667085; background: #fafbfc; border: 1px solid #eaecf0; border-radius: 7px; }
-.inspections-event-context > i { color: #3159d5; font-size: .95rem; }
-.inspections-event-context > span { display: grid; gap: 1px; min-width: 0; }
-.inspections-event-context strong { overflow: hidden; color: #344054; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
-.inspections-event-context small { color: #98a2b3; font-size: .64rem; }
-
-.inspection-intake { margin-bottom: 12px; padding: 0; overflow: hidden; }
-.inspection-intake-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; background: #fafbfc; border-bottom: 1px solid #eaecf0; }
-.inspection-intake-head > div { display: grid; gap: 1px; }
-.inspection-intake-head > div > span { color: #7a8699; font-size: .62rem; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
-.inspection-intake-head h3 { margin: 0; color: #1d2939; font-size: .94rem; }
-.inspection-intake-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
-.inspection-intake-option { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-content: start; gap: 11px; padding: 17px; }
-.inspection-intake-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; color: #3159d5; background: #eef3ff; border-radius: 8px; font-size: .96rem; }
-.inspection-intake-copy { display: grid; gap: 3px; min-width: 0; }
-.inspection-intake-copy strong { color: #344054; font-size: .82rem; }
-.inspection-intake-copy p { margin: 0; color: #7a8699; font-size: .68rem; line-height: 1.45; }
-.inspection-intake-option > form,
-.inspection-camera-panel { grid-column: 1 / -1; }
-.inspection-intake-option > form { display: grid; gap: 7px; margin-top: 4px; }
-.inspection-scan-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
-.inspection-scan-entry input { min-width: 0; margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
-.inspection-camera-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 39px; }
-.inspection-intake-divider { align-self: stretch; display: flex; align-items: center; color: #98a2b3; font-size: .64rem; font-weight: 750; text-transform: uppercase; }
-.inspection-intake-divider::before,
-.inspection-intake-divider::after { width: 1px; height: calc(50% - 19px); margin: 8px auto; background: #eaecf0; content: ""; }
-.inspection-intake-divider { flex-direction: column; justify-content: center; padding: 0 2px; }
-.inspection-camera-panel { padding: 12px 0 2px; border-top: 1px solid #eef0f3; }
+.inspection-unified-lookup { min-width: 0; }
+.inspection-lookup-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.inspection-lookup-heading label { color: #475467; font-size: .7rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.inspection-unified-lookup form { margin: 0; }
+.inspection-unified-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 7px; }
+.inspection-unified-control { position: relative; min-width: 0; }
+.inspection-unified-control > i { position: absolute; top: 50%; left: 12px; color: #667085; transform: translateY(-50%); }
+.inspection-unified-control input { width: 100%; min-height: 40px; margin: 0; padding: 8px 50px 8px 36px; }
+.inspection-unified-control a { position: absolute; top: 50%; right: 11px; color: #667085; font-size: .7rem; font-weight: 650; text-decoration: none; transform: translateY(-50%); }
+.inspection-unified-lookup > p { margin: 5px 0 0; color: #7a8699; font-size: .67rem; }
+.inspection-camera-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; }
+.inspection-camera-panel { grid-column: 1 / -1; padding-top: 11px; border-top: 1px solid #eef0f3; }
 .inspection-camera-panel [data-inspection-qr-reader] { width: min(380px, 100%); margin: 0 auto; overflow: hidden; border-radius: 8px; }
 .inspection-camera-panel p { margin: 8px 0 0; color: #667085; font-size: .69rem; text-align: center; }
 
-.inspections-event-picker,
-.inspections-search { display: grid; gap: 5px; margin: 0; }
-.inspections-event-picker label,
-.inspections-search label {
+.inspections-event-picker { display: grid; gap: 5px; margin: 0; }
+.inspections-event-picker label {
   color: #475467;
   font-size: .7rem;
   font-weight: 700;
   letter-spacing: .03em;
   text-transform: uppercase;
 }
-.inspections-event-picker select,
-.inspections-search input { margin: 0; min-height: 40px; }
-.inspections-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
-.inspections-search-row > .btn { min-width: 70px; }
-.inspections-search-control { position: relative; }
-.inspections-search-control > i {
-  position: absolute;
-  top: 50%;
-  left: 12px;
-  color: #98a2b3;
-  transform: translateY(-50%);
-}
-.inspections-search-control input { width: 100%; padding-left: 35px; padding-right: 50px; }
-.inspections-search-control a {
-  position: absolute;
-  top: 50%;
-  right: 11px;
-  color: #667085;
-  font-size: .72rem;
-  font-weight: 650;
-  text-decoration: none;
-  transform: translateY(-50%);
-}
+.inspections-event-picker select { margin: 0; min-height: 40px; }
 
 .inspection-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 9px;
 }
 .inspection-summary article {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 54px;
-  padding: 10px 13px;
-  background: #fff;
-  border: 1px solid #e4e7ec;
-  border-radius: 8px;
+  min-height: 40px;
+  padding: 7px 11px;
+  background: #f8fafc;
+  border: 1px solid #eaecf0;
+  border-radius: 7px;
 }
-.inspection-summary span { color: #667085; font-size: .75rem; font-weight: 650; }
-.inspection-summary strong { color: #101828; font-size: 1.25rem; }
+.inspection-summary span { color: #667085; font-size: .7rem; font-weight: 650; }
+.inspection-summary strong { color: #101828; font-size: .96rem; }
 .inspection-summary .is-complete strong { color: #14804a; }
 .inspection-setup-notice {
   display: flex;
@@ -4005,7 +3965,7 @@ details > summary { font-size: .92rem; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 11px 14px;
   border-bottom: 1px solid #eaecf0;
 }
 .inspection-queue-head h3 { margin: 0; }
@@ -4023,11 +3983,11 @@ details > summary { font-size: .92rem; }
 .inspection-queue-list { display: grid; }
 .inspection-queue-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(250px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1.25fr) minmax(170px, .75fr) auto;
   align-items: center;
   gap: 16px;
-  min-height: 72px;
-  padding: 12px 16px;
+  min-height: 62px;
+  padding: 9px 14px;
   border-bottom: 1px solid #eaecf0;
 }
 .inspection-queue-row:last-child { border-bottom: 0; }
@@ -4036,13 +3996,6 @@ details > summary { font-size: .92rem; }
 .inspection-driver-copy { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 8px; min-width: 0; }
 .inspection-driver-copy strong { width: 100%; color: #1d2939; font-size: .9rem; }
 .inspection-driver-copy span { color: #667085; font-size: .78rem; }
-.inspection-driver-copy code {
-  padding: 2px 5px;
-  color: #475467;
-  background: #f2f4f7;
-  border-radius: 4px;
-  font-size: .65rem;
-}
 .inspection-queue-state { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .inspection-result { display: inline-flex; align-items: center; gap: 4px; color: #667085; font-size: .73rem; font-weight: 650; }
 .inspection-result.is-passed { color: #14804a; }
@@ -4072,13 +4025,7 @@ details > summary { font-size: .92rem; }
   .inspection-lookup-form { grid-template-columns: 1fr; }
   .inspection-lookup-form .btn { width: 100%; }
   .inspections-hub-header { flex-direction: column; gap: 7px; }
-  .inspections-toolbar { grid-template-columns: 1fr; }
-  .inspections-event-toolbar { grid-template-columns: 1fr; }
-  .inspection-intake-grid { grid-template-columns: 1fr; }
-  .inspection-intake-divider { flex-direction: row; gap: 8px; padding: 0 17px; }
-  .inspection-intake-divider::before,
-  .inspection-intake-divider::after { width: 100%; height: 1px; margin: 0; }
-  .inspections-search-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .inspection-command-bar { grid-template-columns: 1fr; align-items: stretch; gap: 11px; }
   .inspection-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .inspection-queue-row { grid-template-columns: 1fr auto; gap: 8px 12px; }
   .inspection-queue-state { grid-column: 1; }
@@ -4099,6 +4046,8 @@ details > summary { font-size: .92rem; }
 
 @media (max-width: 480px) {
   .inspection-summary { grid-template-columns: 1fr 1fr; }
+  .inspection-unified-entry { grid-template-columns: minmax(0, 1fr) auto; }
+  .inspection-camera-button { grid-column: 1 / -1; }
   .inspection-queue-row { grid-template-columns: 1fr; }
   .inspection-queue-state,
   .inspection-queue-action { grid-column: 1; grid-row: auto; justify-self: stretch; }
