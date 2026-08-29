@@ -1,15 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section
+  class="card"
+  data-waiver-auto-sync
+  data-status-url="{{ url_for('waiver.driver_waiver_statuses') }}"
+  data-watch-id="{{ request.args.get('watch', '') }}"
+>
   <div class="row-space">
     <div>
       <h2>Your Waivers</h2>
       <p>Sign required waivers before check-in.</p>
     </div>
-    <form method="post" action="{{ url_for('waiver.sync_driver_waivers') }}" class="inline" data-enhanced>
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-secondary btn-sm">Refresh Status</button>
-    </form>
+    <span class="badge badge-viewed" data-waiver-sync-label>
+      <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Updates automatically
+    </span>
+  </div>
+  <div class="flash flash-info" data-waiver-watch-message hidden>
+    Confirming your signature&hellip; this page will update automatically.
   </div>
 </section>
 
@@ -21,15 +28,15 @@
         <thead><tr><th>Template</th><th>Event</th><th>Status</th><th>Sent</th><th>Signed</th><th>Action</th></tr></thead>
         <tbody>
         {% for w in waivers %}
-          <tr>
+          <tr data-waiver-row="{{ w.id }}">
             <td>{{ w.waiver_template.title }}</td>
             <td>{{ w.event.event_name if w.event else '-' }}</td>
             <td>
-              <span class="badge badge-{{ w.status }}">{{ w.status|upper }}</span>
+              <span class="badge badge-{{ w.status }}" data-waiver-status>{{ w.status|upper }}</span>
             </td>
             <td>{{ w.sent_at or '-' }}</td>
-            <td>{{ w.signed_at or '-' }}</td>
-            <td>
+            <td data-waiver-signed>{{ w.signed_at or '-' }}</td>
+            <td data-waiver-action>
               {% if w.status != 'signed' %}
                 <a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=w.id) }}">Sign</a>
               {% endif %}
@@ -46,4 +53,90 @@
     <p>No waiver records yet.</p>
   {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const panel = document.querySelector('[data-waiver-auto-sync]');
+  if (!panel) return;
+
+  const statusUrl = panel.dataset.statusUrl;
+  const watchId = panel.dataset.watchId;
+  const watchMessage = panel.querySelector('[data-waiver-watch-message]');
+  const syncLabel = panel.querySelector('[data-waiver-sync-label]');
+  const terminalStatuses = new Set(['signed', 'declined', 'expired', 'failed']);
+  let timer;
+
+  if (watchId && watchMessage) watchMessage.hidden = false;
+
+  function setStatus(record) {
+    const row = document.querySelector(`[data-waiver-row="${record.id}"]`);
+    if (!row) return;
+
+    const status = row.querySelector('[data-waiver-status]');
+    if (status) {
+      status.textContent = record.status.toUpperCase();
+      status.className = `badge badge-${record.status}`;
+    }
+
+    const signed = row.querySelector('[data-waiver-signed]');
+    if (signed && record.signed_at) {
+      signed.textContent = new Date(record.signed_at).toLocaleString();
+    }
+
+    const action = row.querySelector('[data-waiver-action]');
+    if (action && record.status === 'signed') {
+      action.querySelectorAll('a[href*="/sign"]').forEach((link) => link.remove());
+      if (record.signed_pdf_url && !action.querySelector('a[target="_blank"]')) {
+        const pdf = document.createElement('a');
+        pdf.className = 'btn btn-sm';
+        pdf.href = record.signed_pdf_url;
+        pdf.target = '_blank';
+        pdf.rel = 'noopener';
+        pdf.textContent = 'PDF';
+        action.appendChild(pdf);
+      }
+    }
+
+    if (watchId === String(record.id) && watchMessage && terminalStatuses.has(record.status)) {
+      watchMessage.hidden = false;
+      if (record.status === 'signed') {
+        watchMessage.className = 'flash flash-success';
+        watchMessage.textContent = 'Waiver signed. You are all set.';
+      } else {
+        watchMessage.className = 'flash flash-error';
+        watchMessage.textContent = `Waiver status: ${record.status}.`;
+      }
+    }
+  }
+
+  async function refreshStatuses() {
+    if (document.hidden) {
+      timer = window.setTimeout(refreshStatuses, 4000);
+      return;
+    }
+    try {
+      const query = watchId ? `?waiver_id=${encodeURIComponent(watchId)}` : '';
+      const response = await fetch(`${statusUrl}${query}`, {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error(`Status request failed: ${response.status}`);
+      const result = await response.json();
+      result.waivers.forEach(setStatus);
+      if (!result.pending) {
+        syncLabel.innerHTML = '<i class="bi bi-check2-circle" aria-hidden="true"></i> Status current';
+        return;
+      }
+    } catch (error) {
+      syncLabel.textContent = 'Waiting to update';
+    }
+    timer = window.setTimeout(refreshStatuses, 4000);
+  }
+
+  refreshStatuses();
+  window.addEventListener('pagehide', () => window.clearTimeout(timer));
+})();
+</script>
 {% endblock %}

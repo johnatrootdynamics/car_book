@@ -18,11 +18,98 @@ FORCED_BOLDSIGN_TEMPLATE_ID = os.getenv(
     "BOLDSIGN_FORCED_TEMPLATE_ID", "e5c8f024-64df-4bdc-9142-3a04c01a154a"
 )
 BOLDSIGN_SIGNER_ROLE = os.getenv("BOLDSIGN_SIGNER_ROLE", "User")
+TERMINAL_WAIVER_STATUSES = {"signed", "declined", "expired", "failed"}
+BOLDSIGN_STATUS_MAP = {
+    "sent": "sent",
+    "delivered": "sent",
+    "inprogress": "viewed",
+    "viewed": "viewed",
+    "signed": "signed",
+    "completed": "signed",
+    "declined": "declined",
+    "expired": "expired",
+    "revoked": "failed",
+    "failed": "failed",
+    "sendfailed": "failed",
+    "documentsent": "sent",
+    "documentdelivered": "sent",
+    "documentviewed": "viewed",
+    "documentsigned": "signed",
+    "documentcompleted": "signed",
+    "documentdeclined": "declined",
+    "documentexpired": "expired",
+    "documentfailed": "failed",
+}
 
 
 def _require_user():
     if not current_user.is_authenticated or getattr(current_user, "account_type", None) != "user":
         abort(403)
+
+
+def _normalized_status(value):
+    return "".join(character for character in str(value or "").lower() if character.isalnum())
+
+
+def _app_url(endpoint, **values):
+    path = url_for(endpoint, **values)
+    app_base_url = (current_app.config.get("APP_BASE_URL") or "").rstrip("/")
+    return f"{app_base_url}{path}" if app_base_url else url_for(endpoint, _external=True, **values)
+
+
+def _apply_waiver_status(waiver, payload, provider_status, signer_email=None):
+    """Apply a BoldSign document status and return whether user-visible data changed."""
+    mapped_status = BOLDSIGN_STATUS_MAP.get(_normalized_status(provider_status))
+    if not mapped_status:
+        return False
+
+    changed = mapped_status != waiver.status
+    waiver.status = mapped_status
+    waiver.webhook_payload = payload
+
+    if signer_email and signer_email != waiver.boldsign_signer_email:
+        waiver.boldsign_signer_email = signer_email
+        changed = True
+
+    if mapped_status == "viewed" and waiver.viewed_at is None:
+        waiver.viewed_at = datetime.utcnow()
+        changed = True
+    if mapped_status == "signed" and waiver.signed_at is None:
+        waiver.signed_at = datetime.utcnow()
+        changed = True
+
+    payload_data = payload.get("data", {}) if isinstance(payload, dict) else {}
+    payload_document = payload.get("document", {}) if isinstance(payload, dict) else {}
+    payload_data = payload_data if isinstance(payload_data, dict) else {}
+    payload_document = payload_document if isinstance(payload_document, dict) else {}
+    signed_pdf_url = (
+        payload.get("downloadUrl")
+        or payload_data.get("downloadUrl")
+        or payload_document.get("downloadUrl")
+        if isinstance(payload, dict)
+        else None
+    )
+    if signed_pdf_url and signed_pdf_url != waiver.signed_pdf_url:
+        waiver.signed_pdf_url = signed_pdf_url
+        changed = True
+
+    return changed
+
+
+def _sync_waiver_from_provider(waiver):
+    if not waiver.boldsign_document_id or waiver.status in TERMINAL_WAIVER_STATUSES:
+        return False
+    try:
+        payload, status = get_document_status(waiver.boldsign_document_id)
+    except Exception as exc:
+        current_app.logger.warning(
+            "BoldSign status lookup failed for waiver_id=%s document_id=%s error=%s",
+            waiver.id,
+            waiver.boldsign_document_id,
+            exc,
+        )
+        return False
+    return _apply_waiver_status(waiver, payload, status)
 
 
 @waiver_bp.route("/driver/waivers")
@@ -47,44 +134,49 @@ def driver_waivers():
 def sync_driver_waivers():
     _require_user()
     waivers = DriverWaiver.query.filter_by(driver_id=current_user.id).all()
-    updated = 0
+    updated = False
     for waiver in waivers:
-        if not waiver.boldsign_document_id or waiver.status == "signed":
-            continue
-        try:
-            payload, status = get_document_status(waiver.boldsign_document_id)
-        except Exception as exc:
-            current_app.logger.warning(
-                "BoldSign status lookup failed for waiver_id=%s document_id=%s error=%s",
-                waiver.id,
-                waiver.boldsign_document_id,
-                exc,
-            )
-            continue
-
-        status_map = {
-            "sent": "sent",
-            "inprogress": "viewed",
-            "completed": "signed",
-            "declined": "declined",
-            "expired": "expired",
-            "revoked": "failed",
-            "failed": "failed",
-        }
-        mapped = status_map.get(status)
-        if mapped and mapped != waiver.status:
-            waiver.status = mapped
-            waiver.webhook_payload = payload
-            if mapped == "signed" and waiver.signed_at is None:
-                waiver.signed_at = datetime.utcnow()
-            if mapped == "viewed" and waiver.viewed_at is None:
-                waiver.viewed_at = datetime.utcnow()
-            updated += 1
-
+        updated = _sync_waiver_from_provider(waiver) or updated
     if updated:
         db.session.commit()
-        return redirect(url_for("waiver.driver_waivers"))
     return redirect(url_for("waiver.driver_waivers"))
+
+
+@waiver_bp.route("/driver/waivers/status")
+@login_required
+def driver_waiver_statuses():
+    """Return current waiver state, refreshing pending records from BoldSign first."""
+    _require_user()
+    waiver_id = request.args.get("waiver_id", type=int)
+    query = DriverWaiver.query.filter_by(driver_id=current_user.id)
+    if waiver_id:
+        query = query.filter_by(id=waiver_id)
+    waivers = query.all()
+
+    updated = False
+    for waiver in waivers:
+        updated = _sync_waiver_from_provider(waiver) or updated
+    if updated:
+        db.session.commit()
+
+    return jsonify(
+        {
+            "waivers": [
+                {
+                    "id": waiver.id,
+                    "status": waiver.status,
+                    "signed_at": waiver.signed_at.isoformat() if waiver.signed_at else None,
+                    "signed_pdf_url": waiver.signed_pdf_url,
+                }
+                for waiver in waivers
+            ],
+            "pending": any(
+                waiver.boldsign_document_id
+                and waiver.status not in TERMINAL_WAIVER_STATUSES
+                for waiver in waivers
+            ),
+        }
+    )
 
 
 @waiver_bp.route("/driver/waivers/<int:waiver_template_id>/send", methods=["POST"])
@@ -111,7 +203,7 @@ def send_driver_waiver(waiver_template_id):
         db.session.add(waiver)
         db.session.flush()
 
-    redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('user.dashboard')}"
+    redirect_url = _app_url("waiver.driver_waiver_return", driver_waiver_id=waiver.id)
     signer_name = f"{current_user.first_name} {current_user.last_name}".strip()
     if not signer_name:
         signer_name = (getattr(current_user, "username", "") or current_user.email).strip()
@@ -171,12 +263,11 @@ def driver_sign_waiver(driver_waiver_id):
     if waiver.status == "signed":
         return redirect(url_for("waiver.driver_waivers"))
 
-    if waiver.signing_url:
-        return redirect(waiver.signing_url)
-
     if waiver.boldsign_document_id:
         try:
-            redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('user.dashboard')}"
+            redirect_url = _app_url(
+                "waiver.driver_waiver_return", driver_waiver_id=waiver.id
+            )
             sign_result = get_embedded_signing_link(
                 waiver.boldsign_document_id,
                 current_user.email,
@@ -190,7 +281,23 @@ def driver_sign_waiver(driver_waiver_id):
         except Exception as exc:
             current_app.logger.warning("BoldSign embedded link refresh failed: %s", exc)
 
+    if waiver.signing_url:
+        return redirect(waiver.signing_url)
+
     return render_template("driver/waiver_sign.html", waiver=waiver)
+
+
+@waiver_bp.route("/driver/waivers/<int:driver_waiver_id>/return")
+@login_required
+def driver_waiver_return(driver_waiver_id):
+    """Bring drivers back to a page that watches for BoldSign completion."""
+    _require_user()
+    waiver = DriverWaiver.query.filter_by(
+        id=driver_waiver_id, driver_id=current_user.id
+    ).first_or_404()
+    if _sync_waiver_from_provider(waiver):
+        db.session.commit()
+    return redirect(url_for("waiver.driver_waivers", watch=waiver.id))
 
 
 @waiver_bp.route("/webhooks/boldsign", methods=["POST"])
@@ -218,25 +325,43 @@ def boldsign_webhook():
         return jsonify({"ok": False, "error": "invalid signature"}), 401
 
     payload = request.get_json(silent=True) or {}
-    event_type = (
+    event = payload.get("event") if isinstance(payload.get("event"), dict) else {}
+    context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    event_type = _normalized_status(
         payload.get("eventType")
-        or payload.get("event")
+        or event.get("eventType")
+        or context.get("eventType")
         or payload.get("type")
         or payload.get("eventName")
-        or ""
-    ).lower()
+        or (payload.get("event") if isinstance(payload.get("event"), str) else "")
+    )
+    document = payload.get("document") if isinstance(payload.get("document"), dict) else {}
     document_id = (
         payload.get("documentId")
-        or payload.get("document", {}).get("documentId")
-        or payload.get("data", {}).get("documentId")
+        or document.get("documentId")
+        or data.get("documentId")
     )
-    signer_email = payload.get("signer", {}).get("emailAddress") or payload.get("signerEmail")
+    signer_details = data.get("signerDetails") or []
+    first_signer = signer_details[0] if signer_details and isinstance(signer_details[0], dict) else {}
+    signer = payload.get("signer") if isinstance(payload.get("signer"), dict) else {}
+    signer_email = (
+        signer.get("emailAddress")
+        or payload.get("signerEmail")
+        or first_signer.get("signerEmail")
+        or first_signer.get("emailAddress")
+    )
 
     waiver = None
     if document_id:
         waiver = DriverWaiver.query.filter_by(boldsign_document_id=document_id).first()
     if not waiver:
-        metadata = payload.get("metadata") or payload.get("data", {}).get("metadata") or {}
+        metadata = (
+            payload.get("metadata")
+            or data.get("metadata")
+            or data.get("metaData")
+            or {}
+        )
         waiver_id = metadata.get("driverWaiverId") or metadata.get("driver_waiver_id")
         if waiver_id:
             try:
@@ -251,25 +376,8 @@ def boldsign_webhook():
         )
         return jsonify({"ok": True, "matched": False}), 200
 
-    status_map = {
-        "documentsent": "sent",
-        "documentdelivered": "sent",
-        "documentviewed": "viewed",
-        "documentcompleted": "signed",
-        "documentsigned": "signed",
-        "completed": "signed",
-        "documentdeclined": "declined",
-        "documentexpired": "expired",
-        "documentfailed": "failed",
-    }
-    waiver.status = status_map.get(event_type, waiver.status)
-    waiver.boldsign_signer_email = signer_email or waiver.boldsign_signer_email
-    waiver.webhook_payload = payload
-    if waiver.status == "viewed" and waiver.viewed_at is None:
-        waiver.viewed_at = datetime.utcnow()
-    if waiver.status == "signed":
-        waiver.signed_at = datetime.utcnow()
-        waiver.signed_pdf_url = payload.get("downloadUrl") or payload.get("document", {}).get("downloadUrl")
+    provider_status = data.get("status") or event_type
+    _apply_waiver_status(waiver, payload, provider_status, signer_email=signer_email)
     db.session.commit()
 
     return jsonify({"ok": True, "matched": True, "status": waiver.status}), 200
