@@ -323,24 +323,86 @@ def send_spectator_order_receipt(order):
 
 
 def send_driver_purchase_receipt(driver_ticket_order):
+    from ..models import db
+    from .ticket_service import (
+        ensure_driver_ticket_code,
+        ticket_qr_png,
+        ticket_verification_url,
+    )
+
     event = driver_ticket_order.event
     user = driver_ticket_order.buyer
     car = driver_ticket_order.car
+    registration, code_changed = ensure_driver_ticket_code(driver_ticket_order)
+    if not registration:
+        current_app.logger.warning(
+            "Driver receipt skipped; registration missing for order %s",
+            driver_ticket_order.id,
+        )
+        return False
+    if code_changed:
+        db.session.commit()
+    ticket_code = registration.checkin_code
+    ticket_qr_link = ticket_verification_url(ticket_code)
     values = {
         "track_name": event.track.name,
         "event_name": event.event_name,
         "driver_name": f"{user.first_name} {user.last_name}".strip(),
         "car_name": f"{car.car_year} {car.make} {car.model}",
         "order_total": _money(driver_ticket_order.amount_cents),
+        "ticket_code": ticket_code,
+        "ticket_qr_link": ticket_qr_link,
     }
     template = _get_track_template(event.track_id, "driver_purchase_receipt")
     if template:
-        return send_email(user.email, _render_text(template.subject, values), _render_text(template.body, values))
+        subject = _render_text(template.subject, values)
+        body = _render_text(template.body, values)
+    else:
+        subject = f"Driver ticket confirmed: {event.event_name}"
+        body = (
+            f"Hi {user.first_name},\n\n"
+            f"Your driver ticket for {event.event_name} is confirmed.\n\n"
+            f"Car: {values['car_name']}\n"
+            f"Total: {values['order_total']}\n"
+            f"Ticket code: {ticket_code}\n"
+            f"QR link: {ticket_qr_link}\n\n"
+            "Present the QR code at driver check-in. Complete any required waiver and inspection before you are ready to race.\n\n"
+            f"Thanks,\n{event.track.name}"
+        )
 
+    missing_ticket_lines = []
+    if ticket_code not in body:
+        missing_ticket_lines.append(f"Ticket code: {ticket_code}")
+    if ticket_qr_link not in body:
+        missing_ticket_lines.append(f"QR link: {ticket_qr_link}")
+    if missing_ticket_lines:
+        body = f"{body.rstrip()}\n\n" + "\n".join(missing_ticket_lines)
+
+    cid = f"driver-ticket-{driver_ticket_order.id}@trackops"
+    html_body = (
+        "<div style='max-width:600px;margin:0 auto;font-family:Arial,sans-serif;color:#344054'>"
+        f"<div style='white-space:pre-line;line-height:1.55'>{html.escape(body)}</div>"
+        "<div style='margin:22px 0;padding:22px;border:1px solid #e4e7ec;border-radius:12px;text-align:center'>"
+        "<p style='margin:0 0 4px;color:#667085;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase'>Driver ticket</p>"
+        f"<h2 style='margin:0 0 4px;color:#101828'>{html.escape(event.event_name)}</h2>"
+        f"<p style='margin:0 0 14px;color:#667085'>{html.escape(values['car_name'])}</p>"
+        f"<img src='cid:{cid}' width='240' height='240' alt='Driver ticket QR code' style='display:block;margin:0 auto 10px'>"
+        f"<code style='font-size:12px;color:#475467'>{html.escape(ticket_code)}</code>"
+        "<p style='margin:14px 0 0;color:#667085;font-size:13px'>Present this QR code to track staff at driver check-in.</p>"
+        "</div></div>"
+    )
     return send_email(
         user.email,
-        f"Driver ticket confirmed: {event.event_name}",
-        f"Hi {user.first_name},\n\nYour driver ticket for {event.event_name} is confirmed.\n\nNext steps: complete any required waiver, then inspection before you are ready to race.\n\nTotal: {values['order_total']}\n\nThanks,\nCarBook",
+        subject,
+        body,
+        html_body=html_body,
+        inline_images=[
+            {
+                "cid": cid,
+                "content": ticket_qr_png(ticket_code),
+                "filename": f"DR-{driver_ticket_order.id:06d}-ticket.png",
+            }
+        ],
     )
 
 

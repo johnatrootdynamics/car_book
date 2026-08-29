@@ -32,6 +32,11 @@
     <code>{order_total}</code>
     <code>{ticket_lines}</code>
     <code>{car_name}</code>
+    {% if template_key == 'driver_purchase_receipt' %}
+      <code>{ticket_code}</code>
+      <code>{ticket_qr_link}</code>
+    {% endif %}
   </div>
+  {% if template_key == 'driver_purchase_receipt' %}<p class="muted-line">The driver’s scannable QR image is attached and displayed automatically, even when you customize this message.</p>{% endif %}
 </section>
 {% endblock %}

@@ -9,7 +9,7 @@
     <div>
       <p class="shop-eyebrow">Gate operations</p>
       <h2>Verify Event Ticket</h2>
-      <p>Start the camera once, then scan customer after customer without leaving this screen.</p>
+      <p>Scan driver, spectator, and vendor tickets continuously without leaving this screen.</p>
     </div>
     {% if scanner_active %}
       <span class="ticket-scanner-live"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Continuous scanner on</span>
@@ -23,7 +23,7 @@
       <label>
         <span>Ticket code</span>
         <div class="ticket-code-entry">
-          <input type="text" name="code" value="{{ code }}" placeholder="TKT-..." autocomplete="off" autocapitalize="characters" spellcheck="false" data-ticket-qr-input {% if not scanner_active %}autofocus{% endif %}>
+          <input type="text" name="code" value="{{ code }}" placeholder="TKT-... or DRT-..." autocomplete="off" autocapitalize="characters" spellcheck="false" data-ticket-qr-input {% if not scanner_active %}autofocus{% endif %}>
           <button type="submit" class="btn">Verify</button>
         </div>
       </label>
@@ -38,12 +38,51 @@
   {% if verification_state == 'invalid' %}
     <section class="ticket-verification-result invalid">
       <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
-      <div><strong>Ticket not found</strong><p>This code does not belong to an event ticket for your track.</p></div>
+      <div><strong>Ticket not found</strong><p>This code does not belong to a driver, spectator, or vendor ticket for your track.</p></div>
     </section>
   {% elif verification_state == 'unpaid' %}
     <section class="ticket-verification-result invalid">
       <i class="bi bi-shield-x" aria-hidden="true"></i>
       <div><strong>Payment not confirmed</strong><p>This ticket is locked and cannot be admitted.</p></div>
+    </section>
+  {% elif driver_registration %}
+    <section class="card ticket-result-card {{ verification_state }}" {% if verification_state == 'used' %}role="alert" aria-live="assertive"{% endif %}>
+      {% if verification_state == 'used' %}
+        <div class="ticket-used-banner">
+          <i class="bi bi-stop-circle-fill" aria-hidden="true"></i>
+          <div><strong>STOP — DRIVER ALREADY CHECKED IN</strong><span>Do not admit this driver a second time.</span></div>
+        </div>
+        <dl class="ticket-result-facts ticket-result-facts-used">
+          <div><dt>Event</dt><dd>{{ driver_registration.event.event_name }}<small>{{ driver_registration.event.event_date.strftime('%b %-d, %Y') }} &middot; {{ driver_registration.event.track.name }}</small></dd></div>
+          <div><dt>Driver</dt><dd>{{ driver_registration.user.first_name }} {{ driver_registration.user.last_name }}</dd></div>
+          <div><dt>Vehicle</dt><dd>{{ driver_registration.car.car_year }} {{ driver_registration.car.make }} {{ driver_registration.car.model }}</dd></div>
+          <div><dt>Order</dt><dd>{{ 'DR-%06d'|format(driver_order.id) if driver_order else 'Not available' }}</dd></div>
+          <div><dt>First checked in</dt><dd>{{ driver_registration.checked_in_at.strftime('%b %-d, %Y at %-I:%M %p') }}</dd></div>
+          <div><dt>Checked in by</dt><dd>{{ driver_registration.checked_in_by.full_name if driver_registration.checked_in_by else 'Track staff' }}</dd></div>
+        </dl>
+      {% else %}
+        <div class="ticket-result-status">
+          <span><i class="bi bi-check-circle-fill" aria-hidden="true"></i></span>
+          <div>
+            <p>Valid driver ticket</p>
+            <h3>{{ driver_registration.event.event_name }}</h3>
+            <small>{{ driver_registration.event.event_date.strftime('%B %-d, %Y') }} &middot; {{ driver_registration.event.track.name }}</small>
+          </div>
+        </div>
+        <dl class="ticket-result-facts">
+          <div><dt>Driver</dt><dd>{{ driver_registration.user.first_name }} {{ driver_registration.user.last_name }}</dd></div>
+          <div><dt>Vehicle</dt><dd>{{ driver_registration.car.car_year }} {{ driver_registration.car.make }} {{ driver_registration.car.model }}</dd></div>
+          <div><dt>Ticket</dt><dd>Driver admission</dd></div>
+          <div><dt>Order</dt><dd>DR-{{ '%06d'|format(driver_order.id) }}</dd></div>
+          <div><dt>Code</dt><dd><code>{{ driver_registration.checkin_code }}</code></dd></div>
+        </dl>
+        <form method="post" action="{{ url_for('employee.driver_checkin', event_id=driver_registration.event_id, registration_id=driver_registration.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="return_to" value="ticket_scanner">
+          <input type="hidden" name="scanner_active" value="{{ '1' if scanner_active else '0' }}">
+          <button type="submit" class="btn ticket-admit-button"><i class="bi bi-check2-circle" aria-hidden="true"></i> Verify and check in driver</button>
+        </form>
+      {% endif %}
     </section>
   {% elif item %}
     <section class="card ticket-result-card {{ verification_state }}" {% if verification_state == 'used' %}role="alert" aria-live="assertive"{% endif %}>

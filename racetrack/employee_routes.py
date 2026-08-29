@@ -78,7 +78,7 @@ EMAIL_TEMPLATE_DEFINITIONS = {
         "label": "Driver Purchase Receipt",
         "description": "Sent after a driver ticket is paid or recorded.",
         "subject": "Driver ticket confirmed for {event_name}",
-        "body": "Hi {driver_name},\n\nYour driver ticket for {event_name} at {track_name} is confirmed.\n\nCar: {car_name}\nTotal: {order_total}\n\nNext steps: complete any required waiver, then inspection before you are ready to race.\n\nThanks,\n{track_name}",
+        "body": "Hi {driver_name},\n\nYour driver ticket for {event_name} at {track_name} is confirmed.\n\nCar: {car_name}\nTotal: {order_total}\nTicket code: {ticket_code}\nQR link: {ticket_qr_link}\n\nPresent the QR code below at driver check-in. Complete any required waiver and inspection before you are ready to race.\n\nThanks,\n{track_name}",
     },
 }
 
@@ -728,6 +728,8 @@ def ticket_verification():
         request.form.get("code") if request.method == "POST" else request.args.get("code")
     )
     item = None
+    driver_registration = None
+    driver_order = None
     verification_state = None
     if code:
         item = (
@@ -739,22 +741,58 @@ def ticket_verification():
             .first()
         )
         if not item:
-            verification_state = "invalid"
-        elif not payment_is_confirmed(
+            driver_registration = (
+                EventRegistration.query.join(
+                    Event,
+                    Event.id == EventRegistration.event_id,
+                )
+                .filter(
+                    EventRegistration.checkin_code == code,
+                    Event.track_id == active_track_id(),
+                )
+                .first()
+            )
+            if driver_registration:
+                driver_order = (
+                    DriverTicketOrder.query.filter_by(
+                        event_id=driver_registration.event_id,
+                        user_id=driver_registration.user_id,
+                    )
+                    .order_by(DriverTicketOrder.created_at.desc())
+                    .first()
+                )
+        if item and not payment_is_confirmed(
             item.order.payment_status,
             item.order.payment_method,
             item.order.total_cents,
             item.order.provider_transaction_id,
         ):
             verification_state = "unpaid"
-        elif item.checked_in_at:
+        elif item and item.checked_in_at:
             verification_state = "used"
-        else:
+        elif item:
             verification_state = "valid"
+        elif driver_registration and driver_order and not payment_is_confirmed(
+            driver_order.payment_status,
+            driver_order.payment_method,
+            driver_order.amount_cents,
+            driver_order.provider_transaction_id,
+        ):
+            verification_state = "unpaid"
+        elif driver_registration and not driver_order:
+            verification_state = "unpaid"
+        elif driver_registration and driver_registration.checked_in_at:
+            verification_state = "used"
+        elif driver_registration:
+            verification_state = "valid"
+        else:
+            verification_state = "invalid"
     return render_template(
         "employee/ticket_verification.html",
         code=code,
         item=item,
+        driver_registration=driver_registration,
+        driver_order=driver_order,
         verification_state=verification_state,
         scanner_active=scanner_active,
     )
@@ -1736,6 +1774,14 @@ def driver_checkin(event_id, registration_id):
         return redirect(url_for("employee.inspections_hub", event_id=event_id))
     if return_to == "run_groups":
         return redirect(url_for("employee.event_detail", event_id=event_id, view="slots"))
+    if return_to == "ticket_scanner":
+        return redirect(
+            url_for(
+                "employee.ticket_verification",
+                code=registration.checkin_code,
+                **({"scanner": 1} if request.form.get("scanner_active") == "1" else {}),
+            )
+        )
     return redirect(url_for("employee.participants", event_id=event_id))
 
 

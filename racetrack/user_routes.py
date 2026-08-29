@@ -64,7 +64,12 @@ from .services.rental_service import (
     booking_is_active,
     rental_month_context,
 )
-from .services.ticket_service import code_qr_png, ensure_order_ticket_codes, generate_ticket_code
+from .services.ticket_service import (
+    code_qr_png,
+    ensure_order_ticket_codes,
+    generate_driver_ticket_code,
+    generate_ticket_code,
+)
 
 try:
     import stripe
@@ -323,7 +328,7 @@ def _create_driver_post_purchase_steps(driver_ticket_order):
             event_id=event.id,
             user_id=user.id,
             car_id=car.id,
-            checkin_code=car.static_qr_code,
+            checkin_code=generate_driver_ticket_code(),
         )
         db.session.add(reg)
         db.session.flush()
@@ -456,7 +461,7 @@ def _finalize_private_rental_booking(booking, transaction_id=None):
             event_id=event.id,
             user_id=booking.user_id,
             car_id=booking.car_id,
-            checkin_code=booking.car.static_qr_code,
+            checkin_code=generate_driver_ticket_code(),
         )
     )
     if not TrackDriverClass.query.filter_by(

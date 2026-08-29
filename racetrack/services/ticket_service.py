@@ -14,6 +14,30 @@ def generate_ticket_code():
             return code
 
 
+def generate_driver_ticket_code():
+    from ..models import EventRegistration
+
+    while True:
+        code = f"DRT-{secrets.token_hex(16).upper()}"
+        if not EventRegistration.query.filter_by(checkin_code=code).first():
+            return code
+
+
+def ensure_driver_ticket_code(driver_ticket_order):
+    from ..models import EventRegistration
+
+    registration = EventRegistration.query.filter_by(
+        event_id=driver_ticket_order.event_id,
+        user_id=driver_ticket_order.user_id,
+    ).first()
+    if not registration:
+        return None, False
+    if not (registration.checkin_code or "").startswith("DRT-"):
+        registration.checkin_code = generate_driver_ticket_code()
+        return registration, True
+    return registration, False
+
+
 def ensure_order_ticket_codes(order):
     changed = False
     for item in list(order.items):
