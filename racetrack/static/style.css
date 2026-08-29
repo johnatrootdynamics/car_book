@@ -6512,31 +6512,6 @@ details > summary { font-size: .92rem; }
 .driver-dashboard-header-actions .btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .driver-dashboard-header-actions .btn-secondary { color: #f5f7ff; background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .23); }
 
-.driver-dashboard-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.driver-dashboard-metrics article {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-  padding: 12px 14px;
-  background: #fff;
-  border: 1px solid #e4e7ec;
-  border-radius: 8px;
-}
-.driver-dashboard-metrics article > span {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  color: #3159d5;
-  background: #eef3ff;
-  border-radius: 7px;
-  place-items: center;
-}
-.driver-dashboard-metrics article > div { display: grid; gap: 1px; min-width: 0; }
-.driver-dashboard-metrics small { overflow: hidden; color: #667085; font-size: .68rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.driver-dashboard-metrics strong { color: #101828; font-size: 1.16rem; line-height: 1.1; }
-
 .driver-dashboard-primary-grid,
 .driver-dashboard-secondary-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, .72fr); gap: 12px; align-items: start; }
 .driver-next-event-card,
@@ -6653,10 +6628,6 @@ details > summary { font-size: .92rem; }
   .driver-dashboard-header { align-items: flex-start; flex-direction: column; padding: 20px; }
   .driver-dashboard-header-actions { display: grid; width: 100%; grid-template-columns: 1fr 1fr; }
   .driver-dashboard-header-actions .btn { justify-content: center; }
-  .driver-dashboard-metrics { grid-template-columns: 1fr 1fr 1fr; }
-  .driver-dashboard-metrics article { display: grid; justify-items: center; gap: 6px; padding: 10px 6px; text-align: center; }
-  .driver-dashboard-metrics article > div { justify-items: center; }
-  .driver-dashboard-metrics small { font-size: .59rem; }
   .driver-featured-event { grid-template-columns: 58px minmax(0, 1fr); gap: 11px; padding: 12px; }
   .driver-featured-date { min-height: 78px; }
   .driver-registered-list > article > a { grid-template-columns: 52px minmax(0, 1fr) 12px; }
@@ -6673,7 +6644,6 @@ details > summary { font-size: .92rem; }
 
 @media (max-width: 430px) {
   .driver-dashboard-header-actions { grid-template-columns: 1fr; }
-  .driver-dashboard-metrics article > span { width: 30px; height: 30px; }
   .driver-featured-actions .btn { flex: 1; text-align: center; }
   .driver-waiver-link { width: 100%; justify-content: center; padding-top: 3px; }
   .driver-dashboard-empty { align-items: flex-start; flex-wrap: wrap; }
