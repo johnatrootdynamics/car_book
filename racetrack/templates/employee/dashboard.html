@@ -112,14 +112,9 @@
           <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
         </a>
         {% if is_office_staff %}
-          <a href="{{ url_for('employee.staff_accounts') }}">
-            <i class="bi bi-person-badge" aria-hidden="true"></i>
-            <span><strong>Staff accounts</strong><small>Add staff and assign roles</small></span>
-            <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
-          </a>
           <a href="{{ url_for('employee.settings') }}">
             <i class="bi bi-sliders" aria-hidden="true"></i>
-            <span><strong>Track settings</strong><small>Payments and email templates</small></span>
+            <span><strong>Track settings</strong><small>Staff, waivers, payments, and email</small></span>
             <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
           </a>
         {% endif %}
@@ -130,10 +125,10 @@
   <div class="employee-dashboard-secondary-grid">
     <section class="card employee-class-manager-card driver-records-promo">
       <div class="employee-dashboard-section-head">
-        <div><span>Drivers</span><h3>Driver records</h3></div>
+        <div><span>People</span><h3>Driver and vendor records</h3></div>
       </div>
-      <p class="muted-line">Review a driver’s attendance, event history, internal notes, cars, and class changes in one place.</p>
-      <a class="driver-records-promo-link" href="{{ url_for('employee.drivers') }}"><span><i class="bi bi-person-vcard" aria-hidden="true"></i><strong>Open driver lookup</strong></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      <p class="muted-line">Find driver history, internal notes, class records, and reusable vendor profiles in one place.</p>
+      <a class="driver-records-promo-link" href="{{ url_for('employee.drivers') }}"><span><i class="bi bi-people" aria-hidden="true"></i><strong>Open People</strong></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
     </section>
 
     <section class="card employee-last-event-card">

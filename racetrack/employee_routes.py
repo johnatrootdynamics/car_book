@@ -890,29 +890,12 @@ def vendors():
 @employee_bp.route("/vendor-directory")
 @login_required
 def vendor_directory():
-    guard = require_office_staff()
+    guard = require_employee()
     if guard:
         return guard
     query_text = (request.args.get("q") or "").strip()
-    query = VendorAccount.query
-    if query_text:
-        pattern = f"%{query_text}%"
-        query = query.filter(
-            or_(
-                VendorAccount.business_name.ilike(pattern),
-                VendorAccount.full_name.ilike(pattern),
-                VendorAccount.email.ilike(pattern),
-                VendorAccount.phone.ilike(pattern),
-                VendorAccount.business_address.ilike(pattern),
-                VendorAccount.website.ilike(pattern),
-                VendorAccount.description.ilike(pattern),
-            )
-        )
-    vendors = query.order_by(VendorAccount.business_name.asc()).limit(250).all()
-    return render_template(
-        "employee/vendor_directory.html",
-        vendors=vendors,
-        query_text=query_text,
+    return redirect(
+        url_for("employee.drivers", view="vendors", **({"q": query_text} if query_text else {}))
     )
 
 
@@ -1113,18 +1096,22 @@ def resend_order_email(kind, order_id):
 @employee_bp.route("/settings", methods=["GET"])
 @login_required
 def settings():
-    guard = require_office_staff()
+    guard = require_employee()
     if guard:
         return guard
+    can_manage_settings = has_office_access()
     track = Track.query.get_or_404(active_track_id())
-    templates = {
-        item.template_key: item
-        for item in TrackEmailTemplate.query.filter_by(track_id=track.id).all()
-    }
-    payment_methods = {
-        item.provider: item
-        for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
-    }
+    templates = {}
+    payment_methods = {}
+    if can_manage_settings:
+        templates = {
+            item.template_key: item
+            for item in TrackEmailTemplate.query.filter_by(track_id=track.id).all()
+        }
+        payment_methods = {
+            item.provider: item
+            for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
+        }
     app_base_url = (current_app.config.get("APP_BASE_URL") or "").rstrip("/")
     paypal_webhook_path = url_for("user.paypal_webhook")
     if app_base_url:
@@ -1144,6 +1131,7 @@ def settings():
         payment_provider_choices=PAYMENT_PROVIDER_CHOICES,
         payment_provider_docs=PAYMENT_PROVIDER_DOCS,
         paypal_webhook_url=paypal_webhook_url,
+        can_manage_settings=can_manage_settings,
     )
 
 
@@ -2259,7 +2247,42 @@ def drivers():
     if guard:
         return guard
     track_id = active_track_id()
+    track = Track.query.get_or_404(track_id)
+    directory_view = (request.args.get("view") or "drivers").strip().lower()
+    if directory_view not in {"drivers", "vendors"}:
+        directory_view = "drivers"
     query_text = (request.args.get("q") or "").strip()
+    if directory_view == "vendors":
+        vendor_query = VendorAccount.query
+        if query_text:
+            pattern = f"%{query_text}%"
+            public_filters = [
+                VendorAccount.business_name.ilike(pattern),
+                VendorAccount.website.ilike(pattern),
+                VendorAccount.description.ilike(pattern),
+            ]
+            if has_office_access():
+                public_filters.extend(
+                    [
+                        VendorAccount.full_name.ilike(pattern),
+                        VendorAccount.email.ilike(pattern),
+                        VendorAccount.phone.ilike(pattern),
+                        VendorAccount.business_address.ilike(pattern),
+                    ]
+                )
+            vendor_query = vendor_query.filter(or_(*public_filters))
+        vendor_rows = (
+            vendor_query.order_by(VendorAccount.business_name.asc()).limit(250).all()
+        )
+        return render_template(
+            "employee/people.html",
+            directory_view=directory_view,
+            vendors=vendor_rows,
+            rows=[],
+            query_text=query_text,
+            track=track,
+        )
+
     query = _track_driver_query(track_id)
     if query_text:
         like = f"%{query_text}%"
@@ -2334,10 +2357,12 @@ def drivers():
             }
         )
     return render_template(
-        "employee/drivers.html",
+        "employee/people.html",
+        directory_view=directory_view,
         rows=rows,
+        vendors=[],
         query_text=query_text,
-        track=Track.query.get_or_404(track_id),
+        track=track,
     )
 
 

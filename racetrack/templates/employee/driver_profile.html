@@ -3,7 +3,7 @@
 <div class="driver-profile-page">
   <header class="driver-profile-header">
     <div class="driver-profile-heading">
-      <a class="driver-profile-back" href="{{ url_for('employee.drivers') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Drivers</a>
+      <a class="driver-profile-back" href="{{ url_for('employee.drivers', view='drivers') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> People</a>
       <div class="driver-profile-person">
         <span class="driver-profile-avatar">{{ driver.first_name[:1]|upper }}{{ driver.last_name[:1]|upper }}</span>
         <div>

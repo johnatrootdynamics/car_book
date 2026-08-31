@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="people-directory-page">
+  <header class="people-directory-header">
+    <div>
+      <span class="event-page-kicker">Track contacts</span>
+      <h2>People</h2>
+      <p>Find driver records and reusable vendor profiles from one workspace.</p>
+    </div>
+    {% if directory_view == 'vendors' %}
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.vendors') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i> Event vendor check-in</a>
+    {% else %}
+      <span class="driver-directory-count">{{ rows|length }} shown</span>
+    {% endif %}
+  </header>
+
+  <nav class="people-directory-tabs" aria-label="People directory">
+    <a class="{% if directory_view == 'drivers' %}active{% endif %}" href="{{ url_for('employee.drivers', view='drivers') }}"><i class="bi bi-person-vcard" aria-hidden="true"></i> Drivers</a>
+    <a class="{% if directory_view == 'vendors' %}active{% endif %}" href="{{ url_for('employee.drivers', view='vendors') }}"><i class="bi bi-shop" aria-hidden="true"></i> Vendors</a>
+  </nav>
+
+  <form method="get" class="driver-directory-search people-directory-search">
+    <input type="hidden" name="view" value="{{ directory_view }}">
+    <label for="people-directory-query"><i class="bi bi-search" aria-hidden="true"></i><span class="sr-only">Search {{ directory_view }}</span></label>
+    <input id="people-directory-query" type="search" name="q" value="{{ query_text }}" placeholder="{% if directory_view == 'vendors' %}Search business, website{% if is_office_staff %}, contact, email, or phone{% endif %}{% else %}Search name, username, email, or phone{% endif %}" autocomplete="off">
+    <button class="btn btn-sm" type="submit">Search</button>
+    {% if query_text %}<a href="{{ url_for('employee.drivers', view=directory_view) }}">Clear</a>{% endif %}
+  </form>
+
+  {% if directory_view == 'drivers' %}
+    {% if rows %}
+      <section class="driver-directory-list" aria-label="Driver records">
+        {% for row in rows %}
+          <a class="driver-directory-row" href="{{ url_for('employee.driver_profile', user_id=row.driver.id) }}">
+            <span class="driver-directory-avatar">{{ row.driver.first_name[:1]|upper }}{{ row.driver.last_name[:1]|upper }}</span>
+            <span class="driver-directory-identity"><strong>{{ row.driver.first_name }} {{ row.driver.last_name }}</strong><small>{{ row.driver.email }}</small></span>
+            <span class="driver-directory-activity"><strong>{{ row.attended_count }} attended</strong><small>{{ row.registered_count }} registration{{ '' if row.registered_count == 1 else 's' }}{% if row.last_event_date %}<span aria-hidden="true">·</span> Last {{ row.last_event_date.strftime('%b %-d, %Y') }}{% endif %}{% if row.note_count %}<span aria-hidden="true">·</span> {{ row.note_count }} note{{ '' if row.note_count == 1 else 's' }}{% endif %}</small></span>
+            <span class="driver-directory-class driver-directory-class-{{ row.driver_class }}" title="Class {{ row.driver_class }}" aria-label="Class {{ row.driver_class }}">{{ row.driver_class }}</span>
+            <i class="bi bi-chevron-right driver-directory-arrow" aria-hidden="true"></i>
+          </a>
+        {% endfor %}
+      </section>
+    {% else %}
+      <section class="card driver-directory-empty"><i class="bi bi-person-search" aria-hidden="true"></i><h3>No drivers found</h3><p>{% if query_text %}No track driver matches “{{ query_text }}”.{% else %}Drivers appear after they register with or subscribe to this track.{% endif %}</p></section>
+    {% endif %}
+  {% else %}
+    {% if vendors %}
+      <section class="vendor-directory-grid people-vendor-grid">
+        {% for vendor in vendors %}
+          <article class="card vendor-directory-card">
+            <div class="vendor-directory-public">
+              {% set logo_url = asset_url(vendor.logo_image_path) %}
+              {% if logo_url %}<img src="{{ logo_url }}" alt="{{ vendor.business_name }} logo">{% else %}<span>{{ vendor.business_name[:1]|upper }}</span>{% endif %}
+              <div><small>Vendor profile</small><h3>{{ vendor.business_name }}</h3>{% if vendor.website %}<a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>{% endif %}</div>
+            </div>
+            {% if vendor.description %}<p class="vendor-directory-description">{{ vendor.description }}</p>{% endif %}
+            {% if is_office_staff %}
+              <dl class="vendor-directory-private">
+                <div><dt>Contact</dt><dd>{{ vendor.full_name }}</dd></div>
+                <div><dt>Email</dt><dd>{{ vendor.email }}</dd></div>
+                <div><dt>Phone</dt><dd>{{ vendor.phone }}</dd></div>
+                <div><dt>Business address</dt><dd>{{ vendor.business_address }}</dd></div>
+              </dl>
+            {% endif %}
+            <a class="vendor-directory-profile-link" href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}">View public profile <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+          </article>
+        {% endfor %}
+      </section>
+    {% else %}
+      <section class="card driver-directory-empty"><i class="bi bi-shop" aria-hidden="true"></i><h3>No vendors found</h3><p>{% if query_text %}No vendor matches “{{ query_text }}”.{% else %}Registered vendor accounts will appear here.{% endif %}</p></section>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

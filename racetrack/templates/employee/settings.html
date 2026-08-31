@@ -97,18 +97,47 @@
   </details>
 {% endmacro %}
 {% block content %}
-<section class="card">
+<div class="track-settings-page">
+<section class="card track-settings-header">
   <div class="row-space">
     <div>
       <h2>Settings</h2>
-      <p class="muted-line">Configure customer communication and payment provider setup.</p>
+      <p class="muted-line">Manage track configuration, staff access, waivers, inspections, communication, and payments.</p>
     </div>
-    <div class="inline">
-      <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.track_profile') }}">Track Profile</a>
-    </div>
+    <span class="track-settings-role">{{ 'Office staff' if can_manage_settings else 'Track staff' }}</span>
   </div>
 </section>
 
+<section class="settings-tool-grid" aria-label="Settings tools">
+  <a class="settings-tool-card" href="{{ url_for('employee.staff_accounts') }}">
+    <span><i class="bi bi-person-badge" aria-hidden="true"></i></span>
+    <div><h3>Staff Accounts</h3><p>{% if can_manage_settings %}Create accounts, assign roles, and reset passwords.{% else %}Reset passwords for eligible track staff accounts.{% endif %}</p></div>
+    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+  </a>
+  {% if can_manage_settings %}
+    <a class="settings-tool-card" href="{{ url_for('employee.track_profile') }}">
+      <span><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
+      <div><h3>Track Profile</h3><p>Update track details, images, and layouts.</p></div>
+      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
+    <a class="settings-tool-card" href="{{ url_for('employee.inspection_rules') }}">
+      <span><i class="bi bi-sliders" aria-hidden="true"></i></span>
+      <div><h3>Inspection Setup</h3><p>Manage the vehicle inspection checklist.</p></div>
+      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
+    <a class="settings-tool-card" href="{{ url_for('employee.waiver_template_builder') }}">
+      <span><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
+      <div><h3>Waiver Builder</h3><p>Create and manage required driver waivers.</p></div>
+      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
+  {% endif %}
+</section>
+
+{% if not can_manage_settings %}
+  <aside class="staff-permission-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Office staff manage track configuration, waivers, inspection rules, email templates, and payment providers.</aside>
+{% endif %}
+
+{% if can_manage_settings %}
 <section class="card">
   <h3>Email Templates</h3>
   <p class="muted-line">Customize the messages customers receive after payment and purchase events.</p>
@@ -306,5 +335,7 @@
     })
   })()
 </script>
+{% endif %}
+</div>
 
 {% endblock %}
