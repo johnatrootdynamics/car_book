@@ -1100,14 +1100,18 @@ def settings():
     if guard:
         return guard
     can_manage_settings = has_office_access()
+    settings_section = (request.args.get("section") or "").strip().lower()
+    if not can_manage_settings or settings_section not in {"email", "payments"}:
+        settings_section = ""
     track = Track.query.get_or_404(active_track_id())
     templates = {}
     payment_methods = {}
-    if can_manage_settings:
+    if settings_section == "email":
         templates = {
             item.template_key: item
             for item in TrackEmailTemplate.query.filter_by(track_id=track.id).all()
         }
+    if settings_section == "payments":
         payment_methods = {
             item.provider: item
             for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
@@ -1132,6 +1136,7 @@ def settings():
         payment_provider_docs=PAYMENT_PROVIDER_DOCS,
         paypal_webhook_url=paypal_webhook_url,
         can_manage_settings=can_manage_settings,
+        settings_section=settings_section,
     )
 
 
@@ -1149,7 +1154,7 @@ def payment_methods_update():
     }
     if not selected:
         flash("Select at least one payment method.", "error")
-        return redirect(url_for("employee.settings"))
+        return redirect(url_for("employee.settings", section="payments"))
 
     for provider in PAYMENT_PROVIDER_CHOICES:
         method = TrackPaymentMethod.query.filter_by(track_id=track.id, provider=provider).first()
@@ -1185,7 +1190,7 @@ def payment_methods_update():
         track.stripe_webhook_secret = None
     db.session.commit()
     flash("Payment settings updated.", "success")
-    return redirect(url_for("employee.settings"))
+    return redirect(url_for("employee.settings", section="payments"))
 
 
 @employee_bp.route("/settings/email-templates/<template_key>", methods=["GET", "POST"])
@@ -1196,7 +1201,7 @@ def email_template_edit(template_key):
         return guard
     if template_key not in EMAIL_TEMPLATE_DEFINITIONS:
         flash("Unknown email template.", "error")
-        return redirect(url_for("employee.settings"))
+        return redirect(url_for("employee.settings", section="email"))
     track = Track.query.get_or_404(active_track_id())
     definition = EMAIL_TEMPLATE_DEFINITIONS[template_key]
     template = TrackEmailTemplate.query.filter_by(track_id=track.id, template_key=template_key).first()
@@ -1214,7 +1219,7 @@ def email_template_edit(template_key):
         template.is_enabled = bool(form.is_enabled.data)
         db.session.commit()
         flash("Email template saved.", "success")
-        return redirect(url_for("employee.settings"))
+        return redirect(url_for("employee.settings", section="email"))
     return render_template(
         "employee/email_template_form.html",
         track=track,

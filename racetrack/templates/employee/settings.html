@@ -130,6 +130,16 @@
       <div><h3>Waiver Builder</h3><p>Create and manage required driver waivers.</p></div>
       <i class="bi bi-chevron-right" aria-hidden="true"></i>
     </a>
+    <a class="settings-tool-card {% if settings_section == 'email' %}active{% endif %}" href="{{ url_for('employee.settings', section='email') }}">
+      <span><i class="bi bi-envelope-paper" aria-hidden="true"></i></span>
+      <div><h3>Email Templates</h3><p>Customize purchase receipts and customer messages.</p></div>
+      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
+    <a class="settings-tool-card {% if settings_section == 'payments' %}active{% endif %}" href="{{ url_for('employee.settings', section='payments') }}">
+      <span><i class="bi bi-credit-card" aria-hidden="true"></i></span>
+      <div><h3>Payment Providers</h3><p>Configure checkout providers, credentials, and test mode.</p></div>
+      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
   {% endif %}
 </section>
 
@@ -137,10 +147,9 @@
   <aside class="staff-permission-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Office staff manage track configuration, waivers, inspection rules, email templates, and payment providers.</aside>
 {% endif %}
 
-{% if can_manage_settings %}
+{% if can_manage_settings and settings_section == 'email' %}
 <section class="card">
-  <h3>Email Templates</h3>
-  <p class="muted-line">Customize the messages customers receive after payment and purchase events.</p>
+  <div class="settings-section-heading"><div><span>Communication</span><h3>Email Templates</h3><p class="muted-line">Customize the messages customers receive after payment and purchase events.</p></div><a href="{{ url_for('employee.settings') }}">Close</a></div>
   <div class="table-wrap" style="margin-top:12px;">
     <table>
       <thead>
@@ -163,13 +172,17 @@
     </table>
   </div>
 </section>
+{% endif %}
 
+{% if can_manage_settings and settings_section == 'payments' %}
 <section class="card">
   <div class="row-space">
     <div>
-      <h3>Payment Providers</h3>
+      <span class="event-page-kicker">Checkout</span>
+      <h3 style="margin-top:3px;">Payment Providers</h3>
       <p class="muted-line">Add providers, store credentials, and choose what customers can use at checkout.</p>
     </div>
+    <a class="settings-section-close" href="{{ url_for('employee.settings') }}">Close</a>
   </div>
   <form method="post" action="{{ url_for('employee.payment_methods_update') }}" class="payments-layout" data-enhanced data-payments-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

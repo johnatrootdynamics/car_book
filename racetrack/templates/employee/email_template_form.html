@@ -6,7 +6,7 @@
       <h2>{{ definition.label }}</h2>
       <p class="muted-line">{{ definition.description }}</p>
     </div>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.settings') }}">Back</a>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.settings', section='email') }}">Back</a>
   </div>
   <form method="post" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
@@ -15,7 +15,7 @@
     <label class="inline">{{ form.is_enabled() }} Enabled</label>
     <div class="inline">
       {{ form.submit(class_='btn') }}
-      <a class="btn btn-secondary" href="{{ url_for('employee.settings') }}">Cancel</a>
+      <a class="btn btn-secondary" href="{{ url_for('employee.settings', section='email') }}">Cancel</a>
     </div>
   </form>
 </section>
