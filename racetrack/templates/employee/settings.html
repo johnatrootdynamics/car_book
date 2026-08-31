@@ -98,6 +98,7 @@
 {% endmacro %}
 {% block content %}
 <div class="track-settings-page">
+{% if not settings_section %}
 <section class="card track-settings-header">
   <div class="row-space">
     <div>
@@ -146,11 +147,19 @@
 {% if not can_manage_settings %}
   <aside class="staff-permission-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Office staff manage track configuration, waivers, inspection rules, email templates, and payment providers.</aside>
 {% endif %}
+{% endif %}
 
 {% if can_manage_settings and settings_section == 'email' %}
+<header class="settings-focused-header">
+  <a class="settings-back-link" href="{{ url_for('employee.settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Settings</a>
+  <div>
+    <span>Communication</span>
+    <h2>Email Templates</h2>
+    <p>Customize the messages customers receive after payment and purchase events.</p>
+  </div>
+</header>
 <section class="card">
-  <div class="settings-section-heading"><div><span>Communication</span><h3>Email Templates</h3><p class="muted-line">Customize the messages customers receive after payment and purchase events.</p></div><a href="{{ url_for('employee.settings') }}">Close</a></div>
-  <div class="table-wrap" style="margin-top:12px;">
+  <div class="table-wrap">
     <table>
       <thead>
         <tr><th>Template</th><th>Status</th><th>Subject</th><th>Actions</th></tr>
@@ -175,15 +184,15 @@
 {% endif %}
 
 {% if can_manage_settings and settings_section == 'payments' %}
-<section class="card">
-  <div class="row-space">
-    <div>
-      <span class="event-page-kicker">Checkout</span>
-      <h3 style="margin-top:3px;">Payment Providers</h3>
-      <p class="muted-line">Add providers, store credentials, and choose what customers can use at checkout.</p>
-    </div>
-    <a class="settings-section-close" href="{{ url_for('employee.settings') }}">Close</a>
+<header class="settings-focused-header">
+  <a class="settings-back-link" href="{{ url_for('employee.settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Settings</a>
+  <div>
+    <span>Checkout</span>
+    <h2>Payment Providers</h2>
+    <p>Configure checkout providers, credentials, and test mode.</p>
   </div>
+</header>
+<section class="card">
   <form method="post" action="{{ url_for('employee.payment_methods_update') }}" class="payments-layout" data-enhanced data-payments-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <section class="payment-provider-stack">

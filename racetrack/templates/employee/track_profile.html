@@ -1,9 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="settings-focused-page">
+<header class="settings-focused-header">
+  <a class="settings-back-link" href="{{ url_for('employee.settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Settings</a>
+  <div>
+    <span>Track configuration</span>
+    <h2>Track Profile</h2>
+    <p>Update track details, images, and layout variants.</p>
+  </div>
+</header>
 <section class="track-profile-grid">
 <article class="card">
   <div class="row-space">
-    <h2>Track Profile</h2>
+    <h3>Track details</h3>
     <button type="button" class="btn btn-secondary btn-sm" data-track-profile-edit-btn>Edit</button>
   </div>
   <form method="post" action="{{ url_for('employee.update_track') }}" enctype="multipart/form-data" class="form-grid two-col" data-enhanced data-track-profile-form>
@@ -106,6 +115,7 @@
   {% endif %}
 </article>
 </section>
+</div>
 <script>
   (function () {
     const profileForm = document.querySelector("[data-track-profile-form]")

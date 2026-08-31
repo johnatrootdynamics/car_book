@@ -6925,14 +6925,31 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .settings-tool-card h3 { margin: 0; color: #344054; font-size: .8rem; }
 .settings-tool-card p { margin: 0; color: #7a8699; font-size: .66rem; line-height: 1.4; }
 .settings-tool-card > i { color: #b4bdca; font-size: .72rem; }
-.settings-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.settings-section-heading > div > span { color: #7a8699; font-size: .61rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
-.settings-section-heading h3 { margin: 3px 0 2px; color: #1d2939; }
-.settings-section-heading p { margin: 0; }
-.settings-section-heading > a,
-.settings-section-close { color: #667085; font-size: .7rem; font-weight: 700; text-decoration: none; }
-.settings-section-heading > a:hover,
-.settings-section-close:hover { color: #3159d5; }
+.settings-focused-page { display: grid; gap: 12px; width: min(1040px, 100%); margin: 0 auto; }
+.settings-focused-header { display: grid; gap: 11px; padding: 2px 1px 4px; }
+.settings-focused-header > div > span {
+  color: #7a8699;
+  font-size: .61rem;
+  font-weight: 750;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.settings-focused-header h2 { margin: 3px 0 2px; color: #101828; font-size: 1.45rem; }
+.settings-focused-header p { margin: 0; color: #667085; font-size: .78rem; }
+.settings-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: #667085;
+  font-size: .7rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color .16s ease;
+}
+.settings-back-link:hover { color: #3159d5; }
+.staff-accounts-header .settings-back-link,
+.inspection-rules-header .settings-back-link { margin-bottom: 9px; }
 
 @media (max-width: 680px) {
   .people-directory-header { align-items: flex-start; flex-direction: column; gap: 9px; }
@@ -6940,5 +6957,4 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .people-directory-tabs { width: 100%; }
   .people-directory-tabs a { flex: 1; justify-content: center; }
   .settings-tool-grid { grid-template-columns: 1fr; }
-  .settings-section-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
 }

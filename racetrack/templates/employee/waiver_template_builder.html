@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="settings-focused-page">
+<header class="settings-focused-header">
+  <a class="settings-back-link" href="{{ url_for('employee.settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Settings</a>
+  <div>
+    <span>Driver requirements</span>
+    <h2>Waiver Builder</h2>
+    <p>Create and manage the waiver templates required for check-in.</p>
+  </div>
+</header>
 <section class="card">
-  <h2>Embedded Waiver Template Builder</h2>
+  <h3>Embedded Waiver Template Builder</h3>
   <p>Upload a waiver PDF, then build fields and roles in the embedded BoldSign editor.</p>
   <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -47,4 +56,5 @@
     <p>No templates linked to this track yet.</p>
   {% endif %}
 </section>
+</div>
 {% endblock %}
