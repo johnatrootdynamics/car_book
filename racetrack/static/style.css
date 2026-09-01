@@ -6887,7 +6887,15 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 }
 .people-directory-tabs a.active { color: #174dcc; background: #fff; box-shadow: 0 1px 3px rgba(16, 24, 40, .1); }
 .people-directory-search { margin: 0; }
-.people-vendor-grid { gap: 10px; }
+.people-vendor-row { grid-template-columns: 36px minmax(0, 1fr) 14px; }
+.people-vendor-avatar { overflow: hidden; background: #fff; }
+.people-vendor-avatar img {
+  width: 100%;
+  height: 100%;
+  padding: 3px;
+  box-sizing: border-box;
+  object-fit: contain;
+}
 
 .track-settings-page { display: grid; gap: 12px; width: min(1040px, 100%); margin: 0 auto; }
 .track-settings-page > .card { margin: 0; }
@@ -6956,5 +6964,6 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .people-directory-header .btn { width: 100%; }
   .people-directory-tabs { width: 100%; }
   .people-directory-tabs a { flex: 1; justify-content: center; }
+  .people-vendor-row { grid-template-columns: 34px minmax(0, 1fr) 12px; }
   .settings-tool-grid { grid-template-columns: 1fr; }
 }

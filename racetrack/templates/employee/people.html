@@ -45,25 +45,24 @@
     {% endif %}
   {% else %}
     {% if vendors %}
-      <section class="vendor-directory-grid people-vendor-grid">
+      <section class="driver-directory-list" aria-label="Vendor profiles">
         {% for vendor in vendors %}
-          <article class="card vendor-directory-card">
-            <div class="vendor-directory-public">
-              {% set logo_url = asset_url(vendor.logo_image_path) %}
-              {% if logo_url %}<img src="{{ logo_url }}" alt="{{ vendor.business_name }} logo">{% else %}<span>{{ vendor.business_name[:1]|upper }}</span>{% endif %}
-              <div><small>Vendor profile</small><h3>{{ vendor.business_name }}</h3>{% if vendor.website %}<a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>{% endif %}</div>
-            </div>
-            {% if vendor.description %}<p class="vendor-directory-description">{{ vendor.description }}</p>{% endif %}
-            {% if is_office_staff %}
-              <dl class="vendor-directory-private">
-                <div><dt>Contact</dt><dd>{{ vendor.full_name }}</dd></div>
-                <div><dt>Email</dt><dd>{{ vendor.email }}</dd></div>
-                <div><dt>Phone</dt><dd>{{ vendor.phone }}</dd></div>
-                <div><dt>Business address</dt><dd>{{ vendor.business_address }}</dd></div>
-              </dl>
-            {% endif %}
-            <a class="vendor-directory-profile-link" href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}">View public profile <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-          </article>
+          {% set logo_url = asset_url(vendor.logo_image_path) %}
+          {% set business_words = vendor.business_name.split() %}
+          <a class="driver-directory-row people-vendor-row" href="{{ url_for('vendor.public_profile', vendor_id=vendor.id) }}">
+            <span class="driver-directory-avatar people-vendor-avatar">
+              {% if logo_url %}
+                <img src="{{ logo_url }}" alt="{{ vendor.business_name }} logo">
+              {% else %}
+                {{ business_words[0][:1]|upper }}{% if business_words|length > 1 %}{{ business_words[1][:1]|upper }}{% endif %}
+              {% endif %}
+            </span>
+            <span class="driver-directory-identity">
+              <strong>{{ vendor.business_name }}</strong>
+              <small>{{ vendor.website or 'Vendor profile' }}</small>
+            </span>
+            <i class="bi bi-chevron-right driver-directory-arrow" aria-hidden="true"></i>
+          </a>
         {% endfor %}
       </section>
     {% else %}
