@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><div><span class="event-page-kicker">RFID operations</span><h2>Scanner dashboard</h2><p>Register appliances, assign entrance or exit duty, and watch incoming reads.</p></div></header>
+
+{% if is_office_staff %}
+<section class="card scanner-pair-card">
+  <h3>Register a scanner</h3>
+  <p class="muted-line">Open the scanner's local web page, start registration, then enter the pairing code shown there.</p>
+  <form method="post" action="{{ url_for('employee.scanner_register') }}" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Pairing code<input name="pairing_code" placeholder="ABC12345" autocomplete="off" required></label>
+    <label>Scanner name<input name="name" placeholder="North gate entrance" required></label>
+    <button class="btn" type="submit">Register scanner</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="card"><h3>Track scanners</h3>
+  {% if devices %}<div class="scanner-device-grid">
+  {% for device in devices %}<article class="scanner-device">
+    <div><strong>{{ device.name }}</strong><span class="status-pill">{{ device.status }}</span></div>
+    <p>{{ device.role|replace('_', ' ')|title }} · {% if device.last_seen_at %}Last seen {{ device.last_seen_at.strftime('%b %-d, %-I:%M %p') }}{% else %}Never connected{% endif %}</p>
+    {% if is_office_staff %}<form method="post" action="{{ url_for('employee.scanner_update', scanner_id=device.id) }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input name="name" value="{{ device.name }}" required>
+      <select name="role"><option value="unassigned" {% if device.role == 'unassigned' %}selected{% endif %}>Unassigned</option><option value="track_entrance" {% if device.role == 'track_entrance' %}selected{% endif %}>Track entrance</option><option value="track_exit" {% if device.role == 'track_exit' %}selected{% endif %}>Track exit</option></select>
+      <button class="btn btn-secondary btn-sm">Save</button>
+    </form>{% endif %}
+  </article>{% endfor %}
+  </div>{% else %}<p class="muted-line">No scanners have been registered to this track.</p>{% endif %}
+</section>
+
+<section class="card"><div class="employee-dashboard-section-head"><div><span>Live feed</span><h3>Recent scanner data</h3></div><span id="scan-status">Updating…</span></div>
+<div class="table-wrap"><table><thead><tr><th>Time</th><th>Scanner</th><th>Tag</th><th>Car / driver</th><th>Result</th></tr></thead><tbody id="scan-feed"><tr><td colspan="5">Waiting for scanner data…</td></tr></tbody></table></div></section>
+{% endblock %}
+{% block scripts %}<script>
+const feed=document.getElementById('scan-feed'), statusEl=document.getElementById('scan-status');
+function esc(v){const d=document.createElement('div');d.textContent=v??'—';return d.innerHTML}
+async function refreshScans(){try{const r=await fetch('{{ url_for("employee.scanner_data") }}');const d=await r.json();feed.innerHTML=d.observations.length?d.observations.map(x=>`<tr><td>${esc(new Date(x.observed_at).toLocaleTimeString())}</td><td>${esc(x.scanner)}<br><small>${esc(x.role.replaceAll('_',' '))}</small></td><td><code>${esc(x.epc)}</code></td><td>${esc(x.car)}<br><small>${esc(x.driver)}</small></td><td>${esc(x.result)}${x.reason?`<br><small>${esc(x.reason)}</small>`:''}</td></tr>`).join(''):'<tr><td colspan="5">No reads received yet.</td></tr>';statusEl.textContent='Live · '+new Date().toLocaleTimeString()}catch(e){statusEl.textContent='Connection interrupted'}}
+refreshScans();setInterval(refreshScans,2000);
+</script>{% endblock %}

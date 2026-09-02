@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><div><span class="event-page-kicker">Live operations</span><h2>Cars on track</h2><p>Entrance reads add cars; exit reads remove them automatically.</p></div><div class="track-live-count"><strong id="track-count">0</strong><span>on track</span></div></header>
+<section class="card"><div id="track-live-grid" class="track-live-grid"><p class="muted-line">Loading live track status…</p></div></section>
+{% endblock %}
+{% block scripts %}<script>
+const grid=document.getElementById('track-live-grid'),count=document.getElementById('track-count');function esc(v){const d=document.createElement('div');d.textContent=v??'—';return d.innerHTML}
+async function refreshTrack(){try{const r=await fetch('{{ url_for("employee.live_track_data") }}');const d=await r.json();count.textContent=d.count;grid.innerHTML=d.cars.length?d.cars.map(x=>`<article class="track-live-car"><span class="track-live-dot"></span><div><strong>${esc(x.car)}</strong><p>${esc(x.driver)}${x.color?' · '+esc(x.color):''}</p><small>Entered ${esc(new Date(x.entered_at).toLocaleTimeString())} via ${esc(x.scanner)}</small></div></article>`).join(''):'<div class="employee-dashboard-empty"><i class="bi bi-flag"></i><div><strong>Track is clear</strong><p>No activated cars have entered.</p></div></div>'}catch(e){grid.innerHTML='<p class="muted-line">Unable to refresh track status.</p>'}}
+refreshTrack();setInterval(refreshTrack,2000);
+</script>{% endblock %}

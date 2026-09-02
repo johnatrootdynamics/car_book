@@ -12,6 +12,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from email_validator import EmailNotValidError, validate_email
 from werkzeug.security import generate_password_hash
+import secrets
 
 from .forms import TrackCreateForm, WaiverTemplateForm
 from .models import (
@@ -21,6 +22,7 @@ from .models import (
     EnterpriseAdmin,
     EventRegistration,
     PrivateRentalBooking,
+    RfidTag,
     SpectatorOrder,
     SystemEmailSettings,
     Track,
@@ -49,6 +51,29 @@ from .services.ticket_service import ensure_order_ticket_codes
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+
+@admin_bp.route("/rfid-tags", methods=["GET", "POST"])
+@login_required
+def rfid_tags():
+    guard = require_admin()
+    if guard:
+        return guard
+    issued_code = None
+    if request.method == "POST":
+        epc = "".join(ch for ch in (request.form.get("epc") or "").upper() if ch.isalnum())
+        tid = "".join(ch for ch in (request.form.get("tid") or "").upper() if ch.isalnum()) or None
+        if not epc or RfidTag.query.filter_by(epc=epc).first():
+            flash("Enter a unique EPC value.", "error")
+        else:
+            serial = "TAG-" + secrets.token_hex(4).upper()
+            issued_code = "-".join([secrets.token_hex(2).upper(), secrets.token_hex(2).upper(), secrets.token_hex(2).upper()])
+            db.session.add(RfidTag(epc=epc, tid=tid, public_serial=serial,
+                                   activation_code_hash=generate_password_hash(issued_code)))
+            db.session.commit()
+            flash("Tag added to inventory. Record the activation code now; it cannot be shown again.", "success")
+    tags = RfidTag.query.order_by(RfidTag.created_at.desc()).limit(100).all()
+    return render_template("admin/rfid_tags.html", tags=tags, issued_code=issued_code)
 
 
 def require_admin():

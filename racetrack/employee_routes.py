@@ -7,7 +7,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from flask_login import current_user, login_required
 from sqlalchemy import case, func, or_
 from sqlalchemy.exc import IntegrityError
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -28,11 +28,14 @@ from .models import (
     PrivateRentalSlot,
     RunGroup,
     RunGroupAssignment,
+    ScannerDevice,
+    ScannerObservation,
     SpectatorOrder,
     SpectatorOrderItem,
     SpectatorTicketType,
     SpectatorTicketOrder,
     Track,
+    TrackCarStatus,
     TrackDriverClass,
     TrackEmailTemplate,
     TrackLayout,
@@ -154,6 +157,119 @@ def _current_staff_actor():
     if current_user.account_type == "admin":
         return "admin", current_user.id, current_user.full_name
     return "employee", current_user.id, current_user.full_name
+
+
+@employee_bp.route("/scanners")
+@login_required
+def scanners():
+    guard = require_employee()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    devices = ScannerDevice.query.filter_by(track_id=track_id).order_by(ScannerDevice.name.asc()).all()
+    recent = (
+        ScannerObservation.query.join(ScannerDevice)
+        .filter(ScannerDevice.track_id == track_id)
+        .order_by(ScannerObservation.received_at.desc()).limit(30).all()
+    )
+    return render_template("employee/scanners.html", devices=devices, recent=recent)
+
+
+@employee_bp.post("/scanners/register")
+@login_required
+def scanner_register():
+    guard = require_office_staff()
+    if guard:
+        return guard
+    code = (request.form.get("pairing_code") or "").strip().upper()
+    name = (request.form.get("name") or "").strip()
+    now = datetime.utcnow()
+    pending = ScannerDevice.query.filter(
+        ScannerDevice.status == "pending", ScannerDevice.pairing_expires_at >= now
+    ).all()
+    device = next((item for item in pending if check_password_hash(item.pairing_code_hash or "", code)), None)
+    if not device:
+        flash("That pairing code is invalid or has expired.", "error")
+        return redirect(url_for("employee.scanners"))
+    device.track_id = active_track_id()
+    device.name = name or f"Scanner {device.id}"
+    device.status = "active"
+    device.claimed_at = now
+    device.pairing_code_hash = None
+    device.pairing_expires_at = None
+    db.session.commit()
+    flash(f"{device.name} is now registered to this track.", "success")
+    return redirect(url_for("employee.scanners"))
+
+
+@employee_bp.post("/scanners/<int:scanner_id>/settings")
+@login_required
+def scanner_update(scanner_id):
+    guard = require_office_staff()
+    if guard:
+        return guard
+    device = ScannerDevice.query.filter_by(id=scanner_id, track_id=active_track_id()).first_or_404()
+    role = (request.form.get("role") or "unassigned").strip()
+    if role not in {"unassigned", "track_entrance", "track_exit"}:
+        role = "unassigned"
+    if role != "unassigned":
+        ScannerDevice.query.filter(
+            ScannerDevice.track_id == active_track_id(),
+            ScannerDevice.role == role,
+            ScannerDevice.id != device.id,
+        ).update({"role": "unassigned"}, synchronize_session=False)
+    device.name = (request.form.get("name") or "").strip()[:120] or device.name
+    device.role = role
+    db.session.commit()
+    flash("Scanner settings saved.", "success")
+    return redirect(url_for("employee.scanners"))
+
+
+@employee_bp.get("/scanners/data")
+@login_required
+def scanner_data():
+    guard = require_employee()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    rows = (
+        ScannerObservation.query.join(ScannerDevice)
+        .filter(ScannerDevice.track_id == track_id)
+        .order_by(ScannerObservation.received_at.desc()).limit(50).all()
+    )
+    return jsonify(observations=[{
+        "id": row.id, "scanner": row.scanner.name, "role": row.scanner.role,
+        "epc": row.epc, "result": row.result, "reason": row.reason,
+        "car": f"{row.car.car_year} {row.car.make} {row.car.model}" if row.car else None,
+        "driver": f"{row.car.owner.first_name} {row.car.owner.last_name}" if row.car else None,
+        "observed_at": row.observed_at.isoformat() + "Z",
+    } for row in rows])
+
+
+@employee_bp.route("/live-track")
+@login_required
+def live_track():
+    guard = require_employee()
+    if guard:
+        return guard
+    return render_template("employee/live_track.html")
+
+
+@employee_bp.get("/live-track/data")
+@login_required
+def live_track_data():
+    guard = require_employee()
+    if guard:
+        return guard
+    states = TrackCarStatus.query.filter_by(track_id=active_track_id(), is_on_track=True).order_by(TrackCarStatus.changed_at.asc()).all()
+    return jsonify(count=len(states), cars=[{
+        "car_id": state.car_id,
+        "car": f"{state.car.car_year} {state.car.make} {state.car.model}",
+        "color": state.car.color,
+        "driver": f"{state.car.owner.first_name} {state.car.owner.last_name}",
+        "entered_at": state.changed_at.isoformat() + "Z",
+        "scanner": state.last_scanner.name if state.last_scanner else None,
+    } for state in states])
 
 
 def _track_driver_query(track_id):

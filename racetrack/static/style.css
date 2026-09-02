@@ -11,6 +11,21 @@
   --ok: #5eea9f;
 }
 
+.scanner-pair-card { border-left: 4px solid #3159d5; }
+.inline-form { display:flex; gap:12px; align-items:end; flex-wrap:wrap; }
+.inline-form label, .stack-form label { display:grid; gap:6px; font-weight:700; flex:1; min-width:180px; }
+.stack-form { display:grid; gap:14px; }
+.scanner-device-grid, .track-live-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+.scanner-device, .track-live-car { border:1px solid #e3e7ee; border-radius:12px; padding:16px; background:#fff; }
+.scanner-device > div { display:flex; justify-content:space-between; gap:10px; }
+.scanner-device p, .track-live-car p { margin:5px 0; color:#667085; }
+.status-pill { padding:3px 8px; border-radius:999px; background:#eaf7ef; color:#187443; font-size:.75rem; font-weight:800; }
+.track-live-count { display:grid; text-align:center; padding:12px 22px; border-radius:14px; background:#16223a; color:white; }
+.track-live-count strong { font-size:2rem; line-height:1; }.track-live-count span { font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; }
+.track-live-car { display:flex; gap:12px; align-items:flex-start; }.track-live-dot { width:11px; height:11px; margin-top:5px; border-radius:50%; background:#20b26b; box-shadow:0 0 0 5px #e2f8ec; }
+.issued-secret { border:2px solid #e5a52f; background:#fffaf0; }.issued-secret strong { font-family:monospace; font-size:1.2rem; letter-spacing:.06em; }
+@media(max-width:680px){.inline-form{align-items:stretch}.inline-form label,.inline-form .btn{width:100%}}
+
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body {

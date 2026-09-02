@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash
 
 from .forms import CarForm, DriverCheckoutForm, EventSignupForm, SocialCommentForm, SpectatorCheckoutForm
 from .models import (
@@ -17,6 +18,7 @@ from .models import (
     EventRegistration,
     PrivateRentalBooking,
     PrivateRentalSlot,
+    RfidTag,
     SocialComment,
     SocialPost,
     SpectatorCart,
@@ -78,6 +80,38 @@ except Exception:  # pragma: no cover
 
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
+
+
+@user_bp.route("/rfid-tags", methods=["GET", "POST"])
+@login_required
+def rfid_tags():
+    guard = require_user()
+    if guard:
+        return guard
+    cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
+    if request.method == "POST":
+        serial = (request.form.get("serial") or "").strip().upper()
+        code = (request.form.get("activation_code") or "").strip().upper()
+        try:
+            car_id = int(request.form.get("car_id") or 0)
+        except ValueError:
+            car_id = 0
+        car = Car.query.filter_by(id=car_id, user_id=current_user.id).first()
+        tag = RfidTag.query.filter_by(public_serial=serial).first()
+        if not car:
+            flash("Choose one of your cars.", "error")
+        elif not tag or tag.status != "inventory" or not check_password_hash(tag.activation_code_hash, code):
+            flash("That tag serial or activation code is invalid.", "error")
+        else:
+            tag.car_id = car.id
+            tag.activated_by_user_id = current_user.id
+            tag.activated_at = datetime.utcnow()
+            tag.status = "active"
+            db.session.commit()
+            flash("RFID tag activated and assigned to your car.", "success")
+            return redirect(url_for("user.rfid_tags"))
+    tags = RfidTag.query.filter_by(activated_by_user_id=current_user.id).order_by(RfidTag.activated_at.desc()).all()
+    return render_template("user/rfid_tags.html", cars=cars, tags=tags)
 FORCED_BOLDSIGN_TEMPLATE_ID = os.getenv(
     "BOLDSIGN_FORCED_TEMPLATE_ID", "e5c8f024-64df-4bdc-9142-3a04c01a154a"
 )

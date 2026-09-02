@@ -807,3 +807,80 @@ class DriverWaiver(db.Model):
     driver = db.relationship("User")
     event = db.relationship("Event")
     waiver_template = db.relationship("TrackWaiverTemplate")
+
+
+class ScannerDevice(db.Model):
+    __tablename__ = "scanner_devices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    device_uuid = db.Column(db.String(64), nullable=False, unique=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=True, index=True)
+    name = db.Column(db.String(120), nullable=False, default="New scanner")
+    role = db.Column(db.String(24), nullable=False, default="unassigned")
+    status = db.Column(db.String(20), nullable=False, default="pending")
+    pairing_code_hash = db.Column(db.String(255), nullable=True)
+    pairing_expires_at = db.Column(db.DateTime, nullable=True)
+    poll_token_hash = db.Column(db.String(64), nullable=True)
+    api_token_hash = db.Column(db.String(64), nullable=True, unique=True)
+    claimed_at = db.Column(db.DateTime, nullable=True)
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    software_version = db.Column(db.String(60), nullable=True)
+    reader_connected = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    track = db.relationship("Track")
+
+
+class RfidTag(db.Model):
+    __tablename__ = "rfid_tags"
+
+    id = db.Column(db.Integer, primary_key=True)
+    epc = db.Column(db.String(128), nullable=False, unique=True)
+    tid = db.Column(db.String(128), nullable=True, unique=True)
+    public_serial = db.Column(db.String(32), nullable=False, unique=True)
+    activation_code_hash = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="inventory")
+    car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=True, index=True)
+    activated_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    activated_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    car = db.relationship("Car")
+    activated_by = db.relationship("User")
+
+
+class ScannerObservation(db.Model):
+    __tablename__ = "scanner_observations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    scanner_id = db.Column(db.Integer, db.ForeignKey("scanner_devices.id"), nullable=False, index=True)
+    event_uuid = db.Column(db.String(64), nullable=False)
+    epc = db.Column(db.String(128), nullable=False, index=True)
+    observed_at = db.Column(db.DateTime, nullable=False)
+    received_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    result = db.Column(db.String(30), nullable=False)
+    reason = db.Column(db.String(255), nullable=True)
+    car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=True)
+
+    scanner = db.relationship("ScannerDevice")
+    car = db.relationship("Car")
+    __table_args__ = (db.UniqueConstraint("scanner_id", "event_uuid", name="uniq_scanner_event_uuid"),)
+
+
+class TrackCarStatus(db.Model):
+    __tablename__ = "track_car_statuses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False, index=True)
+    car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False, index=True)
+    is_on_track = db.Column(db.Boolean, nullable=False, default=False)
+    last_scanner_id = db.Column(db.Integer, db.ForeignKey("scanner_devices.id"), nullable=True)
+    last_observation_id = db.Column(db.Integer, db.ForeignKey("scanner_observations.id"), nullable=True)
+    changed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    track = db.relationship("Track")
+    car = db.relationship("Car")
+    last_scanner = db.relationship("ScannerDevice")
+    last_observation = db.relationship("ScannerObservation")
+    __table_args__ = (db.UniqueConstraint("track_id", "car_id", name="uniq_track_car_status"),)
