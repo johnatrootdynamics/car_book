@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header run-history-header">
+  <div><span class="event-page-kicker">Event archive</span><h2>Run history</h2><p>Review every saved run and the drivers who participated.</p></div>
+  {% if events %}<form method="get" class="run-event-picker"><label for="event_id">Event</label><select id="event_id" name="event_id" onchange="this.form.submit()">{% for event in events %}<option value="{{ event.id }}" {% if selected_event and event.id == selected_event.id %}selected{% endif %}>{{ event.event_date }} · {{ event.event_name }}</option>{% endfor %}</select></form>{% endif %}
+</header>
+{% if selected_event %}
+<section class="card run-history-summary"><div><span>{{ selected_event.event_date.strftime('%B %-d, %Y') }}</span><h3>{{ selected_event.event_name }}</h3></div><strong>{{ runs|length }} run{{ '' if runs|length == 1 else 's' }}</strong></section>
+<div class="run-history-list">
+  {% for run in runs %}<article class="card archived-run">
+    <header><div><span>Run {{ loop.index }}</span><h3>{{ run.started_at.strftime('%-I:%M:%S %p') }}{% if run.ended_at %} – {{ run.ended_at.strftime('%-I:%M:%S %p') }}{% endif %}</h3></div><span class="status-pill">{{ run.status|title }}</span></header>
+    <div class="archived-run-participants">
+      {% for participant in run.participants %}<div class="archived-run-driver">
+        <div class="track-live-photo driver-photo">{% set driver_img = asset_url(participant.driver.profile_image_url) %}{% if driver_img %}<img src="{{ driver_img }}" alt="{{ participant.driver.first_name }} {{ participant.driver.last_name }}">{% else %}<span>{{ participant.driver.first_name[:1] }}{{ participant.driver.last_name[:1] }}</span>{% endif %}</div>
+        <div><strong>{{ participant.driver.first_name }} {{ participant.driver.last_name }}</strong><span>{{ participant.car.car_year }} {{ participant.car.make }} {{ participant.car.model }}</span></div>
+        <div class="run-driver-times"><span>In {{ participant.entered_at.strftime('%-I:%M:%S %p') }}</span><span>Out {{ participant.exited_at.strftime('%-I:%M:%S %p') if participant.exited_at else '—' }}</span></div>
+        <div class="track-live-photo car-photo">{% set car_img = asset_url(participant.car.image_url) %}{% if car_img %}<img src="{{ car_img }}" alt="{{ participant.car.make }} {{ participant.car.model }}">{% else %}<i class="bi bi-car-front-fill" aria-hidden="true"></i>{% endif %}</div>
+      </div>{% endfor %}
+    </div>
+  </article>{% else %}<section class="card employee-dashboard-empty"><i class="bi bi-flag"></i><div><strong>No runs recorded</strong><p>Runs tied to this event will appear here.</p></div></section>{% endfor %}
+</div>
+{% else %}<section class="card employee-dashboard-empty"><i class="bi bi-calendar-event"></i><div><strong>No events found</strong><p>Create an event before recording track runs.</p></div></section>{% endif %}
+{% endblock %}

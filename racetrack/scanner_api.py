@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .models import (
-    RfidTag, ScannerDevice, ScannerObservation, TrackCarStatus,
+    Event, RfidTag, ScannerDevice, ScannerObservation, TrackCarStatus,
     Track, TrackRun, TrackRunParticipant, db,
 )
 
@@ -42,12 +42,32 @@ def _parse_datetime(value):
         return None
 
 
+def _event_for_observation(track_id, observed_at):
+    events = Event.query.filter_by(track_id=track_id, event_date=observed_at.date()).order_by(Event.id.asc()).all()
+    if len(events) <= 1:
+        return events[0] if events else None
+    observed_time = observed_at.time()
+    timed_matches = [
+        event for event in events
+        if (not event.event_start_time or event.event_start_time <= observed_time)
+        and (not event.event_end_time or observed_time <= event.event_end_time)
+    ]
+    if timed_matches:
+        return max(timed_matches, key=lambda event: event.event_start_time or datetime.min.time())
+    return None
+
+
 def _record_run_transition(device, tag, desired_state, observed_at):
     db.session.query(Track.id).filter(Track.id == device.track_id).with_for_update().one()
     active_run = TrackRun.query.filter_by(track_id=device.track_id, status="active").first()
     if desired_state:
         if not active_run:
-            active_run = TrackRun(track_id=device.track_id, started_at=observed_at)
+            event = _event_for_observation(device.track_id, observed_at)
+            active_run = TrackRun(
+                track_id=device.track_id,
+                event_id=event.id if event else None,
+                started_at=observed_at,
+            )
             db.session.add(active_run)
             db.session.flush()
         participant = TrackRunParticipant.query.filter_by(run_id=active_run.id, car_id=tag.car_id).first()

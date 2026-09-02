@@ -257,6 +257,9 @@ def create_app():
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
+                "ALTER TABLE track_runs ADD COLUMN IF NOT EXISTS event_id INT NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0"
             )
             conn.exec_driver_sql(

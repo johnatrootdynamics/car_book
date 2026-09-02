@@ -891,12 +891,14 @@ class TrackRun(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True, index=True)
     status = db.Column(db.String(20), nullable=False, default="active", index=True)
     started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     ended_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     track = db.relationship("Track")
+    event = db.relationship("Event")
     participants = db.relationship(
         "TrackRunParticipant", backref="run", cascade="all, delete-orphan",
         order_by="TrackRunParticipant.entered_at",

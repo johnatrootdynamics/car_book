@@ -16,6 +16,7 @@
     {% endif %}
     <a class="{% if view == 'slots' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i><span>Schedule</span></a>
     <a class="{% if view == 'participants' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-people"></i><span>Participants</span></a>
+    <a href="{{ url_for('employee.run_history', event_id=event.id) }}"><i class="bi bi-flag"></i><span>Runs</span></a>
     <a class="{% if view == 'inspect' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='inspect') }}"><i class="bi bi-clipboard-check"></i><span>Inspect</span></a>
   </nav>
   <div class="event-workspace-content">
