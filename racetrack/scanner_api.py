@@ -132,11 +132,10 @@ def observations():
                 db.session.add(state)
             desired_state = device.role == "track_entrance"
             if not state.changed_at or observed_at >= state.changed_at:
-                if state.is_on_track != desired_state:
-                    state.changed_at = observed_at
                 state.is_on_track = desired_state
                 state.last_scanner_id = device.id
                 state.last_observation_id = observation.id
+                state.changed_at = observed_at
         results.append({"event_id": event_uuid, "status": result})
     device.last_seen_at = datetime.utcnow()
     try:

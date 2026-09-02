@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import base64
 from io import BytesIO
 from decimal import Decimal
@@ -55,6 +55,7 @@ from .services.email_service import (
     send_spectator_order_receipt,
 )
 from .services.storage_service import upload_public_image
+from .services.storage_service import build_presigned_read_url
 from .services.capacity_service import ticket_availability
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status, payment_is_confirmed
@@ -159,6 +160,24 @@ def _current_staff_actor():
     return "employee", current_user.id, current_user.full_name
 
 
+def _scanner_asset_url(stored_value):
+    if not stored_value:
+        return None
+    if stored_value.startswith("uploads/"):
+        return url_for("static", filename=stored_value)
+    read_key = current_app.config.get("S3_READ_ACCESS_KEY")
+    read_secret = current_app.config.get("S3_READ_SECRET_KEY")
+    if read_key and read_secret:
+        return build_presigned_read_url(
+            stored_value,
+            bucket=current_app.config["S3_BUCKET"],
+            endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+            access_key=read_key,
+            secret_key=read_secret,
+        )
+    return None
+
+
 @employee_bp.route("/scanners")
 @login_required
 def scanners():
@@ -261,12 +280,22 @@ def live_track_data():
     guard = require_employee()
     if guard:
         return guard
+    timeout_at = datetime.utcnow() - timedelta(seconds=20)
+    TrackCarStatus.query.filter(
+        TrackCarStatus.track_id == active_track_id(),
+        TrackCarStatus.is_on_track.is_(True),
+        TrackCarStatus.changed_at < timeout_at,
+    ).update({"is_on_track": False}, synchronize_session=False)
+    db.session.commit()
     states = TrackCarStatus.query.filter_by(track_id=active_track_id(), is_on_track=True).order_by(TrackCarStatus.changed_at.asc()).all()
     return jsonify(count=len(states), cars=[{
         "car_id": state.car_id,
         "car": f"{state.car.car_year} {state.car.make} {state.car.model}",
         "color": state.car.color,
         "driver": f"{state.car.owner.first_name} {state.car.owner.last_name}",
+        "driver_initials": f"{state.car.owner.first_name[:1]}{state.car.owner.last_name[:1]}",
+        "driver_image": _scanner_asset_url(state.car.owner.profile_image_url),
+        "car_image": _scanner_asset_url(state.car.image_url),
         "entered_at": state.changed_at.isoformat() + "Z",
         "scanner": state.last_scanner.name if state.last_scanner else None,
     } for state in states])
