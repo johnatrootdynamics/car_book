@@ -884,3 +884,35 @@ class TrackCarStatus(db.Model):
     last_scanner = db.relationship("ScannerDevice")
     last_observation = db.relationship("ScannerObservation")
     __table_args__ = (db.UniqueConstraint("track_id", "car_id", name="uniq_track_car_status"),)
+
+
+class TrackRun(db.Model):
+    __tablename__ = "track_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False, default="active", index=True)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    track = db.relationship("Track")
+    participants = db.relationship(
+        "TrackRunParticipant", backref="run", cascade="all, delete-orphan",
+        order_by="TrackRunParticipant.entered_at",
+    )
+
+
+class TrackRunParticipant(db.Model):
+    __tablename__ = "track_run_participants"
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.Integer, db.ForeignKey("track_runs.id"), nullable=False, index=True)
+    car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
+    driver_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    entered_at = db.Column(db.DateTime, nullable=False)
+    exited_at = db.Column(db.DateTime, nullable=True)
+
+    car = db.relationship("Car")
+    driver = db.relationship("User")
+    __table_args__ = (db.UniqueConstraint("run_id", "car_id", name="uniq_run_car"),)

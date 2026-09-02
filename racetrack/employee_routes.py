@@ -36,6 +36,8 @@ from .models import (
     SpectatorTicketOrder,
     Track,
     TrackCarStatus,
+    TrackRun,
+    TrackRunParticipant,
     TrackDriverClass,
     TrackEmailTemplate,
     TrackLayout,
@@ -281,13 +283,28 @@ def live_track_data():
     if guard:
         return guard
     timeout_at = datetime.utcnow() - timedelta(seconds=20)
-    TrackCarStatus.query.filter(
+    expired_states = TrackCarStatus.query.filter(
         TrackCarStatus.track_id == active_track_id(),
         TrackCarStatus.is_on_track.is_(True),
         TrackCarStatus.changed_at < timeout_at,
-    ).update({"is_on_track": False}, synchronize_session=False)
+    ).all()
+    active_run = TrackRun.query.filter_by(track_id=active_track_id(), status="active").first()
+    timeout_end = None
+    for state in expired_states:
+        state.is_on_track = False
+        exited_at = state.changed_at + timedelta(seconds=20)
+        timeout_end = max(timeout_end, exited_at) if timeout_end else exited_at
+        if active_run:
+            participant = TrackRunParticipant.query.filter_by(run_id=active_run.id, car_id=state.car_id).first()
+            if participant and not participant.exited_at:
+                participant.exited_at = exited_at
+    db.session.flush()
+    if active_run and TrackCarStatus.query.filter_by(track_id=active_track_id(), is_on_track=True).count() == 0:
+        active_run.status = "completed"
+        active_run.ended_at = timeout_end or datetime.utcnow()
     db.session.commit()
     states = TrackCarStatus.query.filter_by(track_id=active_track_id(), is_on_track=True).order_by(TrackCarStatus.changed_at.asc()).all()
+    completed_runs = TrackRun.query.filter_by(track_id=active_track_id(), status="completed").order_by(TrackRun.ended_at.desc()).limit(12).all()
     return jsonify(count=len(states), cars=[{
         "car_id": state.car_id,
         "car": f"{state.car.car_year} {state.car.make} {state.car.model}",
@@ -298,7 +315,19 @@ def live_track_data():
         "car_image": _scanner_asset_url(state.car.image_url),
         "entered_at": state.changed_at.isoformat() + "Z",
         "scanner": state.last_scanner.name if state.last_scanner else None,
-    } for state in states])
+    } for state in states], runs=[{
+        "id": run.id,
+        "started_at": run.started_at.isoformat() + "Z",
+        "ended_at": run.ended_at.isoformat() + "Z" if run.ended_at else None,
+        "participants": [{
+            "car_id": participant.car_id,
+            "car": f"{participant.car.car_year} {participant.car.make} {participant.car.model}",
+            "driver": f"{participant.driver.first_name} {participant.driver.last_name}",
+            "driver_initials": f"{participant.driver.first_name[:1]}{participant.driver.last_name[:1]}",
+            "driver_image": _scanner_asset_url(participant.driver.profile_image_url),
+            "car_image": _scanner_asset_url(participant.car.image_url),
+        } for participant in run.participants],
+    } for run in completed_runs])
 
 
 def _track_driver_query(track_id):

@@ -215,6 +215,8 @@ def create_app():
             "rfid_tags",
             "scanner_observations",
             "track_car_statuses",
+            "track_runs",
+            "track_run_participants",
         }
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -673,6 +675,8 @@ def create_app():
             "rfid_tags",
             "scanner_observations",
             "track_car_statuses",
+            "track_runs",
+            "track_run_participants",
         }
         try:
             inspector = inspect(db.engine)

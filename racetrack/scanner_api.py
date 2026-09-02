@@ -7,7 +7,10 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .models import RfidTag, ScannerDevice, ScannerObservation, TrackCarStatus, db
+from .models import (
+    RfidTag, ScannerDevice, ScannerObservation, TrackCarStatus,
+    Track, TrackRun, TrackRunParticipant, db,
+)
 
 
 scanner_api_bp = Blueprint("scanner_api", __name__, url_prefix="/api/v1/scanners")
@@ -37,6 +40,33 @@ def _parse_datetime(value):
         return datetime.fromisoformat((value or "").replace("Z", "+00:00")).replace(tzinfo=None)
     except (TypeError, ValueError):
         return None
+
+
+def _record_run_transition(device, tag, desired_state, observed_at):
+    db.session.query(Track.id).filter(Track.id == device.track_id).with_for_update().one()
+    active_run = TrackRun.query.filter_by(track_id=device.track_id, status="active").first()
+    if desired_state:
+        if not active_run:
+            active_run = TrackRun(track_id=device.track_id, started_at=observed_at)
+            db.session.add(active_run)
+            db.session.flush()
+        participant = TrackRunParticipant.query.filter_by(run_id=active_run.id, car_id=tag.car_id).first()
+        if not participant:
+            db.session.add(TrackRunParticipant(
+                run_id=active_run.id, car_id=tag.car_id,
+                driver_id=tag.car.user_id, entered_at=observed_at,
+            ))
+        return
+    if not active_run:
+        return
+    participant = TrackRunParticipant.query.filter_by(run_id=active_run.id, car_id=tag.car_id).first()
+    if participant and not participant.exited_at:
+        participant.exited_at = observed_at
+    db.session.flush()
+    remaining = TrackCarStatus.query.filter_by(track_id=device.track_id, is_on_track=True).count()
+    if remaining == 0:
+        active_run.status = "completed"
+        active_run.ended_at = observed_at
 
 
 @scanner_api_bp.post("/registration/start")
@@ -136,6 +166,8 @@ def observations():
                 state.last_scanner_id = device.id
                 state.last_observation_id = observation.id
                 state.changed_at = observed_at
+                db.session.flush()
+                _record_run_transition(device, tag, desired_state, observed_at)
         results.append({"event_id": event_uuid, "status": result})
     device.last_seen_at = datetime.utcnow()
     try:
