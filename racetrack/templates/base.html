@@ -72,8 +72,7 @@
         {% if current_user.is_authenticated and is_user %}
           <a class="side-link {% if ep == 'user.dashboard' %}active{% endif %}" href="{{ url_for('user.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">User Dashboard</span></a>
           <a class="side-link {% if ep == 'user.tracks_directory' %}active{% endif %}" href="{{ url_for('user.tracks_directory') }}"><span class="sidebar-icon"><i class="bi bi-signpost-split"></i></span><span class="sidebar-label">Tracks</span></a>
-          <a class="side-link {% if ep in ['user.private_rental_tracks','user.private_rental_calendar','user.private_rental_booking_success'] %}active{% endif %}" href="{{ url_for('user.private_rental_tracks') }}"><span class="sidebar-icon"><i class="bi bi-calendar2-week"></i></span><span class="sidebar-label">Private Rentals</span></a>
-          <a class="side-link {% if ep in ['user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}"><span class="sidebar-icon"><i class="bi bi-ticket-perforated"></i></span><span class="sidebar-label">Event Tickets</span></a>
+          <a class="side-link {% if ep in ['user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets','user.private_rental_tracks','user.private_rental_calendar','user.private_rental_booking_success'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}"><span class="sidebar-icon"><i class="bi bi-calendar-event"></i></span><span class="sidebar-label">Events</span></a>
           <a class="side-link {% if ep.startswith('waiver.driver_waivers') or ep.startswith('waiver.driver_sign_waiver') %}active{% endif %}" href="{{ url_for('waiver.driver_waivers') }}"><span class="sidebar-icon"><i class="bi bi-file-earmark-text"></i></span><span class="sidebar-label">Waivers</span></a>
           <a class="side-link {% if ep == 'user.rfid_tags' %}active{% endif %}" href="{{ url_for('user.rfid_tags') }}"><span class="sidebar-icon"><i class="bi bi-broadcast-pin"></i></span><span class="sidebar-label">RFID Tags</span></a>
           <a class="side-link {% if ep.startswith('user.community') %}active{% endif %}" href="{{ url_for('user.community') }}"><span class="sidebar-icon"><i class="bi bi-people"></i></span><span class="sidebar-label">Community</span></a>
@@ -89,7 +88,6 @@
           <div class="side-nav-group {% if event_nav_active %}active{% endif %}">
             <a class="side-link {% if event_nav_active %}active{% endif %}" href="{{ url_for('employee.events_index') }}"><span class="sidebar-icon"><i class="bi bi-calendar-event"></i></span><span class="sidebar-label">Events</span></a>
             <div class="side-subnav">
-              {% if is_office_staff %}<a class="side-sublink {% if ep.startswith('employee.private_rental') %}active{% endif %}" href="{{ url_for('employee.private_rentals') }}"><i class="bi bi-calendar2-week" aria-hidden="true"></i> Private rentals</a>{% endif %}
               <a class="side-sublink {% if ep == 'employee.vendors' %}active{% endif %}" href="{{ url_for('employee.vendors') }}"><i class="bi bi-shop-window" aria-hidden="true"></i> Event vendors</a>
             </div>
           </div>

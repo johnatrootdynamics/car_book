@@ -25,17 +25,18 @@
     {% endfor %}
     {% set current_start = form.event_start_time.data.strftime('%H:%M') if form.event_start_time.data else '' %}
     {% set current_end = form.event_end_time.data.strftime('%H:%M') if form.event_end_time.data else '' %}
+    {% if event %}<label><span class="event-form-label"><i class="bi bi-ui-checks"></i> Event Type</span><input value="{{ 'Private rental' if event.event_type == 'private' else 'Public event' }}" disabled><input type="hidden" name="event_type" value="{{ event.event_type }}"></label>{% else %}<label><span class="event-form-label"><i class="bi bi-ui-checks"></i> Event Type</span> {{ form.event_type(data_event_type=true) }}<small>Private rentals become available for a driver to reserve.</small></label>{% endif %}
     <label><span class="event-form-label"><i class="bi bi-flag"></i> Event Name</span> {{ form.event_name() }}</label>
     <label><span class="event-form-label"><i class="bi bi-calendar-event"></i> Event Date</span> {{ form.event_date() }}</label>
-    <label><span class="event-form-label"><i class="bi bi-speedometer2"></i> Driver Price (USD)</span> {{ form.driver_price(step='0.01', min='0') }}</label>
-    <label><span class="event-form-label"><i class="bi bi-ticket-perforated"></i> Spectator Price (USD)</span> {{ form.spectator_price(step='0.01', min='0') }}</label>
-    <label><span class="event-form-label"><i class="bi bi-shop"></i> Vendor Price per Person (USD)</span> {{ form.vendor_price(step='0.01', min='0') }}</label>
+    <label><span class="event-form-label" data-driver-price-label><i class="bi bi-speedometer2"></i> Driver Price (USD)</span> {{ form.driver_price(step='0.01', min='0') }}</label>
+    <label data-public-event-field><span class="event-form-label"><i class="bi bi-ticket-perforated"></i> Spectator Price (USD)</span> {{ form.spectator_price(step='0.01', min='0') }}</label>
+    <label data-public-event-field><span class="event-form-label"><i class="bi bi-shop"></i> Vendor Price per Person (USD)</span> {{ form.vendor_price(step='0.01', min='0') }}</label>
     <section class="event-capacity-fields">
       <div class="event-capacity-heading"><div><span class="event-page-kicker">Ticket inventory</span><h3>Admission limits</h3></div><p>Enter 0 for unlimited capacity.</p></div>
       <div class="event-capacity-grid">
         <label><span class="event-form-label"><i class="bi bi-speedometer2"></i> Drivers</span> {{ form.driver_capacity(min='0', step='1') }}</label>
-        <label><span class="event-form-label"><i class="bi bi-ticket-perforated"></i> Spectators</span> {{ form.spectator_capacity(min='0', step='1') }}</label>
-        <label><span class="event-form-label"><i class="bi bi-shop"></i> Vendor Representatives</span> {{ form.vendor_capacity(min='0', step='1') }}</label>
+        <label data-public-event-field><span class="event-form-label"><i class="bi bi-ticket-perforated"></i> Spectators</span> {{ form.spectator_capacity(min='0', step='1') }}</label>
+        <label data-public-event-field><span class="event-form-label"><i class="bi bi-shop"></i> Vendor Representatives</span> {{ form.vendor_capacity(min='0', step='1') }}</label>
       </div>
     </section>
     <label><span class="event-form-label"><i class="bi bi-clock"></i> Event Start Time <small>(optional)</small></span>
@@ -107,6 +108,15 @@
   (function () {
     const form = document.querySelector("form[data-enhanced]")
     if (!form) return
+    const typeSelect = form.querySelector("[data-event-type]")
+    const updateEventType = () => {
+      const isPrivate = typeSelect && typeSelect.value === "private"
+      form.querySelectorAll("[data-public-event-field]").forEach((field) => { field.hidden = isPrivate })
+      const priceLabel = form.querySelector("[data-driver-price-label]")
+      if (priceLabel) priceLabel.innerHTML = isPrivate ? '<i class="bi bi-cash-stack"></i> Rental Price (USD)' : '<i class="bi bi-speedometer2"></i> Driver Price (USD)'
+    }
+    if (typeSelect) typeSelect.addEventListener("change", updateEventType)
+    updateEventType()
 
     const modeButtons = form.querySelectorAll("[data-layout-mode-btn]")
     const modeInput = form.querySelector("[data-layout-mode-input]")

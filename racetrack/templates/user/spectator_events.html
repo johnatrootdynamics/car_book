@@ -3,14 +3,14 @@
 <div class="spectator-shop-page">
   <header class="spectator-shop-header">
     <div>
-      <h2>Event Tickets</h2>
-      <p class="muted-line">{% if is_vendor %}Purchase vendor admission for your team or add general admission from the event page.{% else %}Browse spectator admission for upcoming events.{% endif %}</p>
+      <h2>Events</h2>
+      <p class="muted-line">{% if is_vendor %}Purchase vendor admission for your team or add general admission from the event page.{% else %}Browse upcoming events or reserve a private track rental.{% endif %}</p>
     </div>
-    <a class="btn btn-secondary spectator-cart-link" href="{{ url_for('user.spectator_cart') }}">
+    <div class="inline">{% if is_user %}<a class="btn btn-secondary" href="{{ url_for('user.private_rental_tracks') }}"><i class="bi bi-calendar2-week"></i> Private rentals</a>{% endif %}<a class="btn btn-secondary spectator-cart-link" href="{{ url_for('user.spectator_cart') }}">
       <i class="bi bi-bag" aria-hidden="true"></i>
       <span>Cart</span>
       {% if cart_count %}<span class="spectator-cart-count">{{ cart_count }}</span>{% endif %}
-    </a>
+    </a></div>
   </header>
 
   <form method="get" class="spectator-search-form" role="search">

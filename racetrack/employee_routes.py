@@ -1738,6 +1738,51 @@ def event_new():
         form.spectator_capacity.data = 100
         form.vendor_capacity.data = 4
     if form.validate_on_submit():
+        if form.event_type.data == "private":
+            if not form.event_start_time.data or not form.event_end_time.data:
+                flash("Private rentals require a start and end time.", "error")
+                return render_template(
+                    "employee/event_form.html", form=form, title="Create Event",
+                    track_layouts=layouts, event=None,
+                )
+            if form.event_end_time.data <= form.event_start_time.data:
+                flash("Rental end time must be after its start time.", "error")
+                return render_template(
+                    "employee/event_form.html", form=form, title="Create Event",
+                    track_layouts=layouts, event=None,
+                )
+            Track.query.filter_by(id=active_track_id()).with_for_update().one()
+            conflicting_slot = slot_conflicts_with_slot(
+                active_track_id(), form.event_date.data,
+                form.event_start_time.data, form.event_end_time.data,
+            )
+            conflicting_event = slot_conflicts_with_event(
+                active_track_id(), form.event_date.data,
+                form.event_start_time.data, form.event_end_time.data,
+            )
+            if conflicting_slot or conflicting_event:
+                conflict_name = conflicting_event.event_name if conflicting_event else "another private rental"
+                flash(f"That rental overlaps {conflict_name}.", "error")
+                return render_template(
+                    "employee/event_form.html", form=form, title="Create Event",
+                    track_layouts=layouts, event=None,
+                )
+            slot = PrivateRentalSlot(
+                track_id=active_track_id(),
+                name=form.event_name.data.strip(),
+                slot_date=form.event_date.data,
+                start_time=form.event_start_time.data,
+                end_time=form.event_end_time.data,
+                price_cents=_to_cents(form.driver_price.data),
+                driver_limit=max(1, form.driver_capacity.data or 1),
+                created_by_employee_id=(
+                    current_user.id if current_user.account_type == "employee" else None
+                ),
+            )
+            db.session.add(slot)
+            db.session.commit()
+            flash("Private rental availability created.", "success")
+            return redirect(url_for("employee.events_index"))
         if form.event_start_time.data and form.event_end_time.data:
             if form.event_end_time.data <= form.event_start_time.data:
                 flash("Event end time must be after start time.", "error")
@@ -1763,6 +1808,7 @@ def event_new():
             )
         event = Event(
             track_id=active_track_id(),
+            event_type="public",
             event_name=form.event_name.data.strip(),
             event_date=form.event_date.data,
             driver_price_cents=_to_cents(form.driver_price.data),

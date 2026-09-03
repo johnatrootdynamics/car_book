@@ -100,6 +100,12 @@ class CarForm(FlaskForm):
 
 
 class EventForm(FlaskForm):
+    event_type = SelectField(
+        "Event Type",
+        choices=[("public", "Public event"), ("private", "Private rental")],
+        validators=[DataRequired()],
+        default="public",
+    )
     event_name = StringField("Event Name", validators=[DataRequired(), Length(max=200)])
     event_date = DateField(
         "Event Date", validators=[DataRequired(), validate_not_past], format="%Y-%m-%d"
