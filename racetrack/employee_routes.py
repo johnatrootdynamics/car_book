@@ -594,12 +594,37 @@ def events_index():
         .all()
     )
     signup_counts = {event_id: count for event_id, count in signup_counts_raw}
+    calendar = rental_month_context(request.args.get("month"))
+    calendar_events = Event.query.filter(
+        Event.track_id == active_track_id(),
+        Event.event_date >= calendar["range_start"],
+        Event.event_date <= calendar["range_end"],
+    ).order_by(Event.event_date.asc(), Event.event_start_time.asc()).all()
+    calendar_slots = PrivateRentalSlot.query.filter(
+        PrivateRentalSlot.track_id == active_track_id(),
+        PrivateRentalSlot.slot_date >= calendar["range_start"],
+        PrivateRentalSlot.slot_date <= calendar["range_end"],
+        PrivateRentalSlot.is_active.is_(True),
+    ).order_by(PrivateRentalSlot.slot_date.asc(), PrivateRentalSlot.start_time.asc()).all()
+    calendar_items_by_date = {}
+    for event in calendar_events:
+        calendar_items_by_date.setdefault(event.event_date, []).append({"kind": "event", "event": event})
+    bookings_by_slot = active_bookings_by_slot([slot.id for slot in calendar_slots])
+    for slot in calendar_slots:
+        if bookings_by_slot.get(slot.id) and bookings_by_slot[slot.id].event_id:
+            continue
+        calendar_items_by_date.setdefault(slot.slot_date, []).append({
+            "kind": "rental", "slot": slot, "booking": bookings_by_slot.get(slot.id)
+        })
     return render_template(
         "employee/events_index.html",
         track=track,
         upcoming_events=upcoming_events,
         past_events=past_events,
         signup_counts=signup_counts,
+        calendar=calendar,
+        calendar_items_by_date=calendar_items_by_date,
+        today=date.today(),
     )
 
 

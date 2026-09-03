@@ -13,6 +13,8 @@
     </a></div>
   </header>
 
+  {% set calendar_endpoint = 'user.spectator_events' %}{% set calendar_audience = 'driver' %}{% include 'shared/unified_calendar.html' %}
+
   <form method="get" class="spectator-search-form" role="search">
     <i class="bi bi-search" aria-hidden="true"></i>
     <input type="search" name="q" value="{{ q }}" aria-label="Search events" placeholder="Search by event, track, city, or state">

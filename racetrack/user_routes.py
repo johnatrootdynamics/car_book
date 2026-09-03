@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 
@@ -1085,6 +1086,44 @@ def spectator_events():
             | (Track.state.ilike(like))
         )
     events = query.order_by(Event.event_date.asc()).limit(60).all()
+    calendar = rental_month_context(request.args.get("month"))
+    visible_event_filter = Event.event_type == "public"
+    if current_user.is_authenticated and getattr(current_user, "account_type", None) == "user":
+        visible_event_filter = or_(
+            Event.event_type == "public", Event.private_owner_user_id == current_user.id
+        )
+    calendar_events_query = Event.query.join(Track, Track.id == Event.track_id).filter(
+        visible_event_filter,
+        Event.event_date >= calendar["range_start"],
+        Event.event_date <= calendar["range_end"],
+    )
+    calendar_slots_query = PrivateRentalSlot.query.join(Track, Track.id == PrivateRentalSlot.track_id).filter(
+        PrivateRentalSlot.is_active.is_(True),
+        PrivateRentalSlot.slot_date >= calendar["range_start"],
+        PrivateRentalSlot.slot_date <= calendar["range_end"],
+    )
+    if q:
+        like = f"%{q}%"
+        calendar_events_query = calendar_events_query.filter(
+            Event.event_name.ilike(like) | Track.name.ilike(like) |
+            Track.city.ilike(like) | Track.state.ilike(like)
+        )
+        calendar_slots_query = calendar_slots_query.filter(
+            PrivateRentalSlot.name.ilike(like) | Track.name.ilike(like) |
+            Track.city.ilike(like) | Track.state.ilike(like)
+        )
+    calendar_events = calendar_events_query.all()
+    calendar_slots = calendar_slots_query.all()
+    calendar_items_by_date = {}
+    for event in calendar_events:
+        calendar_items_by_date.setdefault(event.event_date, []).append({"kind": "event", "event": event})
+    bookings_by_slot = active_bookings_by_slot([slot.id for slot in calendar_slots])
+    for slot in calendar_slots:
+        if bookings_by_slot.get(slot.id) and bookings_by_slot[slot.id].event_id:
+            continue
+        calendar_items_by_date.setdefault(slot.slot_date, []).append({
+            "kind": "rental", "slot": slot, "booking": bookings_by_slot.get(slot.id)
+        })
     ticket_types_by_event = {}
     availability_by_event = {}
     for event in events:
@@ -1106,6 +1145,9 @@ def spectator_events():
         availability_by_event=availability_by_event,
         money=_money,
         cart_count=_cart_item_count(cart),
+        calendar=calendar,
+        calendar_items_by_date=calendar_items_by_date,
+        today=date.today(),
     )
 
 

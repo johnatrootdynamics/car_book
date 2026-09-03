@@ -4,10 +4,10 @@
   <header class="rental-page-header">
     <div>
       <span class="event-page-kicker">Office staff</span>
-      <h2>Private rentals</h2>
-      <p>Publish bookable track time for {{ track.name }} without risking a double booking.</p>
+      <h2>Rental availability</h2>
+      <p>Manage bookable private times for the unified Events calendar.</p>
     </div>
-    <a class="btn btn-secondary" href="{{ url_for('employee.events_index') }}"><i class="bi bi-calendar-event" aria-hidden="true"></i> Event list</a>
+    <a class="btn btn-secondary" href="{{ url_for('employee.events_index', month=calendar.month_value) }}"><i class="bi bi-calendar-event" aria-hidden="true"></i> Events calendar</a>
   </header>
 
   <div class="rental-admin-layout">

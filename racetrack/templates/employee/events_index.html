@@ -7,9 +7,11 @@
       <h2>Events</h2>
       <p class="muted-line">Plan and manage track days at {{ track.name }}.</p>
     </div>
-    {% if is_office_staff %}<div class="inline"><a class="btn btn-secondary" href="{{ url_for('employee.private_rentals') }}"><i class="bi bi-calendar2-week" aria-hidden="true"></i> Rental Calendar</a><a class="btn" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create Event</a></div>{% endif %}
+    {% if is_office_staff %}<a class="btn" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Create Event</a>{% endif %}
   </div>
 </section>
+
+{% set calendar_endpoint = 'employee.events_index' %}{% set calendar_audience = 'employee' %}{% include 'shared/unified_calendar.html' %}
 
 <section class="card events-list-card">
   <div class="events-section-head"><h3>Upcoming</h3><span>{{ upcoming_events|length }}</span></div>
