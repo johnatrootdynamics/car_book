@@ -1,6 +1,8 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
+from datetime import timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Blueprint, current_app, jsonify, request
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -8,9 +10,11 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .models import (
-    Event, RfidTag, ScannerDevice, ScannerObservation, TrackCarStatus,
-    Track, TrackRun, TrackRunParticipant, db,
+    DriverTicketOrder, Event, EventRegistration, Inspection, RfidTag,
+    ScannerDevice, ScannerObservation, TrackCarStatus, Track,
+    TrackRun, TrackRunParticipant, db,
 )
+from .services.payment_service import payment_is_confirmed
 
 
 scanner_api_bp = Blueprint("scanner_api", __name__, url_prefix="/api/v1/scanners")
@@ -43,26 +47,56 @@ def _parse_datetime(value):
 
 
 def _event_for_observation(track_id, observed_at):
-    events = Event.query.filter_by(track_id=track_id, event_date=observed_at.date()).order_by(Event.id.asc()).all()
-    if len(events) <= 1:
-        return events[0] if events else None
-    observed_time = observed_at.time()
+    try:
+        track_timezone = ZoneInfo(current_app.config.get("TRACK_TIMEZONE", "America/New_York"))
+    except ZoneInfoNotFoundError:
+        track_timezone = timezone.utc
+    local_observed_at = observed_at.replace(tzinfo=timezone.utc).astimezone(track_timezone)
+    events = Event.query.filter_by(
+        track_id=track_id, event_date=local_observed_at.date()
+    ).order_by(Event.id.asc()).all()
+    observed_time = local_observed_at.time().replace(tzinfo=None)
     timed_matches = [
         event for event in events
-        if (not event.event_start_time or event.event_start_time <= observed_time)
-        and (not event.event_end_time or observed_time <= event.event_end_time)
+        if event.event_start_time and event.event_end_time
+        and event.event_start_time <= observed_time <= event.event_end_time
     ]
     if timed_matches:
         return max(timed_matches, key=lambda event: event.event_start_time or datetime.min.time())
     return None
 
 
-def _record_run_transition(device, tag, desired_state, observed_at):
+def _driver_eligibility(event, tag):
+    if not event:
+        return False, "Outside configured event hours"
+    registration = EventRegistration.query.filter_by(
+        event_id=event.id, user_id=tag.car.user_id, car_id=tag.car_id
+    ).first()
+    if not registration:
+        return False, "Driver is not registered for this event"
+    ticket = DriverTicketOrder.query.filter_by(
+        event_id=event.id, user_id=tag.car.user_id, car_id=tag.car_id
+    ).order_by(DriverTicketOrder.created_at.desc()).first()
+    if not ticket or not payment_is_confirmed(
+        ticket.payment_status, ticket.payment_method,
+        ticket.amount_cents, ticket.provider_transaction_id,
+    ):
+        return False, "Driver ticket is not paid"
+    inspection = Inspection.query.filter_by(event_registration_id=registration.id).first()
+    if not inspection or not inspection.passed:
+        return False, "Event inspection has not been passed"
+    return True, None
+
+
+def _record_run_transition(device, tag, desired_state, observed_at, event, eligible):
     db.session.query(Track.id).filter(Track.id == device.track_id).with_for_update().one()
-    active_run = TrackRun.query.filter_by(track_id=device.track_id, status="active").first()
     if desired_state:
+        if not eligible or not event:
+            return
+        active_run = TrackRun.query.filter_by(
+            track_id=device.track_id, event_id=event.id, status="active"
+        ).first()
         if not active_run:
-            event = _event_for_observation(device.track_id, observed_at)
             active_run = TrackRun(
                 track_id=device.track_id,
                 event_id=event.id if event else None,
@@ -77,13 +111,24 @@ def _record_run_transition(device, tag, desired_state, observed_at):
                 driver_id=tag.car.user_id, entered_at=observed_at,
             ))
         return
+    active_run = (
+        TrackRun.query.join(TrackRunParticipant)
+        .filter(
+            TrackRun.track_id == device.track_id,
+            TrackRun.status == "active",
+            TrackRunParticipant.car_id == tag.car_id,
+        ).first()
+    )
     if not active_run:
         return
     participant = TrackRunParticipant.query.filter_by(run_id=active_run.id, car_id=tag.car_id).first()
     if participant and not participant.exited_at:
         participant.exited_at = observed_at
     db.session.flush()
-    remaining = TrackCarStatus.query.filter_by(track_id=device.track_id, is_on_track=True).count()
+    remaining = TrackCarStatus.query.filter_by(
+        track_id=device.track_id, event_id=active_run.event_id,
+        is_on_track=True, is_eligible=True
+    ).count()
     if remaining == 0:
         active_run.status = "completed"
         active_run.ended_at = observed_at
@@ -182,12 +227,23 @@ def observations():
                 db.session.add(state)
             desired_state = device.role == "track_entrance"
             if not state.changed_at or observed_at >= state.changed_at:
+                event = _event_for_observation(device.track_id, observed_at)
+                eligible, eligibility_reason = _driver_eligibility(event, tag)
+                was_eligible = state.is_eligible
                 state.is_on_track = desired_state
+                if desired_state:
+                    state.event_id = event.id if event else None
+                    state.is_eligible = eligible
+                    state.eligibility_reason = eligibility_reason
+                else:
+                    eligible = was_eligible
                 state.last_scanner_id = device.id
                 state.last_observation_id = observation.id
                 state.changed_at = observed_at
                 db.session.flush()
-                _record_run_transition(device, tag, desired_state, observed_at)
+                _record_run_transition(
+                    device, tag, desired_state, observed_at, event, eligible
+                )
         results.append({"event_id": event_uuid, "status": result})
     device.last_seen_at = datetime.utcnow()
     try:

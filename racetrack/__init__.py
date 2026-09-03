@@ -78,6 +78,7 @@ def create_app():
 
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
     app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "")
+    app.config["TRACK_TIMEZONE"] = os.getenv("TRACK_TIMEZONE", "America/New_York")
     app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "")
     app.config["STRIPE_WEBHOOK_SECRET"] = os.getenv("STRIPE_WEBHOOK_SECRET", "")
     app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "")
@@ -258,6 +259,15 @@ def create_app():
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
                 "ALTER TABLE track_runs ADD COLUMN IF NOT EXISTS event_id INT NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_car_statuses ADD COLUMN IF NOT EXISTS event_id INT NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_car_statuses ADD COLUMN IF NOT EXISTS is_eligible TINYINT(1) NOT NULL DEFAULT 0"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_car_statuses ADD COLUMN IF NOT EXISTS eligibility_reason VARCHAR(255) NULL"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0"

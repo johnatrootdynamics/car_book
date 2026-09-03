@@ -316,20 +316,33 @@ def live_track_data():
         TrackCarStatus.is_on_track.is_(True),
         TrackCarStatus.changed_at < timeout_at,
     ).all()
-    active_run = TrackRun.query.filter_by(track_id=active_track_id(), status="active").first()
-    timeout_end = None
+    affected_runs = {}
     for state in expired_states:
         state.is_on_track = False
         exited_at = state.changed_at + timedelta(seconds=20)
-        timeout_end = max(timeout_end, exited_at) if timeout_end else exited_at
+        active_run = (
+            TrackRun.query.join(TrackRunParticipant)
+            .filter(
+                TrackRun.track_id == active_track_id(), TrackRun.status == "active",
+                TrackRunParticipant.car_id == state.car_id,
+            ).first()
+        )
         if active_run:
-            participant = TrackRunParticipant.query.filter_by(run_id=active_run.id, car_id=state.car_id).first()
+            affected_runs[active_run.id] = (active_run, exited_at)
+            participant = TrackRunParticipant.query.filter_by(
+                run_id=active_run.id, car_id=state.car_id
+            ).first()
             if participant and not participant.exited_at:
                 participant.exited_at = exited_at
     db.session.flush()
-    if active_run and TrackCarStatus.query.filter_by(track_id=active_track_id(), is_on_track=True).count() == 0:
-        active_run.status = "completed"
-        active_run.ended_at = timeout_end or datetime.utcnow()
+    for active_run, timeout_end in affected_runs.values():
+        remaining = TrackCarStatus.query.filter_by(
+            track_id=active_track_id(), event_id=active_run.event_id,
+            is_on_track=True, is_eligible=True,
+        ).count()
+        if remaining == 0:
+            active_run.status = "completed"
+            active_run.ended_at = timeout_end
     db.session.commit()
     states = TrackCarStatus.query.filter_by(track_id=active_track_id(), is_on_track=True).order_by(TrackCarStatus.changed_at.asc()).all()
     today_event_ids = [row[0] for row in db.session.query(Event.id).filter_by(track_id=active_track_id(), event_date=date.today()).all()]
@@ -347,6 +360,8 @@ def live_track_data():
         "car_image": _scanner_asset_url(state.car.image_url),
         "entered_at": state.changed_at.isoformat() + "Z",
         "scanner": state.last_scanner.name if state.last_scanner else None,
+        "eligible": state.is_eligible,
+        "eligibility_reason": state.eligibility_reason,
     } for state in states], runs=[{
         "id": run.id,
         "event_id": run.event_id,
