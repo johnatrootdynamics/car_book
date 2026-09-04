@@ -64,7 +64,7 @@
         {% set ticket_availability = availability.get(ticket_type.ticket_category) %}
         {% set purchase_limit = ticket_type.max_per_order or 10 %}
         {% if ticket_availability and not ticket_availability.unlimited %}{% set purchase_limit = [purchase_limit, ticket_availability.remaining]|min %}{% endif %}
-        <aside class="spectator-purchase-card {% if ticket_type.ticket_category == 'vendor' %}vendor-purchase-card{% endif %}">
+        <aside class="spectator-purchase-card {% if ticket_type.ticket_category == 'vendor' %}vendor-purchase-card{% else %}spectator-admission-card{% endif %}">
           <div class="spectator-purchase-heading">
             <div>
               <span>{{ 'Spectator admission' if ticket_type.ticket_category == 'spectator' else ticket_type.name }}</span>
