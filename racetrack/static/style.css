@@ -8123,3 +8123,75 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Compact completed-run history */
+.ui-system .audience-history-section { margin-top: 18px; }
+.ui-system .audience-history-head {
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0;
+}
+.audience-history-heading { display: flex; align-items: center; gap: 8px; }
+.audience-history-heading .audience-history-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  color: #174dcc;
+  background: #eaf0ff;
+  border: 1px solid #cfdbff;
+  border-radius: 8px;
+  font-size: .76rem;
+  letter-spacing: 0;
+  place-items: center;
+}
+.ui-system .audience-history-heading h2 { margin: 0; font-size: .95rem; }
+.audience-history-heading > strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 23px;
+  height: 22px;
+  padding: 0 7px;
+  color: #475467;
+  background: #eef1f5;
+  border: 1px solid #dde2ea;
+  border-radius: 999px;
+  font-size: .64rem;
+  line-height: 1;
+}
+.audience-run-card.history {
+  margin-bottom: 10px;
+  border-color: #d8dee8;
+  border-radius: 11px;
+  box-shadow: 0 3px 12px rgba(16, 24, 40, .055);
+}
+.audience-run-card.history .audience-run-top {
+  gap: 10px;
+  padding: 8px 11px;
+  background: #f8fafc;
+  border-bottom-color: #e1e6ed;
+  box-shadow: none;
+}
+.audience-run-card.history .audience-run-identity { gap: 7px; }
+.audience-run-card.history .audience-run-identity span {
+  padding: 3px 6px;
+  color: #344054;
+  background: #e9edf3;
+  border-radius: 6px;
+  font-size: .62rem;
+}
+.audience-run-card.history .audience-run-identity strong { font-size: .73rem; }
+.audience-run-card.history .audience-run-identity small { font-size: .62rem; }
+.audience-run-card.history .audience-rating-label { display: none; }
+.audience-run-card.history .audience-run-rating,
+.audience-run-card.history .audience-score,
+.audience-run-card.history .audience-run-rating form { gap: 4px; }
+.audience-run-card.history .audience-score span { padding: 4px 6px; font-size: .64rem; }
+.audience-run-card.history .audience-run-rating form button { width: 29px; height: 29px; border-radius: 7px; }
+.audience-run-card.history .audience-voted { font-size: .62rem; }
+
+@media (max-width: 600px) {
+  .audience-run-card.history .audience-run-top { gap: 5px; padding: 7px 8px; }
+  .audience-run-card.history .audience-run-identity { gap: 1px 6px; }
+  .audience-run-card.history .audience-voted { display: none; }
+}
