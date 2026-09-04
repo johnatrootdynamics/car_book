@@ -1,5 +1,0 @@
-<div class="audience-current-status {{ 'active' if active_run else 'clear' }}">
-  <span><i class="bi {{ 'bi-circle-fill' if active_run else 'bi-flag-fill' }}"></i> On track now</span>
-  <strong>{{ 'Current run' if active_run else 'Track clear' }}</strong>
-  {% if active_run %}<small>Run #{{ active_run.id }} · {{ active_run.participants|length }} {{ 'driver' if active_run.participants|length == 1 else 'drivers' }}</small>{% else %}<small>Waiting for the next run</small>{% endif %}
-</div>

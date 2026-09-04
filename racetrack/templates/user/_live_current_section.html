@@ -1,3 +1,7 @@
+<div class="audience-active-track-head">
+  <div><span><i class="bi bi-broadcast-pin"></i> On track now</span><strong>Active cars</strong></div>
+  <em class="{{ 'active' if active_run else 'clear' }}"><i class="bi {{ 'bi-circle-fill' if active_run else 'bi-flag-fill' }}"></i> {{ 'Current run' if active_run else 'Track clear' }}</em>
+</div>
 {% if active_run %}
   {% set score = vote_summary.get(active_run.id, {}) %}
   {% set rating_run = active_run %}

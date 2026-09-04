@@ -3,21 +3,9 @@
 <div class="audience-live-page"
      data-live-state-url="{{ url_for('user.attendee_live_state', event_id=event.id) }}"
      data-current-version="{{ current_version }}"
-     data-history-version="{{ history_version }}"
-     data-voting-version="{{ voting_version }}">
+     data-history-version="{{ history_version }}">
   <header class="audience-live-hero">
-    <div class="audience-live-hero-copy">
-      <div class="audience-live-hero-kicker">
-        <a href="{{ url_for('user.attendee_live_events') }}"><i class="bi bi-chevron-left"></i> Your live events</a>
-        <span class="audience-live-label"><i class="bi bi-broadcast-pin"></i> Live event</span>
-      </div>
-      <h1>{{ event.event_name }}</h1>
-      <p><i class="bi bi-geo-alt-fill"></i> {{ event.track.name }} <span>·</span> <i class="bi bi-calendar3"></i> {{ event.event_date.strftime('%B %-d, %Y') }}</p>
-    </div>
-    <div class="audience-live-hero-actions">
-      <div data-live-current-status aria-live="polite">{% include 'user/_live_current_status.html' %}</div>
-      <div class="audience-voting-slot" data-live-voting>{% include 'user/_live_voting_state.html' %}</div>
-    </div>
+    <h1>{{ event.event_name }}</h1>
   </header>
 
   <section class="audience-current-section" data-live-current aria-live="polite">{% include 'user/_live_current_section.html' %}</section>
@@ -28,19 +16,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const root = document.querySelector('[data-live-state-url]')
   if (!root) return
   const currentRegion = root.querySelector('[data-live-current]')
-  const currentStatusRegion = root.querySelector('[data-live-current-status]')
   const historyRegion = root.querySelector('[data-live-history]')
-  const votingRegion = root.querySelector('[data-live-voting]')
   let currentVersion = root.dataset.currentVersion || ''
   let historyVersion = root.dataset.historyVersion || ''
-  let votingVersion = root.dataset.votingVersion || ''
 
   const check = async () => {
     try {
       const url = new URL(root.dataset.liveStateUrl, window.location.origin)
       url.searchParams.set('current', currentVersion)
       url.searchParams.set('history', historyVersion)
-      url.searchParams.set('voting', votingVersion)
       const response = await fetch(url, {
         headers: { 'Accept': 'application/json' },
         cache: 'no-store',
@@ -48,12 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!response.ok) return
       const data = await response.json()
       if (typeof data.current_html === 'string' && currentRegion) currentRegion.innerHTML = data.current_html
-      if (typeof data.current_status_html === 'string' && currentStatusRegion) currentStatusRegion.innerHTML = data.current_status_html
       if (typeof data.history_html === 'string' && historyRegion) historyRegion.innerHTML = data.history_html
-      if (typeof data.voting_html === 'string' && votingRegion) votingRegion.innerHTML = data.voting_html
       currentVersion = data.current_version || currentVersion
       historyVersion = data.history_version || historyVersion
-      votingVersion = data.voting_version || votingVersion
     } catch (error) {
     } finally {
       window.setTimeout(check, 2000)
