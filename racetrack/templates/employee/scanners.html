@@ -1,42 +1,146 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="ui-page ui-page-wide">
-<header class="page-header"><div><span class="event-page-kicker">RFID operations</span><h2>Scanner dashboard</h2><p>Register appliances, assign entrance or exit duty, and watch incoming reads.</p></div></header>
+{% set scanner_zones = [
+  ('track_entrance', 'Entrance zone', 'Records vehicles entering the course.', 'bi-box-arrow-in-right'),
+  ('track_exit', 'Exit zone', 'Records vehicles leaving the course.', 'bi-box-arrow-right'),
+  ('unassigned', 'Unassigned', 'Registered devices waiting for a zone.', 'bi-dash-circle')
+] %}
+<div class="ui-page ui-page-wide scanner-hub-page">
+  <header class="page-header scanner-hub-header">
+    <div>
+      <span class="event-page-kicker">RFID operations</span>
+      <h1>Track scanners</h1>
+      <p>Assign each scanner to a zone, then monitor vehicle reads in real time.</p>
+    </div>
+    <nav class="scanner-page-nav" aria-label="Scanner page sections">
+      <a href="#scanner-zones"><i class="bi bi-diagram-3" aria-hidden="true"></i> Zones</a>
+      {% if is_office_staff %}<a href="#pair-scanner"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add scanner</a>{% endif %}
+      <a href="#scanner-activity"><i class="bi bi-activity" aria-hidden="true"></i> Activity</a>
+    </nav>
+  </header>
 
-{% if is_office_staff %}
-<section class="card scanner-pair-card">
-  <h3>Register a scanner</h3>
-  <p class="muted-line">Open the scanner's local web page, start registration, then enter the pairing code shown there.</p>
-  <form method="post" action="{{ url_for('employee.scanner_register') }}" class="inline-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label>Pairing code<input name="pairing_code" placeholder="ABC12345" autocomplete="off" required></label>
-    <label>Scanner name<input name="name" placeholder="North gate entrance" required></label>
-    <button class="btn" type="submit">Register scanner</button>
-  </form>
-</section>
-{% endif %}
+  <section class="card scanner-zones-card" id="scanner-zones">
+    <div class="scanner-section-head">
+      <div><span>Zone assignments</span><h2>Zones and scanners</h2><p>A scanner’s zone determines whether its reads mark a vehicle entering or exiting.</p></div>
+    </div>
 
-<section class="card"><h3>Track scanners</h3>
-  {% if devices %}<div class="scanner-device-grid">
-  {% for device in devices %}<article class="scanner-device">
-    <div><strong>{{ device.name }}</strong><span class="status-pill">{{ device.status }}</span></div>
-    <p>{{ device.role|replace('_', ' ')|title }} · {% if device.last_seen_at %}Last seen {{ device.last_seen_at.strftime('%b %-d, %-I:%M %p') }}{% else %}Never connected{% endif %}</p>
-    {% if is_office_staff %}<form method="post" action="{{ url_for('employee.scanner_update', scanner_id=device.id) }}" class="inline-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input name="name" value="{{ device.name }}" required>
-      <select name="role"><option value="unassigned" {% if device.role == 'unassigned' %}selected{% endif %}>Unassigned</option><option value="track_entrance" {% if device.role == 'track_entrance' %}selected{% endif %}>Track entrance</option><option value="track_exit" {% if device.role == 'track_exit' %}selected{% endif %}>Track exit</option></select>
-      <button class="btn btn-secondary btn-sm">Save</button>
-    </form>{% endif %}
-  </article>{% endfor %}
-  </div>{% else %}<p class="muted-line">No scanners have been registered to this track.</p>{% endif %}
-</section>
+    <div class="scanner-zone-grid">
+      {% for zone_key, zone_label, zone_description, zone_icon in scanner_zones %}
+        {% set zone_devices = devices|selectattr('role', 'equalto', zone_key)|list %}
+        <section class="scanner-zone scanner-zone-{{ zone_key|replace('_', '-') }}">
+          <header class="scanner-zone-head">
+            <span class="scanner-zone-icon"><i class="bi {{ zone_icon }}" aria-hidden="true"></i></span>
+            <div><h3>{{ zone_label }}</h3><p>{{ zone_description }}</p></div>
+            <strong>{{ zone_devices|length }}</strong>
+          </header>
 
-<section class="card"><div class="employee-dashboard-section-head"><div><span>Live feed</span><h3>Recent scanner data</h3></div><span id="scan-status">Updating…</span></div>
-<div class="table-wrap"><table><thead><tr><th>Time</th><th>Scanner</th><th>Tag</th><th>Car / driver</th><th>Result</th></tr></thead><tbody id="scan-feed"><tr><td colspan="5">Waiting for scanner data…</td></tr></tbody></table></div></section>
+          <div class="scanner-zone-devices">
+            {% for device in zone_devices %}
+              <article class="scanner-device-row">
+                <span class="scanner-device-icon"><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
+                <div class="scanner-device-copy">
+                  <strong>{{ device.name }}</strong>
+                  <span class="scanner-device-state {{ 'online' if device.reader_connected else 'offline' }}"><i></i>{{ 'Reader connected' if device.reader_connected else 'Reader offline' }}</span>
+                  <small>{% if device.last_seen_at %}Last seen {{ device.last_seen_at.strftime('%b %-d, %-I:%M %p') }}{% else %}No heartbeat received yet{% endif %}</small>
+                </div>
+                {% if is_office_staff %}
+                  <details class="scanner-device-settings">
+                    <summary aria-label="Edit {{ device.name }}"><i class="bi bi-pencil" aria-hidden="true"></i><span>Edit</span></summary>
+                    <form method="post" action="{{ url_for('employee.scanner_update', scanner_id=device.id) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <label><span>Scanner name</span><input name="name" value="{{ device.name }}" required></label>
+                      <label><span>Zone</span><select name="role"><option value="track_entrance" {% if device.role == 'track_entrance' %}selected{% endif %}>Entrance zone</option><option value="track_exit" {% if device.role == 'track_exit' %}selected{% endif %}>Exit zone</option><option value="unassigned" {% if device.role == 'unassigned' %}selected{% endif %}>Unassigned</option></select></label>
+                      <button class="btn btn-sm" type="submit">Save changes</button>
+                    </form>
+                  </details>
+                {% endif %}
+              </article>
+            {% else %}
+              <div class="scanner-zone-empty"><i class="bi {{ zone_icon }}" aria-hidden="true"></i><span>No scanner assigned</span></div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if is_office_staff %}
+    <section class="card scanner-pair-card scanner-pair-section" id="pair-scanner">
+      <details {% if not devices %}open{% endif %}>
+        <summary>
+          <span class="scanner-pair-icon"><i class="bi bi-plus-lg" aria-hidden="true"></i></span>
+          <span><strong>Pair a new scanner</strong><small>Enter the code shown on the scanner’s local setup page.</small></span>
+          <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        </summary>
+        <form method="post" action="{{ url_for('employee.scanner_register') }}" class="scanner-pair-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label><span>Pairing code</span><input name="pairing_code" placeholder="ABC12345" autocomplete="off" required></label>
+          <label><span>Scanner name</span><input name="name" placeholder="North gate scanner" required></label>
+          <button class="btn" type="submit"><i class="bi bi-link-45deg" aria-hidden="true"></i> Pair scanner</button>
+        </form>
+      </details>
+    </section>
+  {% endif %}
+
+  <section class="card scanner-activity-card" id="scanner-activity">
+    <div class="scanner-section-head scanner-activity-head">
+      <div><span>Live activity</span><h2>Recent reads</h2><p>Zone and scanner are shown separately so each read is easy to trace.</p></div>
+      <span class="scanner-feed-status" id="scan-status"><i></i> Connecting</span>
+    </div>
+    <div class="scanner-activity-columns" aria-hidden="true"><span>Time</span><span>Zone</span><span>Scanner and vehicle</span><span>Result</span></div>
+    <div class="scanner-activity-list" id="scan-feed" aria-live="polite">
+      <div class="scanner-activity-empty"><i class="bi bi-broadcast" aria-hidden="true"></i><span>Waiting for scanner data</span></div>
+    </div>
+  </section>
 </div>
 {% endblock %}
-{% block scripts %}<script>
-const feed=document.getElementById('scan-feed'), statusEl=document.getElementById('scan-status');
-function esc(v){const d=document.createElement('div');d.textContent=v??'—';return d.innerHTML}
-async function refreshScans(){try{const r=await fetch('{{ url_for("employee.scanner_data") }}');const d=await r.json();feed.innerHTML=d.observations.length?d.observations.map(x=>`<tr><td>${esc(new Date(x.observed_at).toLocaleTimeString())}</td><td>${esc(x.scanner)}<br><small>${esc(x.role.replaceAll('_',' '))}</small></td><td><code>${esc(x.epc)}</code></td><td>${esc(x.car)}<br><small>${esc(x.driver)}</small></td><td>${esc(x.result)}${x.reason?`<br><small>${esc(x.reason)}</small>`:''}</td></tr>`).join(''):'<tr><td colspan="5">No reads received yet.</td></tr>';statusEl.textContent='Live · '+new Date().toLocaleTimeString()}catch(e){statusEl.textContent='Connection interrupted'}}
-refreshScans();setInterval(refreshScans,2000);
-</script>{% endblock %}
+
+{% block scripts %}
+<script>
+const feed = document.getElementById('scan-feed')
+const statusEl = document.getElementById('scan-status')
+function esc(value) {
+  const node = document.createElement('div')
+  node.textContent = value ?? '—'
+  return node.innerHTML
+}
+function zoneMeta(role) {
+  if (role === 'track_entrance') return { label: 'Entrance', icon: 'bi-box-arrow-in-right', className: 'entrance' }
+  if (role === 'track_exit') return { label: 'Exit', icon: 'bi-box-arrow-right', className: 'exit' }
+  return { label: 'Unassigned', icon: 'bi-dash-circle', className: 'unassigned' }
+}
+function resultMeta(result) {
+  const normalized = String(result || 'unknown').toLowerCase()
+  if (['accepted', 'success', 'processed'].includes(normalized)) return { label: result || 'Accepted', className: 'success', icon: 'bi-check-circle-fill' }
+  if (['ignored', 'duplicate'].includes(normalized)) return { label: result || 'Ignored', className: 'neutral', icon: 'bi-dash-circle-fill' }
+  return { label: result || 'Review', className: 'warning', icon: 'bi-exclamation-circle-fill' }
+}
+async function refreshScans() {
+  try {
+    const response = await fetch('{{ url_for("employee.scanner_data") }}', { cache: 'no-store' })
+    if (!response.ok) throw new Error('Scanner feed unavailable')
+    const data = await response.json()
+    feed.innerHTML = data.observations.length ? data.observations.map((item) => {
+      const zone = zoneMeta(item.role)
+      const result = resultMeta(item.result)
+      const vehicle = item.car
+        ? `${esc(item.car)}${item.driver ? `<small>${esc(item.driver)}</small>` : ''}`
+        : `Unknown vehicle<small>Tag ${esc(item.epc)}</small>`
+      return `<article class="scanner-activity-row">
+        <time>${esc(new Date(item.observed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }))}</time>
+        <span class="scanner-activity-zone ${zone.className}"><i class="bi ${zone.icon}"></i>${zone.label}</span>
+        <div class="scanner-activity-device"><strong>${esc(item.scanner)}</strong><span>${vehicle}</span></div>
+        <span class="scanner-activity-result ${result.className}"><i class="bi ${result.icon}"></i>${esc(result.label)}</span>
+      </article>`
+    }).join('') : '<div class="scanner-activity-empty"><i class="bi bi-broadcast"></i><span>No scanner reads yet</span></div>'
+    statusEl.className = 'scanner-feed-status is-live'
+    statusEl.innerHTML = `<i></i> Live · ${esc(new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))}`
+  } catch (error) {
+    statusEl.className = 'scanner-feed-status is-offline'
+    statusEl.innerHTML = '<i></i> Connection interrupted'
+  }
+}
+refreshScans()
+setInterval(refreshScans, 2000)
+</script>
+{% endblock %}

@@ -189,12 +189,7 @@ def scanners():
         return guard
     track_id = active_track_id()
     devices = ScannerDevice.query.filter_by(track_id=track_id).order_by(ScannerDevice.name.asc()).all()
-    recent = (
-        ScannerObservation.query.join(ScannerDevice)
-        .filter(ScannerDevice.track_id == track_id)
-        .order_by(ScannerObservation.received_at.desc()).limit(30).all()
-    )
-    return render_template("employee/scanners.html", devices=devices, recent=recent)
+    return render_template("employee/scanners.html", devices=devices)
 
 
 @employee_bp.post("/scanners/register")
