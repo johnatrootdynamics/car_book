@@ -20,6 +20,52 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentVersion = root.dataset.currentVersion || ''
   let historyVersion = root.dataset.historyVersion || ''
 
+  root.addEventListener('submit', async (event) => {
+    const form = event.target.closest('.audience-run-rating form')
+    if (!form || form.dataset.submitting === 'true') return
+    event.preventDefault()
+    const submitter = event.submitter
+    const formData = new FormData(form)
+    if (submitter?.name) formData.set(submitter.name, submitter.value)
+    form.dataset.submitting = 'true'
+    form.querySelectorAll('button').forEach((button) => { button.disabled = true })
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) throw new Error('Unexpected vote response')
+      const data = await response.json()
+      if (typeof data.controls_html === 'string' && data.run_id) {
+        root.querySelectorAll(`.audience-run-rating[data-run-id="${data.run_id}"]`).forEach((controls) => {
+          controls.outerHTML = data.controls_html
+        })
+      }
+      if (Number.isInteger(data.vote_total) && data.run_id) {
+        root.querySelectorAll(`.audience-history-votes[data-run-id="${data.run_id}"] > span`).forEach((total) => {
+          total.textContent = String(data.vote_total)
+        })
+      }
+      currentVersion = data.current_version || currentVersion
+      historyVersion = data.history_version || historyVersion
+    } catch (error) {
+      if (submitter?.name) {
+        const fallbackValue = document.createElement('input')
+        fallbackValue.type = 'hidden'
+        fallbackValue.name = submitter.name
+        fallbackValue.value = submitter.value
+        form.appendChild(fallbackValue)
+      }
+      form.submit()
+    }
+  })
+
   const check = async () => {
     try {
       const url = new URL(root.dataset.liveStateUrl, window.location.origin)

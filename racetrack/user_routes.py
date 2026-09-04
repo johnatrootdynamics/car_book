@@ -2548,25 +2548,56 @@ def attendee_run_vote(event_id, run_id):
     if guard:
         return guard
     event = _attendee_event(event_id)
-    run = TrackRun.query.filter_by(id=run_id, event_id=event_id).first_or_404()
     if not event:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": False, "message": "Event access requires a paid ticket."}), 403
         return "Event access requires a paid ticket.", 403
+    run = TrackRun.query.filter_by(id=run_id, event_id=event_id).first_or_404()
+    wants_json = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    message = ""
+    category = "error"
     if not event.run_voting_enabled:
-        flash("Run voting is currently disabled for this event.", "error")
+        message = "Run voting is currently disabled for this event."
     elif TrackRunVote.query.filter_by(run_id=run.id, user_id=current_user.id).first():
-        flash("You already rated this run.", "error")
+        message = "You already rated this run."
     else:
         vote_value = request.form.get("vote", type=int)
         if vote_value not in {-1, 1}:
-            flash("Choose thumbs up or thumbs down.", "error")
+            message = "Choose thumbs up or thumbs down."
         else:
             db.session.add(TrackRunVote(run_id=run.id, user_id=current_user.id, vote=vote_value))
             try:
                 db.session.commit()
-                flash("Your run rating was recorded.", "success")
+                message = "Your run rating was recorded."
+                category = "success"
             except IntegrityError:
                 db.session.rollback()
-                flash("You already rated this run.", "error")
+                message = "You already rated this run."
+
+    if wants_json:
+        live_context = _attendee_live_context(event)
+        score = live_context["vote_summary"].get(
+            run.id,
+            {"up": 0, "down": 0, "mine": None},
+        )
+        return jsonify(
+            {
+                "ok": category == "success",
+                "message": message,
+                "run_id": run.id,
+                "vote_total": (score.get("up") or 0) + (score.get("down") or 0),
+                "controls_html": render_template(
+                    "user/_run_vote_controls.html",
+                    event=event,
+                    rating_run=run,
+                    score=score,
+                ),
+                "current_version": live_context["current_version"],
+                "history_version": live_context["history_version"],
+            }
+        )
+
+    flash(message, category)
     return redirect(url_for("user.attendee_live_track", event_id=event_id, _anchor=f"run-{run.id}"))
 
 

@@ -8232,6 +8232,7 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .audience-history-detail .audience-score span { padding: 4px 6px; font-size: .64rem; }
 .audience-history-detail .audience-run-rating form button { width: 29px; height: 29px; border-radius: 7px; }
 .audience-history-detail .audience-voted { font-size: .62rem; }
+.audience-run-rating form[data-submitting="true"] { opacity: .62; pointer-events: none; }
 
 @media (max-width: 600px) {
   .audience-history-list-head { display: none; }
