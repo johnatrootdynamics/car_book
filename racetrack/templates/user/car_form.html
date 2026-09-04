@@ -1,29 +1,111 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="ui-page ui-page-narrow">
-<header class="ui-page-header">
-  <div><span class="ui-kicker">Your garage</span><h2>{{ title }}</h2><p>Keep your vehicle information accurate for registration and inspection.</p></div>
-  <a class="btn btn-secondary" href="{{ url_for('user.profile_settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Profile</a>
-</header>
-<section class="card narrow">
-  <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
-    {{ form.hidden_tag() }}
-    <label>Make {{ form.make() }}</label>
-    <label>Model {{ form.model() }}</label>
-    <label>Year {{ form.car_year() }}</label>
-    <label>Color {{ form.color() }}</label>
-    <label>Car Photo {{ form.image() }}</label>
-    {% if form.image.errors %}
-      <span class="field-error">{{ form.image.errors[0] }}</span>
-    {% endif %}
-    {% if car and car.image_url %}
-      {% set car_image = asset_url(car.image_url) %}
-      <div class="track-layout-preview">
-        {% if car_image %}<img src="{{ car_image }}" alt="Car photo">{% endif %}
+{% set saved_car_image = asset_url(car.image_url) if car and car.image_url else None %}
+<div class="garage-editor-page">
+  <header class="garage-editor-header">
+    <div class="garage-editor-heading">
+      <span class="garage-editor-icon"><i class="bi bi-car-front-fill" aria-hidden="true"></i></span>
+      <div>
+        <span class="ui-kicker">Your garage</span>
+        <h1>{{ 'Edit vehicle' if car else 'Add a vehicle' }}</h1>
+        <p>{{ 'Update this vehicle’s details and track-day photo.' if car else 'Create a vehicle profile for registration, inspection, and RFID.' }}</p>
       </div>
-    {% endif %}
-    {{ form.submit(class_='btn') }}
-  </form>
-</section>
+    </div>
+    <a class="btn btn-secondary" href="{{ url_for('user.dashboard') }}#garage"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to garage</a>
+  </header>
+
+  <div class="garage-editor-layout">
+    <section class="card garage-editor-form-card">
+      <div class="garage-editor-section-head">
+        <div><span>Vehicle details</span><h2>Tell us about the car</h2></div>
+        <span class="garage-required-note"><i class="bi bi-asterisk" aria-hidden="true"></i> Required fields</span>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" class="garage-vehicle-form" data-enhanced data-garage-form>
+        {{ form.hidden_tag() }}
+        <div class="garage-form-grid">
+          <label>
+            <span><i class="bi bi-buildings" aria-hidden="true"></i> Make <b aria-hidden="true">*</b></span>
+            {{ form.make(placeholder='e.g. BMW', autocomplete='off') }}
+            {% for error in form.make.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+          </label>
+          <label>
+            <span><i class="bi bi-car-front" aria-hidden="true"></i> Model <b aria-hidden="true">*</b></span>
+            {{ form.model(placeholder='e.g. M3', autocomplete='off') }}
+            {% for error in form.model.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+          </label>
+          <label>
+            <span><i class="bi bi-calendar3" aria-hidden="true"></i> Year <b aria-hidden="true">*</b></span>
+            {{ form.car_year(placeholder='e.g. 2024', inputmode='numeric', maxlength='4', pattern='[0-9]{4}') }}
+            {% for error in form.car_year.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+          </label>
+          <label>
+            <span><i class="bi bi-palette" aria-hidden="true"></i> Color</span>
+            {{ form.color(placeholder='e.g. Alpine White', autocomplete='off') }}
+            {% for error in form.color.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+          </label>
+        </div>
+
+        <label class="garage-photo-field">
+          <span><i class="bi bi-camera" aria-hidden="true"></i> Vehicle photo</span>
+          <span class="garage-upload-control">
+            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+            <span><strong>{{ 'Replace the current photo' if saved_car_image else 'Choose a vehicle photo' }}</strong><small>JPG, PNG, or WebP</small></span>
+            {{ form.image(accept='image/png,image/jpeg,image/webp', data_garage_image_input='') }}
+          </span>
+          {% for error in form.image.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        </label>
+
+        <div class="garage-form-actions">
+          <a class="btn btn-secondary" href="{{ url_for('user.dashboard') }}#garage">Cancel</a>
+          <button class="btn" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save changes' if car else 'Add vehicle' }}</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="card garage-preview-card">
+      <div class="garage-preview-label"><span>Vehicle preview</span>{% if car %}<em>Saved vehicle</em>{% endif %}</div>
+      <div class="garage-preview-image {% if not saved_car_image %}is-empty{% endif %}" data-garage-image-preview>
+        {% if saved_car_image %}<img src="{{ saved_car_image }}" alt="{{ car.car_year }} {{ car.make }} {{ car.model }}">{% else %}<span><i class="bi bi-car-front-fill" aria-hidden="true"></i></span>{% endif %}
+      </div>
+      <div class="garage-preview-copy">
+        {% if car %}
+          <span>{{ car.car_year }}</span>
+          <h2>{{ car.make }} {{ car.model }}</h2>
+          <p>{{ car.color or 'Color not specified' }}</p>
+        {% else %}
+          <span>New vehicle</span>
+          <h2>Ready for the track</h2>
+          <p>Your vehicle details will appear here after you save.</p>
+        {% endif %}
+      </div>
+      <ul class="garage-preview-benefits">
+        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>Event registration</strong><small>Select this car when buying a driver ticket.</small></span></li>
+        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>Track inspections</strong><small>Keep the correct vehicle attached to inspection history.</small></span></li>
+        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>RFID ready</strong><small>Order and assign a vehicle tag from your account.</small></span></li>
+      </ul>
+    </aside>
+  </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.querySelector('[data-garage-image-input]')
+  const preview = document.querySelector('[data-garage-image-preview]')
+  if (!input || !preview) return
+  let previewUrl = ''
+  input.addEventListener('change', () => {
+    const file = input.files && input.files[0]
+    if (!file || !file.type.startsWith('image/')) return
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    previewUrl = URL.createObjectURL(file)
+    preview.classList.remove('is-empty')
+    preview.innerHTML = ''
+    const image = document.createElement('img')
+    image.src = previewUrl
+    image.alt = 'Selected vehicle photo preview'
+    preview.appendChild(image)
+  })
+})
+</script>
 {% endblock %}
