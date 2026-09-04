@@ -8254,3 +8254,183 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .audience-history-detail-head { min-height: 36px; }
   .audience-history-detail .audience-voted { display: none; }
 }
+
+/* High-contrast unified event calendar */
+.ui-system .unified-events-calendar {
+  overflow: visible;
+  padding: 18px;
+  background: #fff;
+}
+.ui-system .unified-events-calendar .rental-calendar-toolbar {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e6eaf0;
+}
+.ui-system .unified-events-calendar .rental-calendar-toolbar > div > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: .61rem;
+  letter-spacing: .08em;
+}
+.ui-system .unified-events-calendar .rental-calendar-toolbar > div > span i { color: #2457ff; font-size: .72rem; }
+.ui-system .unified-events-calendar .rental-calendar-toolbar h3 {
+  margin-top: 3px;
+  color: #172033;
+  font-size: 1.12rem;
+  letter-spacing: -.02em;
+}
+.ui-system .unified-events-calendar .rental-calendar-toolbar nav { gap: 5px; }
+.ui-system .unified-events-calendar .rental-calendar-toolbar nav a {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  color: #344054 !important;
+  background: #fff;
+  border-color: #d7dde7;
+  border-radius: 8px;
+  font-size: .69rem;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+.ui-system .unified-events-calendar .rental-calendar-toolbar nav a:hover {
+  color: #174dcc !important;
+  background: #f4f7ff;
+  border-color: #b9c9f7;
+}
+.ui-system .unified-events-calendar .rental-calendar-legend {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 7px 15px;
+  margin: 0 0 12px;
+  color: #667085;
+  font-size: .62rem;
+}
+.ui-system .unified-events-calendar .rental-calendar-legend span { gap: 6px; }
+.ui-system .unified-events-calendar .rental-calendar-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+}
+.ui-system .unified-events-calendar .rental-calendar-legend .calendar-public { background: #2457ff !important; }
+.ui-system .unified-events-calendar .rental-calendar-legend .is-available { background: #15825c; }
+.ui-system .unified-events-calendar .rental-calendar-legend .is-booked { background: #7c5ac7; }
+.ui-system .unified-events-calendar .rental-calendar-legend .is-held { background: #bd6c14; }
+.unified-calendar-scroll {
+  overflow-x: auto;
+  padding-bottom: 2px;
+  border-radius: 10px;
+  scrollbar-color: #b8c1d1 #eef1f5;
+  scrollbar-width: thin;
+}
+.unified-calendar-scroll:focus-visible { outline: 3px solid rgba(36, 87, 255, .2); outline-offset: 3px; }
+.ui-system .unified-calendar-grid {
+  grid-template-columns: repeat(7, minmax(104px, 1fr));
+  min-width: 760px;
+  gap: 0;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dce2ea;
+  border-radius: 10px;
+}
+.ui-system .unified-calendar-grid .rental-weekday {
+  padding: 9px 7px;
+  color: #536176;
+  background: #f3f5f8;
+  border-right: 1px solid #e2e6ec;
+  border-bottom: 1px solid #dce2ea;
+  font-size: .61rem;
+  letter-spacing: .07em;
+}
+.ui-system .unified-calendar-grid .rental-weekday:nth-child(7) { border-right: 0; }
+.ui-system .unified-calendar-grid .rental-calendar-day {
+  min-height: 112px;
+  padding: 7px;
+  background: #fff;
+  border-right: 1px solid #e7ebf0;
+  border-bottom: 1px solid #e7ebf0;
+  box-shadow: none;
+}
+.ui-system .unified-calendar-grid .rental-calendar-day:nth-child(7n + 7) { border-right: 0; }
+.ui-system .unified-calendar-grid .rental-calendar-day:nth-last-child(-n + 7) { border-bottom: 0; }
+.ui-system .unified-calendar-grid .rental-calendar-day.has-items { background: #fcfdff; }
+.ui-system .unified-calendar-grid .rental-calendar-day.outside-month { background: #f7f8fa; }
+.ui-system .unified-calendar-grid .rental-calendar-day.outside-month .rental-day-slots { opacity: .48; }
+.ui-system .unified-calendar-grid .rental-calendar-day > time {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  color: #475467;
+  background: transparent;
+  border-radius: 7px;
+  font-size: .68rem;
+  font-weight: 800;
+}
+.ui-system .unified-calendar-grid .rental-calendar-day.outside-month > time { color: #a6afbd; }
+.ui-system .unified-calendar-grid .rental-calendar-day.is-today { box-shadow: inset 0 0 0 2px #2457ff; }
+.ui-system .unified-calendar-grid .rental-calendar-day.is-today > time {
+  color: #fff;
+  background: #2457ff;
+  box-shadow: 0 3px 8px rgba(36, 87, 255, .24);
+}
+.ui-system .unified-calendar-grid .rental-day-slots { gap: 4px; margin-top: 5px; }
+.ui-system .main-content .unified-calendar-item {
+  position: relative;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 7px 6px 9px;
+  color: #253247 !important;
+  background: #f3f6fb;
+  border: 1px solid #dce3ee;
+  border-left: 3px solid #718096;
+  border-radius: 7px;
+  line-height: 1.15;
+  box-shadow: none;
+  transition: background .14s ease, border-color .14s ease, transform .14s ease;
+}
+.ui-system .main-content .unified-calendar-item strong {
+  color: #344054 !important;
+  font-size: .61rem;
+  font-weight: 800;
+}
+.ui-system .main-content .unified-calendar-item small {
+  color: #536176 !important;
+  font-size: .63rem;
+  font-weight: 650;
+}
+.ui-system .main-content .unified-calendar-item.is-public { background: #eef3ff; border-color: #d4dfff; border-left-color: #2457ff; }
+.ui-system .main-content .unified-calendar-item.is-public strong { color: #174dcc !important; }
+.ui-system .main-content .unified-calendar-item.is-available { background: #edf9f3; border-color: #ceeadd; border-left-color: #15825c; }
+.ui-system .main-content .unified-calendar-item.is-available strong { color: #0f6849 !important; }
+.ui-system .main-content .unified-calendar-item.is-booked { background: #f3effb; border-color: #e0d7f3; border-left-color: #7c5ac7; }
+.ui-system .main-content .unified-calendar-item.is-booked strong { color: #6344aa !important; }
+.ui-system .main-content .unified-calendar-item.is-held { background: #fff6e9; border-color: #f1dec3; border-left-color: #bd6c14; }
+.ui-system .main-content .unified-calendar-item.is-held strong { color: #95500a !important; }
+.ui-system .main-content .unified-calendar-item:hover {
+  color: #172033 !important;
+  filter: none;
+  transform: translateY(-1px);
+}
+.ui-system .main-content .unified-calendar-item.is-public:hover { background: #e3ebff; border-color: #b7c8ff; }
+.ui-system .main-content .unified-calendar-item.is-available:hover { background: #e1f5eb; border-color: #addbc7; }
+.ui-system .main-content .unified-calendar-item.is-booked:hover { background: #eae3f8; border-color: #cfc0eb; }
+.ui-system .main-content .unified-calendar-item.is-held:hover { background: #ffedd2; border-color: #e9c897; }
+
+@media (max-width: 720px) {
+  .ui-system .unified-events-calendar { padding: 14px; }
+  .ui-system .unified-events-calendar .rental-calendar-toolbar { align-items: flex-start; }
+  .ui-system .unified-events-calendar .rental-calendar-legend { gap: 6px 12px; }
+  .unified-calendar-scroll { margin: 0 -14px -2px; padding: 0 14px 8px; border-radius: 0; }
+  .ui-system .unified-calendar-grid { min-width: 735px; }
+}
+
+@media (max-width: 480px) {
+  .ui-system .unified-events-calendar .rental-calendar-toolbar { flex-direction: column; gap: 10px; }
+  .ui-system .unified-events-calendar .rental-calendar-toolbar nav { width: 100%; }
+  .ui-system .unified-events-calendar .rental-calendar-toolbar nav a:nth-child(2) { flex: 1; }
+  .ui-system .unified-events-calendar .rental-calendar-legend { display: grid; grid-template-columns: 1fr 1fr; }
+}

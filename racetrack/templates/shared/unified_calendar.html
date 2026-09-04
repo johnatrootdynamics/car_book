@@ -1,39 +1,42 @@
 <section class="card rental-calendar-card unified-events-calendar">
   <div class="rental-calendar-toolbar">
-    <div><span>Complete schedule</span><h3>{{ calendar.label }}</h3></div>
+    <div><span><i class="bi bi-calendar3" aria-hidden="true"></i> Event calendar</span><h3>{{ calendar.label }}</h3></div>
     <nav aria-label="Event calendar months">
       <a href="{{ url_for(calendar_endpoint, month=calendar.previous_value, q=q|default('')) }}" aria-label="Previous month"><i class="bi bi-chevron-left"></i></a>
       <a href="{{ url_for(calendar_endpoint) }}">Today</a>
       <a href="{{ url_for(calendar_endpoint, month=calendar.next_value, q=q|default('')) }}" aria-label="Next month"><i class="bi bi-chevron-right"></i></a>
     </nav>
   </div>
-  <div class="rental-calendar-legend">
+  <div class="rental-calendar-legend" aria-label="Calendar legend">
     <span><i class="calendar-public"></i> Public event</span>
     <span><i class="is-available"></i> Private rental available</span>
     <span><i class="is-booked"></i> Private event booked</span>
     <span><i class="is-held"></i> Checkout hold</span>
   </div>
-  <div class="rental-calendar unified-calendar-grid" role="grid" aria-label="{{ calendar.label }} event schedule">
-    {% for weekday in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] %}<div class="rental-weekday" role="columnheader">{{ weekday }}</div>{% endfor %}
-    {% for week in calendar.weeks %}{% for day in week %}
-      <div class="rental-calendar-day {% if day.month != calendar.first.month %}outside-month{% endif %} {% if day == today %}is-today{% endif %}" role="gridcell">
-        <time datetime="{{ day }}">{{ day.day }}</time>
-        <div class="rental-day-slots">
-          {% for item in calendar_items_by_date.get(day, []) %}
-            {% if item.kind == 'event' %}{% set event = item.event %}
-              <a class="unified-calendar-item {{ 'is-booked' if event.event_type == 'private' else 'is-public' }}" href="{{ url_for('employee.event_detail', event_id=event.id) if calendar_audience == 'employee' else url_for('user.event_detail', event_id=event.id) }}">
-                <strong>{% if event.event_start_time %}{{ event.event_start_time.strftime('%-I:%M %p') }}{% else %}All day{% endif %}</strong><small>{{ event.event_name }}</small>
-              </a>
-            {% else %}{% set slot = item.slot %}{% set booking = item.booking %}
-              {% if calendar_audience == 'employee' %}
-                <a class="unified-calendar-item {{ 'is-held' if booking else 'is-available' }}" href="{{ url_for('employee.private_rentals', month=slot.slot_date.strftime('%Y-%m')) }}"><strong>{{ slot.start_time.strftime('%-I:%M %p') }}</strong><small>{{ 'Held' if booking else slot.name }}</small></a>
-              {% else %}
-                <a class="unified-calendar-item {{ 'is-held' if booking else 'is-available' }}" href="{{ url_for('user.private_rental_calendar', track_id=slot.track_id, month=slot.slot_date.strftime('%Y-%m'), slot=slot.id) }}"><strong>{{ slot.start_time.strftime('%-I:%M %p') }}</strong><small>{{ slot.track.name }} · {{ 'Held' if booking else 'Private rental' }}</small></a>
+  <div class="unified-calendar-scroll" tabindex="0" aria-label="Scrollable {{ calendar.label }} calendar">
+    <div class="rental-calendar unified-calendar-grid" role="grid" aria-label="{{ calendar.label }} event schedule">
+      {% for weekday in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] %}<div class="rental-weekday" role="columnheader">{{ weekday }}</div>{% endfor %}
+      {% for week in calendar.weeks %}{% for day in week %}
+        {% set day_items = calendar_items_by_date.get(day, []) %}
+        <div class="rental-calendar-day {% if day.month != calendar.first.month %}outside-month{% endif %} {% if day == today %}is-today{% endif %} {% if day_items %}has-items{% endif %}" role="gridcell">
+          <time datetime="{{ day }}">{% if day == today %}<span class="sr-only">Today, </span>{% endif %}{{ day.day }}</time>
+          <div class="rental-day-slots">
+            {% for item in day_items %}
+              {% if item.kind == 'event' %}{% set event = item.event %}
+                <a class="unified-calendar-item {{ 'is-booked' if event.event_type == 'private' else 'is-public' }}" href="{{ url_for('employee.event_detail', event_id=event.id) if calendar_audience == 'employee' else url_for('user.event_detail', event_id=event.id) }}">
+                  <strong>{% if event.event_start_time %}{{ event.event_start_time.strftime('%-I:%M %p') }}{% else %}All day{% endif %}</strong><small>{{ event.event_name }}</small>
+                </a>
+              {% else %}{% set slot = item.slot %}{% set booking = item.booking %}
+                {% if calendar_audience == 'employee' %}
+                  <a class="unified-calendar-item {{ 'is-held' if booking else 'is-available' }}" href="{{ url_for('employee.private_rentals', month=slot.slot_date.strftime('%Y-%m')) }}"><strong>{{ slot.start_time.strftime('%-I:%M %p') }}</strong><small>{{ 'Held' if booking else slot.name }}</small></a>
+                {% else %}
+                  <a class="unified-calendar-item {{ 'is-held' if booking else 'is-available' }}" href="{{ url_for('user.private_rental_calendar', track_id=slot.track_id, month=slot.slot_date.strftime('%Y-%m'), slot=slot.id) }}"><strong>{{ slot.start_time.strftime('%-I:%M %p') }}</strong><small>{{ slot.track.name }} · {{ 'Held' if booking else 'Private rental' }}</small></a>
+                {% endif %}
               {% endif %}
-            {% endif %}
-          {% endfor %}
+            {% endfor %}
+          </div>
         </div>
-      </div>
-    {% endfor %}{% endfor %}
+      {% endfor %}{% endfor %}
+    </div>
   </div>
 </section>
