@@ -7415,7 +7415,7 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   display: grid;
   align-content: start;
   gap: 14px;
-  width: min(1180px, calc(100vw - 32px));
+  width: min(1180px, calc(100% - 32px));
   padding-top: 52px;
   padding-bottom: 40px;
 }
@@ -7990,7 +7990,7 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 }
 
 @media (max-width: 720px) {
-  .ui-system .ui-content { width: min(100% - 22px, 1180px); gap: 11px; padding-bottom: 28px; }
+  .ui-system .ui-content { width: min(calc(100% - 22px), 1180px); gap: 11px; padding-bottom: 28px; }
   .ui-page,
   .ui-system :where(
     .enterprise-dashboard,
