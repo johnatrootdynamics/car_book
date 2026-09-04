@@ -81,6 +81,10 @@ def create_app():
     app.config["TRACK_TIMEZONE"] = os.getenv("TRACK_TIMEZONE", "America/New_York")
     app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "")
     app.config["STRIPE_WEBHOOK_SECRET"] = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    app.config["PAYPAL_CLIENT_ID"] = os.getenv("PAYPAL_CLIENT_ID", "")
+    app.config["PAYPAL_SECRET_KEY"] = os.getenv("PAYPAL_SECRET_KEY", "")
+    app.config["PAYPAL_WEBHOOK_ID"] = os.getenv("PAYPAL_WEBHOOK_ID", "")
+    app.config["PAYPAL_MODE"] = os.getenv("PAYPAL_MODE", "live").lower()
     app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "")
     app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
     app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME", "")
@@ -214,6 +218,10 @@ def create_app():
             "private_rental_bookings",
             "scanner_devices",
             "rfid_tags",
+            "rfid_tag_settings",
+            "rfid_tag_cart_items",
+            "rfid_tag_orders",
+            "rfid_tag_order_items",
             "scanner_observations",
             "track_car_statuses",
             "track_runs",

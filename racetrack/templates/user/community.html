@@ -1,140 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <h2>Driver Community</h2>
-  <p>See who is signing up, comment on posts, and browse cars from other drivers.</p>
-</section>
-
-<section class="card">
-  <h3>Upcoming Events</h3>
-  {% if events %}
-    <div class="event-tile-grid">
-      {% for event in events %}
-      {% set driver_availability = driver_availability_by_event.get(event.id) %}
-      <div class="event-tile">
-        {% if event.thumbnail_image_path %}
-          {% set event_image = asset_url(event.thumbnail_image_path) %}
-          {% if event_image %}<img src="{{ event_image }}" alt="{{ event.event_name }} thumbnail">{% endif %}
-        {% else %}
-          <div class="event-fallback">{{ event.event_name }}</div>
-        {% endif %}
-        <div class="event-tile-body">
-          <h4>{{ event.event_name }}</h4>
-          <p class="muted-line">{{ event.track.name }} • {{ event.event_date }}</p>
-          <p class="muted-line">{{ event_signup_counts.get(event.id, 0) }} drivers signed up</p>
-          {% if event.id in signups %}
-            <form method="post" action="{{ url_for('user.cancel_signup', event_id=event.id) }}" class="inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-secondary btn-sm">Cancel Signup</button>
-            </form>
-          {% else %}
-            {% if driver_availability and driver_availability.sold_out %}
-              <p class="ticket-capacity-state sold-out"><strong>Driver tickets sold out</strong></p>
-            {% else %}
-              <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="event-signup-form">
-                {{ signup_form.hidden_tag() }}
-                {{ signup_form.car_id() }}
-                {{ signup_form.submit(class_='btn btn-sm') }}
-              </form>
-            {% endif %}
-          {% endif %}
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p>No upcoming events yet.</p>
-  {% endif %}
-</section>
-
-<section class="card">
-  <h3>Signup Feed</h3>
-  {% if posts %}
-    {% for post in posts %}
-      <div class="feed-post">
-        {% set post_author_image = asset_url(post.author.profile_image_url) if post.author.profile_image_url else None %}
-        <div class="author-line feed-headline">
-          {% if post_author_image %}
-            <img class="author-avatar" src="{{ post_author_image }}" alt="{{ post.author.username or ('driver' ~ post.author.id) }} avatar">
-          {% else %}
-            <span class="author-avatar-fallback">{{ (post.author.username or 'D')[0]|upper }}</span>
-          {% endif %}
-          <span>
-            @{{ post.author.username or ('driver' ~ post.author.id) }}
-            {% if post.post_type == 'event_signup' %}
-              joined an event
-            {% elif post.post_type == 'car_spotlight' %}
-              added a car
-            {% else %}
-              posted an update
-            {% endif %}
-          </span>
-          <span class="feed-time">{{ post.created_at.strftime('%B %-d, %Y') if post.created_at else '' }}</span>
-        </div>
-
-        {% if post.comments %}
-          <div class="comment-list">
-            {% for comment in post.comments %}
-              <div class="comment-item pop-comment">
-                {% set comment_author_image = asset_url(comment.author.profile_image_url) if comment.author.profile_image_url else None %}
-                <div class="comment-head author-line">
-                  {% if comment_author_image %}
-                    <img class="author-avatar" src="{{ comment_author_image }}" alt="{{ comment.author.username or ('driver' ~ comment.author.id) }} avatar">
-                  {% else %}
-                    <span class="author-avatar-fallback">{{ (comment.author.username or 'D')[0]|upper }}</span>
-                  {% endif %}
-                  <span>@{{ comment.author.username or ('driver' ~ comment.author.id) }}</span>
-                </div>
-                <div>{{ comment.body }}</div>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
-
-        <form method="post" action="{{ url_for('user.add_comment', post_id=post.id) }}" class="inline-form" data-enhanced data-comment-form>
-          {{ comment_form.hidden_tag() }}
-          {{ comment_form.body(placeholder='Add a comment...', class_='comment-input', rows='4', data_counter='comment-counter-' ~ post.id, data_autoresize='1') }}
-          <div class="field-meta" id="comment-counter-{{ post.id }}"></div>
-          {{ comment_form.submit(class_='btn btn-secondary comment-submit') }}
-        </form>
-      </div>
-    {% endfor %}
-  {% else %}
-    <p>No community posts yet.</p>
-  {% endif %}
-</section>
-
-<section class="card">
-  <h3>Car Gallery</h3>
-  {% if cars %}
-    <div class="car-grid">
-      {% for car in cars %}
-        <div class="car-item">
-          {% if car.image_url %}
-            {% set car_image = asset_url(car.image_url) %}
-            {% if car_image %}<img class="car-thumb-large" src="{{ car_image }}" alt="{{ car.make }} {{ car.model }} photo">{% endif %}
-          {% endif %}
-          <p><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong></p>
-          {% set owner_image = asset_url(car.owner.profile_image_url) if car.owner.profile_image_url else None %}
-          <p class="muted-line author-line">
-            {% if owner_image %}
-              <img class="author-avatar" src="{{ owner_image }}" alt="{{ car.owner.username or ('driver' ~ car.owner.id) }} avatar">
-            {% else %}
-              <span class="author-avatar-fallback">{{ (car.owner.username or 'D')[0]|upper }}</span>
-            {% endif %}
-            <span>Owner: @{{ car.owner.username or ('driver' ~ car.owner.id) }}</span>
-          </p>
-          <p class="muted-line">Color: {{ car.color or 'N/A' }}</p>
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p>No cars yet.</p>
-  {% endif %}
-</section>
-
-<section class="card compact-note">
-  <h3>Groups (Planned)</h3>
-  <p>Data models for community groups are in place so we can add track clubs/private groups in the next phase.</p>
-</section>
+<div class="community-shell">
+  <header class="community-hero">
+    <div><span class="community-kicker"><i class="bi bi-people-fill"></i> Driver network</span><h1>The paddock never closes.</h1><p>Share what you’re building, see who’s driving, and find your next event.</p></div>
+    <div class="community-hero-stats"><div><strong>{{ posts|length }}</strong><span>updates</span></div><div><strong>{{ cars|length }}</strong><span>cars</span></div><div><strong>{{ events|length }}</strong><span>events</span></div></div>
+  </header>
+  <nav class="community-tabs" aria-label="Community sections"><a href="#feed" class="is-active"><i class="bi bi-house-door-fill"></i> Feed</a><a href="#events"><i class="bi bi-calendar-event"></i> Events</a><a href="#garage"><i class="bi bi-car-front-fill"></i> Garage</a></nav>
+  <div class="community-layout">
+    <main class="community-feed" id="feed">
+      <section class="community-composer">
+        {% set me_image = asset_url(current_user.profile_image_url) if current_user.profile_image_url else None %}
+        {% if me_image %}<img class="community-avatar community-avatar-lg" src="{{ me_image }}" alt="Your profile photo">{% else %}<span class="community-avatar community-avatar-lg community-avatar-fallback">{{ (current_user.username or current_user.first_name or 'D')[0]|upper }}</span>{% endif %}
+        <form method="post" action="{{ url_for('user.community_post_create') }}" data-enhanced><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="sr-only" for="community-post-body">Share an update</label><textarea id="community-post-body" name="body" maxlength="600" rows="2" placeholder="What’s happening in your garage, @{{ current_user.username or ('driver' ~ current_user.id) }}?" data-autoresize="1" data-counter="community-post-counter" required></textarea><div class="composer-actions"><span><i class="bi bi-wrench-adjustable"></i> Build update</span><span><i class="bi bi-flag-fill"></i> Track talk</span><div class="composer-submit"><small id="community-post-counter"></small><button class="btn" type="submit">Post update</button></div></div></form>
+      </section>
+      <div class="community-section-heading"><div><span>LIVE FEED</span><h2>From the community</h2></div><i class="bi bi-lightning-charge-fill"></i></div>
+      {% for post in posts %}{% set post_author_image = asset_url(post.author.profile_image_url) if post.author.profile_image_url else None %}
+        <article class="community-post">
+          <header class="community-post-head">{% if post_author_image %}<img class="community-avatar" src="{{ post_author_image }}" alt="{{ post.author.username or ('driver' ~ post.author.id) }} avatar">{% else %}<span class="community-avatar community-avatar-fallback">{{ (post.author.username or 'D')[0]|upper }}</span>{% endif %}<div class="community-author"><strong>@{{ post.author.username or ('driver' ~ post.author.id) }}</strong><span>{{ post.created_at.strftime('%B %-d at %-I:%M %p') if post.created_at else '' }}</span></div><span class="post-type-badge post-type-{{ post.post_type }}">{% if post.post_type == 'event_signup' %}<i class="bi bi-calendar-check"></i> Event signup{% elif post.post_type == 'car_spotlight' %}<i class="bi bi-car-front"></i> New ride{% else %}<i class="bi bi-chat-square-text"></i> Update{% endif %}</span></header>
+          <div class="community-post-copy"><h3>{{ post.title }}</h3>{% if post.body %}<p>{{ post.body }}</p>{% endif %}</div>
+          {% if post.event %}<a class="community-event-attachment" href="{{ url_for('user.event_detail', event_id=post.event.id) }}">{% set attached_event_image = asset_url(post.event.thumbnail_image_path) if post.event.thumbnail_image_path else None %}{% if attached_event_image %}<img src="{{ attached_event_image }}" alt="">{% else %}<span class="event-attachment-fallback"><i class="bi bi-flag-fill"></i></span>{% endif %}<span><small>{{ post.event.event_date.strftime('%b %-d, %Y') }}</small><strong>{{ post.event.event_name }}</strong><em>{{ post.event.track.name }}</em></span><i class="bi bi-chevron-right"></i></a>{% elif post.registration and post.registration.car %}<div class="community-car-attachment"><i class="bi bi-speedometer2"></i><span><small>DRIVING</small><strong>{{ post.registration.car.car_year }} {{ post.registration.car.make }} {{ post.registration.car.model }}</strong></span></div>{% endif %}
+          <div class="community-post-meta"><button type="button" class="community-comment-jump" data-focus-comment="comment-{{ post.id }}"><i class="bi bi-chat"></i> {{ post.comments|length }} {{ 'comment' if post.comments|length == 1 else 'comments' }}</button><span><i class="bi bi-people"></i> Drivers</span></div>
+          {% if post.comments %}<div class="community-comments">{% for comment in post.comments %}{% set comment_author_image = asset_url(comment.author.profile_image_url) if comment.author.profile_image_url else None %}<div class="community-comment">{% if comment_author_image %}<img class="community-avatar community-avatar-sm" src="{{ comment_author_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (comment.author.username or 'D')[0]|upper }}</span>{% endif %}<div><strong>@{{ comment.author.username or ('driver' ~ comment.author.id) }}</strong><p>{{ comment.body }}</p></div></div>{% endfor %}</div>{% endif %}
+          <form method="post" action="{{ url_for('user.add_comment', post_id=post.id) }}" class="community-comment-form" data-enhanced data-comment-form>{{ comment_form.hidden_tag() }}{% if me_image %}<img class="community-avatar community-avatar-sm" src="{{ me_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (current_user.username or 'D')[0]|upper }}</span>{% endif %}{{ comment_form.body(id='comment-' ~ post.id, placeholder='Write a comment…', rows='1', data_autoresize='1') }}<button type="submit" aria-label="Post comment"><i class="bi bi-send-fill"></i></button></form>
+        </article>
+      {% else %}<div class="community-empty"><i class="bi bi-chat-heart"></i><h3>Start the conversation</h3><p>Be the first driver to share an update.</p></div>{% endfor %}
+    </main>
+    <aside class="community-rail">
+      <section class="community-rail-card" id="events"><div class="rail-heading"><div><span>COMING UP</span><h2>Meet at the track</h2></div><a href="{{ url_for('user.spectator_events') }}">See all</a></div>{% for event in events[:4] %}{% set driver_availability = driver_availability_by_event.get(event.id) %}<article class="community-event-mini"><div class="event-date-tile"><strong>{{ event.event_date.strftime('%d') }}</strong><span>{{ event.event_date.strftime('%b')|upper }}</span></div><div><a href="{{ url_for('user.event_detail', event_id=event.id) }}">{{ event.event_name }}</a><p><i class="bi bi-geo-alt"></i> {{ event.track.name }}</p><small>{{ event_signup_counts.get(event.id, 0) }} drivers going{% if driver_availability and driver_availability.sold_out %} · Sold out{% endif %}</small></div></article>{% else %}<p class="community-muted">No upcoming public events yet.</p>{% endfor %}</section>
+      <section class="community-rail-card" id="garage"><div class="rail-heading"><div><span>FRESH BUILDS</span><h2>Community garage</h2></div></div><div class="community-garage-grid">{% for car in cars[:6] %}<article class="community-car-tile">{% set car_image = asset_url(car.image_url) if car.image_url else None %}{% if car_image %}<img src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% else %}<div class="community-car-placeholder"><i class="bi bi-car-front-fill"></i></div>{% endif %}<div><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong><span>@{{ car.owner.username or ('driver' ~ car.owner.id) }}</span></div></article>{% else %}<p class="community-muted">The garage is waiting for its first build.</p>{% endfor %}</div><a class="community-rail-action" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-circle"></i> Add your car</a></section>
+      <section class="community-rail-card community-code-card"><i class="bi bi-shield-check"></i><div><strong>Keep the paddock welcoming</strong><p>Respect other drivers, their builds, and their time on track.</p></div></section>
+    </aside>
+  </div>
+</div>
 {% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="profile-settings-shell">
+  <header class="profile-settings-hero">
+    <div class="profile-settings-identity">
+      <form method="post" action="{{ url_for('user.update_profile_photo') }}" enctype="multipart/form-data" class="profile-photo-form profile-settings-photo-form" data-profile-photo-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="profile_image" accept="image/png,image/jpeg,image/webp" class="profile-photo-input" data-profile-photo-input>
+        <button type="button" class="profile-photo-btn" data-profile-photo-trigger aria-label="Update profile photo">
+          {% if current_user.profile_image_url %}{% set profile_img = asset_url(current_user.profile_image_url) %}{% if profile_img %}<img class="profile-photo" src="{{ profile_img }}" alt="Profile photo">{% else %}<span class="profile-photo-fallback">{{ (current_user.first_name or 'D')[0] }}</span>{% endif %}{% else %}<span class="profile-photo-fallback">{{ (current_user.first_name or 'D')[0] }}</span>{% endif %}
+          <span class="profile-photo-edit"><i class="bi bi-camera-fill"></i></span>
+        </button>
+      </form>
+      <div><span class="event-page-kicker">Driver profile</span><h1>{{ current_user.first_name }} {{ current_user.last_name }}</h1><p>@{{ current_user.username or ('driver' ~ current_user.id) }} · Class {{ current_user.driver_class }}</p></div>
+    </div>
+    <div class="profile-settings-stats"><div><strong>{{ car_count }}</strong><span>Cars</span></div><div><strong>{{ waiver_count }}</strong><span>Waivers</span></div></div>
+  </header>
+
+  <div class="profile-settings-grid">
+    <section class="profile-settings-card profile-details-card">
+      <div class="profile-card-heading"><span><i class="bi bi-person-vcard"></i></span><div><h2>Account details</h2><p>Information used for registrations, orders, and track operations.</p></div></div>
+      <dl class="profile-detail-list">
+        <div><dt>Email</dt><dd>{{ current_user.email }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ current_user.phone }}</dd></div>
+        <div><dt>Date of birth</dt><dd>{{ current_user.date_of_birth.strftime('%B %-d, %Y') }}</dd></div>
+        <div><dt>Mailing address</dt><dd>{{ current_user.street }}<br>{{ current_user.city }}, {{ current_user.state }} {{ current_user.postal_code }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="profile-settings-card profile-action-list">
+      <div class="profile-card-heading"><span><i class="bi bi-sliders"></i></span><div><h2>Profile settings</h2><p>Manage the personal parts of your driver account.</p></div></div>
+      <a href="{{ url_for('auth.security') }}"><span class="profile-action-icon security"><i class="bi bi-shield-lock-fill"></i></span><span><strong>Password & security</strong><small>Change your account password</small></span><i class="bi bi-chevron-right"></i></a>
+      <a href="{{ url_for('waiver.driver_waivers') }}"><span class="profile-action-icon waivers"><i class="bi bi-file-earmark-check-fill"></i></span><span><strong>Waivers</strong><small>{% if pending_waiver_count %}{{ pending_waiver_count }} awaiting your attention{% else %}View signed documents and requirements{% endif %}</small></span><i class="bi bi-chevron-right"></i></a>
+      <a href="{{ url_for('user.rfid_tags') }}"><span class="profile-action-icon tags"><i class="bi bi-broadcast-pin"></i></span><span><strong>Vehicle RFID tags</strong><small>Order, activate, and manage tags</small></span><i class="bi bi-chevron-right"></i></a>
+      <a href="{{ url_for('user.dashboard') }}#garage"><span class="profile-action-icon garage"><i class="bi bi-car-front-fill"></i></span><span><strong>Your garage</strong><small>{{ car_count }} {{ 'vehicle' if car_count == 1 else 'vehicles' }} on your account</small></span><i class="bi bi-chevron-right"></i></a>
+    </section>
+  </div>
+
+  <section class="profile-settings-card profile-help-strip"><i class="bi bi-info-circle"></i><div><strong>Your profile travels with you.</strong><p>Tracks use this information for event registration, waivers, inspections, and fulfillment. Your password is never visible to track employees.</p></div></section>
+</div>
+{% endblock %}

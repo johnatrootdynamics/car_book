@@ -20,6 +20,10 @@ from .models import (
     PrivateRentalBooking,
     PrivateRentalSlot,
     RfidTag,
+    RfidTagCartItem,
+    RfidTagOrder,
+    RfidTagOrderItem,
+    RfidTagSettings,
     SocialComment,
     SocialPost,
     SpectatorCart,
@@ -112,7 +116,251 @@ def rfid_tags():
             flash("RFID tag activated and assigned to your car.", "success")
             return redirect(url_for("user.rfid_tags"))
     tags = RfidTag.query.filter_by(activated_by_user_id=current_user.id).order_by(RfidTag.activated_at.desc()).all()
-    return render_template("user/rfid_tags.html", cars=cars, tags=tags)
+    settings = RfidTagSettings.query.get(1)
+    if not settings:
+        settings = RfidTagSettings(id=1, price_cents=0)
+        db.session.add(settings)
+        db.session.commit()
+    ordered_car_ids = {
+        item.car_id for item in RfidTagOrderItem.query.join(RfidTagOrder).filter(
+            RfidTagOrder.user_id == current_user.id,
+            RfidTagOrder.fulfillment_status != "cancelled",
+        ).all()
+    }
+    return render_template("user/rfid_tags.html", cars=cars, tags=tags, settings=settings,
+                           ordered_car_ids=ordered_car_ids, money=_money)
+
+
+@user_bp.route("/rfid-tags/cart/add/<int:car_id>", methods=["POST"])
+@login_required
+def rfid_tag_cart_add(car_id):
+    guard = require_user()
+    if guard:
+        return guard
+    car = Car.query.filter_by(id=car_id, user_id=current_user.id).first_or_404()
+    if RfidTag.query.filter_by(car_id=car.id, status="active").first():
+        flash("That car already has an active RFID tag.", "error")
+        return redirect(url_for("user.rfid_tags"))
+    existing_order = RfidTagOrderItem.query.join(RfidTagOrder).filter(
+        RfidTagOrderItem.car_id == car.id,
+        RfidTagOrder.user_id == current_user.id,
+        RfidTagOrder.fulfillment_status != "cancelled",
+    ).first()
+    if existing_order:
+        flash("A tag has already been ordered for that car.", "error")
+        return redirect(url_for("user.rfid_tags"))
+    cart = _get_or_create_spectator_cart()
+    if not RfidTagCartItem.query.filter_by(cart_id=cart.id, car_id=car.id).first():
+        db.session.add(RfidTagCartItem(cart_id=cart.id, car_id=car.id))
+        db.session.commit()
+    flash("RFID tag added to your cart.", "success")
+    return redirect(url_for("user.spectator_cart"))
+
+
+@user_bp.route("/rfid-tags/cart/remove/<int:item_id>", methods=["POST"])
+@login_required
+def rfid_tag_cart_remove(item_id):
+    guard = require_user()
+    if guard:
+        return guard
+    cart = _get_or_create_spectator_cart()
+    item = RfidTagCartItem.query.filter_by(id=item_id, cart_id=cart.id).first_or_404()
+    db.session.delete(item)
+    db.session.commit()
+    flash("RFID tag removed from your cart.", "success")
+    return redirect(url_for("user.spectator_cart"))
+
+
+def _mark_rfid_tag_order_paid(order, transaction_id=None):
+    order.payment_status = "paid"
+    order.provider_transaction_id = transaction_id
+    order.paid_at = order.paid_at or datetime.utcnow()
+    db.session.commit()
+
+
+def _rfid_paypal_credentials():
+    return {
+        "public_key": current_app.config.get("PAYPAL_CLIENT_ID"),
+        "secret_key": current_app.config.get("PAYPAL_SECRET_KEY"),
+        "webhook_secret": current_app.config.get("PAYPAL_WEBHOOK_ID"),
+        "mode": current_app.config.get("PAYPAL_MODE", "live"),
+    }
+
+
+@user_bp.route("/rfid-tags/checkout", methods=["GET", "POST"])
+@login_required
+def rfid_tag_checkout():
+    guard = require_user()
+    if guard:
+        return guard
+    cart = _get_or_create_spectator_cart()
+    items = RfidTagCartItem.query.filter_by(cart_id=cart.id).all()
+    if not items:
+        flash("There are no RFID tags in your cart.", "error")
+        return redirect(url_for("user.rfid_tags"))
+    settings = RfidTagSettings.query.get(1) or RfidTagSettings(price_cents=0)
+    total_cents = max(0, settings.price_cents or 0) * len(items)
+    if request.method == "POST":
+        payment_method = (request.form.get("payment_method") or "stripe").lower()
+        if payment_method not in {"stripe", "paypal"}:
+            payment_method = "stripe"
+        order = RfidTagOrder(
+            order_number=f"RFID-{datetime.utcnow():%Y%m%d}-{secrets.token_hex(3).upper()}",
+            user_id=current_user.id,
+            total_cents=total_cents,
+            payment_method=payment_method,
+            payment_mode=current_app.config.get("PAYPAL_MODE", "live") if payment_method == "paypal" else "live",
+            shipping_name=f"{current_user.first_name} {current_user.last_name}",
+            shipping_street=current_user.street,
+            shipping_city=current_user.city,
+            shipping_state=current_user.state,
+            shipping_postal_code=current_user.postal_code,
+        )
+        db.session.add(order)
+        db.session.flush()
+        for item in items:
+            db.session.add(RfidTagOrderItem(order_id=order.id, car_id=item.car_id,
+                                            unit_price_cents=max(0, settings.price_cents or 0)))
+            db.session.delete(item)
+        db.session.commit()
+        if total_cents <= 0:
+            _mark_rfid_tag_order_paid(order)
+            return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+        if payment_method == "paypal":
+            credentials = _rfid_paypal_credentials()
+            if not credentials["public_key"] or not credentials["secret_key"]:
+                flash("PayPal payments are not configured yet. Your order was saved pending payment.", "error")
+                return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+            try:
+                paypal_order, approve_url = create_paypal_order(
+                    credentials, order.total_cents, "CarBook UHF RFID vehicle tags", f"rfid:{order.id}",
+                    url_for("user.rfid_tag_paypal_return", order_id=order.id, _external=True),
+                    url_for("user.rfid_tag_order", order_id=order.id, _external=True), f"rfid-create-{order.id}")
+                order.provider_session_id = paypal_order["id"]
+                db.session.commit()
+                return redirect(approve_url)
+            except PayPalError:
+                current_app.logger.exception("RFID tag PayPal checkout creation failed")
+                flash("PayPal could not start checkout. Your order was saved; please try again later.", "error")
+                return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+        if not stripe or not current_app.config.get("STRIPE_SECRET_KEY"):
+            flash("Online tag payments are not configured yet. Your order was saved pending payment.", "error")
+            return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+        try:
+            stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+            checkout = stripe.checkout.Session.create(
+                mode="payment",
+                customer_email=current_user.email,
+                line_items=[{"price_data": {"currency": "usd", "unit_amount": max(0, settings.price_cents or 0),
+                             "product_data": {"name": "CarBook UHF RFID vehicle tag"}}, "quantity": len(items)}],
+                metadata={"rfid_tag_order_id": str(order.id)},
+                success_url=url_for("user.rfid_tag_payment_return", order_id=order.id, _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url=url_for("user.rfid_tag_order", order_id=order.id, _external=True),
+            )
+            order.provider_session_id = checkout.id
+            db.session.commit()
+            return redirect(checkout.url, code=303)
+        except Exception:
+            current_app.logger.exception("RFID tag checkout creation failed")
+            flash("Stripe could not start checkout. Your order was saved; please try again later.", "error")
+            return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+    return render_template("user/rfid_tag_checkout.html", items=items, total_cents=total_cents, money=_money)
+
+
+@user_bp.route("/rfid-tags/order/<int:order_id>")
+@login_required
+def rfid_tag_order(order_id):
+    order = RfidTagOrder.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+    return render_template("user/rfid_tag_order.html", order=order, money=_money)
+
+
+@user_bp.route("/rfid-tags/order/<int:order_id>/pay", methods=["POST"])
+@login_required
+def rfid_tag_order_pay(order_id):
+    order = RfidTagOrder.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+    if order.payment_status == "paid":
+        return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+    payment_method = (request.form.get("payment_method") or order.payment_method or "stripe").lower()
+    if payment_method == "paypal":
+        credentials = _rfid_paypal_credentials()
+        if not credentials["public_key"] or not credentials["secret_key"]:
+            flash("PayPal payments are not configured yet.", "error")
+            return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+        try:
+            paypal_order, approve_url = create_paypal_order(
+                credentials, order.total_cents, "CarBook UHF RFID vehicle tags", f"rfid:{order.id}",
+                url_for("user.rfid_tag_paypal_return", order_id=order.id, _external=True),
+                url_for("user.rfid_tag_order", order_id=order.id, _external=True), f"rfid-retry-{order.id}")
+            order.payment_method = "paypal"
+            order.payment_mode = credentials["mode"]
+            order.provider_session_id = paypal_order["id"]
+            db.session.commit()
+            return redirect(approve_url)
+        except PayPalError:
+            current_app.logger.exception("RFID tag PayPal retry failed")
+            flash("PayPal could not start checkout. Please try again later.", "error")
+            return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+    if not stripe or not current_app.config.get("STRIPE_SECRET_KEY"):
+        flash("Online tag payments are not configured yet.", "error")
+        return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+    try:
+        stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+        checkout = stripe.checkout.Session.create(
+            mode="payment", customer_email=current_user.email,
+            line_items=[{"price_data": {"currency": "usd", "unit_amount": order.items[0].unit_price_cents,
+                         "product_data": {"name": "CarBook UHF RFID vehicle tag"}}, "quantity": len(order.items)}],
+            metadata={"rfid_tag_order_id": str(order.id)},
+            success_url=url_for("user.rfid_tag_payment_return", order_id=order.id, _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=url_for("user.rfid_tag_order", order_id=order.id, _external=True),
+        )
+        order.provider_session_id = checkout.id
+        order.payment_method = "stripe"
+        order.payment_mode = "live"
+        db.session.commit()
+        return redirect(checkout.url, code=303)
+    except Exception:
+        current_app.logger.exception("RFID tag payment retry failed")
+        flash("Stripe could not start checkout. Please try again later.", "error")
+        return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+
+
+@user_bp.route("/rfid-tags/order/<int:order_id>/paypal-return")
+@login_required
+def rfid_tag_paypal_return(order_id):
+    order = RfidTagOrder.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+    paypal_order_id = (request.args.get("token") or "").strip()
+    if order.payment_method != "paypal" or paypal_order_id != order.provider_session_id:
+        flash("PayPal could not confirm this order.", "error")
+        return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+    if order.payment_status != "paid":
+        try:
+            captured = capture_paypal_order(_rfid_paypal_credentials(), paypal_order_id, f"rfid-capture-{order.id}")
+            details = paypal_capture_details(captured)
+            if (details["status"] != "COMPLETED" or details["currency"] != "USD"
+                    or details["value"] != f"{order.total_cents / 100:.2f}" or not details["transaction_id"]):
+                raise PayPalError("PayPal capture did not match the RFID order.")
+            _mark_rfid_tag_order_paid(order, details["transaction_id"])
+            flash(f"Order {order.order_number} paid successfully.", "success")
+        except (PayPalError, TypeError, KeyError):
+            current_app.logger.exception("PayPal RFID capture failed for order %s", order.id)
+            flash("PayPal is still processing this payment. Please try again shortly.", "error")
+    return redirect(url_for("user.rfid_tag_order", order_id=order.id))
+
+
+@user_bp.route("/rfid-tags/order/<int:order_id>/payment-return")
+@login_required
+def rfid_tag_payment_return(order_id):
+    order = RfidTagOrder.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+    session_id = request.args.get("session_id")
+    if order.payment_status != "paid" and session_id and session_id == order.provider_session_id and stripe:
+        try:
+            stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+            checkout = stripe.checkout.Session.retrieve(session_id)
+            if checkout.payment_status == "paid" and int(checkout.amount_total or -1) == order.total_cents:
+                _mark_rfid_tag_order_paid(order, checkout.payment_intent)
+        except Exception:
+            current_app.logger.exception("Could not verify RFID tag payment return")
+    return redirect(url_for("user.rfid_tag_order", order_id=order.id))
 FORCED_BOLDSIGN_TEMPLATE_ID = os.getenv(
     "BOLDSIGN_FORCED_TEMPLATE_ID", "e5c8f024-64df-4bdc-9142-3a04c01a154a"
 )
@@ -330,7 +578,7 @@ def _get_or_create_spectator_cart():
 
 
 def _cart_item_count(cart):
-    return sum(item.quantity for item in cart.items)
+    return sum(item.quantity for item in cart.items) + len(cart.rfid_tag_items)
 
 
 def require_user():
@@ -1217,6 +1465,9 @@ def spectator_cart_add():
 def spectator_cart():
     cart = _get_or_create_spectator_cart()
     items = SpectatorCartItem.query.filter_by(cart_id=cart.id).all()
+    tag_items = RfidTagCartItem.query.filter_by(cart_id=cart.id).all()
+    tag_settings = RfidTagSettings.query.get(1)
+    tag_unit_cents = max(0, tag_settings.price_cents or 0) if tag_settings else 0
     rows = []
     subtotal_cents = 0
     has_expired = False
@@ -1248,6 +1499,9 @@ def spectator_cart():
         cart_count=_cart_item_count(cart),
         has_expired=has_expired,
         has_unavailable=has_unavailable,
+        tag_items=tag_items,
+        tag_unit_cents=tag_unit_cents,
+        tag_subtotal_cents=tag_unit_cents * len(tag_items),
     )
 
 
@@ -1522,6 +1776,7 @@ def stripe_webhook():
     if not session_id:
         return "invalid", 400
     order = SpectatorOrder.query.filter_by(provider_session_id=session_id).first()
+    rfid_order = RfidTagOrder.query.filter_by(provider_session_id=session_id).first()
     driver_ticket_order = None
     private_rental_booking = None
     if not order:
@@ -1530,9 +1785,11 @@ def stripe_webhook():
         private_rental_booking = PrivateRentalBooking.query.filter_by(
             provider_session_id=session_id
         ).first()
-    if not order and not driver_ticket_order and not private_rental_booking:
+    if not order and not driver_ticket_order and not private_rental_booking and not rfid_order:
         return "ok", 200
-    if order:
+    if rfid_order:
+        webhook_secret = current_app.config.get("STRIPE_WEBHOOK_SECRET")
+    elif order:
         payment_track = order.items[0].event.track if order.items else None
         webhook_secret = (
             _payment_credentials(payment_track, "stripe", mode=order.payment_mode)["webhook_secret"]
@@ -1563,10 +1820,11 @@ def stripe_webhook():
         return "invalid", 400
 
     if event.get("type") in {"checkout.session.async_payment_failed", "checkout.session.expired"}:
-        target = order or driver_ticket_order or private_rental_booking
+        target = rfid_order or order or driver_ticket_order or private_rental_booking
         if target.payment_status != "paid":
             target.payment_status = "failed"
-            target.status = "failed"
+            if hasattr(target, "status"):
+                target.status = "failed"
             target.failure_reason = (
                 "Stripe payment failed."
                 if event.get("type") == "checkout.session.async_payment_failed"
@@ -1578,8 +1836,8 @@ def stripe_webhook():
     if event.get("type") in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
         session_obj = event["data"]["object"]
         session_id = session_obj.get("id")
-        target = order or driver_ticket_order or private_rental_booking
-        expected_cents = order.total_cents if order else target.amount_cents
+        target = rfid_order or order or driver_ticket_order or private_rental_booking
+        expected_cents = target.total_cents if (order or rfid_order) else target.amount_cents
         if (
             session_obj.get("payment_status") != "paid"
             or session_obj.get("currency", "").lower() != "usd"
@@ -1588,11 +1846,13 @@ def stripe_webhook():
             current_app.logger.warning(
                 "Ignored unconfirmed or mismatched Stripe checkout session %s for %s order %s",
                 session_id,
-                "spectator" if order else ("driver" if driver_ticket_order else "private rental"),
+                "rfid" if rfid_order else ("spectator" if order else ("driver" if driver_ticket_order else "private rental")),
                 target.id,
             )
             return "ok", 200
-        if order and order.payment_status != "paid":
+        if rfid_order and rfid_order.payment_status != "paid":
+            _mark_rfid_tag_order_paid(rfid_order, session_obj.get("payment_intent"))
+        elif order and order.payment_status != "paid":
             _finalize_spectator_order(order, transaction_id=session_obj.get("payment_intent"))
         elif driver_ticket_order and driver_ticket_order.payment_status != "paid":
             _finalize_driver_ticket_order(
@@ -1914,6 +2174,23 @@ def event_schedule(event_id):
     )
 
 
+@user_bp.route("/profile")
+@login_required
+def profile_settings():
+    guard = require_user()
+    if guard:
+        return guard
+    from .models import DriverWaiver
+
+    waivers = DriverWaiver.query.filter_by(driver_id=current_user.id).all()
+    return render_template(
+        "user/profile_settings.html",
+        waiver_count=len(waivers),
+        pending_waiver_count=sum(1 for waiver in waivers if waiver.status != "signed"),
+        car_count=Car.query.filter_by(user_id=current_user.id).count(),
+    )
+
+
 @user_bp.route("/profile-photo", methods=["POST"])
 @login_required
 def update_profile_photo():
@@ -1924,12 +2201,12 @@ def update_profile_photo():
     upload = request.files.get("profile_image")
     if not upload or not getattr(upload, "filename", ""):
         flash("Please select an image to upload.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.profile_settings"))
 
     ext = upload.filename.rsplit(".", 1)[-1].lower() if "." in upload.filename else ""
     if ext not in {"jpg", "jpeg", "png", "webp"}:
         flash("Profile image must be jpg, jpeg, png, or webp.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.profile_settings"))
 
     upload.filename = secure_filename(upload.filename)
     current_user.profile_image_url = upload_public_image(
@@ -1942,7 +2219,7 @@ def update_profile_photo():
     )
     db.session.commit()
     flash("Profile photo updated.", "success")
-    return redirect(url_for("user.dashboard"))
+    return redirect(url_for("user.profile_settings"))
 
 
 @user_bp.route("/tracks")
@@ -2045,6 +2322,31 @@ def community():
         signup_form=signup_form,
         comment_form=comment_form,
     )
+
+
+@user_bp.route("/community/posts", methods=["POST"])
+@login_required
+def community_post_create():
+    guard = require_user()
+    if guard:
+        return guard
+    body = (request.form.get("body") or "").strip()
+    if not body:
+        flash("Write something before posting.", "error")
+    elif len(body) > 600:
+        flash("Community posts must be 600 characters or fewer.", "error")
+    else:
+        db.session.add(
+            SocialPost(
+                user_id=current_user.id,
+                post_type="driver_update",
+                title="Shared an update",
+                body=body,
+            )
+        )
+        db.session.commit()
+        flash("Your update is live.", "success")
+    return redirect(url_for("user.community"))
 
 
 @user_bp.route("/cars/new", methods=["GET", "POST"])

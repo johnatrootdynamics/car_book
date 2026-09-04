@@ -13,6 +13,8 @@ from sqlalchemy import or_
 from email_validator import EmailNotValidError, validate_email
 from werkzeug.security import generate_password_hash
 import secrets
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from .forms import TrackCreateForm, WaiverTemplateForm
 from .models import (
@@ -23,6 +25,9 @@ from .models import (
     EventRegistration,
     PrivateRentalBooking,
     RfidTag,
+    RfidTagOrder,
+    RfidTagOrderItem,
+    RfidTagSettings,
     SpectatorOrder,
     SystemEmailSettings,
     Track,
@@ -60,6 +65,22 @@ def rfid_tags():
     if guard:
         return guard
     issued_code = None
+    if request.method == "POST" and request.form.get("action") == "price":
+        try:
+            price_cents = int((Decimal(request.form.get("price") or "0") * 100).quantize(Decimal("1")))
+        except (InvalidOperation, ValueError):
+            price_cents = -1
+        if price_cents < 0:
+            flash("Enter a valid non-negative tag price.", "error")
+        else:
+            settings = RfidTagSettings.query.get(1)
+            if not settings:
+                settings = RfidTagSettings(id=1)
+                db.session.add(settings)
+            settings.price_cents = price_cents
+            db.session.commit()
+            flash("RFID tag price updated.", "success")
+        return redirect(url_for("admin.rfid_tags"))
     if request.method == "POST":
         epc = "".join(ch for ch in (request.form.get("epc") or "").upper() if ch.isalnum())
         tid = "".join(ch for ch in (request.form.get("tid") or "").upper() if ch.isalnum()) or None
@@ -73,7 +94,74 @@ def rfid_tags():
             db.session.commit()
             flash("Tag added to inventory. Record the activation code now; it cannot be shown again.", "success")
     tags = RfidTag.query.order_by(RfidTag.created_at.desc()).limit(100).all()
-    return render_template("admin/rfid_tags.html", tags=tags, issued_code=issued_code)
+    settings = RfidTagSettings.query.get(1) or RfidTagSettings(price_cents=0)
+    return render_template("admin/rfid_tags.html", tags=tags, issued_code=issued_code,
+                           settings=settings, pending_orders=RfidTagOrder.query.filter_by(fulfillment_status="pending").count())
+
+
+@admin_bp.route("/rfid-tag-orders")
+@login_required
+def rfid_tag_orders():
+    guard = require_admin()
+    if guard:
+        return guard
+    orders = RfidTagOrder.query.order_by(RfidTagOrder.created_at.desc()).all()
+    return render_template("admin/rfid_tag_orders.html", orders=orders, money=format_money)
+
+
+@admin_bp.route("/rfid-tag-orders/<int:order_id>", methods=["GET", "POST"])
+@login_required
+def rfid_tag_order_detail(order_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    order = RfidTagOrder.query.get_or_404(order_id)
+    available_tags = (
+        RfidTag.query.outerjoin(RfidTagOrderItem)
+        .filter(RfidTag.status == "inventory", RfidTag.car_id.is_(None), RfidTagOrderItem.id.is_(None))
+        .order_by(RfidTag.created_at.asc()).all()
+    )
+    if request.method == "POST":
+        if order.payment_status != "paid":
+            flash("This order must be paid before fulfillment.", "error")
+            return redirect(url_for("admin.rfid_tag_order_detail", order_id=order.id))
+        chosen = []
+        for item in order.items:
+            tag_id = request.form.get(f"tag_{item.id}", type=int)
+            tag = RfidTag.query.filter_by(id=tag_id, status="inventory", car_id=None).first() if tag_id else None
+            already_assigned = RfidTagOrderItem.query.filter_by(rfid_tag_id=tag_id).first() if tag_id else None
+            if not tag or already_assigned or tag.id in [row[1].id for row in chosen]:
+                flash("Select a different available inventory tag for every car.", "error")
+                return redirect(url_for("admin.rfid_tag_order_detail", order_id=order.id))
+            code = "-".join([secrets.token_hex(2).upper() for _ in range(3)])
+            chosen.append((item, tag, code))
+        lines = [f"Your CarBook RFID order {order.order_number} has been fulfilled.", ""]
+        for item, tag, code in chosen:
+            lines.extend([f"{item.car.car_year} {item.car.make} {item.car.model}",
+                          f"Tag serial: {tag.public_serial}", f"Activation code: {code}", ""])
+        lines.append("Sign in to CarBook, open RFID Tags, and enter the serial and activation code for the matching car.")
+        now = datetime.utcnow()
+        for item, tag, code in chosen:
+            tag.activation_code_hash = generate_password_hash(code)
+            item.rfid_tag_id = tag.id
+            item.fulfilled_at = now
+        order.fulfillment_status = "fulfilled"
+        order.fulfilled_at = now
+        db.session.flush()
+        try:
+            sent = send_email(order.buyer.email, f"Your RFID tags are ready — {order.order_number}", "\n".join(lines))
+        except Exception:
+            current_app.logger.exception("RFID fulfillment email failed")
+            sent = False
+        if not sent:
+            db.session.rollback()
+            flash("The fulfillment email could not be sent, so the order was not marked fulfilled.", "error")
+            return redirect(url_for("admin.rfid_tag_order_detail", order_id=order.id))
+        db.session.commit()
+        flash("Order fulfilled and activation information emailed to the driver.", "success")
+        return redirect(url_for("admin.rfid_tag_order_detail", order_id=order.id))
+    return render_template("admin/rfid_tag_order_detail.html", order=order,
+                           available_tags=available_tags, money=format_money)
 
 
 def require_admin():

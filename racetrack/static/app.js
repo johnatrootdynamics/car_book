@@ -33,7 +33,8 @@ function setupAutoResizeTextareas() {
   textareas.forEach((ta) => {
     const resize = () => {
       ta.style.height = "auto"
-      ta.style.height = `${Math.max(88, ta.scrollHeight)}px`
+      const minimum = ta.closest(".community-comment-form") ? 38 : 88
+      ta.style.height = `${Math.max(minimum, ta.scrollHeight)}px`
     }
     ta.addEventListener("input", resize)
     resize()
@@ -51,6 +52,17 @@ function setupCommentValidation() {
     }
     textarea.addEventListener("input", update)
     update()
+  })
+}
+
+function setupCommunityFeed() {
+  document.querySelectorAll("[data-focus-comment]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const field = document.getElementById(button.dataset.focusComment)
+      if (!field) return
+      field.focus()
+      field.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
   })
 }
 
@@ -486,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupCounters()
   setupAutoResizeTextareas()
   setupCommentValidation()
+  setupCommunityFeed()
   setupLandingFlow()
   setupDriverClassSearch()
   setupSidebarToggle()

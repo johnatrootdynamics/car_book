@@ -850,6 +850,67 @@ class RfidTag(db.Model):
     activated_by = db.relationship("User")
 
 
+class RfidTagSettings(db.Model):
+    __tablename__ = "rfid_tag_settings"
+
+    id = db.Column(db.Integer, primary_key=True, default=1)
+    price_cents = db.Column(db.Integer, nullable=False, default=0)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class RfidTagCartItem(db.Model):
+    __tablename__ = "rfid_tag_cart_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cart_id = db.Column(db.Integer, db.ForeignKey("spectator_carts.id"), nullable=False, index=True)
+    car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    cart = db.relationship("SpectatorCart", backref=db.backref("rfid_tag_items", cascade="all, delete-orphan"))
+    car = db.relationship("Car")
+    __table_args__ = (db.UniqueConstraint("cart_id", "car_id", name="uniq_tag_cart_car"),)
+
+
+class RfidTagOrder(db.Model):
+    __tablename__ = "rfid_tag_orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(40), nullable=False, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    total_cents = db.Column(db.Integer, nullable=False, default=0)
+    payment_method = db.Column(db.String(50), nullable=False, default="stripe")
+    payment_mode = db.Column(db.String(10), nullable=False, default="live")
+    payment_status = db.Column(db.String(30), nullable=False, default="pending")
+    provider_session_id = db.Column(db.String(255), nullable=True, unique=True)
+    provider_transaction_id = db.Column(db.String(255), nullable=True)
+    paid_at = db.Column(db.DateTime, nullable=True)
+    fulfillment_status = db.Column(db.String(30), nullable=False, default="pending")
+    fulfilled_at = db.Column(db.DateTime, nullable=True)
+    shipping_name = db.Column(db.String(200), nullable=False)
+    shipping_street = db.Column(db.String(255), nullable=False)
+    shipping_city = db.Column(db.String(100), nullable=False)
+    shipping_state = db.Column(db.String(100), nullable=False)
+    shipping_postal_code = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    buyer = db.relationship("User")
+    items = db.relationship("RfidTagOrderItem", backref="order", cascade="all, delete-orphan", order_by="RfidTagOrderItem.id")
+
+
+class RfidTagOrderItem(db.Model):
+    __tablename__ = "rfid_tag_order_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("rfid_tag_orders.id"), nullable=False)
+    car_id = db.Column(db.Integer, db.ForeignKey("cars.id"), nullable=False)
+    unit_price_cents = db.Column(db.Integer, nullable=False)
+    rfid_tag_id = db.Column(db.Integer, db.ForeignKey("rfid_tags.id"), nullable=True, unique=True)
+    fulfilled_at = db.Column(db.DateTime, nullable=True)
+
+    car = db.relationship("Car")
+    tag = db.relationship("RfidTag")
+
+
 class ScannerObservation(db.Model):
     __tablename__ = "scanner_observations"
 

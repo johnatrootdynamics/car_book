@@ -13,7 +13,7 @@
     </div>
   </div>
 
-  {% if rows %}
+  {% if rows or tag_items %}
     <div class="shop-cart-layout">
       <div class="shop-cart-items">
         {% for row in rows %}
@@ -53,19 +53,29 @@
             </div>
           </article>
         {% endfor %}
+        {% for item in tag_items %}
+          <article class="shop-cart-item">
+            <div class="shop-ticket-thumb"><i class="bi bi-broadcast-pin"></i></div>
+            <div class="shop-ticket-main"><div class="row-space"><div><h3>UHF RFID vehicle tag</h3><p class="muted-line">For {{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}</p></div><strong>{{ money(tag_unit_cents) }}</strong></div>
+              <div class="shop-line-controls"><span class="muted-line">Quantity 1</span><form method="post" action="{{ url_for('user.rfid_tag_cart_remove', item_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="shop-link-button">Remove</button></form></div>
+            </div>
+          </article>
+        {% endfor %}
       </div>
 
       <aside class="shop-summary-card">
         <p class="shop-eyebrow">Order summary</p>
-        <div class="shop-summary-row"><span>Subtotal</span><strong>{{ money(subtotal_cents) }}</strong></div>
+        {% if rows %}<div class="shop-summary-row"><span>Event tickets</span><strong>{{ money(subtotal_cents) }}</strong></div>{% endif %}
+        {% if tag_items %}<div class="shop-summary-row"><span>RFID tags</span><strong>{{ money(tag_subtotal_cents) }}</strong></div>{% endif %}
         <div class="shop-summary-row"><span>Fees</span><span>Calculated by provider</span></div>
-        <div class="shop-summary-row shop-summary-total"><span>Total due today</span><strong>{{ money(subtotal_cents) }}</strong></div>
-        {% if has_expired or has_unavailable %}
+        <div class="shop-summary-row shop-summary-total"><span>Cart total</span><strong>{{ money(subtotal_cents + tag_subtotal_cents) }}</strong></div>
+        {% if rows and (has_expired or has_unavailable) %}
           <span class="btn shop-checkout-btn is-disabled" aria-disabled="true">{{ 'Remove expired tickets' if has_expired else 'Update unavailable tickets' }}</span>
-        {% else %}
-          <a class="btn shop-checkout-btn" href="{{ url_for('user.spectator_checkout') }}">Checkout Now</a>
+        {% elif rows %}
+          <a class="btn shop-checkout-btn" href="{{ url_for('user.spectator_checkout') }}">Checkout Event Tickets</a>
         {% endif %}
-        <p class="hint">Ticket confirmation is sent to the buyer email and available to gate staff after payment.</p>
+        {% if tag_items %}<a class="btn shop-checkout-btn" href="{{ url_for('user.rfid_tag_checkout') }}">Checkout RFID Tags</a>{% endif %}
+        {% if rows and tag_items %}<p class="hint">Event tickets and enterprise RFID tags use separate secure checkouts.</p>{% endif %}
       </aside>
     </div>
   {% else %}
