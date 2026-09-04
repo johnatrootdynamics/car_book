@@ -1,6 +1,7 @@
 import secrets
 import os
 import json
+import hashlib
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -2355,6 +2356,53 @@ def _attendee_run_signature(runs):
     ]
 
 
+def _attendee_run_version(runs, voting_enabled):
+    payload = [bool(voting_enabled), _attendee_run_signature(runs)]
+    serialized = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:20]
+
+
+def _attendee_live_context(event):
+    expire_stale_track_states(event.track_id)
+    runs = (
+        TrackRun.query.options(
+            selectinload(TrackRun.participants).selectinload(TrackRunParticipant.car),
+            selectinload(TrackRun.participants).selectinload(TrackRunParticipant.driver),
+            selectinload(TrackRun.votes),
+        )
+        .filter_by(event_id=event.id)
+        .order_by(TrackRun.started_at.desc())
+        .limit(31)
+        .all()
+    )
+    active_run = next((run for run in runs if run.status == "active"), None)
+    completed_runs = [run for run in runs if run.status == "completed"][:30]
+    displayed_runs = ([active_run] if active_run else []) + completed_runs
+    vote_summary = {
+        run.id: {
+            "up": sum(1 for vote in run.votes if vote.vote == 1),
+            "down": sum(1 for vote in run.votes if vote.vote == -1),
+            "mine": next(
+                (vote.vote for vote in run.votes if vote.user_id == current_user.id),
+                None,
+            ),
+        }
+        for run in displayed_runs
+    }
+    return {
+        "active_run": active_run,
+        "completed_runs": completed_runs,
+        "vote_summary": vote_summary,
+        "current_version": _attendee_run_version(
+            [active_run] if active_run else [], event.run_voting_enabled
+        ),
+        "history_version": _attendee_run_version(
+            completed_runs, event.run_voting_enabled
+        ),
+        "voting_version": "1" if event.run_voting_enabled else "0",
+    }
+
+
 @user_bp.route("/events/<int:event_id>/live")
 @login_required
 def attendee_live_track(event_id):
@@ -2364,42 +2412,11 @@ def attendee_live_track(event_id):
     event = _attendee_event(event_id)
     if not event:
         return "Event access requires a paid ticket.", 403
-    expire_stale_track_states(event.track_id)
-    run_load_options = (
-        selectinload(TrackRun.participants).selectinload(TrackRunParticipant.car),
-        selectinload(TrackRun.participants).selectinload(TrackRunParticipant.driver),
-        selectinload(TrackRun.votes),
-    )
-    active_run = (
-        TrackRun.query.options(*run_load_options)
-        .filter_by(event_id=event.id, status="active")
-        .order_by(TrackRun.started_at.desc())
-        .first()
-    )
-    completed_runs = (
-        TrackRun.query.options(*run_load_options)
-        .filter_by(event_id=event.id, status="completed")
-        .order_by(TrackRun.ended_at.desc())
-        .limit(30)
-        .all()
-    )
-    all_runs = ([active_run] if active_run else []) + completed_runs
-    vote_summary = {}
-    for run in all_runs:
-        vote_summary[run.id] = {
-            "up": sum(1 for vote in run.votes if vote.vote == 1),
-            "down": sum(1 for vote in run.votes if vote.vote == -1),
-            "mine": next((vote.vote for vote in run.votes if vote.user_id == current_user.id), None),
-        }
+    live_context = _attendee_live_context(event)
     return render_template(
         "user/live_track.html",
         event=event,
-        active_run=active_run,
-        completed_runs=completed_runs,
-        vote_summary=vote_summary,
-        initial_signature=_attendee_run_signature(
-            sorted(all_runs, key=lambda run: run.started_at, reverse=True)
-        ),
+        **live_context,
     )
 
 
@@ -2441,18 +2458,30 @@ def attendee_live_state(event_id):
     event = _attendee_event(event_id)
     if not event:
         return {"error": "forbidden"}, 403
-    expire_stale_track_states(event.track_id)
-    runs = (
-        TrackRun.query.options(
-            selectinload(TrackRun.participants),
-            selectinload(TrackRun.votes),
+    live_context = _attendee_live_context(event)
+    payload = {
+        "current_version": live_context["current_version"],
+        "history_version": live_context["history_version"],
+        "voting_version": live_context["voting_version"],
+    }
+    if request.args.get("current") != live_context["current_version"]:
+        payload["current_html"] = render_template(
+            "user/_live_current_section.html",
+            event=event,
+            **live_context,
         )
-        .filter_by(event_id=event.id)
-        .order_by(TrackRun.started_at.desc())
-        .limit(31)
-        .all()
-    )
-    response = jsonify(signature=_attendee_run_signature(runs))
+    if request.args.get("history") != live_context["history_version"]:
+        payload["history_html"] = render_template(
+            "user/_live_history_section.html",
+            event=event,
+            **live_context,
+        )
+    if request.args.get("voting") != live_context["voting_version"]:
+        payload["voting_html"] = render_template(
+            "user/_live_voting_state.html",
+            event=event,
+        )
+    response = jsonify(payload)
     response.headers["Cache-Control"] = "no-store"
     return response
 

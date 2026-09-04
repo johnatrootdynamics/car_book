@@ -1,0 +1,4 @@
+<div class="audience-voting-state {{ 'enabled' if event.run_voting_enabled else '' }}">
+  <i class="bi {{ 'bi-hand-thumbs-up-fill' if event.run_voting_enabled else 'bi-eye-fill' }}"></i>
+  <span><strong>{{ 'Voting is open' if event.run_voting_enabled else 'Viewing only' }}</strong><small>{{ 'Give each run one rating' if event.run_voting_enabled else 'Run voting is currently off' }}</small></span>
+</div>

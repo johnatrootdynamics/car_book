@@ -1,0 +1,18 @@
+<div class="audience-section-head"><div><span>EVENT HISTORY</span><h2>Previous runs</h2></div><strong>{{ completed_runs|length }} {{ 'run' if completed_runs|length == 1 else 'runs' }}</strong></div>
+{% if completed_runs %}
+  <div class="audience-run-list">
+    {% for run in completed_runs %}
+      {% set score = vote_summary.get(run.id, {}) %}
+      {% set rating_run = run %}
+      <article class="audience-run-card" id="run-{{ run.id }}">
+        <div class="audience-run-top">
+          <div class="audience-run-identity"><span>Run #{{ run.id }}</span><strong>{{ run.started_at.strftime('%-I:%M %p') }}{% if run.ended_at %}–{{ run.ended_at.strftime('%-I:%M %p') }}{% endif %}</strong><small>{{ run.participants|length }} {{ 'driver' if run.participants|length == 1 else 'drivers' }}</small></div>
+          {% include 'user/_run_vote_controls.html' %}
+        </div>
+        <div class="audience-run-drivers compact">{% for participant in run.participants %}{% include 'user/_run_driver.html' %}{% endfor %}</div>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="audience-track-clear compact"><span><i class="bi bi-clock-history"></i></span><div><h3>No completed runs yet</h3><p>Run history will build throughout the event.</p></div></div>
+{% endif %}
