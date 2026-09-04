@@ -846,11 +846,11 @@ def inspections_hub():
                 scanned_registration.user_id,
                 selected_event.id,
             )
-            if not active_rule_count:
-                flash("Inspection setup is required before this vehicle can be inspected.", "error")
-            elif waiver_state not in {"signed", "not_required"}:
+            if waiver_state not in {"signed", "not_required"}:
                 flash("This driver's waiver must be completed before inspection.", "error")
-            else:
+            elif scanned_registration.checked_in_at and not active_rule_count:
+                flash("Inspection setup is required before this vehicle can be inspected.", "error")
+            elif scanned_registration.checked_in_at:
                 return redirect(
                     url_for(
                         "employee.inspect_registration",
@@ -2075,7 +2075,13 @@ def driver_checkin(event_id, registration_id):
             )
         )
     if return_to == "inspections":
-        return redirect(url_for("employee.inspections_hub", event_id=event_id))
+        return redirect(
+            url_for(
+                "employee.inspections_hub",
+                event_id=event_id,
+                **({"scanner": 1} if request.form.get("scanner_active") == "1" else {}),
+            )
+        )
     if return_to == "run_groups":
         return redirect(url_for("employee.event_detail", event_id=event_id, view="slots"))
     if return_to == "ticket_scanner":

@@ -4361,6 +4361,7 @@ details > summary { font-size: .92rem; }
 .inspection-driver-copy strong { width: 100%; color: #1d2939; font-size: .9rem; }
 .inspection-driver-copy span { color: #667085; font-size: .78rem; }
 .inspection-queue-state { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.inspection-checkin-confirmed { display: inline-flex; align-items: center; gap: 5px; color: #14804a; font-size: .73rem; font-weight: 750; }
 .inspection-result { display: inline-flex; align-items: center; gap: 4px; color: #667085; font-size: .73rem; font-weight: 650; }
 .inspection-result.is-passed { color: #14804a; }
 .inspection-result.is-needs-work { color: #b54708; }
@@ -4375,6 +4376,8 @@ details > summary { font-size: .92rem; }
 }
 .inspection-text-action:hover { text-decoration: underline; }
 .inspection-queue-action { justify-self: end; }
+.inspection-queue-action form { margin: 0; }
+.inspection-queue-action .btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 112px; }
 .inspection-action-disabled { color: #98a2b3; font-size: .72rem; font-weight: 650; }
 .inspections-no-events { min-height: 180px; }
 

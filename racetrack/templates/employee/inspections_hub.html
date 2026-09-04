@@ -87,14 +87,8 @@
 
               <div class="inspection-queue-state">
                 {% if registration.checked_in_at %}
-                  <span class="badge badge-signed">Checked in</span>
-                {% elif item.waiver_ok %}
-                  <form method="post" action="{{ url_for('employee.driver_checkin', event_id=selected_event.id, registration_id=registration.id) }}" class="inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="return_to" value="inspections">
-                    <button class="inspection-text-action" type="submit">Check in</button>
-                  </form>
-                {% else %}
+                  <span class="inspection-checkin-confirmed"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Checked in</span>
+                {% elif not item.waiver_ok %}
                   <span class="badge badge-failed">Waiver missing</span>
                 {% endif %}
 
@@ -106,7 +100,16 @@
               </div>
 
               <div class="inspection-queue-action">
-                {% if item.waiver_ok and active_rule_count %}
+                {% if not registration.checked_in_at and item.waiver_ok %}
+                  <form method="post" action="{{ url_for('employee.driver_checkin', event_id=selected_event.id, registration_id=registration.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="return_to" value="inspections">
+                    <input type="hidden" name="scanner_active" value="{{ '1' if scanner_active else '0' }}">
+                    <button class="btn btn-sm" type="submit"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Check in</button>
+                  </form>
+                {% elif not registration.checked_in_at %}
+                  <span class="inspection-action-disabled">Waiver required</span>
+                {% elif item.waiver_ok and active_rule_count %}
                   <a class="btn {% if inspection and inspection.passed %}btn-secondary{% endif %} btn-sm" href="{{ url_for('employee.inspect_registration', event_id=selected_event.id, registration_id=registration.id, return_to='hub', scanner=1 if scanner_active else None) }}">
                     {% if inspection and inspection.passed %}Review{% elif inspection %}Reinspect{% else %}Inspect vehicle{% endif %}
                   </a>
