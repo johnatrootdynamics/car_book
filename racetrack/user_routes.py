@@ -2222,28 +2222,89 @@ def update_profile_photo():
     return redirect(url_for("user.profile_settings"))
 
 
+@user_bp.route("/discover")
+@login_required
+def discover():
+    guard = require_user()
+    if guard:
+        return guard
+    q = (request.args.get("q") or "").strip()
+    timing = (request.args.get("when") or "all").strip().lower()
+    today = date.today()
+    subscribed_track_ids = {
+        item.track_id
+        for item in TrackSubscription.query.filter_by(user_id=current_user.id).all()
+    }
+    event_query = Event.query.join(Track, Track.id == Event.track_id).filter(
+        Event.event_type == "public", Event.event_date >= today
+    )
+    if timing == "weekend":
+        days_until_saturday = (5 - today.weekday()) % 7
+        weekend_start = today + timedelta(days=days_until_saturday)
+        event_query = event_query.filter(
+            Event.event_date >= weekend_start,
+            Event.event_date <= weekend_start + timedelta(days=1),
+        )
+    elif timing == "month":
+        event_query = event_query.filter(Event.event_date <= today + timedelta(days=30))
+    if q:
+        like = f"%{q}%"
+        event_query = event_query.filter(
+            Event.event_name.ilike(like) | Track.name.ilike(like)
+            | Track.city.ilike(like) | Track.state.ilike(like)
+        )
+    events = event_query.order_by(Event.event_date.asc()).limit(60).all()
+    track_query = Track.query
+    if q:
+        like = f"%{q}%"
+        track_query = track_query.filter(
+            Track.name.ilike(like) | Track.city.ilike(like) | Track.state.ilike(like)
+        )
+    tracks = track_query.order_by(Track.name.asc()).limit(40).all()
+    upcoming_by_track = {}
+    if tracks:
+        track_events = (
+            Event.query.filter(
+                Event.track_id.in_([track.id for track in tracks]),
+                Event.event_type == "public",
+                Event.event_date >= today,
+            ).order_by(Event.event_date.asc()).all()
+        )
+        for event in track_events:
+            if len(upcoming_by_track.setdefault(event.track_id, [])) < 3:
+                upcoming_by_track[event.track_id].append(event)
+    followed_events = [event for event in events if event.track_id in subscribed_track_ids][:6]
+    suggested_events = followed_events or events[:6]
+    registrations = {
+        registration.event_id
+        for registration in EventRegistration.query.filter_by(user_id=current_user.id).all()
+    }
+    signup_counts = {
+        event.id: EventRegistration.query.filter_by(event_id=event.id).count()
+        for event in events
+    }
+    return render_template(
+        "user/discover.html",
+        q=q,
+        timing=timing,
+        events=events,
+        tracks=tracks,
+        suggested_events=suggested_events,
+        subscribed_track_ids=subscribed_track_ids,
+        upcoming_by_track=upcoming_by_track,
+        registrations=registrations,
+        signup_counts=signup_counts,
+        money=_money,
+    )
+
+
 @user_bp.route("/tracks")
 @login_required
 def tracks_directory():
     guard = require_user()
     if guard:
         return guard
-    q = (request.args.get("q") or "").strip()
-    query = Track.query
-    if q:
-        like = f"%{q}%"
-        query = query.filter((Track.name.ilike(like)) | (Track.city.ilike(like)) | (Track.state.ilike(like)))
-    tracks = query.order_by(Track.name.asc()).all()
-    subscribed_track_ids = {
-        item.track_id
-        for item in TrackSubscription.query.filter_by(user_id=current_user.id).all()
-    }
-    return render_template(
-        "user/tracks.html",
-        tracks=tracks,
-        q=q,
-        subscribed_track_ids=subscribed_track_ids,
-    )
+    return redirect(url_for("user.discover", q=(request.args.get("q") or "").strip()))
 
 
 @user_bp.route("/tracks/<int:track_id>/subscribe", methods=["POST"])
@@ -2261,7 +2322,7 @@ def subscribe_track(track_id):
             db.session.add(TrackDriverClass(track_id=track_id, user_id=current_user.id, driver_class="C"))
         db.session.commit()
         flash("Track subscribed.", "success")
-    return redirect(url_for("user.tracks_directory"))
+    return redirect(url_for("user.discover"))
 
 
 @user_bp.route("/tracks/<int:track_id>/unsubscribe", methods=["POST"])
@@ -2275,7 +2336,7 @@ def unsubscribe_track(track_id):
         db.session.delete(existing)
         db.session.commit()
         flash("Track unsubscribed.", "success")
-    return redirect(url_for("user.tracks_directory"))
+    return redirect(url_for("user.discover"))
 
 
 @user_bp.route("/community")

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Track Ops</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260904a') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260904b') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}{% if not current_user.is_authenticated %} public-shell{% endif %}">
   {% if not current_user.is_authenticated %}
@@ -31,7 +31,7 @@
     <button class="sidebar-overlay" type="button" aria-label="Close navigation" data-sidebar-overlay></button>
     <aside class="sidebar">
       {% if is_user %}
-        <a class="sidebar-profile sidebar-profile-card {% if (request.endpoint or '') in ['user.profile_settings','auth.security'] or (request.endpoint or '').startswith('waiver.driver_') %}active{% endif %}" href="{{ url_for('user.profile_settings') }}" aria-label="Open profile settings">
+        <a class="sidebar-profile sidebar-profile-card {% if (request.endpoint or '') in ['user.profile_settings','user.rfid_tags','auth.security'] or (request.endpoint or '').startswith('waiver.driver_') %}active{% endif %}" href="{{ url_for('user.profile_settings') }}" aria-label="Open profile settings">
           {% if current_user.profile_image_url %}{% set profile_img = asset_url(current_user.profile_image_url) %}{% if profile_img %}<img class="profile-photo" src="{{ profile_img }}" alt="Profile photo">{% else %}<span class="profile-photo-fallback">{{ (current_user.first_name or 'D')[0] }}</span>{% endif %}{% else %}<span class="profile-photo-fallback">{{ (current_user.first_name or 'D')[0] }}</span>{% endif %}
           <span class="sidebar-profile-copy"><strong>{{ current_user.first_name }} {{ current_user.last_name }}</strong><small>@{{ current_user.username or ('driver' ~ current_user.id) }}</small></span>
           <i class="bi bi-chevron-right sidebar-profile-chevron" aria-hidden="true"></i>
@@ -55,9 +55,7 @@
         {% set ep = request.endpoint or '' %}
         {% if current_user.is_authenticated and is_user %}
           <a class="side-link {% if ep == 'user.dashboard' %}active{% endif %}" href="{{ url_for('user.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">User Dashboard</span></a>
-          <a class="side-link {% if ep == 'user.tracks_directory' %}active{% endif %}" href="{{ url_for('user.tracks_directory') }}"><span class="sidebar-icon"><i class="bi bi-signpost-split"></i></span><span class="sidebar-label">Tracks</span></a>
-          <a class="side-link {% if ep in ['user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets','user.private_rental_tracks','user.private_rental_calendar','user.private_rental_booking_success'] %}active{% endif %}" href="{{ url_for('user.spectator_events') }}"><span class="sidebar-icon"><i class="bi bi-calendar-event"></i></span><span class="sidebar-label">Events</span></a>
-          <a class="side-link {% if ep == 'user.rfid_tags' %}active{% endif %}" href="{{ url_for('user.rfid_tags') }}"><span class="sidebar-icon"><i class="bi bi-broadcast-pin"></i></span><span class="sidebar-label">RFID Tags</span></a>
+          <a class="side-link {% if ep in ['user.discover','user.tracks_directory','user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets','user.private_rental_tracks','user.private_rental_calendar','user.private_rental_booking_success'] %}active{% endif %}" href="{{ url_for('user.discover') }}"><span class="sidebar-icon"><i class="bi bi-compass-fill"></i></span><span class="sidebar-label">Discover</span></a>
           <a class="side-link {% if ep.startswith('user.community') %}active{% endif %}" href="{{ url_for('user.community') }}"><span class="sidebar-icon"><i class="bi bi-people"></i></span><span class="sidebar-label">Community</span></a>
         {% endif %}
         {% if is_vendor %}
