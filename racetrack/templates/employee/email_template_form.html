@@ -1,13 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="ui-page ui-page-medium">
+<header class="ui-page-header">
+  <div><span class="ui-kicker">Email settings</span><h2>{{ definition.label }}</h2><p>{{ definition.description }}</p></div>
+  <a class="btn btn-secondary" href="{{ url_for('employee.settings', section='email') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Settings</a>
+</header>
 <section class="card narrow">
-  <div class="row-space">
-    <div>
-      <h2>{{ definition.label }}</h2>
-      <p class="muted-line">{{ definition.description }}</p>
-    </div>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.settings', section='email') }}">Back</a>
-  </div>
   <form method="post" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Subject {{ form.subject() }}</label>
@@ -39,4 +37,5 @@
   </div>
   {% if template_key == 'driver_purchase_receipt' %}<p class="muted-line">The driver’s scannable QR image is attached and displayed automatically, even when you customize this message.</p>{% endif %}
 </section>
+</div>
 {% endblock %}

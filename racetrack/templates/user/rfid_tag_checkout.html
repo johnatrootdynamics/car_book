@@ -1,1 +1,25 @@
-{% extends "base.html" %}{% block content %}<header class="page-header"><div><span class="event-page-kicker">RFID store</span><h2>Review your tag order</h2><p>Tags will be shipped to your profile address.</p></div></header><section class="card">{% for item in items %}<div class="row-space"><span>{{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}</span><strong>{{ money(total_cents // items|length) }}</strong></div>{% endfor %}<hr><div class="row-space"><strong>Total</strong><strong>{{ money(total_cents) }}</strong></div><h3>Ship to</h3><p>{{ current_user.first_name }} {{ current_user.last_name }}<br>{{ current_user.street }}<br>{{ current_user.city }}, {{ current_user.state }} {{ current_user.postal_code }}</p><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% if total_cents > 0 %}<label>Payment provider<select name="payment_method"><option value="stripe">Credit or debit card (Stripe)</option><option value="paypal">PayPal</option></select></label>{% endif %}<button class="btn">{{ 'Place order' if total_cents == 0 else 'Continue to payment' }}</button></form></section>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<div class="ui-page ui-page-medium">
+  <header class="ui-page-header">
+    <div><span class="ui-kicker">RFID store</span><h2>Review your tag order</h2><p>Confirm the vehicles, shipping address, and payment method.</p></div>
+    <a class="btn btn-secondary" href="{{ url_for('user.spectator_cart') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Cart</a>
+  </header>
+  <div class="ui-detail-grid">
+    <section class="card">
+      <div class="ui-section-head"><div><h3>Order summary</h3><p>{{ items|length }} vehicle tag{% if items|length != 1 %}s{% endif %}</p></div></div>
+      <div class="ui-list">{% for item in items %}<div class="ui-list-row"><div><strong>{{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}</strong><small>RFID vehicle tag</small></div><strong>{{ money(total_cents // items|length) }}</strong></div>{% endfor %}</div>
+      <div class="row-space ui-total-row"><strong>Total</strong><strong>{{ money(total_cents) }}</strong></div>
+      <form method="post" class="stack-form ui-spaced-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if total_cents > 0 %}<label>Payment provider<select name="payment_method"><option value="stripe">Credit or debit card (Stripe)</option><option value="paypal">PayPal</option></select></label>{% endif %}
+        <div class="ui-actions"><button class="btn">{{ 'Place order' if total_cents == 0 else 'Continue to payment' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button></div>
+      </form>
+    </section>
+    <aside class="card">
+      <div class="ui-section-head"><div><h3>Ship to</h3><p>From your driver profile.</p></div></div>
+      <p><strong>{{ current_user.first_name }} {{ current_user.last_name }}</strong><br>{{ current_user.street }}<br>{{ current_user.city }}, {{ current_user.state }} {{ current_user.postal_code }}</p>
+    </aside>
+  </div>
+</div>
+{% endblock %}

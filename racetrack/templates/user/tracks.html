@@ -1,15 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="ui-page ui-page-wide">
+<header class="ui-page-header">
+  <div><span class="ui-kicker">Discover</span><h2>Track directory</h2><p>Follow tracks to keep up with their events and rental availability.</p></div>
+  <a class="btn btn-secondary" href="{{ url_for('user.dashboard') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Dashboard</a>
+</header>
 <section class="card">
-  <div class="row-space">
-    <div>
-      <h2>Track Directory</h2>
-      <p>Subscribe to tracks to discover their events.</p>
-    </div>
-    <a class="btn btn-secondary btn-sm" href="{{ url_for('user.dashboard') }}">Back to Dashboard</a>
-  </div>
   <form method="get" class="inline-form" data-live-track-search>
-    <input type="text" name="q" value="{{ q }}" placeholder="Search by track, city, state" data-track-search-input>
+    <label class="ui-search-field"><i class="bi bi-search" aria-hidden="true"></i><input type="search" name="q" value="{{ q }}" placeholder="Search by track, city, or state" aria-label="Search tracks" data-track-search-input></label>
   </form>
 </section>
 
@@ -45,7 +43,8 @@
     </div>
     <p class="muted-line" data-track-search-empty style="display:none; margin-top:10px;">No tracks found.</p>
   {% else %}
-    <p>No tracks found.</p>
+    <div class="ui-empty"><i class="bi bi-geo-alt" aria-hidden="true"></i><h3>No tracks found</h3><p>Try another search or check back as new tracks join.</p></div>
   {% endif %}
 </section>
+</div>
 {% endblock %}

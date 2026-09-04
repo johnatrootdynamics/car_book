@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="ui-page ui-page-wide">
 <header class="page-header"><div><span class="event-page-kicker">Live operations</span><h2>Cars on track</h2><p>Testing mode: cars clear automatically 20 seconds after their latest entrance read.</p></div><div class="track-live-count"><strong id="track-count">0</strong><span>on track</span></div></header>
 <section class="card"><div id="track-live-grid" class="track-live-grid"><p class="muted-line">Loading live track status…</p></div></section>
 <section class="card previous-runs-card">
   <div class="employee-dashboard-section-head"><div><span>History</span><h3>Previous runs</h3></div></div>
   <div id="previous-runs"><p class="muted-line">Loading completed runs…</p></div>
 </section>
+</div>
 {% endblock %}
 {% block scripts %}<script>
 const grid=document.getElementById('track-live-grid'),count=document.getElementById('track-count'),runsEl=document.getElementById('previous-runs');let lastTrackSignature=null,lastRunsSignature=null;function esc(v){const d=document.createElement('div');d.textContent=v??'—';return d.innerHTML}

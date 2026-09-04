@@ -1,1 +1,38 @@
-{% extends "base.html" %}{% block content %}<header class="page-header"><div><span class="event-page-kicker">RFID fulfillment</span><h2>{{ order.order_number }}</h2><p>{{ order.shipping_name }} · Payment {{ order.payment_status|title }}</p></div></header><section class="card"><h3>Ship to</h3><p>{{ order.shipping_name }}<br>{{ order.shipping_street }}<br>{{ order.shipping_city }}, {{ order.shipping_state }} {{ order.shipping_postal_code }}</p>{% if order.fulfillment_status == 'fulfilled' %}<h3>Assigned tags</h3>{% for item in order.items %}<p><strong>{{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}</strong> — {{ item.tag.public_serial }}</p>{% endfor %}{% else %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><h3>Assign inventory</h3>{% for item in order.items %}<label>{{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}<select name="tag_{{ item.id }}" required><option value="">Choose physical tag</option>{% for tag in available_tags %}<option value="{{ tag.id }}">{{ tag.public_serial }} · {{ tag.epc }}</option>{% endfor %}</select></label>{% endfor %}<p class="hint">Fulfilling generates fresh one-time activation codes and emails them to {{ order.buyer.email }}.</p><button class="btn" {% if order.payment_status != 'paid' %}disabled{% endif %}>Fulfill and email driver</button></form>{% endif %}</section>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<div class="ui-page ui-page-medium">
+  <header class="ui-page-header">
+    <div><span class="ui-kicker">RFID fulfillment</span><h2>{{ order.order_number }}</h2><p>{{ order.shipping_name }} · {{ order.items|length }} tag{% if order.items|length != 1 %}s{% endif %}</p></div>
+    <div class="ui-header-actions">
+      <span class="ui-badge {% if order.payment_status == 'paid' %}status-success{% else %}status-warning{% endif %}">Payment {{ order.payment_status|title }}</span>
+      <a class="btn btn-secondary" href="{{ url_for('admin.rfid_tag_orders') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Orders</a>
+    </div>
+  </header>
+  <div class="ui-detail-grid">
+    <section class="card">
+      {% if order.fulfillment_status == 'fulfilled' %}
+        <div class="ui-section-head"><div><h3>Assigned tags</h3><p>This order has been fulfilled.</p></div><span class="ui-badge status-success"><i class="bi bi-check-circle" aria-hidden="true"></i> Fulfilled</span></div>
+        <div class="ui-list">
+          {% for item in order.items %}<div class="ui-list-row"><div><strong>{{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}</strong><small>Vehicle</small></div><span class="ui-badge">{{ item.tag.public_serial }}</span></div>{% endfor %}
+        </div>
+      {% else %}
+        <div class="ui-section-head"><div><h3>Assign inventory</h3><p>Pair one available physical tag with each vehicle.</p></div></div>
+        <form method="post" class="stack-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% for item in order.items %}
+            <label>{{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}
+              <select name="tag_{{ item.id }}" required><option value="">Choose physical tag</option>{% for tag in available_tags %}<option value="{{ tag.id }}">{{ tag.public_serial }} · {{ tag.epc }}</option>{% endfor %}</select>
+            </label>
+          {% endfor %}
+          <p class="help-text">Fulfilling creates fresh one-time activation codes and emails them to {{ order.buyer.email }}.</p>
+          <div class="ui-actions"><button class="btn" {% if order.payment_status != 'paid' %}disabled{% endif %}><i class="bi bi-send" aria-hidden="true"></i> Fulfill and email driver</button></div>
+        </form>
+      {% endif %}
+    </section>
+    <aside class="card">
+      <div class="ui-section-head"><div><h3>Ship to</h3><p>Delivery address captured at checkout.</p></div></div>
+      <p><strong>{{ order.shipping_name }}</strong><br>{{ order.shipping_street }}<br>{{ order.shipping_city }}, {{ order.shipping_state }} {{ order.shipping_postal_code }}</p>
+    </aside>
+  </div>
+</div>
+{% endblock %}

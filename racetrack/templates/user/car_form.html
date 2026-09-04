@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="ui-page ui-page-narrow">
+<header class="ui-page-header">
+  <div><span class="ui-kicker">Your garage</span><h2>{{ title }}</h2><p>Keep your vehicle information accurate for registration and inspection.</p></div>
+  <a class="btn btn-secondary" href="{{ url_for('user.profile_settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Profile</a>
+</header>
 <section class="card narrow">
-  <h2>{{ title }}</h2>
   <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
     {{ form.hidden_tag() }}
     <label>Make {{ form.make() }}</label>
@@ -21,4 +25,5 @@
     {{ form.submit(class_='btn') }}
   </form>
 </section>
+</div>
 {% endblock %}

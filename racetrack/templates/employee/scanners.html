@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="ui-page ui-page-wide">
 <header class="page-header"><div><span class="event-page-kicker">RFID operations</span><h2>Scanner dashboard</h2><p>Register appliances, assign entrance or exit duty, and watch incoming reads.</p></div></header>
 
 {% if is_office_staff %}
@@ -31,6 +32,7 @@
 
 <section class="card"><div class="employee-dashboard-section-head"><div><span>Live feed</span><h3>Recent scanner data</h3></div><span id="scan-status">Updating…</span></div>
 <div class="table-wrap"><table><thead><tr><th>Time</th><th>Scanner</th><th>Tag</th><th>Car / driver</th><th>Result</th></tr></thead><tbody id="scan-feed"><tr><td colspan="5">Waiting for scanner data…</td></tr></tbody></table></div></section>
+</div>
 {% endblock %}
 {% block scripts %}<script>
 const feed=document.getElementById('scan-feed'), statusEl=document.getElementById('scan-status');

@@ -1,1 +1,29 @@
-{% extends "base.html" %}{% block content %}<header class="page-header"><div><span class="event-page-kicker">RFID order</span><h2>{{ order.order_number }}</h2><p>Payment: {{ order.payment_status|title }} · Fulfillment: {{ order.fulfillment_status|title }}</p></div></header><section class="card"><h3>Tags</h3>{% for item in order.items %}<article class="scanner-device"><div><strong>{{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}</strong>{% if item.tag %}<p>Serial {{ item.tag.public_serial }}</p>{% else %}<p class="muted-line">Awaiting fulfillment</p>{% endif %}</div><strong>{{ money(item.unit_price_cents) }}</strong></article>{% endfor %}<p><strong>Total: {{ money(order.total_cents) }}</strong></p>{% if order.payment_status != 'paid' and order.total_cents > 0 %}<form method="post" action="{{ url_for('user.rfid_tag_order_pay', order_id=order.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Payment provider<select name="payment_method"><option value="stripe">Credit or debit card (Stripe)</option><option value="paypal" {% if order.payment_method == 'paypal' %}selected{% endif %}>PayPal</option></select></label><button class="btn">Continue to payment</button></form>{% endif %}<h3>Shipping address</h3><p>{{ order.shipping_name }}<br>{{ order.shipping_street }}<br>{{ order.shipping_city }}, {{ order.shipping_state }} {{ order.shipping_postal_code }}</p></section>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<div class="ui-page ui-page-medium">
+  <header class="ui-page-header">
+    <div><span class="ui-kicker">RFID order</span><h2>{{ order.order_number }}</h2><p>{{ order.items|length }} vehicle tag{% if order.items|length != 1 %}s{% endif %} · {{ money(order.total_cents) }}</p></div>
+    <div class="ui-header-actions"><span class="ui-badge {% if order.payment_status == 'paid' %}status-success{% else %}status-warning{% endif %}">Payment {{ order.payment_status|title }}</span><span class="ui-badge {% if order.fulfillment_status == 'fulfilled' %}status-success{% endif %}">{{ order.fulfillment_status|title }}</span></div>
+  </header>
+  <div class="ui-detail-grid">
+    <section class="card">
+      <div class="ui-section-head"><div><h3>Tags</h3><p>Each tag is assigned to a specific vehicle.</p></div></div>
+      <div class="ui-list">
+        {% for item in order.items %}<div class="ui-list-row"><div><strong>{{ item.car.car_year }} {{ item.car.make }} {{ item.car.model }}</strong>{% if item.tag %}<small>Serial {{ item.tag.public_serial }}</small>{% else %}<small>Awaiting fulfillment</small>{% endif %}</div><strong>{{ money(item.unit_price_cents) }}</strong></div>{% endfor %}
+      </div>
+      <div class="row-space ui-total-row"><strong>Total</strong><strong>{{ money(order.total_cents) }}</strong></div>
+      {% if order.payment_status != 'paid' and order.total_cents > 0 %}
+        <form class="stack-form ui-spaced-form" method="post" action="{{ url_for('user.rfid_tag_order_pay', order_id=order.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Payment provider<select name="payment_method"><option value="stripe">Credit or debit card (Stripe)</option><option value="paypal" {% if order.payment_method == 'paypal' %}selected{% endif %}>PayPal</option></select></label>
+          <div class="ui-actions"><button class="btn">Continue to payment <i class="bi bi-arrow-right" aria-hidden="true"></i></button></div>
+        </form>
+      {% endif %}
+    </section>
+    <aside class="card">
+      <div class="ui-section-head"><div><h3>Shipping address</h3><p>Destination for this order.</p></div></div>
+      <p><strong>{{ order.shipping_name }}</strong><br>{{ order.shipping_street }}<br>{{ order.shipping_city }}, {{ order.shipping_state }} {{ order.shipping_postal_code }}</p>
+    </aside>
+  </div>
+</div>
+{% endblock %}

@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<section
-  class="card"
+<div class="ui-page ui-page-wide">
+<header
+  class="ui-page-header"
   data-waiver-auto-sync
   data-status-url="{{ url_for('waiver.driver_waiver_statuses') }}"
   data-watch-id="{{ request.args.get('watch', '') }}"
 >
   <div class="row-space">
     <div>
-      <h2>Your Waivers</h2>
+      <span class="ui-kicker">Driver documents</span>
+      <h2>Your waivers</h2>
       <p>Sign required waivers before check-in.</p>
     </div>
     <span class="badge badge-viewed" data-waiver-sync-label>
@@ -18,7 +20,7 @@
   <div class="flash flash-info" data-waiver-watch-message hidden>
     Confirming your signature&hellip; this page will update automatically.
   </div>
-</section>
+</header>
 
 <section class="card">
   <h3>Waiver Records</h3>
@@ -50,9 +52,10 @@
       </table>
     </div>
   {% else %}
-    <p>No waiver records yet.</p>
+    <div class="ui-empty"><i class="bi bi-file-earmark-check" aria-hidden="true"></i><h3>No waiver records</h3><p>Required waivers will appear here when they are assigned.</p></div>
   {% endif %}
 </section>
+</div>
 {% endblock %}
 
 {% block scripts %}

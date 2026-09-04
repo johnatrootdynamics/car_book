@@ -1,1 +1,28 @@
-{% extends "base.html" %}{% block content %}<header class="page-header"><div><span class="event-page-kicker">Enterprise fulfillment</span><h2>RFID tag orders</h2><p>Review paid orders and assign the physical tags being shipped.</p></div></header><section class="card"><div class="table-wrap"><table><thead><tr><th>Order</th><th>Driver</th><th>Tags</th><th>Total</th><th>Payment</th><th>Fulfillment</th></tr></thead><tbody>{% for order in orders %}<tr><td><a href="{{ url_for('admin.rfid_tag_order_detail', order_id=order.id) }}">{{ order.order_number }}</a></td><td>{{ order.shipping_name }}</td><td>{{ order.items|length }}</td><td>{{ money(order.total_cents) }}</td><td>{{ order.payment_status|title }}</td><td>{{ order.fulfillment_status|title }}</td></tr>{% else %}<tr><td colspan="6">No RFID tag orders yet.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<div class="ui-page ui-page-wide">
+  <header class="ui-page-header">
+    <div><span class="ui-kicker">Enterprise fulfillment</span><h2>RFID tag orders</h2><p>Review paid orders and assign the physical tags being shipped.</p></div>
+    <a class="btn btn-secondary" href="{{ url_for('admin.rfid_tags') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Inventory</a>
+  </header>
+  <section class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Order</th><th>Driver</th><th>Tags</th><th>Total</th><th>Payment</th><th>Fulfillment</th><th></th></tr></thead>
+        <tbody>
+          {% for order in orders %}
+            <tr>
+              <td><strong>{{ order.order_number }}</strong></td><td>{{ order.shipping_name }}</td><td>{{ order.items|length }}</td><td>{{ money(order.total_cents) }}</td>
+              <td><span class="ui-badge {% if order.payment_status == 'paid' %}status-success{% else %}status-warning{% endif %}">{{ order.payment_status|title }}</span></td>
+              <td><span class="ui-badge {% if order.fulfillment_status == 'fulfilled' %}status-success{% endif %}">{{ order.fulfillment_status|title }}</span></td>
+              <td><a class="btn btn-secondary btn-sm" href="{{ url_for('admin.rfid_tag_order_detail', order_id=order.id) }}">Open</a></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7"><div class="ui-empty"><i class="bi bi-box-seam" aria-hidden="true"></i><h3>No RFID tag orders</h3><p>Orders will appear here when drivers complete checkout.</p></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

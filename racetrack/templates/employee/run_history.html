@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="ui-page ui-page-wide">
 <header class="page-header run-history-header">
   <div><span class="event-page-kicker">Event archive</span><h2>Run history</h2><p>Review every saved run and the drivers who participated.</p></div>
   {% if events %}<form method="get" class="run-event-picker"><label for="event_id">Event</label><select id="event_id" name="event_id" onchange="this.form.submit()">{% for event in events %}<option value="{{ event.id }}" {% if selected_event and event.id == selected_event.id %}selected{% endif %}>{{ event.event_date }} · {{ event.event_name }}</option>{% endfor %}</select></form>{% endif %}
@@ -20,4 +21,5 @@
   </article>{% else %}<section class="card employee-dashboard-empty"><i class="bi bi-flag"></i><div><strong>No runs recorded</strong><p>Runs tied to this event will appear here.</p></div></section>{% endfor %}
 </div>
 {% else %}<section class="card employee-dashboard-empty"><i class="bi bi-calendar-event"></i><div><strong>No events found</strong><p>Create an event before recording track runs.</p></div></section>{% endif %}
+</div>
 {% endblock %}

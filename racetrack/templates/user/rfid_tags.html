@@ -1,6 +1,52 @@
 {% extends "base.html" %}
-{% block content %}<header class="page-header"><div><span class="event-page-kicker">Your garage</span><h2>RFID tags</h2><p>Order, activate, and manage the tags assigned to your cars.</p></div></header>
-<section class="card"><div class="row-space"><div><h3>Order vehicle tags</h3><p class="muted-line">{{ money(settings.price_cents) }} each. Tags are shipped to the address on your profile.</p></div><a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_cart') }}">View cart</a></div>
-{% for car in cars %}<article class="scanner-device"><div><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong><p class="muted-line">One tag for this vehicle</p></div>{% if car.id in ordered_car_ids %}<span class="status-pill">Ordered</span>{% else %}<form method="post" action="{{ url_for('user.rfid_tag_cart_add', car_id=car.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm">Add to cart</button></form>{% endif %}</article>{% else %}<p class="muted-line">Add a car to your garage before ordering a tag.</p>{% endfor %}</section>
-<div class="employee-dashboard-primary-grid"><section class="card"><h3>Activate a tag</h3>{% if cars %}<form method="post" class="stack-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Tag serial<input name="serial" placeholder="TAG-12AB34CD" required></label><label>Private activation code<input name="activation_code" placeholder="XXXX-XXXX-XXXX" required></label><label>Car<select name="car_id" required>{% for car in cars %}<option value="{{ car.id }}">{{ car.car_year }} {{ car.make }} {{ car.model }}</option>{% endfor %}</select></label><button class="btn">Activate tag</button></form>{% else %}<p>Add a car to your garage before activating a tag.</p><a class="btn" href="{{ url_for('user.car_new') }}">Add a car</a>{% endif %}</section>
-<section class="card"><h3>Activated tags</h3>{% if tags %}{% for tag in tags %}<article class="scanner-device"><strong>{{ tag.public_serial }}</strong><p>{{ tag.car.car_year }} {{ tag.car.make }} {{ tag.car.model }} · {{ tag.status|title }}</p></article>{% endfor %}{% else %}<p class="muted-line">You have no activated RFID tags.</p>{% endif %}</section></div>{% endblock %}
+{% block content %}
+<div class="ui-page ui-page-wide">
+  <header class="ui-page-header">
+    <div><span class="ui-kicker">Your garage</span><h2>RFID tags</h2><p>Order, activate, and manage the tags assigned to your cars.</p></div>
+    <a class="btn btn-secondary" href="{{ url_for('user.spectator_cart') }}"><i class="bi bi-cart3" aria-hidden="true"></i> View cart</a>
+  </header>
+  <section class="card">
+    <div class="ui-section-head"><div><h3>Order vehicle tags</h3><p>{{ money(settings.price_cents) }} each · Shipped to the address on your profile.</p></div></div>
+    {% if cars %}
+      <div class="ui-list">
+        {% for car in cars %}
+          <div class="ui-list-row">
+            <div><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong><small>One tag for this vehicle</small></div>
+            {% if car.id in ordered_car_ids %}
+              <span class="ui-badge status-success"><i class="bi bi-check" aria-hidden="true"></i> Ordered</span>
+            {% else %}
+              <form method="post" action="{{ url_for('user.rfid_tag_cart_add', car_id=car.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add to cart</button></form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="ui-empty"><i class="bi bi-car-front" aria-hidden="true"></i><h3>No cars in your garage</h3><p>Add a car before ordering a vehicle tag.</p><a class="btn" href="{{ url_for('user.car_new') }}">Add a car</a></div>
+    {% endif %}
+  </section>
+  <div class="ui-detail-grid">
+    <section class="card">
+      <div class="ui-section-head"><div><h3>Activate a tag</h3><p>Use the one-time code included with your shipment.</p></div></div>
+      {% if cars %}
+        <form method="post" class="stack-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Tag serial<input name="serial" placeholder="TAG-12AB34CD" autocomplete="off" required></label>
+          <label>Private activation code<input name="activation_code" placeholder="XXXX-XXXX-XXXX" autocomplete="off" required></label>
+          <label>Car<select name="car_id" required>{% for car in cars %}<option value="{{ car.id }}">{{ car.car_year }} {{ car.make }} {{ car.model }}</option>{% endfor %}</select></label>
+          <div class="ui-actions"><button class="btn">Activate tag</button></div>
+        </form>
+      {% else %}
+        <div class="ui-empty"><p>Add a car to your garage before activating a tag.</p></div>
+      {% endif %}
+    </section>
+    <section class="card">
+      <div class="ui-section-head"><div><h3>Activated tags</h3><p>Tags currently paired to your vehicles.</p></div></div>
+      {% if tags %}
+        <div class="ui-list">{% for tag in tags %}<div class="ui-list-row"><div><strong>{{ tag.public_serial }}</strong><small>{{ tag.car.car_year }} {{ tag.car.make }} {{ tag.car.model }}</small></div><span class="ui-badge status-success">{{ tag.status|title }}</span></div>{% endfor %}</div>
+      {% else %}
+        <div class="ui-empty"><i class="bi bi-broadcast-pin" aria-hidden="true"></i><h3>No activated tags</h3><p>Your active vehicle tags will appear here.</p></div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

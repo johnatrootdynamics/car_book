@@ -1,6 +1,74 @@
 {% extends "base.html" %}
-{% block content %}<header class="page-header"><div><span class="event-page-kicker">Company inventory</span><h2>RFID tags</h2><p>Provision the physical EPC before shipping a tag to a driver.</p></div></header>
-{% if issued_code %}<section class="card issued-secret"><h3>Save this activation label now</h3><p>Serial: <strong>{{ tags[0].public_serial }}</strong></p><p>Activation code: <strong>{{ issued_code }}</strong></p><p class="muted-line">The private code is stored securely and cannot be displayed again.</p></section>{% endif %}
-<section class="card"><div class="row-space"><div><h3>Store price</h3><p class="muted-line">The price charged per physical vehicle tag.</p></div><a class="btn btn-secondary" href="{{ url_for('admin.rfid_tag_orders') }}">Fulfillment queue ({{ pending_orders }})</a></div><form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="price"><label>Price (USD)<input name="price" type="number" min="0" step="0.01" value="{{ '%.2f'|format(settings.price_cents / 100) }}" required></label><button class="btn">Save price</button></form></section>
-<section class="card"><h3>Add tag to inventory</h3><form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>EPC<input name="epc" required></label><label>TID (optional)<input name="tid"></label><button class="btn">Provision tag</button></form></section>
-<section class="card"><h3>Recent inventory</h3><div class="table-wrap"><table><thead><tr><th>Serial</th><th>EPC</th><th>Status</th><th>Assigned car</th></tr></thead><tbody>{% for tag in tags %}<tr><td>{{ tag.public_serial }}</td><td><code>{{ tag.epc }}</code></td><td>{{ tag.status }}</td><td>{% if tag.car %}{{ tag.car.car_year }} {{ tag.car.make }} {{ tag.car.model }}{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="4">No tags provisioned.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}
+{% block content %}
+<div class="ui-page ui-page-wide">
+  <header class="ui-page-header">
+    <div>
+      <span class="ui-kicker">Company inventory</span>
+      <h2>RFID tags</h2>
+      <p>Provision physical tags, manage pricing, and monitor assignments.</p>
+    </div>
+    <div class="ui-header-actions">
+      <a class="btn btn-secondary" href="{{ url_for('admin.rfid_tag_orders') }}">
+        <i class="bi bi-box-seam" aria-hidden="true"></i> Fulfillment
+        {% if pending_orders %}<span class="ui-badge">{{ pending_orders }}</span>{% endif %}
+      </a>
+    </div>
+  </header>
+
+  {% if issued_code %}
+    <section class="card issued-secret">
+      <div class="ui-section-head">
+        <div><h3>Save this activation label</h3><p>This private code is shown once and cannot be recovered later.</p></div>
+        <span class="ui-badge status-warning"><i class="bi bi-key" aria-hidden="true"></i> One-time code</span>
+      </div>
+      <div class="ui-detail-grid">
+        <div><small class="muted">Serial</small><strong>{{ tags[0].public_serial }}</strong></div>
+        <div><small class="muted">Activation code</small><strong>{{ issued_code }}</strong></div>
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="ui-detail-grid">
+    <section class="card">
+      <div class="ui-section-head"><div><h3>Add tag to inventory</h3><p>Enter the identifiers printed or encoded on the physical tag.</p></div></div>
+      <form method="post" class="stack-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="provision">
+        <label>EPC<input name="epc" autocomplete="off" required></label>
+        <label>TID <small>Optional</small><input name="tid" autocomplete="off"></label>
+        <div class="ui-actions"><button class="btn"><i class="bi bi-plus-lg" aria-hidden="true"></i> Provision tag</button></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="ui-section-head"><div><h3>Store price</h3><p>Price charged for each physical vehicle tag.</p></div></div>
+      <form method="post" class="stack-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="price">
+        <label>Price (USD)<input name="price" type="number" min="0" step="0.01" value="{{ '%.2f'|format(settings.price_cents / 100) }}" required></label>
+        <div class="ui-actions"><button class="btn">Save price</button></div>
+      </form>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="ui-section-head"><div><h3>Recent inventory</h3><p>Provisioned tags and their current vehicle assignments.</p></div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Serial</th><th>EPC</th><th>Status</th><th>Assigned car</th></tr></thead>
+        <tbody>
+          {% for tag in tags %}
+            <tr>
+              <td><strong>{{ tag.public_serial }}</strong></td><td><code>{{ tag.epc }}</code></td>
+              <td><span class="ui-badge">{{ tag.status|title }}</span></td>
+              <td>{% if tag.car %}{{ tag.car.car_year }} {{ tag.car.make }} {{ tag.car.model }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4"><div class="ui-empty"><i class="bi bi-broadcast-pin" aria-hidden="true"></i><h3>No tags provisioned</h3><p>Add a physical tag above to begin building inventory.</p></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
