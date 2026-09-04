@@ -1,15 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="driver-checkout-page">
-  <nav class="driver-checkout-nav">
-    <a href="{{ url_for('user.event_detail', event_id=event.id) }}"><i class="bi bi-chevron-left" aria-hidden="true"></i> Event details</a>
-    <span><i class="bi bi-person-check" aria-hidden="true"></i> {{ current_user.email }}</span>
+  <nav class="driver-checkout-nav checkout-brand-row">
+    <a class="checkout-back-link" href="{{ url_for('user.event_detail', event_id=event.id) }}"><i class="bi bi-chevron-left" aria-hidden="true"></i> Ticket selection</a>
+    <span class="shop-cart-pill"><i class="bi bi-lock" aria-hidden="true"></i> Secure checkout</span>
   </nav>
 
+  <div class="checkout-steps">
+    <span class="active">Tickets</span><i class="bi bi-chevron-right"></i>
+    <span class="active">Details</span><i class="bi bi-chevron-right"></i>
+    <span>Payment</span><i class="bi bi-chevron-right"></i>
+    <span>Confirmation</span>
+  </div>
+
   <header class="driver-checkout-header">
-    <div><span class="event-page-kicker">Driver admission</span><h2>Complete your registration</h2><p>Your profile information is already attached to this ticket.</p></div>
-    <span class="driver-checkout-secure"><i class="bi bi-shield-check" aria-hidden="true"></i> Secure checkout</span>
+    <div><span class="event-page-kicker">Driver admission</span><h2>Complete checkout</h2><p>Your account and selected vehicle are attached to this admission.</p></div>
   </header>
+
+  <div class="checkout-account-card driver-checkout-account">
+    <i class="bi bi-person-check"></i><div><strong>Checking out as {{ current_user.email }}</strong><p class="muted-line">We’ll use your saved driver profile for this order.</p></div>
+  </div>
 
   <form method="post" class="driver-checkout-layout" data-enhanced>
     {{ form.hidden_tag() }}

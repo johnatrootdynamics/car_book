@@ -4550,6 +4550,7 @@ details > summary { font-size: .92rem; }
 }
 
 .spectator-event-price { display: grid; justify-items: end; }
+.ticket-price-pair { gap: 2px; }.ticket-price-pair span { display: flex; align-items: baseline; gap: 5px; }.ticket-price-pair span strong { font-size: .78rem; }
 .spectator-event-price strong { font-size: 1.05rem; }
 .spectator-event-price span { color: #7a8699; font-size: .7rem; }
 
@@ -4654,8 +4655,16 @@ details > summary { font-size: .92rem; }
   border-left: 1px solid #e4e7ec;
 }
 .ticket-purchase-options { display: grid; align-content: center; border-left: 1px solid #e4e7ec; }
+.ticket-choice-intro { display: grid; gap: 2px; padding: 16px 24px 13px; background: #f8faff; border-bottom: 1px solid #e4e7ec; }
+.ticket-choice-intro span { color: #3159d5; font-size: .62rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.ticket-choice-intro strong { color: #1d2939; font-size: .94rem; }.ticket-choice-intro p { margin: 0; color: #667085; font-size: .7rem; }
 .ticket-purchase-options .spectator-purchase-card { gap: 10px; padding: 20px 24px; border-left: 0; }
 .ticket-purchase-options .spectator-purchase-card + .spectator-purchase-card { border-top: 1px solid #e4e7ec; }
+.driver-purchase-card { background: linear-gradient(110deg,#fbfcff,#f4f7ff); }
+.driver-purchase-card .spectator-purchase-heading > i { color: #fff; background: #3159d5; }
+.driver-ticket-buy-form { grid-template-columns: minmax(0,1fr) auto; }
+.ticket-choice-full-button { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.ticket-choice-confirmed { display: flex; align-items: center; gap: 9px; padding: 10px 11px; color: #087443; background: #ecfdf3; border: 1px solid #abefc6; border-radius: 8px; }.ticket-choice-confirmed.pending { color: #9a6700; background: #fffaeb; border-color: #fedf89; }.ticket-choice-confirmed > i { font-size: 1rem; }.ticket-choice-confirmed > span { display: flex; flex-direction: column; }.ticket-choice-confirmed strong { font-size: .72rem; }.ticket-choice-confirmed small { font-size: .63rem; }
 .vendor-purchase-card .spectator-purchase-heading > i { color: #8b4a16; background: #fff4e8; }
 .ticket-options-note { padding: 12px 24px 16px; }
 .spectator-purchase-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -6731,6 +6740,8 @@ details > summary { font-size: .92rem; }
 
 /* Driver ticket checkout */
 .driver-checkout-page { display: grid; width: min(960px, 100%); margin: 0 auto; gap: 13px; }
+.driver-checkout-page .checkout-steps { margin: -2px 0 0; }
+.driver-checkout-account { margin: 0; }
 .driver-checkout-nav { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 2px; }
 .driver-checkout-nav a,
 .driver-checkout-nav > span { display: inline-flex; align-items: center; gap: 5px; color: #667085; font-size: .7rem; text-decoration: none; }

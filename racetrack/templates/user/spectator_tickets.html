@@ -29,6 +29,36 @@
     </div>
 
     <div class="ticket-purchase-options">
+      <div class="ticket-choice-intro"><span>Choose admission</span><strong>How are you attending?</strong><p>Select a driver entry or spectator ticket below.</p></div>
+      {% if not is_vendor %}
+        {% set driver_availability = availability.get('driver') %}
+        <aside class="spectator-purchase-card driver-purchase-card">
+          <div class="spectator-purchase-heading">
+            <div><span>Driver admission</span><strong>{{ money(event.driver_price_cents) }}</strong></div>
+            <i class="bi bi-car-front-fill" aria-hidden="true"></i>
+          </div>
+          <p>Enter the track with one vehicle. Your driver profile, waiver, and inspection status stay connected to this ticket.</p>
+          {% if has_driver_ticket %}
+            <div class="ticket-choice-confirmed"><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>Driver ticket purchased</strong><small>This event is already on your dashboard.</small></span></div>
+          {% elif driver_checkout_pending %}
+            <div class="ticket-choice-confirmed pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i><span><strong>Payment in progress</strong><small>Your driver spot is temporarily held.</small></span></div>
+          {% elif driver_availability and driver_availability.sold_out %}
+            <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ driver_availability.sold }} drivers registered</span></div>
+          {% elif is_driver_account and driver_cars %}
+            <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="spectator-detail-buy-form driver-ticket-buy-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label for="driver-car-{{ event.id }}">Vehicle</label>
+              <select id="driver-car-{{ event.id }}" name="car_id" required>{% for car in driver_cars %}<option value="{{ car.id }}">{{ car.car_year }} {{ car.make }} {{ car.model }}</option>{% endfor %}</select>
+              <button class="btn" type="submit"><i class="bi bi-arrow-right" aria-hidden="true"></i> Continue</button>
+            </form>
+          {% elif is_driver_account %}
+            <a class="btn ticket-choice-full-button" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add a vehicle first</a>
+          {% else %}
+            <a class="btn ticket-choice-full-button" href="{{ url_for('auth.user_login', next=url_for('user.event_detail', event_id=event.id)) }}"><i class="bi bi-person" aria-hidden="true"></i> Sign in to drive</a>
+          {% endif %}
+          {% if driver_availability and not driver_availability.unlimited and not driver_availability.sold_out %}<div class="ticket-capacity-state"><strong>{{ driver_availability.remaining }} spots remaining</strong><span>{{ driver_availability.sold }} registered</span></div>{% endif %}
+        </aside>
+      {% endif %}
       {% set visible_ticket_types = [spectator_ticket_type] + ([vendor_ticket_type] if is_vendor and vendor_ticket_type else []) %}
       {% for ticket_type in visible_ticket_types %}
         {% set ticket_availability = availability.get(ticket_type.ticket_category) %}
@@ -37,12 +67,12 @@
         <aside class="spectator-purchase-card {% if ticket_type.ticket_category == 'vendor' %}vendor-purchase-card{% endif %}">
           <div class="spectator-purchase-heading">
             <div>
-              <span>{{ ticket_type.name }}</span>
+              <span>{{ 'Spectator admission' if ticket_type.ticket_category == 'spectator' else ticket_type.name }}</span>
               <strong>{{ money(ticket_type.price_cents) }}</strong>
             </div>
             <i class="bi {{ 'bi-shop' if ticket_type.ticket_category == 'vendor' else 'bi-ticket-perforated' }}" aria-hidden="true"></i>
           </div>
-          <p>{% if ticket_type.ticket_category == 'vendor' %}Paid admission for each vendor representative working on site.{% else %}General gate admission for event spectators.{% endif %}</p>
+          <p>{% if ticket_type.ticket_category == 'vendor' %}Paid admission for each vendor representative working on site.{% else %}Watch the event and access the live track experience. Purchase one or more tickets in the shared cart.{% endif %}</p>
           {% if ticket_availability and ticket_availability.sold_out %}
             <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ ticket_availability.sold }} sold{% if ticket_availability.held %} · {{ ticket_availability.held }} in checkout{% endif %}</span></div>
           {% else %}
@@ -60,14 +90,14 @@
           {% endif %}
         </aside>
       {% endfor %}
-      <div class="spectator-purchase-note ticket-options-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>{% if is_vendor %}Vendor admission is available only inside your vendor account. {% endif %}Each person receives a separate QR ticket.</span></div>
+      <div class="spectator-purchase-note ticket-options-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>{% if is_vendor %}Vendor admission is available only inside your vendor account. {% elif is_driver_account %}Driver entry is limited to one per account; spectator tickets can be purchased together. {% endif %}Each admission receives its own gate credentials.</span></div>
     </div>
   </section>
 
   <section class="spectator-detail-benefits" aria-label="Ticket information">
     <article><i class="bi bi-phone" aria-hidden="true"></i><div><strong>Mobile ready</strong><span>Keep your confirmation handy at the gate.</span></div></article>
     <article><i class="bi bi-envelope-check" aria-hidden="true"></i><div><strong>Email confirmation</strong><span>Order details are delivered to the buyer.</span></div></article>
-    <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>One easy cart</strong><span>{% if is_vendor %}Combine spectator and business admission in one checkout.{% else %}Purchase multiple admissions in one checkout.{% endif %}</span></div></article>
+    <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>Clear ticket choices</strong><span>{% if is_vendor %}Combine spectator and business admission in one checkout.{% else %}Choose whether you’re driving or watching before checkout.{% endif %}</span></div></article>
   </section>
 
   <section class="event-vendors-section" aria-labelledby="event-vendors-title">

@@ -138,15 +138,10 @@
               <div class="driver-discover-copy"><a href="{{ url_for('user.event_detail', event_id=event.id) }}">{{ event.event_name }}</a><span>{{ event.track.name }} · Class {{ current_class }}</span></div>
               <div class="driver-discover-action">
                 {% if driver_availability and driver_availability.sold_out %}
-                  <span class="driver-sold-out">Sold out</span>
-                {% elif cars %}
-                  <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}">
-                    {{ signup_form.hidden_tag() }}
-                    {{ signup_form.car_id(id='car_id_' ~ event.id, aria_label='Vehicle') }}
-                    {{ signup_form.submit(class_='btn btn-sm') }}
-                  </form>
+                  <span class="driver-sold-out">Driver spots sold out</span>
+                  <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=event.id) }}">View tickets</a>
                 {% else %}
-                  <a class="btn btn-secondary btn-sm" href="{{ url_for('user.car_new') }}">Add vehicle</a>
+                  <a class="btn btn-sm" href="{{ url_for('user.event_detail', event_id=event.id) }}">Choose tickets</a>
                 {% endif %}
               </div>
             </article>

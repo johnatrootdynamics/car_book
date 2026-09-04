@@ -37,13 +37,20 @@
           <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}</span>
         </div>
         <div class="spectator-event-purchase">
+          {% if not is_vendor %}
+          <div class="spectator-event-price ticket-price-pair">
+            <span><strong>{{ money(event.driver_price_cents) }}</strong> Driver</span>
+            <span><strong>{{ money(event.spectator_price_cents) }}</strong> Spectator</span>
+          </div>
+          <a class="btn" href="{{ url_for('user.event_detail', event_id=event.id) }}">Choose tickets</a>
+          {% else %}
           {% set event_ticket_types = ticket_types_by_event.get(event.id, {}) %}
-          {% set ticket_type = event_ticket_types.get('vendor') if is_vendor else event_ticket_types.get('spectator') %}
-          {% set ticket_category = 'vendor' if is_vendor else 'spectator' %}
+          {% set ticket_type = event_ticket_types.get('vendor') %}
+          {% set ticket_category = 'vendor' %}
           {% set selected_availability = availability_by_event.get(event.id, {}).get(ticket_category) %}
           <div class="spectator-event-price">
             <strong>{{ money(ticket_type.price_cents if ticket_type else 0) }}</strong>
-            <span>{{ ticket_type.name if ticket_type else ('Vendor Admission' if is_vendor else 'General Admission') }}</span>
+            <span>{{ ticket_type.name if ticket_type else 'Vendor Admission' }}</span>
           </div>
           {% if selected_availability and selected_availability.sold_out %}
             <span class="ticket-capacity-state sold-out"><strong>Sold out</strong></span>
@@ -58,8 +65,9 @@
               <select id="spectator-quantity-{{ event.id }}" name="quantity" aria-label="Ticket quantity">
                 {% for qty in range(1, purchase_limit + 1) %}<option value="{{ qty }}">{{ qty }}</option>{% endfor %}
               </select>
-              <button class="btn" type="submit">{{ 'Add vendor pass' if is_vendor else 'Add to cart' }}</button>
+              <button class="btn" type="submit">Add vendor pass</button>
             </form>
+          {% endif %}
           {% endif %}
         </div>
       </article>

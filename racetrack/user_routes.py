@@ -869,8 +869,6 @@ def dashboard():
         .order_by(Event.event_date.asc())
         .all()
     )
-    form = EventSignupForm()
-    form.car_id.choices = [(car.id, f"{car.car_year} {car.make} {car.model}") for car in cars]
     from .waiver_routes import get_required_waiver_status
 
     track_classes = (
@@ -945,7 +943,6 @@ def dashboard():
         cars=cars,
         events=events,
         signups=signups,
-        signup_form=form,
         waiver_by_event=waiver_by_event,
         waivers=waivers,
         slot_notice_by_event=slot_notice_by_event,
@@ -1278,6 +1275,27 @@ def _event_detail_response(event_id):
         if is_vendor_account
         else None
     )
+    is_driver_account = (
+        current_user.is_authenticated
+        and getattr(current_user, "account_type", None) == "user"
+    )
+    driver_cars = (
+        Car.query.filter_by(user_id=current_user.id)
+        .order_by(Car.created_at.desc())
+        .all()
+        if is_driver_account
+        else []
+    )
+    has_driver_ticket = (
+        driver_already_has_ticket(event.id, current_user.id)
+        if is_driver_account
+        else False
+    )
+    driver_checkout_pending = (
+        driver_payment_in_progress(event.id, current_user.id)
+        if is_driver_account and not has_driver_ticket
+        else False
+    )
     cart = _get_or_create_spectator_cart()
     availability = _event_ticket_availability(event)
     vendor_items = (
@@ -1308,6 +1326,10 @@ def _event_detail_response(event_id):
         event=event,
         spectator_ticket_type=spectator_ticket_type,
         vendor_ticket_type=vendor_ticket_type,
+        is_driver_account=is_driver_account,
+        driver_cars=driver_cars,
+        has_driver_ticket=has_driver_ticket,
+        driver_checkout_pending=driver_checkout_pending,
         availability=availability,
         money=_money,
         cart_count=_cart_item_count(cart),
@@ -2704,17 +2726,17 @@ def signup_event(event_id):
         return redirect(url_for("user.dashboard"))
     if event.event_date < date.today():
         flash("Cannot sign up for past events.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
     if driver_already_has_ticket(event.id, current_user.id):
         flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
     if driver_payment_in_progress(event.id, current_user.id):
         flash("A driver ticket payment is already in progress for this event. Your spot is being held for up to 35 minutes.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
     availability = ticket_availability(event, "driver")
     if availability["sold_out"]:
         flash("Driver tickets are sold out for this event.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
 
     form = EventSignupForm()
     cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
@@ -2726,12 +2748,12 @@ def signup_event(event_id):
         selected_car = Car.query.filter_by(id=form.car_id.data, user_id=current_user.id).first()
         if not selected_car:
             flash("Invalid car selected.", "error")
-            return redirect(url_for("user.dashboard"))
+            return redirect(url_for("user.event_detail", event_id=event.id))
         session[f"driver_checkout_car_{event.id}"] = selected_car.id
         return redirect(url_for("user.driver_event_checkout", event_id=event.id))
     else:
         flash("Please choose a valid car.", "error")
-    return redirect(url_for("user.dashboard"))
+    return redirect(url_for("user.event_detail", event_id=event.id))
 
 
 @user_bp.route("/events/<int:event_id>/driver-checkout", methods=["GET", "POST"])
@@ -2746,31 +2768,31 @@ def driver_event_checkout(event_id):
         return redirect(url_for("user.event_detail", event_id=event.id))
     if event.event_date < date.today():
         flash("Cannot sign up for past events.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
     if request.method == "POST":
         event = Event.query.filter_by(id=event.id).with_for_update().one()
     if driver_already_has_ticket(event.id, current_user.id):
         flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
     if driver_payment_in_progress(event.id, current_user.id):
         flash("A driver ticket payment is already in progress for this event. Your spot is being held for up to 35 minutes.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
     availability = ticket_availability(event, "driver")
     if availability["sold_out"]:
         flash("Driver tickets are sold out for this event.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
 
     car_id = session.get(f"driver_checkout_car_{event.id}")
     selected_car = Car.query.filter_by(id=car_id, user_id=current_user.id).first() if car_id else None
     if not selected_car:
         flash("Choose a car before checkout.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
 
     driver_amount_cents = max(0, event.driver_price_cents or 0)
     payment_choices = _configured_payment_choices(event.track, driver_amount_cents)
     if not payment_choices:
         flash("No payment methods are configured for this track yet.", "error")
-        return redirect(url_for("user.dashboard"))
+        return redirect(url_for("user.event_detail", event_id=event.id))
 
     form = DriverCheckoutForm()
     form.payment_method.choices = payment_choices
@@ -2783,11 +2805,11 @@ def driver_event_checkout(event_id):
     if form.validate_on_submit():
         if driver_already_has_ticket(event.id, current_user.id):
             flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
-            return redirect(url_for("user.dashboard"))
+            return redirect(url_for("user.event_detail", event_id=event.id))
         availability = ticket_availability(event, "driver")
         if availability["sold_out"]:
             flash("The final driver ticket was just purchased. This event is now sold out for drivers.", "error")
-            return redirect(url_for("user.dashboard"))
+            return redirect(url_for("user.event_detail", event_id=event.id))
         payment_credentials = _payment_credentials(event.track, form.payment_method.data)
         driver_ticket_order = DriverTicketOrder(
             event_id=event.id,
