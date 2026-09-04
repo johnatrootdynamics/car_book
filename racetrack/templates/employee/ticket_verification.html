@@ -9,7 +9,7 @@
     <div>
       <p class="shop-eyebrow">Gate operations</p>
       <h2>Verify Event Ticket</h2>
-      <p>Scan driver, spectator, and vendor tickets continuously without leaving this screen.</p>
+      <p>Scan a ticket or find a driver, spectator, or vendor by name without leaving this screen.</p>
     </div>
     {% if scanner_active %}
       <span class="ticket-scanner-live"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Continuous scanner on</span>
@@ -21,10 +21,10 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="scanner_active" value="{{ '1' if scanner_active else '0' }}" data-ticket-scanner-active>
       <label>
-        <span>Ticket code</span>
+        <span>Ticket code or attendee name</span>
         <div class="ticket-code-entry">
-          <input type="text" name="code" value="{{ code }}" placeholder="TKT-... or DRT-..." autocomplete="off" autocapitalize="characters" spellcheck="false" data-ticket-qr-input {% if not scanner_active %}autofocus{% endif %}>
-          <button type="submit" class="btn">Verify</button>
+          <input type="text" name="code" value="{{ lookup }}" placeholder="Scan a ticket or enter a name" autocomplete="off" spellcheck="false" data-ticket-qr-input {% if not scanner_active %}autofocus{% endif %}>
+          <button type="submit" class="btn">Find ticket</button>
         </div>
       </label>
       <button type="button" class="btn btn-secondary ticket-camera-button" data-ticket-camera-start><i class="bi bi-camera" aria-hidden="true"></i> Start continuous scanner</button>
@@ -35,7 +35,26 @@
     </div>
   </section>
 
-  {% if verification_state == 'invalid' %}
+  {% if verification_state == 'matches' %}
+    <section class="card ticket-name-results">
+      <header><div><span>Name lookup</span><h3>{{ lookup_results|length }} matching ticket{{ '' if lookup_results|length == 1 else 's' }}</h3></div><small>Select the correct event and ticket before checking in.</small></header>
+      <div class="ticket-name-result-list">
+        {% for result in lookup_results %}
+          <article>
+            <div class="ticket-name-avatar"><i class="bi {{ 'bi-car-front-fill' if result.ticket_label == 'Driver admission' else ('bi-shop' if result.ticket_label.startswith('Vendor') else 'bi-person-fill') }}" aria-hidden="true"></i></div>
+            <div class="ticket-name-result-copy"><strong>{{ result.name }}</strong><span>{{ result.ticket_label }}</span><small>{{ result.event.event_name }} · {{ result.event.event_date.strftime('%b %-d, %Y') }}</small></div>
+            <span class="ticket-match-state {{ result.state }}">{{ 'Ready' if result.state == 'valid' else ('Used' if result.state == 'used' else 'Unpaid') }}</span>
+            <a class="btn btn-sm" href="{{ url_for('employee.ticket_verification', code=result.code, scanner=1) if scanner_active else url_for('employee.ticket_verification', code=result.code) }}">Review</a>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% elif verification_state == 'no_matches' %}
+    <section class="ticket-verification-result invalid">
+      <i class="bi bi-person-x-fill" aria-hidden="true"></i>
+      <div><strong>No matching tickets</strong><p>No driver, spectator, or vendor ticket at this track matches “{{ lookup }}”.</p></div>
+    </section>
+  {% elif verification_state == 'invalid' %}
     <section class="ticket-verification-result invalid">
       <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
       <div><strong>Ticket not found</strong><p>This code does not belong to a driver, spectator, or vendor ticket for your track.</p></div>

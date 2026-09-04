@@ -1,5 +1,77 @@
 {% extends "base.html" %}
-{% block content %}<div class="audience-live-page" data-live-state-url="{{ url_for('user.attendee_live_state', event_id=event.id) }}"><header class="audience-live-hero"><div><a href="{{ url_for('user.attendee_live_events') }}"><i class="bi bi-chevron-left"></i> Your live events</a><span class="audience-live-label"><i class="bi bi-broadcast-pin"></i> Ticketed event access</span><h1>{{ event.event_name }}</h1><p>{{ event.track.name }} · {{ event.event_date.strftime('%B %-d, %Y') }}</p></div><div class="audience-voting-state {{ 'enabled' if event.run_voting_enabled else '' }}"><i class="bi {{ 'bi-hand-thumbs-up-fill' if event.run_voting_enabled else 'bi-eye-fill' }}"></i><span><strong>{{ 'Voting is open' if event.run_voting_enabled else 'Watch mode' }}</strong><small>{{ 'Rate every run once' if event.run_voting_enabled else 'Track staff have voting disabled' }}</small></span></div></header>
-<section class="audience-current-section"><div class="audience-section-head"><div><span>CURRENT RUN</span><h2>On track now</h2></div>{% if active_run %}<em><i class="bi bi-circle-fill"></i> LIVE</em>{% endif %}</div>{% if active_run %}{% set score=vote_summary.get(active_run.id,{}) %}<article class="audience-run-card current" id="run-{{ active_run.id }}"><div class="audience-run-top"><div><span>Run #{{ active_run.id }}</span><strong>{{ active_run.started_at.strftime('%-I:%M %p') }}</strong></div>{% include 'user/_run_vote_controls.html' %}</div><div class="audience-run-drivers">{% for participant in active_run.participants %}{% include 'user/_run_driver.html' %}{% else %}<p>Waiting for the first car to be detected.</p>{% endfor %}</div></article>{% else %}<div class="audience-track-clear"><span><i class="bi bi-flag"></i></span><div><h3>The track is clear</h3><p>The next run will appear automatically when cars enter.</p></div></div>{% endif %}</section>
-<section class="audience-history-section"><div class="audience-section-head"><div><span>EVENT HISTORY</span><h2>Previous runs</h2></div><strong>{{ completed_runs|length }} runs</strong></div>{% if completed_runs %}<div class="audience-run-list">{% for run in completed_runs %}{% set score=vote_summary.get(run.id,{}) %}<article class="audience-run-card" id="run-{{ run.id }}"><div class="audience-run-top"><div><span>Run #{{ run.id }}</span><strong>{{ run.started_at.strftime('%-I:%M %p') }}{% if run.ended_at %}–{{ run.ended_at.strftime('%-I:%M %p') }}{% endif %}</strong><small>{{ run.participants|length }} {{ 'driver' if run.participants|length == 1 else 'drivers' }}</small></div>{% include 'user/_run_vote_controls.html' %}</div><div class="audience-run-drivers compact">{% for participant in run.participants %}{% include 'user/_run_driver.html' %}{% endfor %}</div></article>{% endfor %}</div>{% else %}<div class="audience-track-clear compact"><span><i class="bi bi-clock-history"></i></span><div><h3>No completed runs yet</h3><p>Run history will build throughout the event.</p></div></div>{% endif %}</section></div>
-<script>document.addEventListener('DOMContentLoaded',()=>{const root=document.querySelector('[data-live-state-url]');if(!root)return;let signature=null;const check=async()=>{try{const data=await fetch(root.dataset.liveStateUrl,{headers:{'Accept':'application/json'}}).then(r=>r.json());const next=JSON.stringify(data.signature||[]);if(signature===null)signature=next;else if(next!==signature)location.reload()}catch(e){}};setInterval(check,4000);check()})</script>{% endblock %}
+{% block content %}
+<div class="audience-live-page" data-live-state-url="{{ url_for('user.attendee_live_state', event_id=event.id) }}">
+  <header class="audience-live-hero">
+    <div class="audience-live-hero-copy">
+      <a href="{{ url_for('user.attendee_live_events') }}"><i class="bi bi-chevron-left"></i> Your live events</a>
+      <span class="audience-live-label"><i class="bi bi-broadcast-pin"></i> Live event</span>
+      <h1>{{ event.event_name }}</h1>
+      <p><i class="bi bi-geo-alt-fill"></i> {{ event.track.name }} <span>·</span> <i class="bi bi-calendar3"></i> {{ event.event_date.strftime('%B %-d, %Y') }}</p>
+    </div>
+    <div class="audience-voting-state {{ 'enabled' if event.run_voting_enabled else '' }}">
+      <i class="bi {{ 'bi-hand-thumbs-up-fill' if event.run_voting_enabled else 'bi-eye-fill' }}"></i>
+      <span><strong>{{ 'Voting is open' if event.run_voting_enabled else 'Viewing only' }}</strong><small>{{ 'Give each run one rating' if event.run_voting_enabled else 'Run voting is currently off' }}</small></span>
+    </div>
+  </header>
+
+  <section class="audience-current-section">
+    <div class="audience-section-head">
+      <div><span>ON TRACK NOW</span><h2>Current run</h2></div>
+      {% if active_run %}<em><i class="bi bi-circle-fill"></i> Live</em>{% endif %}
+    </div>
+    {% if active_run %}
+      {% set score = vote_summary.get(active_run.id, {}) %}
+      {% set rating_run = active_run %}
+      <article class="audience-run-card current" id="run-{{ active_run.id }}">
+        <div class="audience-run-top">
+          <div class="audience-run-identity"><span>Run #{{ active_run.id }}</span><strong>Started {{ active_run.started_at.strftime('%-I:%M %p') }}</strong><small>{{ active_run.participants|length }} {{ 'driver' if active_run.participants|length == 1 else 'drivers' }}</small></div>
+          {% include 'user/_run_vote_controls.html' %}
+        </div>
+        <div class="audience-run-drivers current-drivers">
+          {% for participant in active_run.participants %}{% include 'user/_run_driver.html' %}{% else %}<p class="audience-waiting">Waiting for the first car to be detected.</p>{% endfor %}
+        </div>
+      </article>
+    {% else %}
+      <div class="audience-track-clear"><span><i class="bi bi-flag"></i></span><div><h3>The track is clear</h3><p>The next run will appear automatically when cars enter.</p></div></div>
+    {% endif %}
+  </section>
+
+  <section class="audience-history-section">
+    <div class="audience-section-head"><div><span>EVENT HISTORY</span><h2>Previous runs</h2></div><strong>{{ completed_runs|length }} {{ 'run' if completed_runs|length == 1 else 'runs' }}</strong></div>
+    {% if completed_runs %}
+      <div class="audience-run-list">
+        {% for run in completed_runs %}
+          {% set score = vote_summary.get(run.id, {}) %}
+          {% set rating_run = run %}
+          <article class="audience-run-card" id="run-{{ run.id }}">
+            <div class="audience-run-top">
+              <div class="audience-run-identity"><span>Run #{{ run.id }}</span><strong>{{ run.started_at.strftime('%-I:%M %p') }}{% if run.ended_at %}–{{ run.ended_at.strftime('%-I:%M %p') }}{% endif %}</strong><small>{{ run.participants|length }} {{ 'driver' if run.participants|length == 1 else 'drivers' }}</small></div>
+              {% include 'user/_run_vote_controls.html' %}
+            </div>
+            <div class="audience-run-drivers compact">{% for participant in run.participants %}{% include 'user/_run_driver.html' %}{% endfor %}</div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="audience-track-clear compact"><span><i class="bi bi-clock-history"></i></span><div><h3>No completed runs yet</h3><p>Run history will build throughout the event.</p></div></div>
+    {% endif %}
+  </section>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const root = document.querySelector('[data-live-state-url]')
+  if (!root) return
+  let signature = null
+  const check = async () => {
+    try {
+      const data = await fetch(root.dataset.liveStateUrl, { headers: { 'Accept': 'application/json' } }).then(response => response.json())
+      const next = JSON.stringify(data.signature || [])
+      if (signature === null) signature = next
+      else if (next !== signature) location.reload()
+    } catch (error) {}
+  }
+  setInterval(check, 4000)
+  check()
+})
+</script>
+{% endblock %}

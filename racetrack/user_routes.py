@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
@@ -2264,28 +2264,28 @@ def discover():
             Track.name.ilike(like) | Track.city.ilike(like) | Track.state.ilike(like)
         )
     tracks = track_query.order_by(Track.name.asc()).limit(40).all()
-    upcoming_by_track = {}
+    upcoming_event_counts = {}
     if tracks:
-        track_events = (
-            Event.query.filter(
+        upcoming_event_counts = dict(
+            db.session.query(Event.track_id, func.count(Event.id)).filter(
                 Event.track_id.in_([track.id for track in tracks]),
                 Event.event_type == "public",
                 Event.event_date >= today,
-            ).order_by(Event.event_date.asc()).all()
+            ).group_by(Event.track_id).all()
         )
-        for event in track_events:
-            if len(upcoming_by_track.setdefault(event.track_id, [])) < 3:
-                upcoming_by_track[event.track_id].append(event)
     followed_events = [event for event in events if event.track_id in subscribed_track_ids][:6]
     suggested_events = followed_events or events[:6]
     registrations = {
         registration.event_id
         for registration in EventRegistration.query.filter_by(user_id=current_user.id).all()
     }
-    signup_counts = {
-        event.id: EventRegistration.query.filter_by(event_id=event.id).count()
-        for event in events
-    }
+    signup_counts = (
+        {
+            event.id: EventRegistration.query.filter_by(event_id=event.id).count()
+            for event in events
+        }
+        if q else {}
+    )
     return render_template(
         "user/discover.html",
         q=q,
@@ -2294,7 +2294,7 @@ def discover():
         tracks=tracks,
         suggested_events=suggested_events,
         subscribed_track_ids=subscribed_track_ids,
-        upcoming_by_track=upcoming_by_track,
+        upcoming_event_counts=upcoming_event_counts,
         registrations=registrations,
         signup_counts=signup_counts,
         money=_money,

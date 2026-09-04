@@ -48,7 +48,7 @@
             {% if is_office_staff and event.event_type != 'private' %}<p class="event-general-row"><i class="bi bi-cash-stack"></i> <strong>Prices:</strong> Driver {{ '$%.2f'|format(event.driver_price_cents / 100) }} · Spectator {{ '$%.2f'|format(event.spectator_price_cents / 100) }} · Vendor {{ '$%.2f'|format(event.vendor_price_cents / 100) }}</p>{% endif %}
             {% if is_office_staff %}<p class="event-general-row"><i class="bi bi-people"></i> <strong>Capacity:</strong> Driver {{ event_capacity.driver.sold }} / {{ event_capacity.driver.capacity if not event_capacity.driver.unlimited else 'Unlimited' }}{% if event.event_type != 'private' %} · Spectator {{ event_capacity.spectator.sold }} / {{ event_capacity.spectator.capacity if not event_capacity.spectator.unlimited else 'Unlimited' }} · Vendor {{ event_capacity.vendor.sold }} / {{ event_capacity.vendor.capacity if not event_capacity.vendor.unlimited else 'Unlimited' }}{% else %} · Driver-only private event{% endif %}</p>{% endif %}
           </div>
-          {% if is_office_staff %}<div class="event-run-voting-setting general-static" data-static><div><i class="bi bi-hand-thumbs-up-fill"></i><span><strong>Audience run voting</strong><small>Allow ticketed drivers and spectators to rate each run once.</small></span></div><form method="post" action="{{ url_for('employee.event_run_voting', event_id=event.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="enabled" value="{{ '0' if event.run_voting_enabled else '1' }}"><button class="btn btn-sm {{ 'btn-secondary' if event.run_voting_enabled else '' }}" type="submit">{{ 'Disable voting' if event.run_voting_enabled else 'Enable voting' }}</button></form></div>{% endif %}
+          {% if is_office_staff %}<div class="event-run-voting-setting general-static {{ 'enabled' if event.run_voting_enabled else '' }}" data-static data-run-voting-setting data-url="{{ url_for('employee.event_run_voting', event_id=event.id) }}" data-csrf-token="{{ csrf_token() }}" data-enabled="{{ '1' if event.run_voting_enabled else '0' }}"><div><i class="bi {{ 'bi-hand-thumbs-up-fill' if event.run_voting_enabled else 'bi-hand-thumbs-up' }}" data-run-voting-icon></i><span><strong>Audience run voting</strong><small data-run-voting-copy>{{ 'Voting is on. Ticketed attendees can rate each run once.' if event.run_voting_enabled else 'Voting is off. Enable it when you want attendees to rate runs.' }}</small></span></div><button class="btn btn-sm {{ 'btn-secondary' if event.run_voting_enabled else '' }}" type="button" data-run-voting-toggle>{{ 'Disable voting' if event.run_voting_enabled else 'Enable voting' }}</button></div>{% endif %}
 
           <label data-edit-field hidden>Event Name
             <input type="text" name="event_name" maxlength="200" value="{{ event.event_name }}" required>
@@ -147,6 +147,51 @@
               staticNodes.forEach((node) => { node.hidden = true })
               editNodes.forEach((node) => { node.hidden = false })
               editBtn.hidden = true
+            })
+          })()
+          ;(function () {
+            const setting = document.querySelector('[data-run-voting-setting]')
+            if (!setting) return
+            const button = setting.querySelector('[data-run-voting-toggle]')
+            const copy = setting.querySelector('[data-run-voting-copy]')
+            const icon = setting.querySelector('[data-run-voting-icon]')
+            if (!button) return
+
+            const render = (enabled) => {
+              setting.dataset.enabled = enabled ? '1' : '0'
+              setting.classList.toggle('enabled', enabled)
+              button.textContent = enabled ? 'Disable voting' : 'Enable voting'
+              button.classList.toggle('btn-secondary', enabled)
+              if (copy) copy.textContent = enabled
+                ? 'Voting is on. Ticketed attendees can rate each run once.'
+                : 'Voting is off. Enable it when you want attendees to rate runs.'
+              if (icon) icon.className = `bi ${enabled ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'}`
+            }
+
+            button.addEventListener('click', async () => {
+              const nextEnabled = setting.dataset.enabled !== '1'
+              const originalLabel = button.textContent
+              button.disabled = true
+              button.textContent = 'Saving…'
+              try {
+                const body = new URLSearchParams({
+                  csrf_token: setting.dataset.csrfToken,
+                  enabled: nextEnabled ? '1' : '0',
+                })
+                const response = await fetch(setting.dataset.url, {
+                  method: 'POST',
+                  headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+                  body,
+                })
+                if (!response.ok) throw new Error('Voting update failed')
+                const result = await response.json()
+                render(Boolean(result.enabled))
+              } catch (error) {
+                button.textContent = originalLabel
+                if (copy) copy.textContent = 'Voting could not be updated. Please try again.'
+              } finally {
+                button.disabled = false
+              }
             })
           })()
         </script>

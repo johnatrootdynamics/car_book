@@ -313,6 +313,11 @@ def event_run_voting(event_id):
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
     event.run_voting_enabled = request.form.get("enabled") == "1"
     db.session.commit()
+    if request.accept_mimetypes.best == "application/json":
+        return {
+            "enabled": event.run_voting_enabled,
+            "message": f"Run voting {'enabled' if event.run_voting_enabled else 'disabled'}.",
+        }
     flash(f"Run voting {'enabled' if event.run_voting_enabled else 'disabled'} for {event.event_name}.", "success")
     return redirect(url_for("employee.event_detail", event_id=event.id, view="general"))
 
@@ -989,13 +994,35 @@ def ticket_verification():
         if request.method == "POST"
         else request.args.get("scanner") == "1"
     )
-    code = normalize_ticket_code(
-        request.form.get("code") if request.method == "POST" else request.args.get("code")
-    )
+    raw_lookup = request.form.get("code") if request.method == "POST" else request.args.get("code")
+    lookup = (raw_lookup or "").strip()
+    code = normalize_ticket_code(lookup)
     item = None
     driver_registration = None
     driver_order = None
+    lookup_results = []
     verification_state = None
+
+    def spectator_ticket_state(ticket_item):
+        if not payment_is_confirmed(
+            ticket_item.order.payment_status,
+            ticket_item.order.payment_method,
+            ticket_item.order.total_cents,
+            ticket_item.order.provider_transaction_id,
+        ):
+            return "unpaid"
+        return "used" if ticket_item.checked_in_at else "valid"
+
+    def driver_ticket_state(registration, order):
+        if not order or not payment_is_confirmed(
+            order.payment_status,
+            order.payment_method,
+            order.amount_cents,
+            order.provider_transaction_id,
+        ):
+            return "unpaid"
+        return "used" if registration.checked_in_at else "valid"
+
     if code:
         item = (
             SpectatorOrderItem.query.join(Event, Event.id == SpectatorOrderItem.event_id)
@@ -1026,38 +1053,120 @@ def ticket_verification():
                     .order_by(DriverTicketOrder.created_at.desc())
                     .first()
                 )
-        if item and not payment_is_confirmed(
-            item.order.payment_status,
-            item.order.payment_method,
-            item.order.total_cents,
-            item.order.provider_transaction_id,
-        ):
-            verification_state = "unpaid"
-        elif item and item.checked_in_at:
-            verification_state = "used"
-        elif item:
-            verification_state = "valid"
-        elif driver_registration and driver_order and not payment_is_confirmed(
-            driver_order.payment_status,
-            driver_order.payment_method,
-            driver_order.amount_cents,
-            driver_order.provider_transaction_id,
-        ):
-            verification_state = "unpaid"
-        elif driver_registration and not driver_order:
-            verification_state = "unpaid"
-        elif driver_registration and driver_registration.checked_in_at:
-            verification_state = "used"
+        if item:
+            verification_state = spectator_ticket_state(item)
         elif driver_registration:
-            verification_state = "valid"
+            verification_state = driver_ticket_state(driver_registration, driver_order)
         else:
-            verification_state = "invalid"
+            is_ticket_code = lookup.lower().startswith(("http://", "https://")) or code.startswith(
+                ("TKT-", "DRT-")
+            )
+            if is_ticket_code:
+                verification_state = "invalid"
+            else:
+                terms = [term for term in lookup.split() if term][:5]
+                driver_query = (
+                    EventRegistration.query.join(User, User.id == EventRegistration.user_id)
+                    .join(Event, Event.id == EventRegistration.event_id)
+                    .filter(Event.track_id == active_track_id())
+                )
+                spectator_query = (
+                    SpectatorOrderItem.query.join(
+                        SpectatorOrder,
+                        SpectatorOrder.id == SpectatorOrderItem.order_id,
+                    )
+                    .join(Event, Event.id == SpectatorOrderItem.event_id)
+                    .outerjoin(User, User.id == SpectatorOrder.user_id)
+                    .outerjoin(VendorAccount, VendorAccount.id == SpectatorOrder.vendor_id)
+                    .filter(
+                        Event.track_id == active_track_id(),
+                        SpectatorOrderItem.qr_code.isnot(None),
+                    )
+                )
+                for term in terms:
+                    like = f"%{term}%"
+                    driver_query = driver_query.filter(
+                        or_(
+                            User.first_name.ilike(like),
+                            User.last_name.ilike(like),
+                            User.username.ilike(like),
+                        )
+                    )
+                    spectator_query = spectator_query.filter(
+                        or_(
+                            SpectatorOrder.guest_full_name.ilike(like),
+                            SpectatorOrder.vendor_business_name.ilike(like),
+                            User.first_name.ilike(like),
+                            User.last_name.ilike(like),
+                            User.username.ilike(like),
+                            VendorAccount.full_name.ilike(like),
+                            VendorAccount.business_name.ilike(like),
+                        )
+                    )
+
+                for registration in driver_query.limit(25).all():
+                    order = (
+                        DriverTicketOrder.query.filter_by(
+                            event_id=registration.event_id,
+                            user_id=registration.user_id,
+                        )
+                        .order_by(DriverTicketOrder.created_at.desc())
+                        .first()
+                    )
+                    lookup_results.append(
+                        {
+                            "code": registration.checkin_code,
+                            "event": registration.event,
+                            "name": f"{registration.user.first_name} {registration.user.last_name}".strip(),
+                            "ticket_label": "Driver admission",
+                            "state": driver_ticket_state(registration, order),
+                        }
+                    )
+
+                for ticket_item in spectator_query.limit(25).all():
+                    order = ticket_item.order
+                    if ticket_item.ticket_category == "vendor":
+                        result_name = (
+                            order.vendor.business_name
+                            if order.vendor else (order.vendor_business_name or order.guest_full_name or "Vendor")
+                        )
+                        category_label = "Vendor"
+                    else:
+                        result_name = order.guest_full_name or (
+                            f"{order.buyer.first_name} {order.buyer.last_name}".strip()
+                            if order.buyer else "Guest"
+                        )
+                        category_label = "Spectator"
+                    lookup_results.append(
+                        {
+                            "code": ticket_item.qr_code,
+                            "event": ticket_item.event,
+                            "name": result_name,
+                            "ticket_label": f"{category_label} · {ticket_item.ticket_type_name}",
+                            "state": spectator_ticket_state(ticket_item),
+                        }
+                    )
+
+                today = date.today()
+                lookup_results.sort(
+                    key=lambda result: (
+                        0 if result["event"].event_date == today else (
+                            1 if result["event"].event_date > today else 2
+                        ),
+                        abs((result["event"].event_date - today).days),
+                        result["name"].casefold(),
+                    )
+                )
+                lookup_results = lookup_results[:30]
+                verification_state = "matches" if lookup_results else "no_matches"
     return render_template(
         "employee/ticket_verification.html",
+        lookup=lookup,
         code=code,
         item=item,
         driver_registration=driver_registration,
         driver_order=driver_order,
+        lookup_results=lookup_results,
         verification_state=verification_state,
         scanner_active=scanner_active,
     )
