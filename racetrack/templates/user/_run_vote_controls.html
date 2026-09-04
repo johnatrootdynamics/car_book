@@ -1,20 +1,21 @@
-<div class="audience-run-rating" data-run-id="{{ rating_run.id }}" aria-live="polite">
-  <span class="audience-rating-label">Audience</span>
-  <div class="audience-score">
-    <span class="up"><i class="bi bi-hand-thumbs-up-fill"></i> {{ score.up or 0 }}</span>
-    <span class="down"><i class="bi bi-hand-thumbs-down-fill"></i> {{ score.down or 0 }}</span>
-  </div>
+<div class="audience-run-rating audience-run-rating-block" data-run-id="{{ rating_run.id }}" aria-live="polite">
   {% if event.run_voting_enabled %}
     {% if score.mine %}
-      <span class="audience-voted"><i class="bi bi-check-circle-fill"></i> You voted {{ 'up' if score.mine == 1 else 'down' }}</span>
+      <div class="audience-vote-complete">
+        <span class="audience-voted"><i class="bi bi-check-circle-fill"></i> You voted {{ 'thumbs up' if score.mine == 1 else 'thumbs down' }}</span>
+        <div class="audience-score">
+          <span class="up"><i class="bi bi-hand-thumbs-up-fill"></i> {{ score.up or 0 }}</span>
+          <span class="down"><i class="bi bi-hand-thumbs-down-fill"></i> {{ score.down or 0 }}</span>
+        </div>
+      </div>
     {% else %}
       <form method="post" action="{{ url_for('user.attendee_run_vote', event_id=event.id, run_id=rating_run.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button name="vote" value="1" class="vote-up" aria-label="Thumbs up this run"><i class="bi bi-hand-thumbs-up"></i></button>
-        <button name="vote" value="-1" class="vote-down" aria-label="Thumbs down this run"><i class="bi bi-hand-thumbs-down"></i></button>
+        <button name="vote" value="1" class="vote-up audience-vote-button" aria-label="Thumbs up this run"><i class="bi bi-hand-thumbs-up-fill"></i><span><strong>Thumbs up</strong><small>{{ score.up or 0 }} {{ 'vote' if (score.up or 0) == 1 else 'votes' }}</small></span></button>
+        <button name="vote" value="-1" class="vote-down audience-vote-button" aria-label="Thumbs down this run"><i class="bi bi-hand-thumbs-down-fill"></i><span><strong>Thumbs down</strong><small>{{ score.down or 0 }} {{ 'vote' if (score.down or 0) == 1 else 'votes' }}</small></span></button>
       </form>
     {% endif %}
   {% else %}
-    <span class="audience-voted muted"><i class="bi bi-lock-fill"></i> Voting off</span>
+    <span class="audience-voted muted audience-voting-disabled"><i class="bi bi-lock-fill"></i> Voting is off for this event</span>
   {% endif %}
 </div>

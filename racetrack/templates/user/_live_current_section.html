@@ -8,11 +8,11 @@
   <article class="audience-run-card current" id="run-{{ active_run.id }}">
     <div class="audience-run-top">
       <div class="audience-run-identity"><span>Run #{{ active_run.id }}</span><strong>Started {{ active_run.started_at.strftime('%-I:%M %p') }}</strong><small>{{ active_run.participants|length }} {{ 'driver' if active_run.participants|length == 1 else 'drivers' }}</small></div>
-      {% include 'user/_run_vote_controls.html' %}
     </div>
     <div class="audience-run-drivers current-drivers">
       {% for participant in active_run.participants %}{% include 'user/_run_driver.html' %}{% else %}<p class="audience-waiting">Waiting for the first car to be detected.</p>{% endfor %}
     </div>
+    <div class="audience-run-vote-panel">{% include 'user/_run_vote_controls.html' %}</div>
   </article>
 {% else %}
   <div class="audience-track-clear"><span><i class="bi bi-flag"></i></span><div><h3>The track is clear</h3><p>The next run will appear automatically when cars enter.</p></div></div>

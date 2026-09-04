@@ -8636,3 +8636,110 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .garage-form-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .garage-form-actions .btn { min-width: 0; }
 }
+
+/* Full-width run voting actions */
+.audience-run-vote-panel {
+  padding: 11px;
+  background: #fff;
+  border-top: 1px solid #e1e6ed;
+}
+.audience-history-detail .audience-run-vote-panel {
+  margin-top: 8px;
+  padding: 0;
+  background: transparent;
+  border-top: 0;
+}
+.ui-system .audience-run-rating-block { display: block; width: 100%; }
+.ui-system .audience-run-rating-block form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  width: 100%;
+}
+.ui-system .audience-run-rating-block form .audience-vote-button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: auto;
+  min-height: 58px;
+  padding: 9px 13px;
+  border: 1px solid;
+  border-radius: 9px;
+  text-align: left;
+  box-shadow: none;
+}
+.ui-system .audience-run-rating-block form .audience-vote-button > i {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  font-size: .94rem;
+  place-items: center;
+}
+.ui-system .audience-run-rating-block form .audience-vote-button > span { display: grid; min-width: 0; gap: 2px; }
+.ui-system .audience-run-rating-block form .audience-vote-button strong { font-size: .72rem; line-height: 1.1; }
+.ui-system .audience-run-rating-block form .audience-vote-button small { font-size: .6rem; font-weight: 650; }
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-up {
+  color: #087443;
+  background: #effaf4;
+  border-color: #b9e5cf;
+}
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-up > i { color: #087443; background: #d8f2e5; }
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-up strong { color: #075e38; }
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-up small { color: #418065; }
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-down {
+  color: #b42318;
+  background: #fff4f2;
+  border-color: #f2c7c2;
+}
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-down > i { color: #b42318; background: #fee4e2; }
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-down strong { color: #912018; }
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-down small { color: #a85a53; }
+.ui-system .audience-run-rating-block form .audience-vote-button:hover { filter: none; transform: translateY(-1px); }
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-up:hover { background: #e4f7ed; border-color: #8fd4b2; }
+.ui-system .audience-run-rating-block form .audience-vote-button.vote-down:hover { background: #ffe9e6; border-color: #eaa8a1; }
+.ui-system .audience-run-rating-block form .audience-vote-button:disabled { cursor: wait; opacity: .62; transform: none; }
+.audience-vote-complete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 11px;
+  color: #174dcc;
+  background: #f2f6ff;
+  border: 1px solid #d3dfff;
+  border-radius: 9px;
+}
+.audience-vote-complete .audience-voted { display: inline-flex; align-items: center; gap: 6px; color: #174dcc; font-size: .68rem; }
+.audience-vote-complete .audience-voted i { color: #15825c; }
+.audience-vote-complete .audience-score { display: flex; gap: 5px; }
+.audience-voting-disabled {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 45px;
+  color: #667085;
+  background: #f6f7f9;
+  border: 1px solid #e3e6eb;
+  border-radius: 9px;
+}
+
+@media (max-width: 480px) {
+  .audience-run-vote-panel { padding: 8px; }
+  .audience-history-detail .audience-run-vote-panel { padding: 0; }
+  .ui-system .audience-run-rating-block form { gap: 6px; }
+  .ui-system .audience-run-rating-block form .audience-vote-button {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 7px;
+    min-height: 52px;
+    padding: 7px 8px;
+  }
+  .ui-system .audience-run-rating-block form .audience-vote-button > i { width: 28px; height: 28px; font-size: .8rem; }
+  .ui-system .audience-run-rating-block form .audience-vote-button strong { font-size: .66rem; }
+  .ui-system .audience-run-rating-block form .audience-vote-button small { font-size: .55rem; }
+  .audience-vote-complete { min-height: 44px; padding: 7px 9px; }
+}
