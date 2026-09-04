@@ -146,6 +146,27 @@ class TrackPaymentMethod(db.Model):
     )
 
 
+class EnterprisePaymentMethod(db.Model):
+    """Payment credentials for Track Ops-owned commerce such as RFID tags."""
+
+    __tablename__ = "enterprise_payment_methods"
+
+    id = db.Column(db.Integer, primary_key=True)
+    provider = db.Column(db.String(50), nullable=False, unique=True)
+    is_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    mode = db.Column(db.String(10), nullable=False, default="live")
+    public_key = db.Column(db.String(255), nullable=True)
+    secret_key = db.Column(db.String(255), nullable=True)
+    webhook_secret = db.Column(db.String(255), nullable=True)
+    test_public_key = db.Column(db.String(255), nullable=True)
+    test_secret_key = db.Column(db.String(255), nullable=True)
+    test_webhook_secret = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+
 class Employee(db.Model, UserMixin):
     __tablename__ = "employees"
 

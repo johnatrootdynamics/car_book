@@ -13,11 +13,13 @@
       </div>
       <div class="row-space ui-total-row"><strong>Total</strong><strong>{{ money(order.total_cents) }}</strong></div>
       {% if order.payment_status != 'paid' and order.total_cents > 0 %}
+        {% if payment_methods %}
         <form class="stack-form ui-spaced-form" method="post" action="{{ url_for('user.rfid_tag_order_pay', order_id=order.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label>Payment provider<select name="payment_method"><option value="stripe">Credit or debit card (Stripe)</option><option value="paypal" {% if order.payment_method == 'paypal' %}selected{% endif %}>PayPal</option></select></label>
+          <label>Payment provider<select name="payment_method">{% for value, label in payment_methods %}<option value="{{ value }}" {% if order.payment_method == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
           <div class="ui-actions"><button class="btn">Continue to payment <i class="bi bi-arrow-right" aria-hidden="true"></i></button></div>
         </form>
+        {% else %}<div class="flash flash-warning ui-spaced-form">Enterprise store payments are temporarily unavailable. Your pending order is saved.</div>{% endif %}
       {% endif %}
     </section>
     <aside class="card">

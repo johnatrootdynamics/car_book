@@ -2528,6 +2528,44 @@ summary { color: #e9eef9; }
   }
 }
 
+/* Enterprise-owned commerce settings */
+.enterprise-payments-card { scroll-margin-top: 18px; }
+.enterprise-provider-toggle {
+  display: inline-flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 9px;
+  color: var(--ui-text-secondary) !important;
+  background: var(--ui-surface-soft);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.enterprise-provider-toggle input { flex: 0 0 auto; }
+.enterprise-provider-toggle span { font-size: .68rem; font-weight: 800; }
+.enterprise-payment-mode { padding: 14px 16px 0; border-top: 1px solid var(--ui-border); }
+.enterprise-payment-mode label { width: min(260px, 100%); }
+.enterprise-credential-groups { padding: 14px 16px 16px; }
+.enterprise-clear-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ui-border);
+}
+.enterprise-clear-row label {
+  display: inline-flex;
+  align-items: center;
+  grid-template-columns: none;
+  gap: 7px;
+  color: var(--ui-muted);
+  font-size: .65rem;
+  cursor: pointer;
+}
+
 /* Bold pit-lane theme: light workspace, ink navigation, electric accents */
 :root {
   --bg1: #f4f3ee;

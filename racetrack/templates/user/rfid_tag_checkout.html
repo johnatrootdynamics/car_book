@@ -12,8 +12,9 @@
       <div class="row-space ui-total-row"><strong>Total</strong><strong>{{ money(total_cents) }}</strong></div>
       <form method="post" class="stack-form ui-spaced-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% if total_cents > 0 %}<label>Payment provider<select name="payment_method"><option value="stripe">Credit or debit card (Stripe)</option><option value="paypal">PayPal</option></select></label>{% endif %}
-        <div class="ui-actions"><button class="btn">{{ 'Place order' if total_cents == 0 else 'Continue to payment' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button></div>
+        {% if total_cents > 0 and payment_methods %}<label>Payment provider<select name="payment_method">{% for value, label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>{% endif %}
+        {% if total_cents > 0 and not payment_methods %}<div class="flash flash-warning">Enterprise store payments are temporarily unavailable. No order will be placed until a provider is configured.</div>{% endif %}
+        <div class="ui-actions"><button class="btn" {% if total_cents > 0 and not payment_methods %}disabled{% endif %}>{{ 'Place order' if total_cents == 0 else 'Continue to payment' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button></div>
       </form>
     </section>
     <aside class="card">

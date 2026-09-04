@@ -5,7 +5,7 @@
     <div>
       <span class="section-eyebrow">Enterprise configuration</span>
       <h2>Admin Settings</h2>
-      <p>Configure the email service used for account credentials and order receipts.</p>
+      <p>Configure system email and payments for Track Ops-owned products.</p>
     </div>
     <span class="smtp-status {{ 'ready' if email_config.configured else 'off' }}">
       <i class="bi {{ 'bi-check-circle-fill' if email_config.configured else 'bi-pause-circle-fill' }}" aria-hidden="true"></i>
@@ -92,6 +92,100 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="email" name="test_email" value="{{ current_user.email }}" aria-label="Test recipient email" required>
       <button type="submit" class="btn btn-secondary"><i class="bi bi-send" aria-hidden="true"></i> Send test</button>
+    </form>
+  </section>
+
+  <section id="enterprise-payments" class="card admin-settings-card enterprise-payments-card">
+    <div class="admin-settings-card-head">
+      <span class="settings-icon"><i class="bi bi-credit-card" aria-hidden="true"></i></span>
+      <div>
+        <h3>Enterprise store payments</h3>
+        <p>These credentials process Track Ops products such as RFID tag orders. Track event payments remain configured separately by each venue.</p>
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('admin.update_enterprise_payment_settings') }}" class="payments-layout" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="payment-provider-stack">
+        {% for provider, label in enterprise_payment_providers.items() %}
+          {% set method = enterprise_payment_methods.get(provider) %}
+          {% set env = enterprise_env_status.get(provider) %}
+          {% set enabled = method.is_enabled if method else (env.secret_key and (provider == 'stripe' or env.public_key)) %}
+          {% set mode = method.mode if method and method.mode in ['live', 'test'] else env.mode %}
+          {% set live_public = (method and method.public_key) or env.public_key %}
+          {% set live_secret = (method and method.secret_key) or env.secret_key %}
+          {% set live_webhook = (method and method.webhook_secret) or env.webhook_secret %}
+          {% set test_public = method and method.test_public_key %}
+          {% set test_secret = method and method.test_secret_key %}
+          {% set test_webhook = method and method.test_webhook_secret %}
+          {% set live_ready = live_secret and live_webhook and (provider == 'stripe' or live_public) %}
+          {% set test_ready = test_secret and test_webhook and (provider == 'stripe' or test_public) %}
+          {% set ready = test_ready if mode == 'test' else live_ready %}
+          <article class="payment-setup-card {% if enabled %}active{% endif %}">
+            <div class="payment-setup-head">
+              <div class="payment-provider-head">
+                <span class="payment-provider-icon"><i class="bi {{ 'bi-stripe' if provider == 'stripe' else 'bi-paypal' }}" aria-hidden="true"></i></span>
+                <span>
+                  <span class="payment-provider-title"><strong>{{ label }}</strong><a class="payment-doc-link" href="{{ enterprise_payment_docs[provider] }}" target="_blank" rel="noopener noreferrer">Setup guide <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></span>
+                  <small>Track Ops enterprise store</small>
+                </span>
+              </div>
+              <div class="payment-card-actions">
+                <span class="payment-status-pill {{ 'ready' if ready else 'needs-work' }}">{{ 'Ready' if ready else 'Needs setup' }}</span>
+                <label class="enterprise-provider-toggle"><input type="checkbox" name="provider_enabled_{{ provider }}" value="1" {% if enabled %}checked{% endif %}><span>Enabled</span></label>
+              </div>
+            </div>
+
+            <div class="enterprise-payment-mode">
+              <label>Transaction mode
+                <select name="provider_mode_{{ provider }}">
+                  <option value="live" {% if mode == 'live' %}selected{% endif %}>Live</option>
+                  <option value="test" {% if mode == 'test' %}selected{% endif %}>Test / Sandbox</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="payment-credential-groups enterprise-credential-groups">
+              <details class="payment-credential-set" {% if mode == 'live' %}open{% endif %}>
+                <summary><span><i class="bi bi-broadcast" aria-hidden="true"></i> Live credentials</span><span class="payment-set-state">{{ 'Configured' if live_ready else 'Incomplete' }}</span></summary>
+                <div class="payment-credential-fields">
+                  <div class="form-grid two-col">
+                    {% if provider == 'paypal' %}<label>Client ID<input type="text" name="{{ provider }}_public_key" placeholder="PayPal live client ID" autocomplete="off"><span class="hint">Current: {{ 'configured' if live_public else 'not configured' }}</span></label>{% endif %}
+                    <label>Secret key<input type="password" name="{{ provider }}_secret_key" placeholder="{{ 'sk_live_...' if provider == 'stripe' else 'PayPal live secret' }}" autocomplete="new-password"><span class="hint">Current: {{ 'configured' if live_secret else 'not configured' }}</span></label>
+                    <label>Webhook {{ 'ID' if provider == 'paypal' else 'secret' }}<input type="password" name="{{ provider }}_webhook_secret" placeholder="{{ 'whsec_...' if provider == 'stripe' else 'PayPal webhook ID' }}" autocomplete="new-password"><span class="hint">Current: {{ 'configured' if live_webhook else 'not configured' }}</span></label>
+                    <label class="full">Webhook URL<input type="text" value="{{ paypal_webhook_url if provider == 'paypal' else stripe_webhook_url }}" readonly><span class="hint">Add this endpoint in your {{ label }} dashboard.</span></label>
+                  </div>
+                  {% if method %}<div class="enterprise-clear-row">
+                    {% if provider == 'paypal' %}<label><input type="checkbox" name="{{ provider }}_clear_public_key" value="1"> Clear saved client ID</label>{% endif %}
+                    <label><input type="checkbox" name="{{ provider }}_clear_secret_key" value="1"> Clear saved secret</label>
+                    <label><input type="checkbox" name="{{ provider }}_clear_webhook_secret" value="1"> Clear saved webhook value</label>
+                  </div>{% endif %}
+                </div>
+              </details>
+
+              <details class="payment-credential-set" {% if mode == 'test' %}open{% endif %}>
+                <summary><span><i class="bi bi-flask" aria-hidden="true"></i> Test credentials</span><span class="payment-set-state">{{ 'Configured' if test_ready else 'Incomplete' }}</span></summary>
+                <div class="payment-credential-fields">
+                  <p class="payment-test-note"><i class="bi bi-info-circle" aria-hidden="true"></i> RFID test purchases use only this sandbox credential set.</p>
+                  <div class="form-grid two-col">
+                    {% if provider == 'paypal' %}<label>Test client ID<input type="text" name="{{ provider }}_test_public_key" placeholder="PayPal sandbox client ID" autocomplete="off"><span class="hint">Current: {{ 'configured' if test_public else 'not configured' }}</span></label>{% endif %}
+                    <label>Test secret key<input type="password" name="{{ provider }}_test_secret_key" placeholder="{{ 'sk_test_...' if provider == 'stripe' else 'PayPal sandbox secret' }}" autocomplete="new-password"><span class="hint">Current: {{ 'configured' if test_secret else 'not configured' }}</span></label>
+                    <label>Test webhook {{ 'ID' if provider == 'paypal' else 'secret' }}<input type="password" name="{{ provider }}_test_webhook_secret" placeholder="{{ 'whsec_...' if provider == 'stripe' else 'PayPal sandbox webhook ID' }}" autocomplete="new-password"><span class="hint">Current: {{ 'configured' if test_webhook else 'not configured' }}</span></label>
+                    <label class="full">Webhook URL<input type="text" value="{{ paypal_webhook_url if provider == 'paypal' else stripe_webhook_url }}" readonly><span class="hint">The same endpoint supports live and test events.</span></label>
+                  </div>
+                  {% if method %}<div class="enterprise-clear-row">
+                    {% if provider == 'paypal' %}<label><input type="checkbox" name="{{ provider }}_clear_test_public_key" value="1"> Clear test client ID</label>{% endif %}
+                    <label><input type="checkbox" name="{{ provider }}_clear_test_secret_key" value="1"> Clear test secret</label>
+                    <label><input type="checkbox" name="{{ provider }}_clear_test_webhook_secret" value="1"> Clear test webhook value</label>
+                  </div>{% endif %}
+                </div>
+              </details>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <aside class="payment-help-card"><i class="bi bi-info-circle" aria-hidden="true"></i><div><h4>Separate from track payments</h4><p class="muted-line">Only RFID tag store orders use these credentials. Event tickets, vendor passes, and private rentals continue to use the selected track’s payment setup.</p></div></aside>
+      <div class="payments-save-bar"><button class="btn" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Save enterprise payments</button></div>
     </form>
   </section>
 </div>

@@ -8,6 +8,7 @@
       <p>Provision physical tags, manage pricing, and monitor assignments.</p>
     </div>
     <div class="ui-header-actions">
+      <a class="btn btn-secondary" href="{{ url_for('admin.settings') }}#enterprise-payments"><i class="bi bi-credit-card" aria-hidden="true"></i> Store payments</a>
       <a class="btn btn-secondary" href="{{ url_for('admin.rfid_tag_orders') }}">
         <i class="bi bi-box-seam" aria-hidden="true"></i> Fulfillment
         {% if pending_orders %}<span class="ui-badge">{{ pending_orders }}</span>{% endif %}

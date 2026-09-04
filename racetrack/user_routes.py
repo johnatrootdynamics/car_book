@@ -19,6 +19,7 @@ from .models import (
     Event,
     EventClassSlot,
     DriverTicketOrder,
+    EnterprisePaymentMethod,
     EventRegistration,
     PrivateRentalBooking,
     PrivateRentalSlot,
@@ -179,19 +180,69 @@ def rfid_tag_cart_remove(item_id):
 
 
 def _mark_rfid_tag_order_paid(order, transaction_id=None):
+    if order.total_cents > 0 and order.payment_method in {"stripe", "paypal"} and not transaction_id:
+        raise ValueError("Paid enterprise store orders require a provider transaction ID.")
     order.payment_status = "paid"
     order.provider_transaction_id = transaction_id
     order.paid_at = order.paid_at or datetime.utcnow()
     db.session.commit()
 
 
-def _rfid_paypal_credentials():
+RFID_PAYMENT_PROVIDER_LABELS = {
+    "stripe": "Credit or debit card (Stripe)",
+    "paypal": "PayPal",
+}
+
+
+def _enterprise_payment_credentials(provider, mode=None):
+    method = EnterprisePaymentMethod.query.filter_by(provider=provider).first()
+    default_mode = (
+        current_app.config.get("PAYPAL_MODE", "live")
+        if provider == "paypal"
+        else "live"
+    )
+    selected_mode = (mode or (method.mode if method else default_mode) or "live").lower()
+    if selected_mode not in {"live", "test"}:
+        selected_mode = "live"
+    is_test = selected_mode == "test"
+    public_key = getattr(method, "test_public_key" if is_test else "public_key", None)
+    secret_key = getattr(method, "test_secret_key" if is_test else "secret_key", None)
+    webhook_secret = getattr(method, "test_webhook_secret" if is_test else "webhook_secret", None)
+    if not is_test:
+        if provider == "stripe":
+            secret_key = secret_key or current_app.config.get("STRIPE_SECRET_KEY")
+            webhook_secret = webhook_secret or current_app.config.get("STRIPE_WEBHOOK_SECRET")
+        elif provider == "paypal":
+            public_key = public_key or current_app.config.get("PAYPAL_CLIENT_ID")
+            secret_key = secret_key or current_app.config.get("PAYPAL_SECRET_KEY")
+            webhook_secret = webhook_secret or current_app.config.get("PAYPAL_WEBHOOK_ID")
     return {
-        "public_key": current_app.config.get("PAYPAL_CLIENT_ID"),
-        "secret_key": current_app.config.get("PAYPAL_SECRET_KEY"),
-        "webhook_secret": current_app.config.get("PAYPAL_WEBHOOK_ID"),
-        "mode": current_app.config.get("PAYPAL_MODE", "live"),
+        "public_key": public_key,
+        "secret_key": secret_key,
+        "webhook_secret": webhook_secret,
+        "mode": selected_mode,
     }
+
+
+def _rfid_payment_choices():
+    choices = []
+    for provider, label in RFID_PAYMENT_PROVIDER_LABELS.items():
+        method = EnterprisePaymentMethod.query.filter_by(provider=provider).first()
+        credentials = _enterprise_payment_credentials(provider)
+        if method is not None:
+            enabled = method.is_enabled
+        elif provider == "paypal":
+            enabled = bool(credentials["public_key"] and credentials["secret_key"])
+        else:
+            enabled = bool(credentials["secret_key"])
+        ready_for_checkout = bool(
+            credentials["secret_key"]
+            and credentials["webhook_secret"]
+            and (provider != "paypal" or credentials["public_key"])
+        )
+        if enabled and ready_for_checkout:
+            choices.append((provider, label))
+    return choices
 
 
 @user_bp.route("/rfid-tags/checkout", methods=["GET", "POST"])
@@ -207,16 +258,22 @@ def rfid_tag_checkout():
         return redirect(url_for("user.rfid_tags"))
     settings = RfidTagSettings.query.get(1) or RfidTagSettings(price_cents=0)
     total_cents = max(0, settings.price_cents or 0) * len(items)
+    payment_choices = _rfid_payment_choices()
     if request.method == "POST":
-        payment_method = (request.form.get("payment_method") or "stripe").lower()
-        if payment_method not in {"stripe", "paypal"}:
-            payment_method = "stripe"
+        available_providers = {value for value, _label in payment_choices}
+        payment_method = (request.form.get("payment_method") or "").lower()
+        if total_cents > 0 and payment_method not in available_providers:
+            flash("Choose an available enterprise store payment provider.", "error")
+            return redirect(url_for("user.rfid_tag_checkout"))
+        if payment_method not in RFID_PAYMENT_PROVIDER_LABELS:
+            payment_method = payment_choices[0][0] if payment_choices else "stripe"
+        credentials = _enterprise_payment_credentials(payment_method)
         order = RfidTagOrder(
             order_number=f"RFID-{datetime.utcnow():%Y%m%d}-{secrets.token_hex(3).upper()}",
             user_id=current_user.id,
             total_cents=total_cents,
             payment_method=payment_method,
-            payment_mode=current_app.config.get("PAYPAL_MODE", "live") if payment_method == "paypal" else "live",
+            payment_mode=credentials["mode"],
             shipping_name=f"{current_user.first_name} {current_user.last_name}",
             shipping_street=current_user.street,
             shipping_city=current_user.city,
@@ -234,7 +291,6 @@ def rfid_tag_checkout():
             _mark_rfid_tag_order_paid(order)
             return redirect(url_for("user.rfid_tag_order", order_id=order.id))
         if payment_method == "paypal":
-            credentials = _rfid_paypal_credentials()
             if not credentials["public_key"] or not credentials["secret_key"]:
                 flash("PayPal payments are not configured yet. Your order was saved pending payment.", "error")
                 return redirect(url_for("user.rfid_tag_order", order_id=order.id))
@@ -250,11 +306,11 @@ def rfid_tag_checkout():
                 current_app.logger.exception("RFID tag PayPal checkout creation failed")
                 flash("PayPal could not start checkout. Your order was saved; please try again later.", "error")
                 return redirect(url_for("user.rfid_tag_order", order_id=order.id))
-        if not stripe or not current_app.config.get("STRIPE_SECRET_KEY"):
+        if not stripe or not credentials["secret_key"]:
             flash("Online tag payments are not configured yet. Your order was saved pending payment.", "error")
             return redirect(url_for("user.rfid_tag_order", order_id=order.id))
         try:
-            stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+            stripe.api_key = credentials["secret_key"]
             checkout = stripe.checkout.Session.create(
                 mode="payment",
                 customer_email=current_user.email,
@@ -271,14 +327,25 @@ def rfid_tag_checkout():
             current_app.logger.exception("RFID tag checkout creation failed")
             flash("Stripe could not start checkout. Your order was saved; please try again later.", "error")
             return redirect(url_for("user.rfid_tag_order", order_id=order.id))
-    return render_template("user/rfid_tag_checkout.html", items=items, total_cents=total_cents, money=_money)
+    return render_template(
+        "user/rfid_tag_checkout.html",
+        items=items,
+        total_cents=total_cents,
+        money=_money,
+        payment_methods=payment_choices,
+    )
 
 
 @user_bp.route("/rfid-tags/order/<int:order_id>")
 @login_required
 def rfid_tag_order(order_id):
     order = RfidTagOrder.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
-    return render_template("user/rfid_tag_order.html", order=order, money=_money)
+    return render_template(
+        "user/rfid_tag_order.html",
+        order=order,
+        money=_money,
+        payment_methods=_rfid_payment_choices(),
+    )
 
 
 @user_bp.route("/rfid-tags/order/<int:order_id>/pay", methods=["POST"])
@@ -288,8 +355,12 @@ def rfid_tag_order_pay(order_id):
     if order.payment_status == "paid":
         return redirect(url_for("user.rfid_tag_order", order_id=order.id))
     payment_method = (request.form.get("payment_method") or order.payment_method or "stripe").lower()
+    available_providers = {value for value, _label in _rfid_payment_choices()}
+    if payment_method not in available_providers:
+        flash("That enterprise store payment provider is not available.", "error")
+        return redirect(url_for("user.rfid_tag_order", order_id=order.id))
     if payment_method == "paypal":
-        credentials = _rfid_paypal_credentials()
+        credentials = _enterprise_payment_credentials("paypal")
         if not credentials["public_key"] or not credentials["secret_key"]:
             flash("PayPal payments are not configured yet.", "error")
             return redirect(url_for("user.rfid_tag_order", order_id=order.id))
@@ -307,11 +378,12 @@ def rfid_tag_order_pay(order_id):
             current_app.logger.exception("RFID tag PayPal retry failed")
             flash("PayPal could not start checkout. Please try again later.", "error")
             return redirect(url_for("user.rfid_tag_order", order_id=order.id))
-    if not stripe or not current_app.config.get("STRIPE_SECRET_KEY"):
+    credentials = _enterprise_payment_credentials("stripe")
+    if not stripe or not credentials["secret_key"]:
         flash("Online tag payments are not configured yet.", "error")
         return redirect(url_for("user.rfid_tag_order", order_id=order.id))
     try:
-        stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+        stripe.api_key = credentials["secret_key"]
         checkout = stripe.checkout.Session.create(
             mode="payment", customer_email=current_user.email,
             line_items=[{"price_data": {"currency": "usd", "unit_amount": order.items[0].unit_price_cents,
@@ -322,7 +394,7 @@ def rfid_tag_order_pay(order_id):
         )
         order.provider_session_id = checkout.id
         order.payment_method = "stripe"
-        order.payment_mode = "live"
+        order.payment_mode = credentials["mode"]
         db.session.commit()
         return redirect(checkout.url, code=303)
     except Exception:
@@ -341,7 +413,11 @@ def rfid_tag_paypal_return(order_id):
         return redirect(url_for("user.rfid_tag_order", order_id=order.id))
     if order.payment_status != "paid":
         try:
-            captured = capture_paypal_order(_rfid_paypal_credentials(), paypal_order_id, f"rfid-capture-{order.id}")
+            captured = capture_paypal_order(
+                _enterprise_payment_credentials("paypal", mode=order.payment_mode),
+                paypal_order_id,
+                f"rfid-capture-{order.id}",
+            )
             details = paypal_capture_details(captured)
             if (details["status"] != "COMPLETED" or details["currency"] != "USD"
                     or details["value"] != f"{order.total_cents / 100:.2f}" or not details["transaction_id"]):
@@ -361,7 +437,8 @@ def rfid_tag_payment_return(order_id):
     session_id = request.args.get("session_id")
     if order.payment_status != "paid" and session_id and session_id == order.provider_session_id and stripe:
         try:
-            stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+            credentials = _enterprise_payment_credentials("stripe", mode=order.payment_mode)
+            stripe.api_key = credentials["secret_key"]
             checkout = stripe.checkout.Session.retrieve(session_id)
             if checkout.payment_status == "paid" and int(checkout.amount_total or -1) == order.total_cents:
                 _mark_rfid_tag_order_paid(order, checkout.payment_intent)
@@ -1817,7 +1894,10 @@ def stripe_webhook():
     if not order and not driver_ticket_order and not private_rental_booking and not rfid_order:
         return "ok", 200
     if rfid_order:
-        webhook_secret = current_app.config.get("STRIPE_WEBHOOK_SECRET")
+        webhook_secret = _enterprise_payment_credentials(
+            "stripe",
+            mode=rfid_order.payment_mode,
+        )["webhook_secret"]
     elif order:
         payment_track = order.items[0].event.track if order.items else None
         webhook_secret = (
@@ -2050,6 +2130,7 @@ def paypal_webhook():
     ).first()
     driver_ticket_order = None
     private_rental_booking = None
+    rfid_order = None
     if not spectator_order:
         driver_ticket_order = DriverTicketOrder.query.filter_by(
             provider_session_id=paypal_order_id,
@@ -2061,13 +2142,24 @@ def paypal_webhook():
             payment_method="paypal",
         ).first()
     if not spectator_order and not driver_ticket_order and not private_rental_booking:
+        rfid_order = RfidTagOrder.query.filter_by(
+            provider_session_id=paypal_order_id,
+            payment_method="paypal",
+        ).first()
+    if not spectator_order and not driver_ticket_order and not private_rental_booking and not rfid_order:
         return "ok", 200
 
-    credentials = _paypal_credentials_for_order(
-        spectator_order=spectator_order,
-        driver_ticket_order=driver_ticket_order,
-        private_rental_booking=private_rental_booking,
-    )
+    if rfid_order:
+        credentials = _enterprise_payment_credentials(
+            "paypal",
+            mode=rfid_order.payment_mode,
+        )
+    else:
+        credentials = _paypal_credentials_for_order(
+            spectator_order=spectator_order,
+            driver_ticket_order=driver_ticket_order,
+            private_rental_booking=private_rental_booking,
+        )
     if not credentials or not credentials.get("webhook_secret"):
         return "ignored", 200
     try:
@@ -2085,8 +2177,8 @@ def paypal_webhook():
 
     try:
         if event_type == "CHECKOUT.ORDER.APPROVED":
-            target = spectator_order or driver_ticket_order or private_rental_booking
-            if not reservation_is_active(target):
+            target = spectator_order or driver_ticket_order or private_rental_booking or rfid_order
+            if not rfid_order and not reservation_is_active(target):
                 if spectator_order:
                     event_ids = sorted({item.event_id for item in spectator_order.items})
                     Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
@@ -2120,7 +2212,11 @@ def paypal_webhook():
                     else (
                         f"driver-capture-{driver_ticket_order.id}"
                         if driver_ticket_order
-                        else f"private-rental-capture-{private_rental_booking.id}"
+                        else (
+                            f"private-rental-capture-{private_rental_booking.id}"
+                            if private_rental_booking
+                            else f"rfid-capture-{rfid_order.id}"
+                        )
                     )
                 ),
             )
@@ -2134,27 +2230,30 @@ def paypal_webhook():
                 "value": amount.get("value"),
             }
         elif event_type == "PAYMENT.CAPTURE.DENIED":
-            target = spectator_order or driver_ticket_order or private_rental_booking
+            target = spectator_order or driver_ticket_order or private_rental_booking or rfid_order
             if target.payment_status != "paid":
                 target.payment_status = "failed"
-                target.failure_reason = "PayPal declined the payment capture."
+                if hasattr(target, "failure_reason"):
+                    target.failure_reason = "PayPal declined the payment capture."
                 db.session.commit()
             return "ok", 200
         else:
             return "ok", 200
 
-        target = spectator_order or driver_ticket_order or private_rental_booking
-        expected_cents = spectator_order.total_cents if spectator_order else target.amount_cents
+        target = spectator_order or driver_ticket_order or private_rental_booking or rfid_order
+        expected_cents = target.total_cents if (spectator_order or rfid_order) else target.amount_cents
         transaction_id = _validated_paypal_capture(details, expected_cents)
         if spectator_order:
             _finalize_spectator_order(spectator_order, transaction_id=transaction_id)
         elif driver_ticket_order:
             _finalize_driver_ticket_order(driver_ticket_order, transaction_id=transaction_id)
-        else:
+        elif private_rental_booking:
             _finalize_private_rental_booking(
                 private_rental_booking,
                 transaction_id=transaction_id,
             )
+        else:
+            _mark_rfid_tag_order_paid(rfid_order, transaction_id=transaction_id)
     except PayPalError:
         current_app.logger.exception("PayPal webhook processing failed for order %s", paypal_order_id)
         return "retry", 500

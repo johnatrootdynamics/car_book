@@ -22,6 +22,7 @@ from .models import (
     DriverWaiver,
     Employee,
     EnterpriseAdmin,
+    EnterprisePaymentMethod,
     EventRegistration,
     PrivateRentalBooking,
     RfidTag,
@@ -56,6 +57,16 @@ from .services.ticket_service import ensure_order_ticket_codes
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+ENTERPRISE_PAYMENT_PROVIDERS = {
+    "stripe": "Stripe",
+    "paypal": "PayPal",
+}
+
+ENTERPRISE_PAYMENT_DOCS = {
+    "stripe": "https://docs.stripe.com/keys",
+    "paypal": "https://developer.paypal.com/api/rest/",
+}
 
 
 @admin_bp.route("/rfid-tags", methods=["GET", "POST"])
@@ -203,11 +214,84 @@ def settings():
         return guard
     smtp_settings = SystemEmailSettings.query.get(1)
     email_config = get_email_configuration(include_password=False)
+    enterprise_payment_methods = {
+        method.provider: method
+        for method in EnterprisePaymentMethod.query.all()
+    }
+    enterprise_env_status = {
+        "stripe": {
+            "public_key": False,
+            "secret_key": bool(current_app.config.get("STRIPE_SECRET_KEY")),
+            "webhook_secret": bool(current_app.config.get("STRIPE_WEBHOOK_SECRET")),
+            "mode": "live",
+        },
+        "paypal": {
+            "public_key": bool(current_app.config.get("PAYPAL_CLIENT_ID")),
+            "secret_key": bool(current_app.config.get("PAYPAL_SECRET_KEY")),
+            "webhook_secret": bool(current_app.config.get("PAYPAL_WEBHOOK_ID")),
+            "mode": current_app.config.get("PAYPAL_MODE", "live"),
+        },
+    }
+    app_base_url = (current_app.config.get("APP_BASE_URL") or "").rstrip("/")
+    forwarded_scheme = request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip()
+    public_scheme = forwarded_scheme if forwarded_scheme in {"http", "https"} else request.scheme
+    if public_scheme == "http" and request.host.split(":", 1)[0] not in {"localhost", "127.0.0.1"}:
+        public_scheme = "https"
+    public_base_url = app_base_url or f"{public_scheme}://{request.host}"
     return render_template(
         "admin/settings.html",
         smtp_settings=smtp_settings,
         email_config=email_config,
+        enterprise_payment_methods=enterprise_payment_methods,
+        enterprise_payment_providers=ENTERPRISE_PAYMENT_PROVIDERS,
+        enterprise_payment_docs=ENTERPRISE_PAYMENT_DOCS,
+        enterprise_env_status=enterprise_env_status,
+        stripe_webhook_url=f"{public_base_url}{url_for('user.stripe_webhook')}",
+        paypal_webhook_url=f"{public_base_url}{url_for('user.paypal_webhook')}",
     )
+
+
+@admin_bp.route("/settings/store-payments", methods=["POST"])
+@login_required
+def update_enterprise_payment_settings():
+    guard = require_admin()
+    if guard:
+        return guard
+
+    selected = {
+        provider
+        for provider in ENTERPRISE_PAYMENT_PROVIDERS
+        if request.form.get(f"provider_enabled_{provider}") == "1"
+    }
+    if not selected:
+        flash("Enable at least one enterprise store payment provider.", "error")
+        return redirect(url_for("admin.settings") + "#enterprise-payments")
+
+    for provider in ENTERPRISE_PAYMENT_PROVIDERS:
+        method = EnterprisePaymentMethod.query.filter_by(provider=provider).first()
+        if not method:
+            method = EnterprisePaymentMethod(provider=provider)
+            db.session.add(method)
+        method.is_enabled = provider in selected
+        requested_mode = (request.form.get(f"provider_mode_{provider}") or "live").strip().lower()
+        method.mode = requested_mode if requested_mode in {"live", "test"} else "live"
+        for field in ("public_key", "secret_key", "webhook_secret"):
+            value = (request.form.get(f"{provider}_{field}") or "").strip()
+            if value:
+                setattr(method, field, value)
+            if request.form.get(f"{provider}_clear_{field}") == "1":
+                setattr(method, field, None)
+
+            test_field = f"test_{field}"
+            test_value = (request.form.get(f"{provider}_{test_field}") or "").strip()
+            if test_value:
+                setattr(method, test_field, test_value)
+            if request.form.get(f"{provider}_clear_{test_field}") == "1":
+                setattr(method, test_field, None)
+
+    db.session.commit()
+    flash("Enterprise store payment settings updated.", "success")
+    return redirect(url_for("admin.settings") + "#enterprise-payments")
 
 
 @admin_bp.route("/settings/smtp", methods=["POST"])
