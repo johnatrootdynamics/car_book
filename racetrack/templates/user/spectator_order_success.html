@@ -48,6 +48,7 @@
       <div class="shop-summary-row"><span>Payment</span><strong>{{ order.payment_method|title }}</strong></div>
       <div class="shop-summary-row"><span>Status</span><strong>{{ order.payment_status|title }}</strong></div>
       <div class="shop-summary-row shop-summary-total"><span>Total</span><strong>{{ money(order.total_cents) }}</strong></div>
+      {% if order.payment_status == 'paid' and current_user.is_authenticated and current_user.account_type == 'user' and items %}<a class="btn shop-checkout-btn" href="{{ url_for('user.attendee_live_track', event_id=items[0].event_id) }}"><i class="bi bi-broadcast-pin"></i> Open Live Track</a>{% endif %}
       <a class="btn shop-checkout-btn" href="{{ url_for('user.spectator_events') }}">Browse More Events</a>
     </aside>
   </div>

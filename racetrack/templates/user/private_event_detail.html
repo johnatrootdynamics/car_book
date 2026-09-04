@@ -13,7 +13,7 @@
       {% if booking %}<div><span><i class="bi bi-receipt"></i></span><dl><dt>Rental total</dt><dd>{{ money(booking.amount_cents) }} · Paid</dd></dl></div>{% endif %}
       {% if registration %}<div><span><i class="bi bi-car-front"></i></span><dl><dt>Primary vehicle</dt><dd>{{ registration.car.car_year }} {{ registration.car.make }} {{ registration.car.model }}</dd></dl></div>{% endif %}
     </section>
-    <aside class="card private-event-next"><span class="event-page-kicker">Your private day</span><h3>Everything is reserved</h3><p>This event is hidden from public ticket listings. Only drivers coordinated for this rental will participate.</p><a class="btn" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Open track schedule <i class="bi bi-arrow-right"></i></a><a href="{{ url_for('waiver.driver_waivers') }}">Review waivers</a></aside>
+    <aside class="card private-event-next"><span class="event-page-kicker">Your private day</span><h3>Everything is reserved</h3><p>This event is hidden from public ticket listings. Only drivers coordinated for this rental will participate.</p><a class="btn" href="{{ url_for('user.attendee_live_track', event_id=event.id) }}"><i class="bi bi-broadcast-pin"></i> Open Live Track</a><a class="btn" href="{{ url_for('user.event_schedule', event_id=event.id) }}">Open track schedule <i class="bi bi-arrow-right"></i></a><a href="{{ url_for('waiver.driver_waivers') }}">Review waivers</a></aside>
   </div>
 </div>
 {% endblock %}

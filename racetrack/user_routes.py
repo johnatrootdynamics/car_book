@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 
@@ -36,6 +37,8 @@ from .models import (
     TrackDriverClass,
     TrackPaymentMethod,
     TrackSubscription,
+    TrackRun,
+    TrackRunVote,
     TrackWaiverTemplate,
     User,
     VendorAccount,
@@ -2238,6 +2241,113 @@ def discover():
     event_query = Event.query.join(Track, Track.id == Event.track_id).filter(
         Event.event_type == "public", Event.event_date >= today
     )
+
+
+def _attendee_event_ids(user_id):
+    event_ids = {
+        row[0] for row in db.session.query(EventRegistration.event_id)
+        .filter(EventRegistration.user_id == user_id).all()
+    }
+    event_ids.update(
+        row[0] for row in db.session.query(DriverTicketOrder.event_id)
+        .filter(DriverTicketOrder.user_id == user_id, DriverTicketOrder.payment_status == "paid").all()
+    )
+    event_ids.update(
+        row[0] for row in db.session.query(SpectatorOrderItem.event_id)
+        .join(SpectatorOrder, SpectatorOrder.id == SpectatorOrderItem.order_id)
+        .filter(SpectatorOrder.user_id == user_id, SpectatorOrder.payment_status == "paid").all()
+    )
+    return event_ids
+
+
+@user_bp.route("/live")
+@login_required
+def attendee_live_events():
+    guard = require_user()
+    if guard:
+        return guard
+    event_ids = _attendee_event_ids(current_user.id)
+    events = Event.query.filter(Event.id.in_(event_ids)).order_by(Event.event_date.desc()).all() if event_ids else []
+    active_event_ids = {
+        row[0] for row in db.session.query(TrackRun.event_id)
+        .filter(TrackRun.event_id.in_(event_ids), TrackRun.status == "active").all()
+    } if event_ids else set()
+    return render_template("user/live_events.html", events=events, active_event_ids=active_event_ids, today=date.today())
+
+
+def _attendee_event(event_id):
+    if event_id not in _attendee_event_ids(current_user.id):
+        return None
+    return Event.query.get(event_id)
+
+
+@user_bp.route("/events/<int:event_id>/live")
+@login_required
+def attendee_live_track(event_id):
+    guard = require_user()
+    if guard:
+        return guard
+    event = _attendee_event(event_id)
+    if not event:
+        return "Event access requires a paid ticket.", 403
+    active_run = TrackRun.query.filter_by(event_id=event.id, status="active").order_by(TrackRun.started_at.desc()).first()
+    completed_runs = TrackRun.query.filter_by(event_id=event.id, status="completed").order_by(TrackRun.ended_at.desc()).limit(30).all()
+    all_runs = ([active_run] if active_run else []) + completed_runs
+    vote_summary = {}
+    for run in all_runs:
+        vote_summary[run.id] = {
+            "up": sum(1 for vote in run.votes if vote.vote == 1),
+            "down": sum(1 for vote in run.votes if vote.vote == -1),
+            "mine": next((vote.vote for vote in run.votes if vote.user_id == current_user.id), None),
+        }
+    return render_template("user/live_track.html", event=event, active_run=active_run,
+                           completed_runs=completed_runs, vote_summary=vote_summary)
+
+
+@user_bp.route("/events/<int:event_id>/runs/<int:run_id>/vote", methods=["POST"])
+@login_required
+def attendee_run_vote(event_id, run_id):
+    guard = require_user()
+    if guard:
+        return guard
+    event = _attendee_event(event_id)
+    run = TrackRun.query.filter_by(id=run_id, event_id=event_id).first_or_404()
+    if not event:
+        return "Event access requires a paid ticket.", 403
+    if not event.run_voting_enabled:
+        flash("Run voting is currently disabled for this event.", "error")
+    elif TrackRunVote.query.filter_by(run_id=run.id, user_id=current_user.id).first():
+        flash("You already rated this run.", "error")
+    else:
+        vote_value = request.form.get("vote", type=int)
+        if vote_value not in {-1, 1}:
+            flash("Choose thumbs up or thumbs down.", "error")
+        else:
+            db.session.add(TrackRunVote(run_id=run.id, user_id=current_user.id, vote=vote_value))
+            try:
+                db.session.commit()
+                flash("Your run rating was recorded.", "success")
+            except IntegrityError:
+                db.session.rollback()
+                flash("You already rated this run.", "error")
+    return redirect(url_for("user.attendee_live_track", event_id=event_id, _anchor=f"run-{run.id}"))
+
+
+@user_bp.route("/events/<int:event_id>/live/state")
+@login_required
+def attendee_live_state(event_id):
+    guard = require_user()
+    if guard:
+        return guard
+    event = _attendee_event(event_id)
+    if not event:
+        return {"error": "forbidden"}, 403
+    runs = TrackRun.query.filter_by(event_id=event.id).order_by(TrackRun.started_at.desc()).limit(31).all()
+    return {"signature": [
+        [run.id, run.status, [participant.id for participant in run.participants],
+         sum(1 for vote in run.votes if vote.vote == 1), sum(1 for vote in run.votes if vote.vote == -1)]
+        for run in runs
+    ]}
     if timing == "weekend":
         days_until_saturday = (5 - today.weekday()) % 7
         weekend_start = today + timedelta(days=days_until_saturday)

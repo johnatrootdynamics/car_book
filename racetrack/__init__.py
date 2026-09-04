@@ -226,6 +226,7 @@ def create_app():
             "track_car_statuses",
             "track_runs",
             "track_run_participants",
+            "track_run_votes",
         }
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -342,6 +343,9 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) NOT NULL DEFAULT 'public'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS run_voting_enabled TINYINT(1) NOT NULL DEFAULT 0"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS private_owner_user_id INT NULL"

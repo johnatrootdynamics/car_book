@@ -8,7 +8,8 @@
       <p>Your next track day, garage, and inspection pass—all in one place.</p>
     </div>
     <div class="driver-dashboard-header-actions">
-      <a class="btn btn-secondary" href="{{ url_for('user.spectator_events') }}"><i class="bi bi-ticket-perforated" aria-hidden="true"></i> Browse events</a>
+      <a class="btn btn-secondary" href="{{ url_for('user.discover') }}"><i class="bi bi-compass-fill" aria-hidden="true"></i> Discover events</a>
+      <a class="btn btn-secondary" href="{{ url_for('user.attendee_live_events') }}"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Live Track</a>
       <a class="btn btn-secondary" href="{{ url_for('user.private_rental_tracks') }}"><i class="bi bi-calendar2-week" aria-hidden="true"></i> Private rentals</a>
       <a class="btn" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add vehicle</a>
     </div>
@@ -41,6 +42,7 @@
             <div class="driver-featured-actions">
               <a class="btn btn-sm" href="{{ url_for('user.event_schedule', event_id=next_event.id) }}">Open schedule</a>
               <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=next_event.id) }}">Event details</a>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('user.attendee_live_track', event_id=next_event.id) }}"><i class="bi bi-broadcast-pin"></i> Live Track</a>
               {% if not next_ready %}<a class="driver-waiver-link" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=next_waiver.id) if next_waiver else url_for('waiver.driver_waivers') }}">Complete waiver <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
               <details class="driver-registration-menu">
                 <summary aria-label="Registration options"><i class="bi bi-three-dots" aria-hidden="true"></i></summary>
@@ -80,7 +82,7 @@
         <div class="driver-dashboard-empty">
           <span><i class="bi bi-calendar2-plus" aria-hidden="true"></i></span>
           <div><strong>No track days booked</strong><p>Find an upcoming event and reserve your driver ticket.</p></div>
-          <a class="btn btn-secondary btn-sm" href="{{ url_for('user.spectator_events') }}">Browse events</a>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('user.discover') }}">Discover events</a>
         </div>
       {% endif %}
     </section>

@@ -304,6 +304,19 @@ def run_history():
     )
 
 
+@employee_bp.post("/events/<int:event_id>/run-voting")
+@login_required
+def event_run_voting(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    event.run_voting_enabled = request.form.get("enabled") == "1"
+    db.session.commit()
+    flash(f"Run voting {'enabled' if event.run_voting_enabled else 'disabled'} for {event.event_name}.", "success")
+    return redirect(url_for("employee.event_detail", event_id=event.id, view="general"))
+
+
 @employee_bp.get("/live-track/data")
 @login_required
 def live_track_data():

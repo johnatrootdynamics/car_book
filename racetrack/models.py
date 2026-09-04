@@ -263,6 +263,7 @@ class Event(db.Model):
     event_name = db.Column(db.String(200), nullable=False)
     event_date = db.Column(db.Date, nullable=False)
     event_type = db.Column(db.String(20), nullable=False, default="public")
+    run_voting_enabled = db.Column(db.Boolean, nullable=False, default=False)
     private_owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     driver_price_cents = db.Column(db.Integer, nullable=False, default=0)
     spectator_price_cents = db.Column(db.Integer, nullable=False, default=2500)
@@ -967,6 +968,23 @@ class TrackRun(db.Model):
     participants = db.relationship(
         "TrackRunParticipant", backref="run", cascade="all, delete-orphan",
         order_by="TrackRunParticipant.entered_at",
+    )
+    votes = db.relationship("TrackRunVote", backref="run", cascade="all, delete-orphan")
+
+
+class TrackRunVote(db.Model):
+    __tablename__ = "track_run_votes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.Integer, db.ForeignKey("track_runs.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    vote = db.Column(db.SmallInteger, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User")
+    __table_args__ = (
+        db.UniqueConstraint("run_id", "user_id", name="uniq_track_run_user_vote"),
+        db.CheckConstraint("vote IN (-1, 1)", name="chk_track_run_vote_value"),
     )
 
 
