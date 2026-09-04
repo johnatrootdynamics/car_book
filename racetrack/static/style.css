@@ -2056,7 +2056,7 @@ th { color: var(--muted); font-weight: 600; }
 .discover-hero { position: relative; overflow: hidden; padding: 42px 44px 32px; color: #fff; background: radial-gradient(circle at 88% 10%,rgba(199,243,60,.16),transparent 28%),radial-gradient(circle at 12% 120%,rgba(49,89,213,.55),transparent 38%),linear-gradient(130deg,#101725,#1c2940); border-radius: 18px; box-shadow: 0 20px 44px rgba(16,24,40,.16); }
 .discover-hero::after { content: ""; position: absolute; right: -80px; bottom: -140px; width: 330px; height: 330px; border: 55px solid rgba(255,255,255,.025); border-radius: 50%; pointer-events: none; }
 .discover-kicker { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; color: #c7f33c; font-size: .7rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
-.discover-hero h1 { position: relative; z-index: 1; margin: 8px 0 5px; color: #fff; font-size: clamp(2rem,4.2vw,3.5rem); line-height: 1; letter-spacing: -.05em; }
+.main-content .discover-hero h1 { position: relative; z-index: 1; margin: 8px 0 5px; color: #fff; font-size: clamp(2rem,4.2vw,3.5rem); line-height: 1; letter-spacing: -.05em; text-shadow: 0 2px 18px rgba(0,0,0,.48); }
 .discover-hero > p { position: relative; z-index: 1; margin: 0 0 24px; color: #bcc7d9; font-size: .95rem; }
 .discover-search { position: relative; z-index: 1; display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; align-items: center; max-width: 850px; padding: 7px 7px 7px 17px; background: #fff; border-radius: 13px; box-shadow: 0 12px 32px rgba(0,0,0,.2); }
 .discover-search > i { color: #667085; font-size: 1.05rem; }
