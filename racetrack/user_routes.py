@@ -4,10 +4,11 @@ import json
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 
@@ -38,6 +39,7 @@ from .models import (
     TrackPaymentMethod,
     TrackSubscription,
     TrackRun,
+    TrackRunParticipant,
     TrackRunVote,
     TrackWaiverTemplate,
     User,
@@ -74,6 +76,7 @@ from .services.rental_service import (
     booking_is_active,
     rental_month_context,
 )
+from .services.run_service import expire_stale_track_states
 from .services.ticket_service import (
     code_qr_png,
     ensure_order_ticket_codes,
@@ -2339,6 +2342,19 @@ def _attendee_event(event_id):
     return Event.query.get(event_id)
 
 
+def _attendee_run_signature(runs):
+    return [
+        [
+            run.id,
+            run.status,
+            [participant.id for participant in run.participants],
+            sum(1 for vote in run.votes if vote.vote == 1),
+            sum(1 for vote in run.votes if vote.vote == -1),
+        ]
+        for run in runs
+    ]
+
+
 @user_bp.route("/events/<int:event_id>/live")
 @login_required
 def attendee_live_track(event_id):
@@ -2348,8 +2364,25 @@ def attendee_live_track(event_id):
     event = _attendee_event(event_id)
     if not event:
         return "Event access requires a paid ticket.", 403
-    active_run = TrackRun.query.filter_by(event_id=event.id, status="active").order_by(TrackRun.started_at.desc()).first()
-    completed_runs = TrackRun.query.filter_by(event_id=event.id, status="completed").order_by(TrackRun.ended_at.desc()).limit(30).all()
+    expire_stale_track_states(event.track_id)
+    run_load_options = (
+        selectinload(TrackRun.participants).selectinload(TrackRunParticipant.car),
+        selectinload(TrackRun.participants).selectinload(TrackRunParticipant.driver),
+        selectinload(TrackRun.votes),
+    )
+    active_run = (
+        TrackRun.query.options(*run_load_options)
+        .filter_by(event_id=event.id, status="active")
+        .order_by(TrackRun.started_at.desc())
+        .first()
+    )
+    completed_runs = (
+        TrackRun.query.options(*run_load_options)
+        .filter_by(event_id=event.id, status="completed")
+        .order_by(TrackRun.ended_at.desc())
+        .limit(30)
+        .all()
+    )
     all_runs = ([active_run] if active_run else []) + completed_runs
     vote_summary = {}
     for run in all_runs:
@@ -2358,8 +2391,16 @@ def attendee_live_track(event_id):
             "down": sum(1 for vote in run.votes if vote.vote == -1),
             "mine": next((vote.vote for vote in run.votes if vote.user_id == current_user.id), None),
         }
-    return render_template("user/live_track.html", event=event, active_run=active_run,
-                           completed_runs=completed_runs, vote_summary=vote_summary)
+    return render_template(
+        "user/live_track.html",
+        event=event,
+        active_run=active_run,
+        completed_runs=completed_runs,
+        vote_summary=vote_summary,
+        initial_signature=_attendee_run_signature(
+            sorted(all_runs, key=lambda run: run.started_at, reverse=True)
+        ),
+    )
 
 
 @user_bp.route("/events/<int:event_id>/runs/<int:run_id>/vote", methods=["POST"])
@@ -2400,12 +2441,20 @@ def attendee_live_state(event_id):
     event = _attendee_event(event_id)
     if not event:
         return {"error": "forbidden"}, 403
-    runs = TrackRun.query.filter_by(event_id=event.id).order_by(TrackRun.started_at.desc()).limit(31).all()
-    return {"signature": [
-        [run.id, run.status, [participant.id for participant in run.participants],
-         sum(1 for vote in run.votes if vote.vote == 1), sum(1 for vote in run.votes if vote.vote == -1)]
-        for run in runs
-    ]}
+    expire_stale_track_states(event.track_id)
+    runs = (
+        TrackRun.query.options(
+            selectinload(TrackRun.participants),
+            selectinload(TrackRun.votes),
+        )
+        .filter_by(event_id=event.id)
+        .order_by(TrackRun.started_at.desc())
+        .limit(31)
+        .all()
+    )
+    response = jsonify(signature=_attendee_run_signature(runs))
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @user_bp.route("/tracks")

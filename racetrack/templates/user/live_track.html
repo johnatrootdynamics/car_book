@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="audience-live-page" data-live-state-url="{{ url_for('user.attendee_live_state', event_id=event.id) }}">
+<div class="audience-live-page" data-live-state-url="{{ url_for('user.attendee_live_state', event_id=event.id) }}" data-live-signature='{{ initial_signature|tojson }}'>
   <header class="audience-live-hero">
     <div class="audience-live-hero-copy">
       <a href="{{ url_for('user.attendee_live_events') }}"><i class="bi bi-chevron-left"></i> Your live events</a>
@@ -61,16 +61,27 @@
 document.addEventListener('DOMContentLoaded', () => {
   const root = document.querySelector('[data-live-state-url]')
   if (!root) return
-  let signature = null
+  let signature
+  try {
+    signature = JSON.stringify(JSON.parse(root.dataset.liveSignature || '[]'))
+  } catch (error) {
+    signature = '[]'
+  }
   const check = async () => {
     try {
-      const data = await fetch(root.dataset.liveStateUrl, { headers: { 'Accept': 'application/json' } }).then(response => response.json())
+      const response = await fetch(root.dataset.liveStateUrl, {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      })
+      if (!response.ok) return
+      const data = await response.json()
       const next = JSON.stringify(data.signature || [])
-      if (signature === null) signature = next
-      else if (next !== signature) location.reload()
-    } catch (error) {}
+      if (next !== signature) location.reload()
+    } catch (error) {
+    } finally {
+      window.setTimeout(check, 2000)
+    }
   }
-  setInterval(check, 4000)
   check()
 })
 </script>
