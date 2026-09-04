@@ -2470,6 +2470,11 @@ def attendee_live_state(event_id):
             event=event,
             **live_context,
         )
+        payload["current_status_html"] = render_template(
+            "user/_live_current_status.html",
+            event=event,
+            **live_context,
+        )
     if request.args.get("history") != live_context["history_version"]:
         payload["history_html"] = render_template(
             "user/_live_history_section.html",
