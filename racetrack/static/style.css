@@ -9107,7 +9107,36 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .driver-dashboard-hero-qr > div:last-child { display: grid; gap: 1px; }
 .driver-dashboard-hero-qr strong { color: #fff; font-size: .69rem; }
 .driver-dashboard-hero-qr small { color: #bfcbe0; font-size: .55rem; line-height: 1.3; }
-.driver-dashboard-secondary-single { grid-template-columns: 1fr; }
+.driver-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.driver-stat-strip > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e2e6ec;
+  border-radius: 11px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .035);
+}
+.driver-stat-strip > div > span:last-child { display: grid; min-width: 0; gap: 1px; }
+.driver-stat-strip strong { color: #1f2a3d; font-size: 1.08rem; line-height: 1.05; }
+.driver-stat-strip small { overflow: hidden; color: #7a8699; font-size: .61rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.driver-stat-icon {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  color: #3159d5;
+  background: #eef3ff;
+  border-radius: 9px;
+  place-items: center;
+}
+.driver-stat-icon i { font-size: .78rem; }
 
 /* Community is a compact feed with real filters and optional discussions. */
 .ui-system.account-driver .community-hero {
@@ -9229,6 +9258,7 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .driver-dashboard-header-actions { display: flex; width: auto; }
   .driver-hero-qr-image { width: 94px; height: 94px; }
   .driver-hero-qr-image img { width: 82px; height: 82px; }
+  .driver-stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ui-system.account-driver .community-tabs { width: 100%; }
   .ui-system.account-driver .community-tabs a { flex: 1; }
 }

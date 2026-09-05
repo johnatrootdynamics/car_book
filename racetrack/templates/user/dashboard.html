@@ -19,10 +19,29 @@
     </aside>
   </header>
 
+  <section class="driver-stat-strip" aria-label="Driver stats">
+    <div>
+      <span class="driver-stat-icon"><i class="bi bi-flag-fill" aria-hidden="true"></i></span>
+      <span><strong>{{ driver_stats.attended }}</strong><small>Events attended</small></span>
+    </div>
+    <div>
+      <span class="driver-stat-icon"><i class="bi bi-calendar2-event" aria-hidden="true"></i></span>
+      <span><strong>{{ driver_stats.upcoming }}</strong><small>Upcoming events</small></span>
+    </div>
+    <div>
+      <span class="driver-stat-icon"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i></span>
+      <span><strong>{{ driver_stats.tracks }}</strong><small>Tracks visited</small></span>
+    </div>
+    <div>
+      <span class="driver-stat-icon"><i class="bi bi-car-front-fill" aria-hidden="true"></i></span>
+      <span><strong>{{ driver_stats.vehicles }}</strong><small>Vehicles</small></span>
+    </div>
+  </section>
+
   <div class="driver-dashboard-primary-grid">
     <section class="card driver-next-event-card">
       <div class="driver-dashboard-section-head">
-        <div><span>Up next</span><h3>Your track days</h3></div>
+        <div><span>Your schedule</span><h3>Upcoming events</h3></div>
         <a href="{{ url_for('user.spectator_events') }}">All events <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       </div>
 
@@ -85,7 +104,7 @@
       {% else %}
         <div class="driver-dashboard-empty">
           <span><i class="bi bi-calendar2-plus" aria-hidden="true"></i></span>
-          <div><strong>No track days booked</strong><p>Find an upcoming event and reserve your driver ticket.</p></div>
+          <div><strong>No upcoming events</strong><p>Find an upcoming event and reserve your driver ticket.</p></div>
           <a class="btn btn-secondary btn-sm" href="{{ url_for('user.discover') }}">Discover events</a>
         </div>
       {% endif %}
@@ -115,52 +134,6 @@
         <a class="driver-garage-add" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add your first vehicle</a>
       {% endif %}
     </aside>
-  </div>
-
-  <div class="driver-dashboard-secondary-grid driver-dashboard-secondary-single">
-    <section class="card driver-discover-card">
-      <div class="driver-dashboard-section-head driver-discover-head">
-        <div><span>From followed tracks</span><h3>Upcoming events</h3></div>
-        {% if subscribed_tracks %}
-          <form method="get" class="driver-track-filter">
-            <label for="driver-track-filter">Track</label>
-            <select id="driver-track-filter" name="track_id" onchange="this.form.submit()">
-              <option value="">All tracks</option>
-              {% for track in subscribed_tracks %}<option value="{{ track.id }}" {% if selected_track_id == track.id %}selected{% endif %}>{{ track.name }}</option>{% endfor %}
-            </select>
-          </form>
-        {% endif %}
-      </div>
-
-      {% if subscribed_events %}
-        <div class="driver-discover-list">
-          {% for event in subscribed_events[:6] %}
-            {% set current_class = track_class_by_track_id.get(event.track_id, 'C') %}
-            {% set driver_availability = driver_availability_by_event.get(event.id) %}
-            <article>
-              <div class="driver-discover-date"><strong>{{ event.event_date.strftime('%-d') }}</strong><span>{{ event.event_date.strftime('%b') }}</span></div>
-              <div class="driver-discover-copy"><a href="{{ url_for('user.event_detail', event_id=event.id) }}">{{ event.event_name }}</a><span>{{ event.track.name }} · Class {{ current_class }}</span></div>
-              <div class="driver-discover-action">
-                {% if driver_availability and driver_availability.sold_out %}
-                  <span class="driver-sold-out">Driver spots sold out</span>
-                  <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=event.id) }}">View tickets</a>
-                {% else %}
-                  <a class="btn btn-sm" href="{{ url_for('user.event_detail', event_id=event.id) }}">Choose tickets</a>
-                {% endif %}
-              </div>
-            </article>
-          {% endfor %}
-        </div>
-        {% if subscribed_events|length > 6 %}<a class="driver-list-footer" href="{{ url_for('user.spectator_events') }}">See all upcoming events <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
-      {% else %}
-        <div class="driver-dashboard-empty">
-          <span><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
-          <div><strong>{% if subscribed_tracks %}Nothing upcoming yet{% else %}Follow your favorite tracks{% endif %}</strong><p>{% if subscribed_tracks %}New events from this track will appear here.{% else %}Follow tracks to keep their upcoming events on your dashboard.{% endif %}</p></div>
-          <a class="btn btn-secondary btn-sm" href="{{ url_for('user.tracks_directory') }}">Track directory</a>
-        </div>
-      {% endif %}
-    </section>
-
   </div>
 </div>
 {% endblock %}

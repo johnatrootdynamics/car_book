@@ -933,10 +933,6 @@ def dashboard():
         current_user.static_qr_code = _generate_user_qr_code()
         db.session.commit()
     cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
-    signups = {
-        reg.event_id: reg
-        for reg in EventRegistration.query.filter_by(user_id=current_user.id).all()
-    }
     events = (
         Event.query.join(EventRegistration, EventRegistration.event_id == Event.id)
         .filter(
@@ -978,58 +974,35 @@ def dashboard():
             elif start_dt <= now_dt <= end_dt:
                 slot_notice_by_event[event.id] = f"Your class ({driver_class}) is active now"
 
-    subscribed_track_ids = {
-        item.track_id
-        for item in TrackSubscription.query.filter_by(user_id=current_user.id).all()
-    }
-    selected_track_id = request.args.get("track_id", type=int)
-    if selected_track_id is not None and selected_track_id not in subscribed_track_ids:
-        selected_track_id = None
-    subscribed_tracks = []
-    if subscribed_track_ids:
-        subscribed_tracks = (
-            Track.query.filter(Track.id.in_(subscribed_track_ids))
-            .order_by(Track.name.asc())
-            .all()
+    attended_count = EventRegistration.query.filter(
+        EventRegistration.user_id == current_user.id,
+        EventRegistration.checked_in_at.isnot(None),
+    ).count()
+    tracks_visited_count = (
+        db.session.query(func.count(func.distinct(Event.track_id)))
+        .join(EventRegistration, EventRegistration.event_id == Event.id)
+        .filter(
+            EventRegistration.user_id == current_user.id,
+            EventRegistration.checked_in_at.isnot(None),
         )
-    subscribed_events = []
-    if subscribed_track_ids:
-        event_query = Event.query.filter(
-            Event.track_id.in_(subscribed_track_ids),
-            Event.event_date >= date.today(),
-            Event.event_type == "public",
-        )
-        if selected_track_id:
-            event_query = event_query.filter(Event.track_id == selected_track_id)
-        subscribed_events = [
-            event
-            for event in event_query.order_by(Event.event_date.asc()).limit(24).all()
-            if event.id not in signups
-        ]
-    driver_availability_by_event = {
-        event.id: ticket_availability(event, "driver")
-        for event in subscribed_events
+        .scalar()
+        or 0
+    )
+    driver_stats = {
+        "attended": attended_count,
+        "upcoming": len(events),
+        "tracks": tracks_visited_count,
+        "vehicles": len(cars),
     }
-
-    waivers = []
-    for item in waiver_by_event.values():
-        if item.get("waiver"):
-            waivers.append(item["waiver"])
     return render_template(
         "user/dashboard.html",
         cars=cars,
         events=events,
-        signups=signups,
         waiver_by_event=waiver_by_event,
-        waivers=waivers,
         slot_notice_by_event=slot_notice_by_event,
         slot_time_by_event=slot_time_by_event,
-        subscribed_events=subscribed_events,
-        subscribed_tracks=subscribed_tracks,
-        selected_track_id=selected_track_id,
-        subscribed_track_ids=subscribed_track_ids,
         track_class_by_track_id=track_class_by_track_id,
-        driver_availability_by_event=driver_availability_by_event,
+        driver_stats=driver_stats,
     )
 
 
