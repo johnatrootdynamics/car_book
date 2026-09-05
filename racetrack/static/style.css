@@ -6925,9 +6925,6 @@ details > summary { font-size: .92rem; }
 }
 .driver-dashboard-header h2 { margin: 5px 0 4px; color: #fff; font-size: 1.58rem; letter-spacing: -.025em; }
 .driver-dashboard-header p { margin: 0; color: #d5def2; font-size: .84rem; }
-.driver-dashboard-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.driver-dashboard-header-actions .btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.driver-dashboard-header-actions .btn-secondary { color: #f5f7ff; background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .23); }
 
 .driver-dashboard-primary-grid,
 .driver-dashboard-secondary-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, .72fr); gap: 12px; align-items: start; }
@@ -7043,8 +7040,6 @@ details > summary { font-size: .92rem; }
 
 @media (max-width: 660px) {
   .driver-dashboard-header { align-items: flex-start; flex-direction: column; padding: 20px; }
-  .driver-dashboard-header-actions { display: grid; width: 100%; grid-template-columns: 1fr 1fr; }
-  .driver-dashboard-header-actions .btn { justify-content: center; }
   .driver-featured-event { grid-template-columns: 58px minmax(0, 1fr); gap: 11px; padding: 12px; }
   .driver-featured-date { min-height: 78px; }
   .driver-registered-list > article > a { grid-template-columns: 52px minmax(0, 1fr) 12px; }
@@ -7060,7 +7055,6 @@ details > summary { font-size: .92rem; }
 }
 
 @media (max-width: 430px) {
-  .driver-dashboard-header-actions { grid-template-columns: 1fr; }
   .driver-featured-actions .btn { flex: 1; text-align: center; }
   .driver-waiver-link { width: 100%; justify-content: center; padding-top: 3px; }
   .driver-dashboard-empty { align-items: flex-start; flex-wrap: wrap; }
@@ -9079,8 +9073,13 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   min-height: 178px;
   padding: 24px 26px;
 }
-.driver-dashboard-intro { min-width: 0; }
-.driver-dashboard-header-actions { margin-top: 19px; }
+.driver-dashboard-intro { align-self: center; min-width: 0; }
+.ui-system.account-driver .driver-dashboard-header h2 {
+  margin: 7px 0 8px;
+  font-size: clamp(2.15rem, 4vw, 3.2rem);
+  line-height: .98;
+  letter-spacing: -.045em;
+}
 .driver-dashboard-hero-qr {
   position: relative;
   z-index: 2;
@@ -9255,7 +9254,6 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 
 @media (max-width: 720px) {
   .driver-dashboard-header { grid-template-columns: 1fr 118px; gap: 16px; }
-  .driver-dashboard-header-actions { display: flex; width: auto; }
   .driver-hero-qr-image { width: 94px; height: 94px; }
   .driver-hero-qr-image img { width: 82px; height: 82px; }
   .driver-stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -9283,8 +9281,6 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .driver-dashboard-header { grid-template-columns: 1fr; }
   .driver-dashboard-hero-qr { grid-template-columns: 94px minmax(0, 1fr); justify-items: start; text-align: left; }
   .driver-dashboard-hero-qr > div:last-child { align-self: center; }
-  .driver-dashboard-header-actions { display: grid; grid-template-columns: 1fr 1fr; }
-  .driver-dashboard-header-actions .btn { width: 100%; }
   .community-hero-stats span { font-size: .57rem; }
   .community-post-head { align-items: flex-start; }
   .post-type-badge { padding: 4px 6px; font-size: 0; }

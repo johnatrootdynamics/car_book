@@ -6,12 +6,6 @@
       <span class="driver-dashboard-kicker">Driver workspace</span>
       <h2>Welcome back, {{ current_user.first_name }}</h2>
       <p>Your next track day, garage, and inspection pass—all in one place.</p>
-      <div class="driver-dashboard-header-actions">
-        <a class="btn btn-secondary" href="{{ url_for('user.discover') }}"><i class="bi bi-compass-fill" aria-hidden="true"></i> Discover events</a>
-        <a class="btn btn-secondary" href="{{ url_for('user.attendee_live_events') }}"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Live Track</a>
-        <a class="btn btn-secondary" href="{{ url_for('user.private_rental_tracks') }}"><i class="bi bi-calendar2-week" aria-hidden="true"></i> Private rentals</a>
-        <a class="btn" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add vehicle</a>
-      </div>
     </div>
     <aside class="driver-dashboard-hero-qr" aria-label="Your inspection QR code">
       <div class="driver-hero-qr-image"><img src="{{ url_for('user.inspection_qr_image') }}" alt="Driver inspection QR code"></div>
