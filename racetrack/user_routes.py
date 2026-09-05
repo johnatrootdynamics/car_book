@@ -2655,7 +2655,7 @@ def community():
     if guard:
         return guard
     community_view = (request.args.get("view") or "all").strip().lower()
-    if community_view not in {"all", "track", "builds"}:
+    if community_view not in {"all", "mine", "track", "builds"}:
         community_view = "all"
     connection_rows = (
         DriverConnection.query.filter(
@@ -2712,8 +2712,14 @@ def community():
         if row.status == "pending" and row.requested_by_user_id == current_user.id
     ]
 
-    post_query = SocialPost.query.filter(SocialPost.user_id.in_(circle_user_ids))
-    community_post_count = post_query.count()
+    circle_post_query = SocialPost.query.filter(
+        SocialPost.user_id.in_(connection_user_ids)
+    )
+    community_post_count = circle_post_query.count()
+    if community_view == "mine":
+        post_query = SocialPost.query.filter(SocialPost.user_id == current_user.id)
+    else:
+        post_query = circle_post_query
     if community_view == "track":
         post_query = post_query.filter(SocialPost.post_type == "event_signup")
     elif community_view == "builds":

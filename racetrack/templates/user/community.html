@@ -16,9 +16,10 @@
   </header>
 
   <nav class="community-tabs" aria-label="Filter community updates">
-    <a class="{% if community_view == 'all' %}active{% endif %}" href="{{ url_for('user.community') }}" {% if community_view == 'all' %}aria-current="page"{% endif %}><i class="bi bi-people-fill" aria-hidden="true"></i> My circle</a>
+    <a class="{% if community_view == 'all' %}active{% endif %}" href="{{ url_for('user.community') }}" {% if community_view == 'all' %}aria-current="page"{% endif %}><i class="bi bi-people-fill" aria-hidden="true"></i> Circle</a>
+    <a class="{% if community_view == 'mine' %}active{% endif %}" href="{{ url_for('user.community', view='mine') }}" {% if community_view == 'mine' %}aria-current="page"{% endif %}><i class="bi bi-person-fill" aria-hidden="true"></i> My feed</a>
     <a class="{% if community_view == 'track' %}active{% endif %}" href="{{ url_for('user.community', view='track') }}" {% if community_view == 'track' %}aria-current="page"{% endif %}><i class="bi bi-flag-fill" aria-hidden="true"></i> Track plans</a>
-    <a class="{% if community_view == 'builds' %}active{% endif %}" href="{{ url_for('user.community', view='builds') }}" {% if community_view == 'builds' %}aria-current="page"{% endif %}><i class="bi bi-car-front-fill" aria-hidden="true"></i> Garage updates</a>
+    <a class="{% if community_view == 'builds' %}active{% endif %}" href="{{ url_for('user.community', view='builds') }}" {% if community_view == 'builds' %}aria-current="page"{% endif %}><i class="bi bi-car-front-fill" aria-hidden="true"></i> Builds</a>
   </nav>
 
   <div class="community-layout">
@@ -35,7 +36,7 @@
       </section>
 
       <div class="community-section-heading">
-        <div><span>{{ 'TRACK PLANS' if community_view == 'track' else ('GARAGE UPDATES' if community_view == 'builds' else 'YOUR FEED') }}</span><h2>{{ 'Track plans from your circle' if community_view == 'track' else ('Builds from your circle' if community_view == 'builds' else 'Updates from your circle') }}</h2></div>
+        <div><span>{{ 'MY FEED' if community_view == 'mine' else ('TRACK PLANS' if community_view == 'track' else ('GARAGE UPDATES' if community_view == 'builds' else 'YOUR CIRCLE')) }}</span><h2>{{ 'Your posts' if community_view == 'mine' else ('Track plans from your circle' if community_view == 'track' else ('Builds from your circle' if community_view == 'builds' else 'Updates from your circle')) }}</h2></div>
         <strong>{{ posts|length }} shown</strong>
       </div>
 
@@ -73,7 +74,7 @@
           </details>
         </article>
       {% else %}
-        <div class="community-empty"><i class="bi {{ 'bi-flag' if community_view == 'track' else ('bi-car-front' if community_view == 'builds' else 'bi-person-plus') }}" aria-hidden="true"></i><h3>{{ 'Nothing in this view yet' if connections else 'Build your driver circle' }}</h3><p>{{ 'Try another filter or share an update.' if connections else 'Connect with drivers you know to see their track plans and garage updates here.' }}</p>{% if community_view != 'all' %}<a class="btn btn-secondary" href="{{ url_for('user.community') }}">View circle feed</a>{% endif %}</div>
+        <div class="community-empty"><i class="bi {{ 'bi-journal-text' if community_view == 'mine' else ('bi-flag' if community_view == 'track' else ('bi-car-front' if community_view == 'builds' else 'bi-person-plus')) }}" aria-hidden="true"></i><h3>{{ 'You have not posted yet' if community_view == 'mine' else ('Nothing in this view yet' if connections else 'Build your driver circle') }}</h3><p>{{ 'Share an update above when you are ready.' if community_view == 'mine' else ('Try another filter or share an update.' if connections else 'Connect with drivers you know to see their track plans and garage updates here.') }}</p>{% if community_view not in ('all', 'mine') %}<a class="btn btn-secondary" href="{{ url_for('user.community') }}">View circle feed</a>{% endif %}</div>
       {% endfor %}
     </main>
 
