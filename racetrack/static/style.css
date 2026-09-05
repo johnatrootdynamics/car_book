@@ -9209,6 +9209,7 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .community-rail-card { padding: 15px; }
 .community-rail-empty { display: flex; align-items: center; gap: 8px; padding: 12px; color: #7a8699; background: #f8fafc; border-radius: 8px; font-size: .68rem; }
 .community-rail-empty i { color: #98a2b3; }
+.ui-system.account-driver :is(.community-car-tile, .community-car-attachment, .event-date-tile) strong { color: #fff; }
 
 @media (max-width: 960px) {
   .account-driver .sidebar-toggle { display: inline-flex; }
