@@ -19,6 +19,7 @@ from .models import (
     Event,
     EventClassSlot,
     DriverTicketOrder,
+    DriverConnection,
     EnterprisePaymentMethod,
     EventRegistration,
     PrivateRentalBooking,
@@ -2656,15 +2657,72 @@ def community():
     community_view = (request.args.get("view") or "all").strip().lower()
     if community_view not in {"all", "track", "builds"}:
         community_view = "all"
-    post_query = SocialPost.query
+    connection_rows = (
+        DriverConnection.query.filter(
+            or_(
+                DriverConnection.user_one_id == current_user.id,
+                DriverConnection.user_two_id == current_user.id,
+            )
+        )
+        .order_by(DriverConnection.updated_at.desc())
+        .all()
+    )
+    connection_counterpart_ids = {
+        row.user_two_id if row.user_one_id == current_user.id else row.user_one_id
+        for row in connection_rows
+    }
+    connection_user_ids = {
+        row.user_two_id if row.user_one_id == current_user.id else row.user_one_id
+        for row in connection_rows
+        if row.status == "accepted"
+    }
+    circle_user_ids = connection_user_ids | {current_user.id}
+    circle_users = {
+        user.id: user
+        for user in User.query.filter(
+            User.id.in_(circle_user_ids | connection_counterpart_ids)
+        ).all()
+    }
+    connections = [
+        {
+            "connection": row,
+            "user": circle_users.get(
+                row.user_two_id if row.user_one_id == current_user.id else row.user_one_id
+            ),
+        }
+        for row in connection_rows
+        if row.status == "accepted"
+    ]
+    received_requests = [
+        {
+            "connection": row,
+            "user": circle_users.get(row.requested_by_user_id),
+        }
+        for row in connection_rows
+        if row.status == "pending" and row.requested_by_user_id != current_user.id
+    ]
+    sent_requests = [
+        {
+            "connection": row,
+            "user": circle_users.get(
+                row.user_two_id if row.user_one_id == current_user.id else row.user_one_id
+            ),
+        }
+        for row in connection_rows
+        if row.status == "pending" and row.requested_by_user_id == current_user.id
+    ]
+
+    post_query = SocialPost.query.filter(SocialPost.user_id.in_(circle_user_ids))
+    community_post_count = post_query.count()
     if community_view == "track":
         post_query = post_query.filter(SocialPost.post_type == "event_signup")
     elif community_view == "builds":
         post_query = post_query.filter(SocialPost.post_type == "car_spotlight")
     posts = post_query.order_by(SocialPost.created_at.desc()).limit(50).all()
-    community_post_count = SocialPost.query.count()
-    community_car_count = Car.query.count()
-    cars = Car.query.order_by(Car.created_at.desc()).limit(12).all()
+    visible_comments_by_post = {
+        post.id: [comment for comment in post.comments if comment.user_id in circle_user_ids]
+        for post in posts
+    }
     events = (
         Event.query.filter(
             Event.event_type == "public",
@@ -2680,30 +2738,172 @@ def community():
     driver_availability_by_event = {
         event.id: ticket_availability(event, "driver") for event in events
     }
-    user_cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
-    signups = {
-        reg.event_id: reg
-        for reg in EventRegistration.query.filter_by(user_id=current_user.id).all()
+    connected_or_pending_ids = connection_counterpart_ids
+    suggestion_reasons = {}
+    my_event_ids = {
+        event_id
+        for (event_id,) in db.session.query(EventRegistration.event_id)
+        .filter(EventRegistration.user_id == current_user.id)
+        .all()
     }
-    signup_form = EventSignupForm()
-    signup_form.car_id.choices = [
-        (car.id, f"{car.car_year} {car.make} {car.model}") for car in user_cars
-    ]
+    if my_event_ids:
+        shared_event_rows = (
+            db.session.query(EventRegistration.user_id, Event.event_name)
+            .join(Event, Event.id == EventRegistration.event_id)
+            .filter(
+                EventRegistration.event_id.in_(my_event_ids),
+                EventRegistration.user_id != current_user.id,
+            )
+            .order_by(Event.event_date.desc())
+            .all()
+        )
+        for user_id, event_name in shared_event_rows:
+            suggestion_reasons.setdefault(user_id, f"Shared event: {event_name}")
+    my_track_ids = {
+        track_id
+        for (track_id,) in db.session.query(TrackSubscription.track_id)
+        .filter(TrackSubscription.user_id == current_user.id)
+        .all()
+    }
+    if my_track_ids:
+        shared_track_rows = (
+            db.session.query(TrackSubscription.user_id, Track.name)
+            .join(Track, Track.id == TrackSubscription.track_id)
+            .filter(
+                TrackSubscription.track_id.in_(my_track_ids),
+                TrackSubscription.user_id != current_user.id,
+            )
+            .order_by(Track.name.asc())
+            .all()
+        )
+        for user_id, track_name in shared_track_rows:
+            suggestion_reasons.setdefault(user_id, f"Also follows {track_name}")
+    people_query = (request.args.get("people") or "").strip()[:50]
+    if people_query:
+        suggestion_users = (
+            User.query.filter(
+                User.username.ilike(f"%{people_query}%"),
+                User.id.notin_(connected_or_pending_ids | {current_user.id}),
+            )
+            .order_by(User.username.asc())
+            .limit(6)
+            .all()
+        )
+        connection_suggestions = [
+            {"user": user, "reason": "Username match"} for user in suggestion_users
+        ]
+    else:
+        suggestion_ids = set(suggestion_reasons) - connected_or_pending_ids - {current_user.id}
+        suggestion_users = (
+            User.query.filter(User.id.in_(suggestion_ids))
+            .order_by(User.username.asc(), User.first_name.asc())
+            .limit(6)
+            .all()
+            if suggestion_ids
+            else []
+        )
+        connection_suggestions = [
+            {"user": user, "reason": suggestion_reasons.get(user.id, "Shared track activity")}
+            for user in suggestion_users
+        ]
     comment_form = SocialCommentForm()
     return render_template(
         "user/community.html",
         posts=posts,
-        cars=cars,
         community_view=community_view,
         community_post_count=community_post_count,
-        community_car_count=community_car_count,
+        connections=connections,
+        received_requests=received_requests,
+        sent_requests=sent_requests,
+        connection_suggestions=connection_suggestions,
+        people_query=people_query,
+        visible_comments_by_post=visible_comments_by_post,
         events=events,
         event_signup_counts=event_signup_counts,
         driver_availability_by_event=driver_availability_by_event,
-        signups=signups,
-        signup_form=signup_form,
         comment_form=comment_form,
     )
+
+
+def _driver_connection_pair(first_user_id, second_user_id):
+    return min(first_user_id, second_user_id), max(first_user_id, second_user_id)
+
+
+@user_bp.route("/community/connections/<int:user_id>", methods=["POST"])
+@login_required
+def community_connection_request(user_id):
+    guard = require_user()
+    if guard:
+        return guard
+    other_user = User.query.get_or_404(user_id)
+    if other_user.id == current_user.id:
+        flash("You cannot connect with yourself.", "error")
+        return redirect(url_for("user.community"))
+    user_one_id, user_two_id = _driver_connection_pair(current_user.id, other_user.id)
+    existing = DriverConnection.query.filter_by(
+        user_one_id=user_one_id,
+        user_two_id=user_two_id,
+    ).first()
+    if existing:
+        if existing.status == "accepted":
+            flash("You are already connected.", "info")
+        elif existing.requested_by_user_id == current_user.id:
+            flash("Your connection request is already pending.", "info")
+        else:
+            existing.status = "accepted"
+            existing.updated_at = datetime.utcnow()
+            db.session.commit()
+            other_handle = other_user.username or f"driver{other_user.id}"
+            flash(f"You are now connected with @{other_handle}.", "success")
+        return redirect(url_for("user.community"))
+    db.session.add(
+        DriverConnection(
+            user_one_id=user_one_id,
+            user_two_id=user_two_id,
+            requested_by_user_id=current_user.id,
+            status="pending",
+        )
+    )
+    db.session.commit()
+    flash("Connection request sent.", "success")
+    return redirect(url_for("user.community"))
+
+
+@user_bp.route("/community/connections/<int:connection_id>/accept", methods=["POST"])
+@login_required
+def community_connection_accept(connection_id):
+    guard = require_user()
+    if guard:
+        return guard
+    connection = DriverConnection.query.get_or_404(connection_id)
+    participant_ids = {connection.user_one_id, connection.user_two_id}
+    if (
+        current_user.id not in participant_ids
+        or connection.status != "pending"
+        or connection.requested_by_user_id == current_user.id
+    ):
+        return "Connection not found", 404
+    connection.status = "accepted"
+    connection.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash("Connection accepted.", "success")
+    return redirect(url_for("user.community"))
+
+
+@user_bp.route("/community/connections/<int:connection_id>/remove", methods=["POST"])
+@login_required
+def community_connection_remove(connection_id):
+    guard = require_user()
+    if guard:
+        return guard
+    connection = DriverConnection.query.get_or_404(connection_id)
+    if current_user.id not in {connection.user_one_id, connection.user_two_id}:
+        return "Connection not found", 404
+    was_connected = connection.status == "accepted"
+    db.session.delete(connection)
+    db.session.commit()
+    flash("Connection removed." if was_connected else "Connection request removed.", "success")
+    return redirect(url_for("user.community"))
 
 
 @user_bp.route("/community/posts", methods=["POST"])
@@ -3066,6 +3266,15 @@ def add_comment(post_id):
     if guard:
         return guard
     post = SocialPost.query.get_or_404(post_id)
+    if post.user_id != current_user.id:
+        user_one_id, user_two_id = _driver_connection_pair(current_user.id, post.user_id)
+        connection = DriverConnection.query.filter_by(
+            user_one_id=user_one_id,
+            user_two_id=user_two_id,
+            status="accepted",
+        ).first()
+        if not connection:
+            return "Post not found", 404
     form = SocialCommentForm()
     if form.validate_on_submit():
         comment = SocialComment(

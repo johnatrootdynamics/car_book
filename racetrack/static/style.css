@@ -9140,8 +9140,8 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 /* Community is a compact feed with real filters and optional discussions. */
 .ui-system.account-driver .community-hero {
   align-items: center;
-  min-height: 210px;
-  padding: 30px 34px;
+  min-height: 168px;
+  padding: 25px 30px;
   background:
     radial-gradient(circle at 89% 10%, rgba(255, 122, 68, .38), transparent 31%),
     radial-gradient(circle at 63% 115%, rgba(71, 103, 211, .24), transparent 38%),
@@ -9153,7 +9153,7 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .ui-system.account-driver .community-hero h1 {
   margin: 0;
   color: #fff;
-  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-size: clamp(2rem, 4vw, 2.85rem);
   line-height: 1;
 }
 .community-hero-copy { position: relative; z-index: 2; max-width: 650px; }
@@ -9238,6 +9238,119 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .community-rail-empty { display: flex; align-items: center; gap: 8px; padding: 12px; color: #7a8699; background: #f8fafc; border-radius: 8px; font-size: .68rem; }
 .community-rail-empty i { color: #98a2b3; }
 .ui-system.account-driver :is(.community-car-tile, .community-car-attachment, .event-date-tile) strong { color: #fff; }
+
+.community-connections-card { display: grid; gap: 0; }
+.community-connections-card .rail-heading { margin-bottom: 2px; }
+.community-connections-card .rail-heading > strong {
+  display: grid;
+  min-width: 26px;
+  height: 26px;
+  color: #3159d5;
+  background: #eef3ff;
+  border-radius: 8px;
+  font-size: .7rem;
+  place-items: center;
+}
+.connection-search-form {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 10px 0 2px;
+}
+.connection-search-form > i {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  color: #98a2b3;
+  font-size: .67rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.ui-system.account-driver .connection-search-form input {
+  min-width: 0;
+  height: 34px;
+  padding: 7px 9px 7px 28px;
+  background: #f8fafc;
+  border: 1px solid #e2e6ec;
+  border-radius: 8px 0 0 8px;
+  font-size: .68rem;
+}
+.connection-search-form button {
+  padding: 0 11px;
+  color: #fff;
+  background: #3159d5;
+  border: 1px solid #3159d5;
+  border-radius: 0 8px 8px 0;
+  font-size: .61rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.connection-section-label {
+  margin-top: 12px;
+  padding: 8px 1px 5px;
+  color: #8a94a6;
+  border-top: 1px solid #edf0f3;
+  font-size: .57rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.connection-section-label:first-of-type { margin-top: 5px; border-top: 0; }
+.connection-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 45px;
+  padding: 6px 1px;
+}
+.connection-row > div:not(.connection-actions) { display: grid; min-width: 0; gap: 1px; }
+.connection-row > div > strong {
+  overflow: hidden;
+  color: #27364f;
+  font-size: .7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connection-row > div > small {
+  overflow: hidden;
+  color: #8792a5;
+  font-size: .58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connection-row form { margin: 0; }
+.connection-actions { display: flex; gap: 5px; }
+.connection-icon-btn,
+.connection-menu-btn,
+.connection-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #667085;
+  background: #f6f7f9;
+  border: 1px solid #e2e6ec;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.connection-icon-btn:hover,
+.connection-menu-btn:hover { color: #27364f; background: #eef1f5; }
+.connection-icon-btn.accept { color: #087443; background: #edf9f3; border-color: #cbead9; }
+.connection-add-btn {
+  gap: 5px;
+  padding: 0 9px;
+  color: #3159d5;
+  background: #eef3ff;
+  border-color: #d7e1fb;
+  font-size: .61rem;
+  font-weight: 800;
+}
+.connection-add-btn:hover { color: #2547b3; background: #e3ebff; }
+.connection-pending-row { opacity: .78; }
+.community-connections-card > .community-rail-empty { margin-top: 10px; }
 
 @media (max-width: 960px) {
   .account-driver .sidebar-toggle { display: inline-flex; }

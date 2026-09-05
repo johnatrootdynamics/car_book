@@ -232,6 +232,24 @@ CREATE TABLE IF NOT EXISTS community_group_members (
   CONSTRAINT uniq_group_member UNIQUE (group_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS driver_connections (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_one_id INT NOT NULL,
+  user_two_id INT NOT NULL,
+  requested_by_user_id INT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_driver_connections_user_one FOREIGN KEY (user_one_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_driver_connections_user_two FOREIGN KEY (user_two_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_driver_connections_requested_by FOREIGN KEY (requested_by_user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT uniq_driver_connection UNIQUE (user_one_id, user_two_id),
+  INDEX idx_driver_connections_status (status)
+);
+
 CREATE TABLE IF NOT EXISTS track_subscriptions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   track_id INT NOT NULL,

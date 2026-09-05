@@ -518,6 +518,24 @@ class CommunityGroupMember(db.Model):
     )
 
 
+class DriverConnection(db.Model):
+    __tablename__ = "driver_connections"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_one_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    user_two_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    requested_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="pending")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("user_one_id", "user_two_id", name="uniq_driver_connection"),
+    )
+
+
 class TrackSubscription(db.Model):
     __tablename__ = "track_subscriptions"
 

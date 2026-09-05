@@ -5,21 +5,20 @@
   <header class="community-hero">
     <div class="community-hero-copy">
       <span class="community-kicker"><i class="bi bi-people-fill" aria-hidden="true"></i> Driver community</span>
-      <h1>Your paddock, between track days.</h1>
-      <p>Follow what drivers are building, see who is headed to the track, and share an update of your own.</p>
-      <a class="btn community-hero-action" href="#share-update"><i class="bi bi-pencil-square" aria-hidden="true"></i> Share an update</a>
+      <h1>Your circle.</h1>
+      <p>Share track plans and garage updates with the drivers you choose to connect with.</p>
     </div>
-    <div class="community-hero-stats" aria-label="Community activity">
-      <div><strong>{{ community_post_count }}</strong><span>Updates</span></div>
-      <div><strong>{{ community_car_count }}</strong><span>Builds</span></div>
+    <div class="community-hero-stats" aria-label="Your circle activity">
+      <div><strong>{{ connections|length }}</strong><span>Connections</span></div>
+      <div><strong>{{ community_post_count }}</strong><span>Circle posts</span></div>
       <div><strong>{{ events|length }}</strong><span>Upcoming</span></div>
     </div>
   </header>
 
   <nav class="community-tabs" aria-label="Filter community updates">
-    <a class="{% if community_view == 'all' %}active{% endif %}" href="{{ url_for('user.community') }}" {% if community_view == 'all' %}aria-current="page"{% endif %}><i class="bi bi-grid-fill" aria-hidden="true"></i> All updates</a>
-    <a class="{% if community_view == 'track' %}active{% endif %}" href="{{ url_for('user.community', view='track') }}" {% if community_view == 'track' %}aria-current="page"{% endif %}><i class="bi bi-flag-fill" aria-hidden="true"></i> Track days</a>
-    <a class="{% if community_view == 'builds' %}active{% endif %}" href="{{ url_for('user.community', view='builds') }}" {% if community_view == 'builds' %}aria-current="page"{% endif %}><i class="bi bi-car-front-fill" aria-hidden="true"></i> Builds</a>
+    <a class="{% if community_view == 'all' %}active{% endif %}" href="{{ url_for('user.community') }}" {% if community_view == 'all' %}aria-current="page"{% endif %}><i class="bi bi-people-fill" aria-hidden="true"></i> My circle</a>
+    <a class="{% if community_view == 'track' %}active{% endif %}" href="{{ url_for('user.community', view='track') }}" {% if community_view == 'track' %}aria-current="page"{% endif %}><i class="bi bi-flag-fill" aria-hidden="true"></i> Track plans</a>
+    <a class="{% if community_view == 'builds' %}active{% endif %}" href="{{ url_for('user.community', view='builds') }}" {% if community_view == 'builds' %}aria-current="page"{% endif %}><i class="bi bi-car-front-fill" aria-hidden="true"></i> Garage updates</a>
   </nav>
 
   <div class="community-layout">
@@ -28,7 +27,7 @@
         {% if me_image %}<img class="community-avatar community-avatar-lg" src="{{ me_image }}" alt="Your profile photo">{% else %}<span class="community-avatar community-avatar-lg community-avatar-fallback">{{ (current_user.username or current_user.first_name or 'D')[0]|upper }}</span>{% endif %}
         <form method="post" action="{{ url_for('user.community_post_create') }}" data-enhanced>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="community-composer-title"><strong>Share with the paddock</strong><small>Visible to signed-in drivers</small></div>
+          <div class="community-composer-title"><strong>Share with your circle</strong><small>{% if connections %}Visible to your connections{% else %}Visible only to you until you connect{% endif %}</small></div>
           <label class="sr-only" for="community-post-body">Share an update</label>
           <textarea id="community-post-body" name="body" maxlength="600" rows="2" placeholder="What’s happening in your garage, @{{ current_user.username or ('driver' ~ current_user.id) }}?" data-autoresize="1" data-counter="community-post-counter" required></textarea>
           <div class="composer-actions"><span><i class="bi bi-shield-check" aria-hidden="true"></i> Keep it useful and respectful</span><div class="composer-submit"><small id="community-post-counter"></small><button class="btn" type="submit">Post update</button></div></div>
@@ -36,7 +35,7 @@
       </section>
 
       <div class="community-section-heading">
-        <div><span>{{ 'TRACK DAY ACTIVITY' if community_view == 'track' else ('LATEST BUILDS' if community_view == 'builds' else 'LATEST UPDATES') }}</span><h2>{{ 'Who is headed to the track' if community_view == 'track' else ('Fresh from the garage' if community_view == 'builds' else 'From the community') }}</h2></div>
+        <div><span>{{ 'TRACK PLANS' if community_view == 'track' else ('GARAGE UPDATES' if community_view == 'builds' else 'YOUR FEED') }}</span><h2>{{ 'Track plans from your circle' if community_view == 'track' else ('Builds from your circle' if community_view == 'builds' else 'Updates from your circle') }}</h2></div>
         <strong>{{ posts|length }} shown</strong>
       </div>
 
@@ -61,26 +60,78 @@
             <div class="community-car-attachment"><i class="bi bi-speedometer2" aria-hidden="true"></i><span><small>Driving</small><strong>{{ post.registration.car.car_year }} {{ post.registration.car.make }} {{ post.registration.car.model }}</strong></span></div>
           {% endif %}
 
+          {% set visible_comments = visible_comments_by_post.get(post.id, []) %}
           <details class="community-discussion">
             <summary>
-              <span><i class="bi bi-chat" aria-hidden="true"></i> {{ post.comments|length }} {{ 'comment' if post.comments|length == 1 else 'comments' }}</span>
-              <span>{{ 'View discussion' if post.comments else 'Add a comment' }} <i class="bi bi-chevron-down" aria-hidden="true"></i></span>
+              <span><i class="bi bi-chat" aria-hidden="true"></i> {{ visible_comments|length }} {{ 'comment' if visible_comments|length == 1 else 'comments' }}</span>
+              <span>{{ 'View discussion' if visible_comments else 'Add a comment' }} <i class="bi bi-chevron-down" aria-hidden="true"></i></span>
             </summary>
             <div class="community-discussion-body">
-              {% if post.comments %}<div class="community-comments">{% for comment in post.comments %}{% set comment_author_image = asset_url(comment.author.profile_image_url) if comment.author.profile_image_url else None %}<div class="community-comment">{% if comment_author_image %}<img class="community-avatar community-avatar-sm" src="{{ comment_author_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (comment.author.username or 'D')[0]|upper }}</span>{% endif %}<div><strong>@{{ comment.author.username or ('driver' ~ comment.author.id) }}</strong><p>{{ comment.body }}</p></div></div>{% endfor %}</div>{% endif %}
+              {% if visible_comments %}<div class="community-comments">{% for comment in visible_comments %}{% set comment_author_image = asset_url(comment.author.profile_image_url) if comment.author.profile_image_url else None %}<div class="community-comment">{% if comment_author_image %}<img class="community-avatar community-avatar-sm" src="{{ comment_author_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (comment.author.username or 'D')[0]|upper }}</span>{% endif %}<div><strong>@{{ comment.author.username or ('driver' ~ comment.author.id) }}</strong><p>{{ comment.body }}</p></div></div>{% endfor %}</div>{% endif %}
               <form method="post" action="{{ url_for('user.add_comment', post_id=post.id) }}" class="community-comment-form" data-enhanced data-comment-form>{{ comment_form.hidden_tag() }}{% if me_image %}<img class="community-avatar community-avatar-sm" src="{{ me_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (current_user.username or 'D')[0]|upper }}</span>{% endif %}{{ comment_form.body(id='comment-' ~ post.id, placeholder='Write a comment…', rows='1', data_autoresize='1') }}<button type="submit" aria-label="Post comment"><i class="bi bi-send-fill" aria-hidden="true"></i></button></form>
             </div>
           </details>
         </article>
       {% else %}
-        <div class="community-empty"><i class="bi {{ 'bi-flag' if community_view == 'track' else ('bi-car-front' if community_view == 'builds' else 'bi-chat-heart') }}" aria-hidden="true"></i><h3>No updates in this view yet</h3><p>Try another filter or share the first update.</p><a class="btn btn-secondary" href="{{ url_for('user.community') }}">View all updates</a></div>
+        <div class="community-empty"><i class="bi {{ 'bi-flag' if community_view == 'track' else ('bi-car-front' if community_view == 'builds' else 'bi-person-plus') }}" aria-hidden="true"></i><h3>{{ 'Nothing in this view yet' if connections else 'Build your driver circle' }}</h3><p>{{ 'Try another filter or share an update.' if connections else 'Connect with drivers you know to see their track plans and garage updates here.' }}</p>{% if community_view != 'all' %}<a class="btn btn-secondary" href="{{ url_for('user.community') }}">View circle feed</a>{% endif %}</div>
       {% endfor %}
     </main>
 
     <aside class="community-rail">
       <section class="community-rail-card" id="events"><div class="rail-heading"><div><span>Coming up</span><h2>Meet at the track</h2></div><a href="{{ url_for('user.spectator_events') }}">All events</a></div>{% for event in events[:4] %}{% set driver_availability = driver_availability_by_event.get(event.id) %}<article class="community-event-mini"><div class="event-date-tile"><strong>{{ event.event_date.strftime('%d') }}</strong><span>{{ event.event_date.strftime('%b')|upper }}</span></div><div><a href="{{ url_for('user.event_detail', event_id=event.id) }}">{{ event.event_name }}</a><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.name }}</p><small>{{ event_signup_counts.get(event.id, 0) }} drivers going{% if driver_availability and driver_availability.sold_out %} · Sold out{% endif %}</small></div></article>{% else %}<div class="community-rail-empty"><i class="bi bi-calendar2" aria-hidden="true"></i><span>No upcoming public events</span></div>{% endfor %}</section>
-      <section class="community-rail-card" id="garage"><div class="rail-heading"><div><span>Fresh builds</span><h2>Community garage</h2></div><a href="{{ url_for('user.community', view='builds') }}">See builds</a></div><div class="community-garage-grid">{% for car in cars[:6] %}<article class="community-car-tile">{% set car_image = asset_url(car.image_url) if car.image_url else None %}{% if car_image %}<img src="{{ car_image }}" alt="{{ car.make }} {{ car.model }}">{% else %}<div class="community-car-placeholder"><i class="bi bi-car-front-fill" aria-hidden="true"></i></div>{% endif %}<div><strong>{{ car.car_year }} {{ car.make }} {{ car.model }}</strong><span>@{{ car.owner.username or ('driver' ~ car.owner.id) }}</span></div></article>{% else %}<p class="community-muted">The garage is waiting for its first build.</p>{% endfor %}</div><a class="community-rail-action" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add your car</a></section>
-      <section class="community-rail-card community-code-card"><i class="bi bi-shield-check" aria-hidden="true"></i><div><strong>Keep the paddock welcoming</strong><p>Useful advice, respectful feedback, and no unnecessary noise.</p></div></section>
+      <section class="community-rail-card community-connections-card" id="connections">
+        <div class="rail-heading"><div><span>Your people</span><h2>Connections</h2></div><strong>{{ connections|length }}</strong></div>
+        <form method="get" class="connection-search-form">
+          <label class="sr-only" for="connection-search">Find a driver by username</label>
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input id="connection-search" type="search" name="people" value="{{ people_query }}" placeholder="Find a username" autocomplete="off">
+          <button type="submit">Find</button>
+        </form>
+
+        {% if received_requests %}
+          <div class="connection-section-label">Requests</div>
+          {% for item in received_requests %}{% if item.user %}{% set person_image = asset_url(item.user.profile_image_url) if item.user.profile_image_url else None %}
+            <article class="connection-row connection-request-row">
+              {% if person_image %}<img class="community-avatar community-avatar-sm" src="{{ person_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (item.user.username or 'D')[0]|upper }}</span>{% endif %}
+              <div><strong>@{{ item.user.username or ('driver' ~ item.user.id) }}</strong><small>Wants to connect</small></div>
+              <div class="connection-actions"><form method="post" action="{{ url_for('user.community_connection_accept', connection_id=item.connection.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="connection-icon-btn accept" aria-label="Accept connection"><i class="bi bi-check-lg" aria-hidden="true"></i></button></form><form method="post" action="{{ url_for('user.community_connection_remove', connection_id=item.connection.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="connection-icon-btn" aria-label="Decline connection"><i class="bi bi-x-lg" aria-hidden="true"></i></button></form></div>
+            </article>
+          {% endif %}{% endfor %}
+        {% endif %}
+
+        {% if connections %}
+          <div class="connection-section-label">Your circle</div>
+          {% for item in connections[:5] %}{% if item.user %}{% set person_image = asset_url(item.user.profile_image_url) if item.user.profile_image_url else None %}
+            <article class="connection-row">
+              {% if person_image %}<img class="community-avatar community-avatar-sm" src="{{ person_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (item.user.username or 'D')[0]|upper }}</span>{% endif %}
+              <div><strong>@{{ item.user.username or ('driver' ~ item.user.id) }}</strong><small>Connected</small></div>
+              <form method="post" action="{{ url_for('user.community_connection_remove', connection_id=item.connection.id) }}" onsubmit="return confirm('Remove this connection?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="connection-menu-btn" aria-label="Remove @{{ item.user.username or ('driver' ~ item.user.id) }}"><i class="bi bi-three-dots" aria-hidden="true"></i></button></form>
+            </article>
+          {% endif %}{% endfor %}
+        {% endif %}
+
+        {% if sent_requests %}
+          <div class="connection-section-label">Pending</div>
+          {% for item in sent_requests[:3] %}{% if item.user %}
+            <article class="connection-row connection-pending-row"><span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (item.user.username or 'D')[0]|upper }}</span><div><strong>@{{ item.user.username or ('driver' ~ item.user.id) }}</strong><small>Request sent</small></div><form method="post" action="{{ url_for('user.community_connection_remove', connection_id=item.connection.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="connection-menu-btn" aria-label="Cancel request"><i class="bi bi-x" aria-hidden="true"></i></button></form></article>
+          {% endif %}{% endfor %}
+        {% endif %}
+
+        {% if connection_suggestions %}
+          <div class="connection-section-label">Drivers you may know</div>
+          {% for item in connection_suggestions %}{% set person_image = asset_url(item.user.profile_image_url) if item.user.profile_image_url else None %}
+            <article class="connection-row connection-suggestion-row">
+              {% if person_image %}<img class="community-avatar community-avatar-sm" src="{{ person_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback">{{ (item.user.username or 'D')[0]|upper }}</span>{% endif %}
+              <div><strong>@{{ item.user.username or ('driver' ~ item.user.id) }}</strong><small>{{ item.reason }}</small></div>
+              <form method="post" action="{{ url_for('user.community_connection_request', user_id=item.user.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="connection-add-btn"><i class="bi bi-person-plus-fill" aria-hidden="true"></i><span>Connect</span></button></form>
+            </article>
+          {% endfor %}
+        {% elif people_query %}
+          <div class="community-rail-empty"><i class="bi bi-search" aria-hidden="true"></i><span>No available driver matches “{{ people_query }}”.</span></div>
+        {% elif not connections and not received_requests and not sent_requests %}
+          <div class="community-rail-empty"><i class="bi bi-people" aria-hidden="true"></i><span>Drivers who share your events or tracks will appear here.</span></div>
+        {% endif %}
+      </section>
     </aside>
   </div>
 </div>
