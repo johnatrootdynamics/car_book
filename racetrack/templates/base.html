@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Track Ops</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260904p') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260904q') }}">
 </head>
-<body class="ui-system {% block body_class %}{% endblock %}{% if not current_user.is_authenticated %} public-shell{% endif %}">
+<body class="ui-system {% block body_class %}{% endblock %}{% if not current_user.is_authenticated %} public-shell{% elif is_user %} account-driver{% elif is_vendor %} account-vendor{% elif is_employee %} account-employee{% elif is_admin %} account-admin{% endif %}">
   {% if not current_user.is_authenticated %}
     <header class="mk-topbar public-topbar">
       <div class="mk-wrap mk-nav">
@@ -54,7 +54,7 @@
       <nav class="side-nav">
         {% set ep = request.endpoint or '' %}
         {% if current_user.is_authenticated and is_user %}
-          <a class="side-link {% if ep == 'user.dashboard' %}active{% endif %}" href="{{ url_for('user.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">User Dashboard</span></a>
+          <a class="side-link {% if ep == 'user.dashboard' %}active{% endif %}" href="{{ url_for('user.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">Dashboard</span></a>
           <a class="side-link {% if ep in ['user.discover','user.tracks_directory','user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets','user.private_rental_tracks','user.private_rental_calendar','user.private_rental_booking_success'] %}active{% endif %}" href="{{ url_for('user.discover') }}"><span class="sidebar-icon"><i class="bi bi-compass-fill"></i></span><span class="sidebar-label">Discover</span></a>
           <a class="side-link {% if ep in ['user.attendee_live_events','user.attendee_live_track'] %}active{% endif %}" href="{{ url_for('user.attendee_live_events') }}"><span class="sidebar-icon"><i class="bi bi-broadcast-pin"></i></span><span class="sidebar-label">Live Track</span></a>
           <a class="side-link {% if ep.startswith('user.community') %}active{% endif %}" href="{{ url_for('user.community') }}"><span class="sidebar-icon"><i class="bi bi-people"></i></span><span class="sidebar-label">Community</span></a>

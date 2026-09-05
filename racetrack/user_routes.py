@@ -2680,8 +2680,18 @@ def community():
     guard = require_user()
     if guard:
         return guard
-    posts = SocialPost.query.order_by(SocialPost.created_at.desc()).limit(100).all()
-    cars = Car.query.order_by(Car.created_at.desc()).limit(100).all()
+    community_view = (request.args.get("view") or "all").strip().lower()
+    if community_view not in {"all", "track", "builds"}:
+        community_view = "all"
+    post_query = SocialPost.query
+    if community_view == "track":
+        post_query = post_query.filter(SocialPost.post_type == "event_signup")
+    elif community_view == "builds":
+        post_query = post_query.filter(SocialPost.post_type == "car_spotlight")
+    posts = post_query.order_by(SocialPost.created_at.desc()).limit(50).all()
+    community_post_count = SocialPost.query.count()
+    community_car_count = Car.query.count()
+    cars = Car.query.order_by(Car.created_at.desc()).limit(12).all()
     events = (
         Event.query.filter(
             Event.event_type == "public",
@@ -2711,6 +2721,9 @@ def community():
         "user/community.html",
         posts=posts,
         cars=cars,
+        community_view=community_view,
+        community_post_count=community_post_count,
+        community_car_count=community_car_count,
         events=events,
         event_signup_counts=event_signup_counts,
         driver_availability_by_event=driver_availability_by_event,
