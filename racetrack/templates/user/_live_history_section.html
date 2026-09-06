@@ -22,7 +22,7 @@
         <div class="audience-history-detail">
           {% set ready_videos = run.videos|selectattr('status', 'equalto', 'ready')|list %}
           {% if ready_videos %}
-            <div class="audience-run-video"><video controls preload="metadata" playsinline src="{{ asset_url(ready_videos[0].object_key) }}"></video></div>
+            <button type="button" class="run-video-button" data-run-video="{{ asset_url(ready_videos[0].object_key) }}" data-run-label="Run #{{ run.id }}"><i class="bi bi-play-circle-fill" aria-hidden="true"></i> Watch run video</button>
           {% elif run.videos %}
             <p class="muted-line"><i class="bi bi-cloud-arrow-up"></i> Run video is {{ run.videos[0].status|replace('_', ' ') }}.</p>
           {% endif %}

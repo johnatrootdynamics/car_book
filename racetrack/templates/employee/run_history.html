@@ -11,7 +11,7 @@
   {% for run in runs %}<article class="card archived-run">
     <header><div><span>Run {{ loop.index }}</span><h3>{{ run.started_at.strftime('%-I:%M:%S %p') }}{% if run.ended_at %} – {{ run.ended_at.strftime('%-I:%M:%S %p') }}{% endif %}</h3></div><span class="status-pill">{{ run.status|title }}</span></header>
     {% set ready_videos = run.videos|selectattr('status', 'equalto', 'ready')|list %}
-    {% if ready_videos %}<div class="audience-run-video"><video controls preload="metadata" playsinline src="{{ asset_url(ready_videos[0].object_key) }}"></video></div>{% elif run.videos %}<p class="muted-line"><i class="bi bi-cloud-arrow-up"></i> Video status: {{ run.videos[0].status|replace('_', ' ')|title }}</p>{% endif %}
+    {% if ready_videos %}<button type="button" class="run-video-button" data-run-video="{{ asset_url(ready_videos[0].object_key) }}" data-run-label="Run {{ loop.index }}"><i class="bi bi-play-circle-fill"></i> Watch run video</button>{% elif run.videos %}<p class="muted-line"><i class="bi bi-cloud-arrow-up"></i> Video status: {{ run.videos[0].status|replace('_', ' ')|title }}</p>{% endif %}
     <div class="archived-run-participants">
       {% for participant in run.participants %}<div class="archived-run-driver">
         <div class="track-live-photo driver-photo">{% set driver_img = asset_url(participant.driver.profile_image_url) %}{% if driver_img %}<img src="{{ driver_img }}" alt="{{ participant.driver.first_name }} {{ participant.driver.last_name }}">{% else %}<span>{{ participant.driver.first_name[:1] }}{{ participant.driver.last_name[:1] }}</span>{% endif %}</div>
@@ -24,4 +24,11 @@
 </div>
 {% else %}<section class="card employee-dashboard-empty"><i class="bi bi-calendar-event"></i><div><strong>No events found</strong><p>Create an event before recording track runs.</p></div></section>{% endif %}
 </div>
+<dialog class="run-video-dialog" data-run-video-dialog><header><strong data-run-video-title>Run video</strong><button type="button" data-run-video-close aria-label="Close video"><i class="bi bi-x-lg"></i></button></header><video controls playsinline preload="metadata" data-run-video-player></video></dialog>
 {% endblock %}
+{% block scripts %}<script>
+const runVideoDialog=document.querySelector('[data-run-video-dialog]'),runVideoPlayer=runVideoDialog?.querySelector('[data-run-video-player]');
+function closeRunVideo(){if(!runVideoDialog)return;runVideoPlayer.pause();runVideoPlayer.removeAttribute('src');runVideoPlayer.load();runVideoDialog.close()}
+document.addEventListener('click',event=>{const button=event.target.closest('[data-run-video]');if(!button||!runVideoDialog)return;runVideoPlayer.src=button.dataset.runVideo;runVideoDialog.querySelector('[data-run-video-title]').textContent=button.dataset.runLabel||'Run video';runVideoDialog.showModal();runVideoPlayer.play().catch(()=>{})});
+runVideoDialog?.querySelector('[data-run-video-close]')?.addEventListener('click',closeRunVideo);runVideoDialog?.addEventListener('click',event=>{if(event.target===runVideoDialog)closeRunVideo()});runVideoDialog?.addEventListener('cancel',event=>{event.preventDefault();closeRunVideo()});
+</script>{% endblock %}

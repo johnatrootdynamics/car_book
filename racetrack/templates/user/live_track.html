@@ -11,6 +11,10 @@
   <section class="audience-current-section" data-live-current aria-live="polite">{% include 'user/_live_current_section.html' %}</section>
   <section class="audience-history-section" data-live-history>{% include 'user/_live_history_section.html' %}</section>
 </div>
+<dialog class="run-video-dialog" data-run-video-dialog>
+  <header><strong data-run-video-title>Run video</strong><button type="button" data-run-video-close aria-label="Close video"><i class="bi bi-x-lg"></i></button></header>
+  <video controls playsinline preload="metadata" data-run-video-player></video>
+</dialog>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const root = document.querySelector('[data-live-state-url]')
@@ -19,6 +23,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const historyRegion = root.querySelector('[data-live-history]')
   let currentVersion = root.dataset.currentVersion || ''
   let historyVersion = root.dataset.historyVersion || ''
+  const videoDialog = document.querySelector('[data-run-video-dialog]')
+  const videoPlayer = videoDialog?.querySelector('[data-run-video-player]')
+  root.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-run-video]')
+    if (!button || !videoDialog || !videoPlayer) return
+    videoPlayer.src = button.dataset.runVideo
+    videoDialog.querySelector('[data-run-video-title]').textContent = button.dataset.runLabel || 'Run video'
+    videoDialog.showModal()
+    videoPlayer.play().catch(() => {})
+  })
+  const closeVideo = () => { if (!videoDialog) return; videoPlayer.pause(); videoPlayer.removeAttribute('src'); videoPlayer.load(); videoDialog.close() }
+  videoDialog?.querySelector('[data-run-video-close]')?.addEventListener('click', closeVideo)
+  videoDialog?.addEventListener('click', (event) => { if (event.target === videoDialog) closeVideo() })
+  videoDialog?.addEventListener('cancel', (event) => { event.preventDefault(); closeVideo() })
 
   root.addEventListener('submit', async (event) => {
     const form = event.target.closest('.audience-run-rating form')
