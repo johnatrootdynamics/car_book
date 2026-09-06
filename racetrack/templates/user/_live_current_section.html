@@ -6,6 +6,7 @@
   {% set score = vote_summary.get(active_run.id, {}) %}
   {% set rating_run = active_run %}
   <article class="audience-run-card current" id="run-{{ active_run.id }}">
+    {% if active_run.videos %}<p class="muted-line"><i class="bi bi-record-circle"></i> Camera recording in progress</p>{% endif %}
     <div class="audience-run-top">
       <div class="audience-run-identity"><span>Run #{{ active_run.id }}</span><strong>Started {{ active_run.started_at.strftime('%-I:%M %p') }}</strong><small>{{ active_run.participants|length }} {{ 'driver' if active_run.participants|length == 1 else 'drivers' }}</small></div>
     </div>

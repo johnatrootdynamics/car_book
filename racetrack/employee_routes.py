@@ -14,6 +14,7 @@ from werkzeug.utils import secure_filename
 from .forms import EmployeeCreateForm, EventForm, InspectionForm, InspectionRuleForm, PrivateRentalSlotForm, TrackEmailTemplateForm, TrackProfileForm
 from .models import (
     Car,
+    CameraDevice,
     DriverClassChange,
     DriverNote,
     DriverTicketOrder,
@@ -38,6 +39,7 @@ from .models import (
     TrackCarStatus,
     TrackRun,
     TrackRunParticipant,
+    TrackRunVideo,
     TrackDriverClass,
     TrackEmailTemplate,
     TrackLayout,
@@ -270,6 +272,55 @@ def live_track():
     if guard:
         return guard
     return render_template("employee/live_track.html")
+
+
+@employee_bp.route("/cameras")
+@login_required
+def cameras():
+    guard = require_employee()
+    if guard:
+        return guard
+    devices = CameraDevice.query.filter_by(track_id=active_track_id()).order_by(CameraDevice.name.asc()).all()
+    return render_template("employee/cameras.html", devices=devices)
+
+
+@employee_bp.post("/cameras/register")
+@login_required
+def camera_register():
+    guard = require_office_staff()
+    if guard:
+        return guard
+    code = (request.form.get("pairing_code") or "").strip().upper()
+    name = (request.form.get("name") or "").strip()[:120]
+    pending = CameraDevice.query.filter(
+        CameraDevice.status == "pending", CameraDevice.pairing_expires_at >= datetime.utcnow()
+    ).all()
+    device = next((item for item in pending if check_password_hash(item.pairing_code_hash or "", code)), None)
+    if not device:
+        flash("That camera pairing code is invalid or has expired.", "error")
+        return redirect(url_for("employee.cameras"))
+    device.track_id = active_track_id()
+    device.name = name or f"Track Camera {device.id}"
+    device.status = "active"
+    device.claimed_at = datetime.utcnow()
+    device.pairing_code_hash = None
+    device.pairing_expires_at = None
+    db.session.commit()
+    flash(f"{device.name} is now registered to this track.", "success")
+    return redirect(url_for("employee.cameras"))
+
+
+@employee_bp.post("/cameras/<int:camera_id>/settings")
+@login_required
+def camera_update(camera_id):
+    guard = require_office_staff()
+    if guard:
+        return guard
+    device = CameraDevice.query.filter_by(id=camera_id, track_id=active_track_id()).first_or_404()
+    device.name = (request.form.get("name") or "").strip()[:120] or device.name
+    db.session.commit()
+    flash("Camera settings saved.", "success")
+    return redirect(url_for("employee.cameras"))
 
 
 @employee_bp.get("/run-history")

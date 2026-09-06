@@ -144,6 +144,7 @@ def create_app():
     from .vendor_routes import vendor_bp
     from .waiver_routes import waiver_bp
     from .scanner_api import scanner_api_bp
+    from .camera_api import camera_api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
@@ -152,10 +153,12 @@ def create_app():
     app.register_blueprint(employee_bp)
     app.register_blueprint(waiver_bp)
     app.register_blueprint(scanner_api_bp)
+    app.register_blueprint(camera_api_bp)
     csrf.exempt(app.view_functions["waiver.boldsign_webhook"])
     csrf.exempt(app.view_functions["user.stripe_webhook"])
     csrf.exempt(app.view_functions["user.paypal_webhook"])
     csrf.exempt(scanner_api_bp)
+    csrf.exempt(camera_api_bp)
 
     def ensure_database_exists():
         db_url = make_url(app.config["SQLALCHEMY_DATABASE_URI"])
@@ -229,6 +232,8 @@ def create_app():
             "track_runs",
             "track_run_participants",
             "track_run_votes",
+            "camera_devices",
+            "track_run_videos",
         }
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -718,6 +723,8 @@ def create_app():
             "track_car_statuses",
             "track_runs",
             "track_run_participants",
+            "camera_devices",
+            "track_run_videos",
         }
         try:
             inspector = inspect(db.engine)

@@ -2446,6 +2446,7 @@ def _attendee_run_signature(runs):
             [participant.id for participant in run.participants],
             sum(1 for vote in run.votes if vote.vote == 1),
             sum(1 for vote in run.votes if vote.vote == -1),
+            [[video.id, video.status, video.object_key] for video in run.videos],
         ]
         for run in runs
     ]
@@ -2464,6 +2465,7 @@ def _attendee_live_context(event):
             selectinload(TrackRun.participants).selectinload(TrackRunParticipant.car),
             selectinload(TrackRun.participants).selectinload(TrackRunParticipant.driver),
             selectinload(TrackRun.votes),
+            selectinload(TrackRun.videos),
         )
         .filter_by(event_id=event.id)
         .order_by(TrackRun.started_at.desc())

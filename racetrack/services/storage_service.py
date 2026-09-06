@@ -66,3 +66,18 @@ def build_presigned_read_url(stored_value, bucket, endpoint_url, access_key, sec
         Params={"Bucket": bucket, "Key": object_key},
         ExpiresIn=expires_seconds,
     )
+
+
+def build_presigned_upload_url(object_key, bucket, endpoint_url, access_key, secret_key, content_type="video/mp4", expires_seconds=3600):
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+    return s3.generate_presigned_url(
+        "put_object",
+        Params={"Bucket": bucket, "Key": object_key, "ContentType": content_type},
+        ExpiresIn=expires_seconds,
+    )

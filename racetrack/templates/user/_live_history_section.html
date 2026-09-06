@@ -20,6 +20,12 @@
           <i class="bi bi-chevron-down audience-history-chevron" aria-hidden="true"></i>
         </summary>
         <div class="audience-history-detail">
+          {% set ready_videos = run.videos|selectattr('status', 'equalto', 'ready')|list %}
+          {% if ready_videos %}
+            <div class="audience-run-video"><video controls preload="metadata" playsinline src="{{ asset_url(ready_videos[0].object_key) }}"></video></div>
+          {% elif run.videos %}
+            <p class="muted-line"><i class="bi bi-cloud-arrow-up"></i> Run video is {{ run.videos[0].status|replace('_', ' ') }}.</p>
+          {% endif %}
           <div class="audience-history-detail-head">
             <strong>Drivers in this run</strong>
             {% if run.id in shared_run_ids %}

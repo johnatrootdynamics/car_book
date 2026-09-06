@@ -9475,3 +9475,4 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .community-run-icon { width: 34px; height: 34px; }
   .community-run-attachment > a { grid-column: 2; }
 }
+.audience-run-video{margin:0 0 18px}.audience-run-video video{display:block;width:100%;max-height:560px;background:#05070b;border-radius:12px}

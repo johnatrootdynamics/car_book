@@ -1016,6 +1016,48 @@ class TrackRun(db.Model):
         order_by="TrackRunParticipant.entered_at",
     )
     votes = db.relationship("TrackRunVote", backref="run", cascade="all, delete-orphan")
+    videos = db.relationship("TrackRunVideo", backref="run", cascade="all, delete-orphan")
+
+
+class CameraDevice(db.Model):
+    __tablename__ = "camera_devices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    device_uuid = db.Column(db.String(64), nullable=False, unique=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=True, index=True)
+    name = db.Column(db.String(120), nullable=False, default="Track Camera")
+    status = db.Column(db.String(20), nullable=False, default="pending")
+    pairing_code_hash = db.Column(db.String(255), nullable=True)
+    pairing_expires_at = db.Column(db.DateTime, nullable=True)
+    poll_token_hash = db.Column(db.String(64), nullable=True)
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    software_version = db.Column(db.String(60), nullable=True)
+    camera_connected = db.Column(db.Boolean, nullable=False, default=False)
+    recording_run_id = db.Column(db.Integer, db.ForeignKey("track_runs.id"), nullable=True)
+    claimed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    track = db.relationship("Track")
+    recording_run = db.relationship("TrackRun", foreign_keys=[recording_run_id])
+
+
+class TrackRunVideo(db.Model):
+    __tablename__ = "track_run_videos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.Integer, db.ForeignKey("track_runs.id"), nullable=False, index=True)
+    camera_id = db.Column(db.Integer, db.ForeignKey("camera_devices.id"), nullable=False, index=True)
+    status = db.Column(db.String(24), nullable=False, default="pending", index=True)
+    object_key = db.Column(db.String(500), nullable=True)
+    bytes = db.Column(db.BigInteger, nullable=False, default=0)
+    checksum = db.Column(db.String(64), nullable=True)
+    error = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    uploaded_at = db.Column(db.DateTime, nullable=True)
+
+    camera = db.relationship("CameraDevice", foreign_keys=[camera_id])
+    __table_args__ = (db.UniqueConstraint("run_id", "camera_id", name="uniq_run_camera_video"),)
 
 
 class TrackRunVote(db.Model):
