@@ -8238,6 +8238,19 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .audience-history-detail-head > strong { color: #475467; font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; }
 .audience-history-detail .audience-run-drivers { padding: 7px; background: #eaf0f8; border-radius: 8px; }
 .audience-history-detail .audience-run-driver { min-height: 68px; padding: 8px 10px; box-shadow: none; }
+.audience-history-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 32%); gap: 10px; align-items: stretch; }
+.audience-history-content .audience-run-drivers { display: grid; grid-template-columns: 1fr; align-content: start; gap: 7px; }
+.audience-history-video-column { min-width: 0; }
+.audience-run-video-preview { position: relative; display: block; width: 100%; min-height: 132px; height: 100%; max-height: 230px; overflow: hidden; padding: 0; color: #fff; background: #05070b; border: 1px solid #263248; border-radius: 10px; cursor: pointer; }
+.audience-run-video-preview video { display: block; width: 100%; height: 100%; min-height: 132px; object-fit: cover; pointer-events: none; }
+.audience-run-video-preview::after { content: ""; position: absolute; inset: 45% 0 0; background: linear-gradient(transparent,rgba(0,0,0,.82)); }
+.audience-run-video-preview > span { position: absolute; z-index: 2; top: 50%; left: 50%; display: grid; width: 42px; height: 42px; color: #172033; background: rgba(255,255,255,.92); border-radius: 50%; font-size: 1.25rem; transform: translate(-50%,-58%); place-items: center; box-shadow: 0 5px 18px rgba(0,0,0,.24); }
+.audience-run-video-preview > strong { position: absolute; z-index: 2; right: 10px; bottom: 8px; left: 10px; font-size: .67rem; text-align: left; }
+.audience-run-video-preview:hover > span { background: #c8ef44; transform: translate(-50%,-58%) scale(1.06); }
+.audience-run-video-placeholder { display: flex; min-height: 132px; height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 4px; padding: 14px; color: #7a8699; background: #eef2f7; border: 1px dashed #cbd3df; border-radius: 10px; text-align: center; }
+.audience-run-video-placeholder > i { margin-bottom: 3px; color: #667085; font-size: 1.15rem; }
+.audience-run-video-placeholder > strong { color: #475467; font-size: .69rem; text-transform: capitalize; }
+.audience-run-video-placeholder > span { font-size: .59rem; }
 .audience-history-detail .audience-run-rating,
 .audience-history-detail .audience-score,
 .audience-history-detail .audience-run-rating form { gap: 4px; }
@@ -8265,6 +8278,8 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .audience-history-chevron { grid-column: 4; grid-row: 1 / span 2; }
   .audience-history-detail { padding: 0 7px 7px; }
   .audience-history-detail-head { min-height: 36px; }
+  .audience-history-content { grid-template-columns: 1fr; }
+  .audience-run-video-preview { height: 180px; }
   .audience-history-detail .audience-voted { display: none; }
 }
 

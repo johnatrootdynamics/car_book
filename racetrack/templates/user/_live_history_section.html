@@ -21,11 +21,6 @@
         </summary>
         <div class="audience-history-detail">
           {% set ready_videos = run.videos|selectattr('status', 'equalto', 'ready')|list %}
-          {% if ready_videos %}
-            <button type="button" class="run-video-button" data-run-video="{{ asset_url(ready_videos[0].object_key) }}" data-run-label="Run #{{ run.id }}"><i class="bi bi-play-circle-fill" aria-hidden="true"></i> Watch run video</button>
-          {% elif run.videos %}
-            <p class="muted-line"><i class="bi bi-cloud-arrow-up"></i> Run video is {{ run.videos[0].status|replace('_', ' ') }}.</p>
-          {% endif %}
           <div class="audience-history-detail-head">
             <strong>Drivers in this run</strong>
             {% if run.id in shared_run_ids %}
@@ -37,7 +32,23 @@
               </form>
             {% endif %}
           </div>
-          <div class="audience-run-drivers compact">{% for participant in run.participants %}{% include 'user/_run_driver.html' %}{% endfor %}</div>
+          <div class="audience-history-content">
+            <div class="audience-run-drivers compact">{% for participant in run.participants %}{% include 'user/_run_driver.html' %}{% endfor %}</div>
+            <div class="audience-history-video-column">
+              {% if ready_videos %}
+                {% set run_video_url = asset_url(ready_videos[0].object_key) %}
+                <button type="button" class="audience-run-video-preview" data-run-video="{{ run_video_url }}" data-run-label="Run #{{ run.id }}" aria-label="Open video for Run #{{ run.id }}">
+                  <video muted playsinline preload="metadata" src="{{ run_video_url }}" tabindex="-1"></video>
+                  <span><i class="bi bi-play-fill" aria-hidden="true"></i></span>
+                  <strong>Watch run video</strong>
+                </button>
+              {% elif run.videos %}
+                <div class="audience-run-video-placeholder"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i><strong>Video {{ run.videos[0].status|replace('_', ' ') }}</strong><span>It will appear here when ready.</span></div>
+              {% else %}
+                <div class="audience-run-video-placeholder"><i class="bi bi-camera-video" aria-hidden="true"></i><strong>No run video</strong><span>No recording is attached to this run.</span></div>
+              {% endif %}
+            </div>
+          </div>
           <div class="audience-run-vote-panel">{% include 'user/_run_vote_controls.html' %}</div>
         </div>
       </details>
