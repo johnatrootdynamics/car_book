@@ -9252,27 +9252,28 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   place-items: center;
 }
 .connection-search-form {
-  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   margin: 10px 0 2px;
 }
 .connection-search-form > i {
-  position: absolute;
-  top: 50%;
-  left: 10px;
+  display: grid;
+  height: 34px;
   color: #98a2b3;
+  background: #f8fafc;
+  border: 1px solid #e2e6ec;
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
   font-size: .67rem;
-  transform: translateY(-50%);
-  pointer-events: none;
+  place-items: center;
 }
 .ui-system.account-driver .connection-search-form input {
   min-width: 0;
   height: 34px;
-  padding: 7px 9px 7px 28px;
+  padding: 7px 9px;
   background: #f8fafc;
   border: 1px solid #e2e6ec;
-  border-radius: 8px 0 0 8px;
+  border-radius: 0;
   font-size: .68rem;
 }
 .connection-search-form button {
