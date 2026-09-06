@@ -9261,6 +9261,16 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .community-run-attachment strong { color: #27364f; font-size: .76rem; }
 .community-run-attachment > div > span { color: #7a8699; font-size: .62rem; }
 .community-run-attachment > a { color: #3159d5; font-size: .63rem; font-weight: 800; text-decoration: none; }
+.community-run-drivers { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 7px; margin: -5px 15px 11px; }
+.community-run-driver { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 8px 9px; background: #fafbfc; border: 1px solid #e7eaf0; border-radius: 9px; }
+.community-run-driver > img,.community-run-driver-avatar { width: 31px; height: 31px; flex: 0 0 31px; border-radius: 50%; object-fit: cover; }
+.community-run-driver-avatar { display: grid; color: #fff; background: linear-gradient(135deg,#6941c6,#3159d5); font-size: .6rem; font-weight: 800; place-items: center; }
+.community-run-driver > div { display: grid; min-width: 0; gap: 1px; }
+.community-run-driver strong,.community-run-driver span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.community-run-driver strong { color: #344054; font-size: .68rem; }
+.community-run-driver span { color: #7a8699; font-size: .59rem; }
+.community-run-video-button { margin: 0 15px 14px; padding: 8px 12px; font-size: .72rem; }
+.community-run-video-status { margin: 0 15px 14px; color: #667085; font-size: .68rem; }
 
 .audience-run-share-form { margin: 0; }
 .ui-system .audience-run-share-form button,

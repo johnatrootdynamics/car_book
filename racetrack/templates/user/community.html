@@ -54,6 +54,24 @@
               <div><small>Completed run</small><strong>Run #{{ post.track_run.id }}</strong><span>{{ post.track_run.started_at.strftime('%b %-d · %-I:%M %p') }}{% if post.track_run.ended_at %}–{{ post.track_run.ended_at.strftime('%-I:%M %p') }}{% endif %} · {{ post.track_run.participants|length }} {{ 'driver' if post.track_run.participants|length == 1 else 'drivers' }}</span></div>
               {% if post.event %}<a href="{{ url_for('user.event_detail', event_id=post.event.id) }}">Event <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
             </div>
+            {% if post.track_run.participants %}
+              <div class="community-run-drivers" aria-label="Drivers in Run #{{ post.track_run.id }}">
+                {% for participant in post.track_run.participants %}
+                  {% set driver_image = asset_url(participant.driver.profile_image_url) if participant.driver.profile_image_url else None %}
+                  {% set driver_name = ((participant.driver.first_name or '') ~ ' ' ~ (participant.driver.last_name or ''))|trim %}
+                  <div class="community-run-driver">
+                    {% if driver_image %}<img src="{{ driver_image }}" alt="">{% else %}<span class="community-run-driver-avatar">{{ (participant.driver.first_name or participant.driver.username or 'D')[0]|upper }}{{ (participant.driver.last_name or '')[0]|upper }}</span>{% endif %}
+                    <div><strong>{{ driver_name or ('@' ~ participant.driver.username) }}</strong><span>{{ participant.car.car_year }} {{ participant.car.make }} {{ participant.car.model }}</span></div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% set ready_videos = post.track_run.videos|selectattr('status', 'equalto', 'ready')|list %}
+            {% if ready_videos %}
+              <button type="button" class="run-video-button community-run-video-button" data-run-video="{{ asset_url(ready_videos[0].object_key) }}" data-run-label="Run #{{ post.track_run.id }}"><i class="bi bi-play-circle-fill" aria-hidden="true"></i> Watch run video</button>
+            {% elif post.track_run.videos %}
+              <p class="community-run-video-status"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Video {{ post.track_run.videos[0].status|replace('_', ' ') }}</p>
+            {% endif %}
           {% elif post.event %}
             <a class="community-event-attachment" href="{{ url_for('user.event_detail', event_id=post.event.id) }}">
               {% set attached_event_image = asset_url(post.event.thumbnail_image_path) if post.event.thumbnail_image_path else None %}
@@ -139,16 +157,40 @@
     </aside>
   </div>
 </div>
+<dialog class="run-video-dialog" data-run-video-dialog>
+  <header><strong data-run-video-title>Run video</strong><button type="button" data-run-video-close aria-label="Close video"><i class="bi bi-x-lg"></i></button></header>
+  <video controls playsinline preload="metadata" data-run-video-player></video>
+</dialog>
 {% endblock %}
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const imageInput = document.getElementById('community-post-image')
   const imageLabel = document.querySelector('label[for="community-post-image"] span')
-  if (!imageInput || !imageLabel) return
-  imageInput.addEventListener('change', () => {
+  if (imageInput && imageLabel) imageInput.addEventListener('change', () => {
     imageLabel.textContent = imageInput.files?.[0]?.name || 'Add photo'
   })
+
+  const videoDialog = document.querySelector('[data-run-video-dialog]')
+  const videoPlayer = videoDialog?.querySelector('[data-run-video-player]')
+  const closeVideo = () => {
+    if (!videoDialog || !videoPlayer) return
+    videoPlayer.pause()
+    videoPlayer.removeAttribute('src')
+    videoPlayer.load()
+    videoDialog.close()
+  }
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-run-video]')
+    if (!button || !videoDialog || !videoPlayer) return
+    videoPlayer.src = button.dataset.runVideo
+    videoDialog.querySelector('[data-run-video-title]').textContent = button.dataset.runLabel || 'Run video'
+    videoDialog.showModal()
+    videoPlayer.play().catch(() => {})
+  })
+  videoDialog?.querySelector('[data-run-video-close]')?.addEventListener('click', closeVideo)
+  videoDialog?.addEventListener('click', (event) => { if (event.target === videoDialog) closeVideo() })
+  videoDialog?.addEventListener('cancel', (event) => { event.preventDefault(); closeVideo() })
 })
 </script>
 {% endblock %}
