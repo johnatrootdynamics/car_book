@@ -69,10 +69,6 @@ def heartbeat():
     device.software_version = str(data.get("software_version") or device.software_version or "")[:60] or None
     device.recording_run_id = data.get("recording_run_id") or None
     active_run = TrackRun.query.filter_by(track_id=device.track_id, status="active").order_by(TrackRun.started_at.desc()).first()
-    if active_run:
-        video = TrackRunVideo.query.filter_by(run_id=active_run.id, camera_id=device.id).first()
-        if not video:
-            db.session.add(TrackRunVideo(run_id=active_run.id, camera_id=device.id, status="recording"))
     db.session.commit()
     return jsonify(ok=True, command={"action": "record", "run_id": active_run.id} if active_run else {"action": "standby"})
 
@@ -84,8 +80,11 @@ def upload_request(run_id):
     if not device or not run:
         return jsonify(error="run not available to this camera"), 403
     data = request.get_json(silent=True) or {}
-    video = TrackRunVideo.query.filter_by(run_id=run.id, camera_id=device.id).first() or TrackRunVideo(run_id=run.id, camera_id=device.id)
+    source_key = str(data.get("source_key") or "camera-1")[:80]
+    source_name = str(data.get("source_name") or "Camera 1")[:120]
+    video = TrackRunVideo.query.filter_by(run_id=run.id, camera_id=device.id, source_key=source_key).first() or TrackRunVideo(run_id=run.id, camera_id=device.id, source_key=source_key)
     db.session.add(video)
+    video.source_name = source_name
     video.status = "uploading"
     video.bytes = max(0, int(data.get("bytes") or 0))
     video.checksum = str(data.get("checksum") or "")[:64] or None
@@ -105,12 +104,6 @@ def recording_complete(run_id):
     run = TrackRun.query.filter_by(id=run_id, track_id=device.track_id if device else None).first()
     if not device or not run:
         return jsonify(error="run not available to this camera"), 403
-    video = TrackRunVideo.query.filter_by(run_id=run.id, camera_id=device.id).first()
-    if not video:
-        video = TrackRunVideo(run_id=run.id, camera_id=device.id)
-        db.session.add(video)
-    if video.status != "ready":
-        video.status = "queued"
     db.session.commit()
     return jsonify(ok=True)
 
@@ -120,10 +113,11 @@ def upload_complete(run_id):
     device = _device()
     if not device:
         return jsonify(error="invalid camera token"), 401
-    video = TrackRunVideo.query.filter_by(run_id=run_id, camera_id=device.id).first()
+    data = request.get_json(silent=True) or {}
+    source_key = str(data.get("source_key") or "camera-1")[:80]
+    video = TrackRunVideo.query.filter_by(run_id=run_id, camera_id=device.id, source_key=source_key).first()
     if not video:
         return jsonify(error="upload was not requested"), 404
-    data = request.get_json(silent=True) or {}
     if data.get("object_key") != video.object_key:
         return jsonify(error="object key mismatch"), 409
     video.status = "ready"

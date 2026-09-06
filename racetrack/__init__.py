@@ -486,6 +486,17 @@ def create_app():
             conn.exec_driver_sql(
                 "ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS track_run_id INT NULL"
             )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_run_videos ADD COLUMN IF NOT EXISTS source_key VARCHAR(80) NOT NULL DEFAULT 'camera-1'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_run_videos ADD COLUMN IF NOT EXISTS source_name VARCHAR(120) NOT NULL DEFAULT 'Camera 1'"
+            )
+            video_indexes = {row[2] for row in conn.exec_driver_sql("SHOW INDEX FROM track_run_videos")}
+            if "uniq_run_camera_video" in video_indexes:
+                conn.exec_driver_sql("ALTER TABLE track_run_videos DROP INDEX uniq_run_camera_video")
+            if "uniq_run_camera_source_video" not in video_indexes:
+                conn.exec_driver_sql("ALTER TABLE track_run_videos ADD UNIQUE INDEX uniq_run_camera_source_video (run_id, camera_id, source_key)")
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(

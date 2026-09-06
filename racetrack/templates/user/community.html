@@ -68,7 +68,7 @@
             {% endif %}
             {% set ready_videos = post.track_run.videos|selectattr('status', 'equalto', 'ready')|list %}
             {% if ready_videos %}
-              <button type="button" class="run-video-button community-run-video-button" data-run-video="{{ asset_url(ready_videos[0].object_key) }}" data-run-label="Run #{{ post.track_run.id }}"><i class="bi bi-play-circle-fill" aria-hidden="true"></i> Watch run video</button>
+              {% for video in ready_videos %}<button type="button" class="run-video-button community-run-video-button" data-run-video="{{ asset_url(video.object_key) }}" data-run-label="Run #{{ post.track_run.id }} · {{ video.source_name }}"><i class="bi bi-play-circle-fill" aria-hidden="true"></i> {{ video.source_name }}</button>{% endfor %}
             {% elif post.track_run.videos %}
               <p class="community-run-video-status"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i> Video {{ post.track_run.videos[0].status|replace('_', ' ') }}</p>
             {% endif %}

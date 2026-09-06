@@ -36,12 +36,13 @@
             <div class="audience-run-drivers compact">{% for participant in run.participants %}{% include 'user/_run_driver.html' %}{% endfor %}</div>
             <div class="audience-history-video-column">
               {% if ready_videos %}
-                {% set run_video_url = asset_url(ready_videos[0].object_key) %}
-                <button type="button" class="audience-run-video-preview" data-run-video="{{ run_video_url }}" data-run-label="Run #{{ run.id }}" aria-label="Open video for Run #{{ run.id }}">
+                {% for video in ready_videos %}{% set run_video_url = asset_url(video.object_key) %}
+                <button type="button" class="audience-run-video-preview" data-run-video="{{ run_video_url }}" data-run-label="Run #{{ run.id }} · {{ video.source_name }}" aria-label="Open {{ video.source_name }} video for Run #{{ run.id }}">
                   <video muted playsinline preload="metadata" src="{{ run_video_url }}" tabindex="-1"></video>
                   <span><i class="bi bi-play-fill" aria-hidden="true"></i></span>
-                  <strong>Watch run video</strong>
+                  <strong>{{ video.source_name }}</strong>
                 </button>
+                {% endfor %}
               {% elif run.videos %}
                 <div class="audience-run-video-placeholder"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i><strong>Video {{ run.videos[0].status|replace('_', ' ') }}</strong><span>It will appear here when ready.</span></div>
               {% else %}

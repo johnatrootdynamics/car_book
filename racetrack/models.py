@@ -1048,6 +1048,8 @@ class TrackRunVideo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     run_id = db.Column(db.Integer, db.ForeignKey("track_runs.id"), nullable=False, index=True)
     camera_id = db.Column(db.Integer, db.ForeignKey("camera_devices.id"), nullable=False, index=True)
+    source_key = db.Column(db.String(80), nullable=False, default="camera-1")
+    source_name = db.Column(db.String(120), nullable=False, default="Camera 1")
     status = db.Column(db.String(24), nullable=False, default="pending", index=True)
     object_key = db.Column(db.String(500), nullable=True)
     bytes = db.Column(db.BigInteger, nullable=False, default=0)
@@ -1057,7 +1059,7 @@ class TrackRunVideo(db.Model):
     uploaded_at = db.Column(db.DateTime, nullable=True)
 
     camera = db.relationship("CameraDevice", foreign_keys=[camera_id])
-    __table_args__ = (db.UniqueConstraint("run_id", "camera_id", name="uniq_run_camera_video"),)
+    __table_args__ = (db.UniqueConstraint("run_id", "camera_id", "source_key", name="uniq_run_camera_source_video"),)
 
 
 class TrackRunVote(db.Model):
