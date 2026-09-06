@@ -21,6 +21,8 @@
         </summary>
         <div class="audience-history-detail">
           {% set ready_videos = run.videos|selectattr('status', 'equalto', 'ready')|list %}
+          {% set produced_videos = ready_videos|selectattr('source_key', 'equalto', 'split-screen')|list %}
+          {% set display_videos = produced_videos if produced_videos else ready_videos %}
           <div class="audience-history-detail-head">
             <strong>Drivers in this run</strong>
             {% if run.id in shared_run_ids %}
@@ -35,8 +37,8 @@
           <div class="audience-history-content">
             <div class="audience-run-drivers compact">{% for participant in run.participants %}{% include 'user/_run_driver.html' %}{% endfor %}</div>
             <div class="audience-history-video-column">
-              {% if ready_videos %}
-                {% for video in ready_videos %}{% set run_video_url = asset_url(video.object_key) %}
+              {% if display_videos %}
+                {% for video in display_videos %}{% set run_video_url = asset_url(video.object_key) %}
                 <button type="button" class="audience-run-video-preview" data-run-video="{{ run_video_url }}" data-run-label="Run #{{ run.id }} · {{ video.source_name }}" aria-label="Open {{ video.source_name }} video for Run #{{ run.id }}">
                   <video muted playsinline preload="metadata" src="{{ run_video_url }}" tabindex="-1"></video>
                   <span><i class="bi bi-play-fill" aria-hidden="true"></i></span>
