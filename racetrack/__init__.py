@@ -475,6 +475,12 @@ def create_app():
             conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR(500) NULL"
             )
+            conn.exec_driver_sql(
+                "ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS track_run_id INT NULL"
+            )
 
         with db.engine.begin() as conn:
             conn.exec_driver_sql(
@@ -535,6 +541,12 @@ def create_app():
                 pass
             try:
                 conn.exec_driver_sql("CREATE UNIQUE INDEX idx_users_username ON users (username)")
+            except Exception:
+                pass
+            try:
+                conn.exec_driver_sql(
+                    "CREATE UNIQUE INDEX idx_social_posts_user_run ON social_posts (user_id, track_run_id)"
+                )
             except Exception:
                 pass
             try:

@@ -476,14 +476,21 @@ class SocialPost(db.Model):
     event_registration_id = db.Column(
         db.Integer, db.ForeignKey("event_registrations.id"), nullable=True, unique=True
     )
+    track_run_id = db.Column(db.Integer, db.ForeignKey("track_runs.id"), nullable=True)
     post_type = db.Column(db.String(30), nullable=False, default="event_signup")
     title = db.Column(db.String(200), nullable=False)
     body = db.Column(db.String(600), nullable=True)
+    image_url = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     event = db.relationship("Event")
     registration = db.relationship("EventRegistration")
+    track_run = db.relationship("TrackRun")
     comments = db.relationship("SocialComment", backref="post", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "track_run_id", name="uniq_social_post_user_run"),
+    )
 
 
 class SocialComment(db.Model):

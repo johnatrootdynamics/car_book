@@ -9140,8 +9140,8 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 /* Community is a compact feed with real filters and optional discussions. */
 .ui-system.account-driver .community-hero {
   align-items: center;
-  min-height: 168px;
-  padding: 25px 30px;
+  min-height: 124px;
+  padding: 18px 26px;
   background:
     radial-gradient(circle at 89% 10%, rgba(255, 122, 68, .38), transparent 31%),
     radial-gradient(circle at 63% 115%, rgba(71, 103, 211, .24), transparent 38%),
@@ -9153,11 +9153,11 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .ui-system.account-driver .community-hero h1 {
   margin: 0;
   color: #fff;
-  font-size: clamp(2rem, 4vw, 2.85rem);
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
   line-height: 1;
 }
 .community-hero-copy { position: relative; z-index: 2; max-width: 650px; }
-.community-hero-copy > p { max-width: 590px; margin-top: 13px; color: #d6deeb; line-height: 1.55; }
+.community-hero-copy > p { max-width: 590px; margin-top: 8px; color: #d6deeb; font-size: .82rem; line-height: 1.5; }
 .ui-system .community-hero-action.btn {
   min-height: 36px;
   margin-top: 19px;
@@ -9198,6 +9198,23 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .composer-actions { gap: 10px; padding-top: 9px; font-size: .68rem; }
 .composer-actions > span { color: #7a8699; font-weight: 650; }
 .composer-actions > span i { color: #148153; }
+.community-composer-tools { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.community-composer-tools label {
+  display: inline-flex;
+  max-width: 220px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  color: #3159d5;
+  background: #eef3ff;
+  border: 1px solid #d7e1fb;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: .65rem;
+  font-weight: 800;
+}
+.community-composer-tools label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.community-composer-tools > small { color: #98a2b3; font-size: .57rem; font-weight: 650; }
 .community-section-heading { padding: 4px 2px 10px; }
 .community-section-heading > strong { color: #8a94a6; font-size: .62rem; font-weight: 700; }
 .community-post { margin-bottom: 10px; border-color: #e1e5eb; }
@@ -9208,6 +9225,61 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 .community-event-attachment { margin: 0 15px 13px; }
 .community-car-attachment { margin: 0 15px 13px; }
 .post-type-badge { font-size: .61rem; }
+.post-type-run_share { color: #6941c6; background: #f4f3ff; }
+.community-post-image {
+  display: block;
+  width: calc(100% - 30px);
+  max-height: 520px;
+  margin: 0 15px 13px;
+  object-fit: contain;
+  background: #f3f5f8;
+  border: 1px solid #e1e5eb;
+  border-radius: 10px;
+}
+.community-run-attachment {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0 15px 13px;
+  padding: 11px 12px;
+  background: #f8f7ff;
+  border: 1px solid #e1ddfb;
+  border-radius: 10px;
+}
+.community-run-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  color: #6941c6;
+  background: #ece9fe;
+  border-radius: 9px;
+  place-items: center;
+}
+.community-run-attachment > div { display: grid; min-width: 0; gap: 1px; }
+.community-run-attachment small { color: #6941c6; font-size: .57rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.community-run-attachment strong { color: #27364f; font-size: .76rem; }
+.community-run-attachment > div > span { color: #7a8699; font-size: .62rem; }
+.community-run-attachment > a { color: #3159d5; font-size: .63rem; font-weight: 800; text-decoration: none; }
+
+.audience-run-share-form { margin: 0; }
+.ui-system .audience-run-share-form button,
+.audience-run-shared {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  color: #3159d5;
+  background: #fff;
+  border: 1px solid #ccd8f7;
+  border-radius: 8px;
+  font-size: .62rem;
+  font-weight: 800;
+}
+.ui-system .audience-run-share-form button { cursor: pointer; }
+.ui-system .audience-run-share-form button:hover { color: #2547b3; background: #eef3ff; }
+.audience-run-shared { color: #087443; background: #edf9f3; border-color: #cbead9; }
 
 .community-discussion { border-top: 1px solid #edf0f3; }
 .community-discussion > summary {
@@ -9376,8 +9448,8 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 
 @media (max-width: 580px) {
   .ui-system.account-driver .community-shell { margin: 0; }
-  .ui-system.account-driver .community-hero { padding: 24px 20px; border-radius: 13px; }
-  .ui-system.account-driver .community-hero h1 { font-size: clamp(1.8rem, 9vw, 2.45rem); }
+  .ui-system.account-driver .community-hero { padding: 17px 19px; border-radius: 13px; }
+  .ui-system.account-driver .community-hero h1 { font-size: clamp(1.7rem, 8vw, 2.15rem); }
   .community-hero-copy > p { font-size: .78rem; }
   .community-hero-stats { width: 100%; }
   .community-hero-stats div { min-width: 0; flex: 1; }
@@ -9386,6 +9458,7 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .community-composer { display: grid; grid-template-columns: 40px minmax(0, 1fr); }
   .community-composer-title { align-items: flex-start; flex-direction: column; gap: 1px; }
   .composer-actions > span { display: none; }
+  .community-composer-tools > small { display: none; }
   .community-discussion > summary span:last-child { font-size: 0; }
   .community-discussion > summary span:last-child i { font-size: .7rem; }
 }
@@ -9398,4 +9471,7 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .community-post-head { align-items: flex-start; }
   .post-type-badge { padding: 4px 6px; font-size: 0; }
   .post-type-badge i { font-size: .7rem; }
+  .community-run-attachment { grid-template-columns: 34px minmax(0, 1fr); }
+  .community-run-icon { width: 34px; height: 34px; }
+  .community-run-attachment > a { grid-column: 2; }
 }

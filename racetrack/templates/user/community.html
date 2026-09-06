@@ -8,11 +8,6 @@
       <h1>Your circle.</h1>
       <p>Share track plans and garage updates with the drivers you choose to connect with.</p>
     </div>
-    <div class="community-hero-stats" aria-label="Your circle activity">
-      <div><strong>{{ connections|length }}</strong><span>Connections</span></div>
-      <div><strong>{{ community_post_count }}</strong><span>Circle posts</span></div>
-      <div><strong>{{ events|length }}</strong><span>Upcoming</span></div>
-    </div>
   </header>
 
   <nav class="community-tabs" aria-label="Filter community updates">
@@ -26,12 +21,12 @@
     <main class="community-feed" id="feed">
       <section class="community-composer" id="share-update">
         {% if me_image %}<img class="community-avatar community-avatar-lg" src="{{ me_image }}" alt="Your profile photo">{% else %}<span class="community-avatar community-avatar-lg community-avatar-fallback">{{ (current_user.username or current_user.first_name or 'D')[0]|upper }}</span>{% endif %}
-        <form method="post" action="{{ url_for('user.community_post_create') }}" data-enhanced>
+        <form method="post" action="{{ url_for('user.community_post_create') }}" enctype="multipart/form-data" data-enhanced>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="community-composer-title"><strong>Share with your circle</strong><small>{% if connections %}Visible to your connections{% else %}Visible only to you until you connect{% endif %}</small></div>
           <label class="sr-only" for="community-post-body">Share an update</label>
-          <textarea id="community-post-body" name="body" maxlength="600" rows="2" placeholder="What’s happening in your garage, @{{ current_user.username or ('driver' ~ current_user.id) }}?" data-autoresize="1" data-counter="community-post-counter" required></textarea>
-          <div class="composer-actions"><span><i class="bi bi-shield-check" aria-hidden="true"></i> Keep it useful and respectful</span><div class="composer-submit"><small id="community-post-counter"></small><button class="btn" type="submit">Post update</button></div></div>
+          <textarea id="community-post-body" name="body" maxlength="600" rows="2" placeholder="What’s happening in your garage, @{{ current_user.username or ('driver' ~ current_user.id) }}?" data-autoresize="1" data-counter="community-post-counter"></textarea>
+          <div class="composer-actions"><div class="community-composer-tools"><input class="sr-only" id="community-post-image" type="file" name="image" accept="image/jpeg,image/png,image/webp"><label for="community-post-image"><i class="bi bi-image" aria-hidden="true"></i><span>Add photo</span></label><small>JPG, PNG, or WebP</small></div><div class="composer-submit"><small id="community-post-counter"></small><button class="btn" type="submit">Post update</button></div></div>
         </form>
       </section>
 
@@ -47,11 +42,19 @@
           <header class="community-post-head">
             {% if post_author_image %}<img class="community-avatar" src="{{ post_author_image }}" alt="{{ author_handle }} avatar">{% else %}<span class="community-avatar community-avatar-fallback">{{ author_handle[0]|upper }}</span>{% endif %}
             <div class="community-author"><strong>@{{ author_handle }}</strong><span>{{ post.created_at.strftime('%b %-d · %-I:%M %p') if post.created_at else '' }}</span></div>
-            <span class="post-type-badge post-type-{{ post.post_type }}">{% if post.post_type == 'event_signup' %}<i class="bi bi-calendar-check" aria-hidden="true"></i> Track day{% elif post.post_type == 'car_spotlight' %}<i class="bi bi-car-front" aria-hidden="true"></i> New build{% else %}<i class="bi bi-chat-square-text" aria-hidden="true"></i> Update{% endif %}</span>
+            <span class="post-type-badge post-type-{{ post.post_type }}">{% if post.post_type == 'event_signup' %}<i class="bi bi-calendar-check" aria-hidden="true"></i> Track day{% elif post.post_type == 'car_spotlight' %}<i class="bi bi-car-front" aria-hidden="true"></i> New build{% elif post.post_type == 'run_share' %}<i class="bi bi-stopwatch-fill" aria-hidden="true"></i> Run{% else %}<i class="bi bi-chat-square-text" aria-hidden="true"></i> Update{% endif %}</span>
           </header>
           <div class="community-post-copy"><h3>{{ post.title|replace('@' ~ author_handle ~ ' ', '', 1) }}</h3>{% if post.body %}<p>{{ post.body }}</p>{% endif %}</div>
 
-          {% if post.event %}
+          {% if post.image_url %}{% set post_image = asset_url(post.image_url) %}{% if post_image %}<img class="community-post-image" src="{{ post_image }}" alt="Photo shared by @{{ author_handle }}">{% endif %}{% endif %}
+
+          {% if post.track_run %}
+            <div class="community-run-attachment">
+              <span class="community-run-icon"><i class="bi bi-stopwatch-fill" aria-hidden="true"></i></span>
+              <div><small>Completed run</small><strong>Run #{{ post.track_run.id }}</strong><span>{{ post.track_run.started_at.strftime('%b %-d · %-I:%M %p') }}{% if post.track_run.ended_at %}–{{ post.track_run.ended_at.strftime('%-I:%M %p') }}{% endif %} · {{ post.track_run.participants|length }} {{ 'driver' if post.track_run.participants|length == 1 else 'drivers' }}</span></div>
+              {% if post.event %}<a href="{{ url_for('user.event_detail', event_id=post.event.id) }}">Event <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
+            </div>
+          {% elif post.event %}
             <a class="community-event-attachment" href="{{ url_for('user.event_detail', event_id=post.event.id) }}">
               {% set attached_event_image = asset_url(post.event.thumbnail_image_path) if post.event.thumbnail_image_path else None %}
               {% if attached_event_image %}<img src="{{ attached_event_image }}" alt="">{% else %}<span class="event-attachment-fallback"><i class="bi bi-flag-fill" aria-hidden="true"></i></span>{% endif %}
@@ -136,4 +139,16 @@
     </aside>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const imageInput = document.getElementById('community-post-image')
+  const imageLabel = document.querySelector('label[for="community-post-image"] span')
+  if (!imageInput || !imageLabel) return
+  imageInput.addEventListener('change', () => {
+    imageLabel.textContent = imageInput.files?.[0]?.name || 'Add photo'
+  })
+})
+</script>
 {% endblock %}

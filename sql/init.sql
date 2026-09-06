@@ -189,9 +189,11 @@ CREATE TABLE IF NOT EXISTS social_posts (
   user_id INT NOT NULL,
   event_id INT NULL,
   event_registration_id INT NULL UNIQUE,
+  track_run_id INT NULL,
   post_type VARCHAR(30) NOT NULL DEFAULT 'event_signup',
   title VARCHAR(200) NOT NULL,
   body VARCHAR(600) NULL,
+  image_url VARCHAR(500) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_social_posts_user FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE ON UPDATE CASCADE,

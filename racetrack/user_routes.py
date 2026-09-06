@@ -2472,6 +2472,16 @@ def _attendee_live_context(event):
     )
     active_run = next((run for run in runs if run.status == "active"), None)
     completed_runs = [run for run in runs if run.status == "completed"][:30]
+    completed_run_ids = [run.id for run in completed_runs]
+    shared_run_ids = {
+        run_id
+        for (run_id,) in db.session.query(SocialPost.track_run_id)
+        .filter(
+            SocialPost.user_id == current_user.id,
+            SocialPost.track_run_id.in_(completed_run_ids),
+        )
+        .all()
+    } if completed_run_ids else set()
     displayed_runs = ([active_run] if active_run else []) + completed_runs
     vote_summary = {
         run.id: {
@@ -2487,6 +2497,7 @@ def _attendee_live_context(event):
     return {
         "active_run": active_run,
         "completed_runs": completed_runs,
+        "shared_run_ids": shared_run_ids,
         "vote_summary": vote_summary,
         "current_version": _attendee_run_version(
             [active_run] if active_run else [], event.run_voting_enabled
@@ -2573,6 +2584,48 @@ def attendee_run_vote(event_id, run_id):
 
     flash(message, category)
     return redirect(url_for("user.attendee_live_track", event_id=event_id, _anchor=f"run-{run.id}"))
+
+
+@user_bp.route("/events/<int:event_id>/runs/<int:run_id>/share", methods=["POST"])
+@login_required
+def attendee_run_share(event_id, run_id):
+    guard = require_user()
+    if guard:
+        return guard
+    event = _attendee_event(event_id)
+    if not event:
+        return "Event access requires a paid ticket.", 403
+    run = TrackRun.query.filter_by(
+        id=run_id,
+        event_id=event.id,
+        status="completed",
+    ).first_or_404()
+    existing = SocialPost.query.filter_by(
+        user_id=current_user.id,
+        track_run_id=run.id,
+    ).first()
+    if existing:
+        flash("This run is already on your feed.", "info")
+    else:
+        db.session.add(
+            SocialPost(
+                user_id=current_user.id,
+                event_id=event.id,
+                track_run_id=run.id,
+                post_type="run_share",
+                title=f"Shared Run #{run.id}",
+                body=f"{event.event_name} at {event.track.name}",
+            )
+        )
+        try:
+            db.session.commit()
+            flash("Run shared to My feed.", "success")
+        except IntegrityError:
+            db.session.rollback()
+            flash("This run is already on your feed.", "info")
+    return redirect(
+        url_for("user.attendee_live_track", event_id=event.id, _anchor=f"run-{run.id}")
+    )
 
 
 @user_bp.route("/events/<int:event_id>/live/state")
@@ -2715,7 +2768,6 @@ def community():
     circle_post_query = SocialPost.query.filter(
         SocialPost.user_id.in_(connection_user_ids)
     )
-    community_post_count = circle_post_query.count()
     if community_view == "mine":
         post_query = SocialPost.query.filter(SocialPost.user_id == current_user.id)
     else:
@@ -2817,7 +2869,6 @@ def community():
         "user/community.html",
         posts=posts,
         community_view=community_view,
-        community_post_count=community_post_count,
         connections=connections,
         received_requests=received_requests,
         sent_requests=sent_requests,
@@ -2919,17 +2970,35 @@ def community_post_create():
     if guard:
         return guard
     body = (request.form.get("body") or "").strip()
-    if not body:
-        flash("Write something before posting.", "error")
+    upload = request.files.get("image")
+    has_upload = bool(upload and getattr(upload, "filename", ""))
+    if not body and not has_upload:
+        flash("Write something or add a photo before posting.", "error")
     elif len(body) > 600:
         flash("Community posts must be 600 characters or fewer.", "error")
     else:
+        image_url = None
+        if has_upload:
+            ext = upload.filename.rsplit(".", 1)[-1].lower() if "." in upload.filename else ""
+            if ext not in {"jpg", "jpeg", "png", "webp"}:
+                flash("Community photos must be jpg, jpeg, png, or webp.", "error")
+                return redirect(url_for("user.community"))
+            upload.filename = secure_filename(upload.filename)
+            image_url = upload_public_image(
+                upload,
+                bucket=current_app.config["S3_BUCKET"],
+                endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+                access_key=current_app.config["S3_ACCESS_KEY"],
+                secret_key=current_app.config["S3_SECRET_KEY"],
+                key_prefix=f"community/{current_user.id}",
+            )
         db.session.add(
             SocialPost(
                 user_id=current_user.id,
                 post_type="driver_update",
-                title="Shared an update",
-                body=body,
+                title="Shared a photo" if image_url else "Shared an update",
+                body=body or None,
+                image_url=image_url,
             )
         )
         db.session.commit()
