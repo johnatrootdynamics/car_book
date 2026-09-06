@@ -9258,7 +9258,6 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
 }
 .connection-search-form > i {
   display: grid;
-  height: 34px;
   color: #98a2b3;
   background: #f8fafc;
   border: 1px solid #e2e6ec;
