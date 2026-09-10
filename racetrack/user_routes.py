@@ -1372,6 +1372,9 @@ def _event_detail_response(event_id):
         else False
     )
     driver_event_status = None
+    event_schedule_context = None
+    event_live_context = None
+    has_event_access = False
     if is_driver_account and has_driver_ticket:
         registration = EventRegistration.query.filter_by(
             event_id=event.id,
@@ -1413,6 +1416,35 @@ def _event_detail_response(event_id):
             "checked_in": bool(registration and registration.checked_in_at),
             "inspection": inspection,
         }
+        driver_class_record = TrackDriverClass.query.filter_by(
+            track_id=event.track_id,
+            user_id=current_user.id,
+        ).first()
+        driver_class = driver_class_record.driver_class if driver_class_record else "C"
+        slots = (
+            EventClassSlot.query.filter_by(event_id=event.id)
+            .order_by(EventClassSlot.start_time.asc())
+            .all()
+        )
+        my_slot = next((slot for slot in slots if slot.class_code == driver_class), None)
+        schedule_notice = None
+        if my_slot:
+            now_dt = datetime.now()
+            start_dt = datetime.combine(event.event_date, my_slot.start_time)
+            end_dt = datetime.combine(event.event_date, my_slot.end_time)
+            if start_dt - timedelta(minutes=15) <= now_dt < start_dt:
+                schedule_notice = f"Your class starts at {my_slot.start_time.strftime('%I:%M %p').lstrip('0')}"
+            elif start_dt <= now_dt <= end_dt:
+                schedule_notice = f"Class {driver_class} is on track now"
+        event_schedule_context = {
+            "driver_class": driver_class,
+            "slots": slots,
+            "notice": schedule_notice,
+        }
+    if is_driver_account:
+        has_event_access = event.id in _attendee_event_ids(current_user.id)
+        if has_event_access:
+            event_live_context = _attendee_live_context(event)
     cart = _get_or_create_spectator_cart()
     availability = _event_ticket_availability(event)
     vendor_items = (
@@ -1447,6 +1479,9 @@ def _event_detail_response(event_id):
         driver_cars=driver_cars,
         has_driver_ticket=has_driver_ticket,
         driver_event_status=driver_event_status,
+        event_schedule_context=event_schedule_context,
+        event_live_context=event_live_context,
+        has_event_access=has_event_access,
         availability=availability,
         money=_money,
         cart_count=_cart_item_count(cart),
@@ -2352,40 +2387,8 @@ def event_schedule(event_id):
     guard = require_user()
     if guard:
         return guard
-    event = Event.query.get_or_404(event_id)
-    reg = EventRegistration.query.filter_by(event_id=event.id, user_id=current_user.id).first_or_404()
-    track_class = (
-        TrackDriverClass.query.filter_by(track_id=event.track_id, user_id=current_user.id).first()
-    )
-    driver_class = track_class.driver_class if track_class else "C"
-    slots = (
-        EventClassSlot.query.filter_by(event_id=event.id)
-        .order_by(EventClassSlot.start_time.asc())
-        .all()
-    )
-
-    notice = None
-    my_slot = None
-    for slot in slots:
-        if slot.class_code == driver_class and my_slot is None:
-            my_slot = slot
-    if my_slot:
-        now_dt = datetime.now()
-        start_dt = datetime.combine(event.event_date, my_slot.start_time)
-        end_dt = datetime.combine(event.event_date, my_slot.end_time)
-        if start_dt - timedelta(minutes=15) <= now_dt < start_dt:
-            notice = f"Heads up: your class ({driver_class}) starts at {my_slot.start_time.strftime('%I:%M %p').lstrip('0')}"
-        elif start_dt <= now_dt <= end_dt:
-            notice = f"You're up now. Class {driver_class} is currently running."
-
-    return render_template(
-        "user/event_schedule.html",
-        event=event,
-        registration=reg,
-        slots=slots,
-        driver_class=driver_class,
-        notice=notice,
-    )
+    EventRegistration.query.filter_by(event_id=event_id, user_id=current_user.id).first_or_404()
+    return redirect(url_for("user.event_detail", event_id=event_id, _anchor="run-schedule"))
 
 
 @user_bp.route("/profile")
@@ -2535,13 +2538,7 @@ def attendee_live_events():
     guard = require_user()
     if guard:
         return guard
-    event_ids = _attendee_event_ids(current_user.id)
-    events = Event.query.filter(Event.id.in_(event_ids)).order_by(Event.event_date.desc()).all() if event_ids else []
-    active_event_ids = {
-        row[0] for row in db.session.query(TrackRun.event_id)
-        .filter(TrackRun.event_id.in_(event_ids), TrackRun.status == "active").all()
-    } if event_ids else set()
-    return render_template("user/live_events.html", events=events, active_event_ids=active_event_ids, today=date.today())
+    return redirect(url_for("user.dashboard"))
 
 
 def _attendee_event(event_id):
@@ -2632,12 +2629,7 @@ def attendee_live_track(event_id):
     event = _attendee_event(event_id)
     if not event:
         return "Event access requires a paid ticket.", 403
-    live_context = _attendee_live_context(event)
-    return render_template(
-        "user/live_track.html",
-        event=event,
-        **live_context,
-    )
+    return redirect(url_for("user.event_detail", event_id=event.id, _anchor="live-track"))
 
 
 @user_bp.route("/events/<int:event_id>/runs/<int:run_id>/vote", methods=["POST"])
@@ -2697,7 +2689,7 @@ def attendee_run_vote(event_id, run_id):
         )
 
     flash(message, category)
-    return redirect(url_for("user.attendee_live_track", event_id=event_id, _anchor=f"run-{run.id}"))
+    return redirect(url_for("user.event_detail", event_id=event_id, _anchor="live-track"))
 
 
 @user_bp.route("/events/<int:event_id>/runs/<int:run_id>/share", methods=["POST"])
@@ -2738,7 +2730,7 @@ def attendee_run_share(event_id, run_id):
             db.session.rollback()
             flash("This run is already on your feed.", "info")
     return redirect(
-        url_for("user.attendee_live_track", event_id=event.id, _anchor=f"run-{run.id}")
+        url_for("user.event_detail", event_id=event.id, _anchor="live-track")
     )
 
 

@@ -92,10 +92,18 @@
     </div>
   </section>
 
+  {% if has_event_access %}
+    <nav class="event-hub-nav" aria-label="Your event sections">
+      {% if driver_event_status %}<a href="#event-status"><i class="bi bi-check2-circle" aria-hidden="true"></i> Status</a>{% endif %}
+      {% if event_schedule_context %}<a href="#run-schedule"><i class="bi bi-calendar2-week" aria-hidden="true"></i> Schedule</a>{% endif %}
+      <a href="#live-track"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Live track</a>
+    </nav>
+  {% endif %}
+
   {% if driver_event_status %}
     {% set registration = driver_event_status.registration %}
     {% set inspection = driver_event_status.inspection %}
-    <section class="driver-event-progress" aria-labelledby="driver-event-progress-title">
+    <section class="driver-event-progress event-hub-section" id="event-status" aria-labelledby="driver-event-progress-title">
       <header>
         <div><span class="event-page-kicker">Driver event status</span><h3 id="driver-event-progress-title">Your event checklist</h3></div>
         <strong>{{ ([true, driver_event_status.waiver_complete, driver_event_status.checked_in, inspection and inspection.passed]|select|list|length) }} of 4 complete</strong>
@@ -131,11 +139,42 @@
     </section>
   {% endif %}
 
-  <section class="spectator-detail-benefits" aria-label="Ticket information">
-    <article><i class="bi bi-phone" aria-hidden="true"></i><div><strong>Mobile ready</strong><span>Keep your confirmation handy at the gate.</span></div></article>
-    <article><i class="bi bi-envelope-check" aria-hidden="true"></i><div><strong>Email confirmation</strong><span>Order details are delivered to the buyer.</span></div></article>
-    <article><i class="bi bi-people" aria-hidden="true"></i><div><strong>Clear ticket choices</strong><span>{% if is_vendor %}Combine spectator and business admission in one checkout.{% else %}Choose whether you’re driving or watching before checkout.{% endif %}</span></div></article>
-  </section>
+  {% if event_schedule_context %}
+    <section class="event-hub-panel event-hub-section" id="run-schedule" aria-labelledby="run-schedule-title">
+      <header class="event-hub-panel-head">
+        <div><span class="event-page-kicker">Run schedule</span><h3 id="run-schedule-title">Class track times</h3><p>Your class is highlighted below.</p></div>
+        <span class="driver-class-pill driver-class-{{ event_schedule_context.driver_class }}">Class {{ event_schedule_context.driver_class }}</span>
+      </header>
+      {% if event_schedule_context.notice %}<p class="event-hub-notice"><i class="bi bi-megaphone" aria-hidden="true"></i> {{ event_schedule_context.notice }}</p>{% endif %}
+      {% if event_schedule_context.slots %}
+        <div class="event-hub-schedule">
+          {% for slot in event_schedule_context.slots %}
+            <article class="{{ 'is-mine' if slot.class_code == event_schedule_context.driver_class else '' }}">
+              <span class="driver-class-pill driver-class-{{ slot.class_code }}">{{ slot.class_code }}</span>
+              <div><strong>{{ slot.start_time.strftime('%I:%M %p').lstrip('0') }}</strong><small>to {{ slot.end_time.strftime('%I:%M %p').lstrip('0') }}</small></div>
+              {% if slot.class_code == event_schedule_context.driver_class %}<em>Your class</em>{% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="event-hub-empty"><i class="bi bi-calendar2-week" aria-hidden="true"></i><div><strong>Schedule not published</strong><span>Class run times will appear here when the track publishes them.</span></div></div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% if event_live_context %}
+    <section class="event-hub-panel event-hub-live event-hub-section" id="live-track" aria-labelledby="live-track-title"
+      data-live-state-url="{{ url_for('user.attendee_live_state', event_id=event.id) }}"
+      data-current-version="{{ event_live_context.current_version }}"
+      data-history-version="{{ event_live_context.history_version }}">
+      <header class="event-hub-panel-head"><div><span class="event-page-kicker">Live track</span><h3 id="live-track-title">Event activity</h3><p>Current track activity and completed runs update automatically.</p></div><span class="event-live-indicator"><i class="bi bi-circle-fill" aria-hidden="true"></i> Live</span></header>
+      {% with active_run=event_live_context.active_run, completed_runs=event_live_context.completed_runs, shared_run_ids=event_live_context.shared_run_ids, vote_summary=event_live_context.vote_summary %}
+        <div class="audience-current-section" data-live-current aria-live="polite">{% include 'user/_live_current_section.html' %}</div>
+        <div class="audience-history-section" data-live-history>{% include 'user/_live_history_section.html' %}</div>
+      {% endwith %}
+    </section>
+    <dialog class="run-video-dialog" data-run-video-dialog><header><strong data-run-video-title>Run video</strong><button type="button" data-run-video-close aria-label="Close video"><i class="bi bi-x-lg"></i></button></header><video controls playsinline preload="metadata" data-run-video-player></video></dialog>
+  {% endif %}
 
   <section class="event-vendors-section" aria-labelledby="event-vendors-title">
     <header>
@@ -159,4 +198,75 @@
     {% endif %}
   </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if event_live_context %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const root = document.querySelector('[data-live-state-url]');
+  if (!root) return;
+  const currentRegion = root.querySelector('[data-live-current]');
+  const historyRegion = root.querySelector('[data-live-history]');
+  let currentVersion = root.dataset.currentVersion || '';
+  let historyVersion = root.dataset.historyVersion || '';
+  const dialog = document.querySelector('[data-run-video-dialog]');
+  const player = dialog?.querySelector('[data-run-video-player]');
+  const closeVideo = () => { if (!dialog) return; player.pause(); player.removeAttribute('src'); player.load(); dialog.close(); };
+  root.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-run-video]');
+    if (!button || !dialog || !player) return;
+    player.src = button.dataset.runVideo;
+    dialog.querySelector('[data-run-video-title]').textContent = button.dataset.runLabel || 'Run video';
+    dialog.showModal();
+    player.play().catch(() => {});
+  });
+  dialog?.querySelector('[data-run-video-close]')?.addEventListener('click', closeVideo);
+  dialog?.addEventListener('click', (event) => { if (event.target === dialog) closeVideo(); });
+  dialog?.addEventListener('cancel', (event) => { event.preventDefault(); closeVideo(); });
+  root.addEventListener('submit', async (event) => {
+    const form = event.target.closest('.audience-run-rating form');
+    if (!form || form.dataset.submitting === 'true') return;
+    event.preventDefault();
+    const submitter = event.submitter;
+    const data = new FormData(form);
+    if (submitter?.name) data.set(submitter.name, submitter.value);
+    form.dataset.submitting = 'true';
+    form.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+    try {
+      const response = await fetch(form.action, { method: 'POST', body: data, headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Vote failed');
+      root.querySelectorAll(`.audience-run-rating[data-run-id="${result.run_id}"]`).forEach((controls) => { controls.outerHTML = result.controls_html; });
+      root.querySelectorAll(`.audience-history-votes[data-run-id="${result.run_id}"] > span`).forEach((total) => { total.textContent = String(result.vote_total); });
+      currentVersion = result.current_version || currentVersion;
+      historyVersion = result.history_version || historyVersion;
+    } catch (error) {
+      if (submitter?.name) {
+        const fallback = document.createElement('input');
+        fallback.type = 'hidden'; fallback.name = submitter.name; fallback.value = submitter.value;
+        form.appendChild(fallback);
+      }
+      form.submit();
+    }
+  });
+  const refresh = async () => {
+    try {
+      const url = new URL(root.dataset.liveStateUrl, window.location.origin);
+      url.searchParams.set('current', currentVersion);
+      url.searchParams.set('history', historyVersion);
+      const response = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        if (typeof data.current_html === 'string') currentRegion.innerHTML = data.current_html;
+        if (typeof data.history_html === 'string') historyRegion.innerHTML = data.history_html;
+        currentVersion = data.current_version || currentVersion;
+        historyVersion = data.history_version || historyVersion;
+      }
+    } catch (error) {} finally { window.setTimeout(refresh, 2000); }
+  };
+  refresh();
+});
+</script>
+{% endif %}
 {% endblock %}

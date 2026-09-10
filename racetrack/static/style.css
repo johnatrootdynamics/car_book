@@ -4767,6 +4767,27 @@ details > summary { font-size: .92rem; }
 .driver-event-progress li small { color: #7a8699; font-size: .66rem; line-height: 1.35; }
 .driver-event-progress li a { width: fit-content; margin-top: 3px; color: #2457ff; font-size: .68rem; font-weight: 750; text-decoration: none; }
 
+.event-hub-section { scroll-margin-top: 82px; }
+.event-hub-nav { position: sticky; top: 10px; z-index: 12; display: flex; align-items: center; gap: 5px; width: fit-content; margin: 12px auto 0; padding: 5px; background: rgba(255,255,255,.94); border: 1px solid #dfe4ec; border-radius: 999px; box-shadow: 0 8px 24px rgba(16,24,40,.09); backdrop-filter: blur(10px); }
+.event-hub-nav a { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; color: #475467; border-radius: 999px; font-size: .68rem; font-weight: 750; text-decoration: none; }
+.event-hub-nav a:hover { color: #174dcc; background: #eef3ff; }
+.event-hub-panel { margin-top: 12px; padding: 22px 24px; background: #fff; border: 1px solid #e4e7ec; border-radius: 12px; }
+.event-hub-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 17px; }
+.event-hub-panel-head h3 { margin: 3px 0 2px; color: #101828; font-size: 1.05rem; }
+.event-hub-panel-head p { margin: 0; color: #7a8699; font-size: .7rem; }
+.event-hub-notice { display: flex; align-items: center; gap: 6px; margin: -5px 0 13px; padding: 9px 11px; color: #174dcc; background: #eef3ff; border-radius: 7px; font-size: .7rem; font-weight: 750; }
+.event-hub-schedule { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.event-hub-schedule article { display: grid; grid-template-columns: 28px minmax(0,1fr); align-items: center; gap: 9px; min-height: 62px; padding: 10px; background: #fafbfc; border: 1px solid #eaecf0; border-radius: 8px; }
+.event-hub-schedule article.is-mine { background: #f3f6ff; border-color: #aebfee; box-shadow: inset 3px 0 #3159d5; }
+.event-hub-schedule article > div { display: grid; gap: 1px; }
+.event-hub-schedule article strong { color: #344054; font-size: .76rem; }
+.event-hub-schedule article small { color: #7a8699; font-size: .62rem; }
+.event-hub-schedule article em { grid-column: 2; color: #3159d5; font-size: .57rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
+.event-hub-empty { display: flex; align-items: center; gap: 10px; padding: 18px; color: #7a8699; background: #fafbfc; border: 1px dashed #d0d5dd; border-radius: 8px; }
+.event-hub-empty > i { color: #5573cc; font-size: 1.1rem; }.event-hub-empty > div { display: grid; gap: 2px; }.event-hub-empty strong { color: #344054; font-size: .75rem; }.event-hub-empty span { font-size: .66rem; }
+.event-live-indicator { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; color: #087443; background: #ecfdf3; border-radius: 999px; font-size: .62rem; font-weight: 800; text-transform: uppercase; }.event-live-indicator i { color: #12b76a; font-size: .42rem; }
+.event-hub-live .audience-current-section { margin-top: 0; }
+
 .spectator-detail-benefits {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4875,6 +4896,8 @@ details > summary { font-size: .92rem; }
   .driver-event-progress ol { grid-template-columns: 1fr; gap: 18px; }
   .driver-event-progress li { min-height: 44px; padding: 0; }
   .driver-event-progress li:not(:last-child)::after { top: 34px; bottom: -18px; left: 16px; right: auto; width: 2px; height: auto; }
+  .event-hub-panel { padding: 18px 16px; }
+  .event-hub-nav { top: 66px; max-width: 100%; }
 }
 
 /* Vendor gate operations */
@@ -4910,6 +4933,9 @@ details > summary { font-size: .92rem; }
   .spectator-detail-date strong { font-size: 1.55rem; }
   .spectator-purchase-card { padding: 20px 16px; }
   .spectator-detail-buy-form { grid-template-columns: 86px minmax(0, 1fr); }
+  .event-hub-nav { width: 100%; justify-content: center; border-radius: 10px; }
+  .event-hub-nav a { flex: 1; justify-content: center; padding-inline: 6px; }
+  .event-hub-panel-head { align-items: flex-start; flex-direction: column; }
 }
 
 /* Employee dashboard */

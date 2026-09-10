@@ -66,9 +66,9 @@
               <li class="{{ 'is-complete' if next_inspection and next_inspection.passed else ('has-issue' if next_inspection else ('is-current' if next_checked_in else '')) }}"><span><i class="bi {{ 'bi-check-lg' if next_inspection and next_inspection.passed else ('bi-x-lg' if next_inspection else 'bi-wrench-adjustable') }}" aria-hidden="true"></i></span><small>Inspection</small></li>
             </ol>
             <div class="driver-featured-actions">
-              <a class="btn btn-sm" href="{{ url_for('user.event_schedule', event_id=next_event.id) }}">Open schedule</a>
-              <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=next_event.id) }}">Event details</a>
-              <a class="btn btn-secondary btn-sm" href="{{ url_for('user.attendee_live_track', event_id=next_event.id) }}"><i class="bi bi-broadcast-pin"></i> Live Track</a>
+              <a class="btn btn-sm" href="{{ url_for('user.event_detail', event_id=next_event.id) }}">Open event</a>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=next_event.id, _anchor='run-schedule') }}">Schedule</a>
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=next_event.id, _anchor='live-track') }}"><i class="bi bi-broadcast-pin"></i> Live Track</a>
               {% if not next_ready %}<a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=next_waiver.id) if next_waiver else url_for('waiver.driver_waivers') }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Complete waiver</a>{% endif %}
               <details class="driver-registration-menu">
                 <summary aria-label="Registration options"><i class="bi bi-three-dots" aria-hidden="true"></i></summary>
@@ -87,7 +87,7 @@
               {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
               {% set is_ready = ws == 'signed' or ws == 'not_required' %}
               <article>
-                <a href="{{ url_for('user.event_schedule', event_id=event.id) }}">
+                <a href="{{ url_for('user.event_detail', event_id=event.id) }}">
                   <span class="driver-registered-date">{{ event.event_date.strftime('%b %-d') }}</span>
                   <span><strong>{{ event.event_name }}</strong><small>{{ event.track.name }}</small></span>
                   <span class="driver-registered-status {% if is_ready %}is-ready{% else %}needs-action{% endif %}">{% if is_ready %}Ready{% else %}Action needed{% endif %}</span>
