@@ -40,8 +40,6 @@
           <p>Enter the track with one vehicle. Your driver profile, waiver, and inspection status stay connected to this ticket.</p>
           {% if has_driver_ticket %}
             <div class="ticket-choice-confirmed"><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>Driver ticket purchased</strong><small>This event is already on your dashboard.</small></span></div>
-          {% elif driver_checkout_pending %}
-            <div class="ticket-choice-confirmed pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i><span><strong>Payment in progress</strong><small>Your driver spot is temporarily held.</small></span></div>
           {% elif driver_availability and driver_availability.sold_out %}
             <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ driver_availability.sold }} drivers registered</span></div>
           {% elif is_driver_account and driver_cars %}
@@ -74,7 +72,7 @@
           </div>
           <p>{% if ticket_type.ticket_category == 'vendor' %}Paid admission for each vendor representative working on site.{% else %}Watch the event and access the live track experience. Purchase one or more tickets in the shared cart.{% endif %}</p>
           {% if ticket_availability and ticket_availability.sold_out %}
-            <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ ticket_availability.sold }} sold{% if ticket_availability.held %} · {{ ticket_availability.held }} in checkout{% endif %}</span></div>
+            <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ ticket_availability.sold }} sold</span></div>
           {% else %}
             <form method="post" action="{{ url_for('user.spectator_cart_add') }}" class="spectator-detail-buy-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -86,7 +84,7 @@
               </select>
               <button class="btn" type="submit"><i class="bi bi-bag-plus" aria-hidden="true"></i> Add to cart</button>
             </form>
-            {% if ticket_availability and not ticket_availability.unlimited %}<div class="ticket-capacity-state"><strong>{{ ticket_availability.remaining }} remaining</strong><span>{{ ticket_availability.sold }} sold{% if ticket_availability.held %} · {{ ticket_availability.held }} in checkout{% endif %}</span></div>{% endif %}
+            {% if ticket_availability and not ticket_availability.unlimited %}<div class="ticket-capacity-state"><strong>{{ ticket_availability.remaining }} remaining</strong><span>{{ ticket_availability.sold }} sold</span></div>{% endif %}
           {% endif %}
         </aside>
       {% endfor %}

@@ -56,7 +56,6 @@ from .services.email_service import send_driver_purchase_receipt, send_private_r
 from .services.capacity_service import (
     driver_already_has_ticket,
     driver_order_fits_capacity,
-    driver_payment_in_progress,
     reservation_is_active,
     spectator_order_fits_capacity,
     ticket_availability,
@@ -1344,11 +1343,6 @@ def _event_detail_response(event_id):
         if is_driver_account
         else False
     )
-    driver_checkout_pending = (
-        driver_payment_in_progress(event.id, current_user.id)
-        if is_driver_account and not has_driver_ticket
-        else False
-    )
     driver_event_status = None
     if is_driver_account and has_driver_ticket:
         registration = EventRegistration.query.filter_by(
@@ -1424,7 +1418,6 @@ def _event_detail_response(event_id):
         is_driver_account=is_driver_account,
         driver_cars=driver_cars,
         has_driver_ticket=has_driver_ticket,
-        driver_checkout_pending=driver_checkout_pending,
         driver_event_status=driver_event_status,
         availability=availability,
         money=_money,
@@ -1978,6 +1971,26 @@ def stripe_webhook():
                 target.id,
             )
             return "ok", 200
+        if target.payment_status == "canceled":
+            current_app.logger.info("Ignored completed checkout for replaced order %s", target.id)
+            return "ok", 200
+        if order:
+            event_ids = sorted({item.event_id for item in order.items})
+            Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+            if not spectator_order_fits_capacity(order):
+                order.payment_status = "failed"
+                order.status = "failed"
+                order.failure_reason = "Ticket capacity was reached before payment confirmation."
+                db.session.commit()
+                return "ok", 200
+        elif driver_ticket_order:
+            Event.query.filter_by(id=driver_ticket_order.event_id).with_for_update().one()
+            if not driver_order_fits_capacity(driver_ticket_order):
+                driver_ticket_order.payment_status = "failed"
+                driver_ticket_order.status = "failed"
+                driver_ticket_order.failure_reason = "Driver capacity was reached before payment confirmation."
+                db.session.commit()
+                return "ok", 200
         if rfid_order and rfid_order.payment_status != "paid":
             _mark_rfid_tag_order_paid(rfid_order, session_obj.get("payment_intent"))
         elif order and order.payment_status != "paid":
@@ -2004,16 +2017,15 @@ def spectator_paypal_return(order_id):
         return redirect(url_for("user.spectator_checkout"))
     if order.payment_status == "paid":
         return redirect(url_for("user.spectator_order_success", order_id=order.id))
-    if not reservation_is_active(order):
-        event_ids = sorted({item.event_id for item in order.items})
-        Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
-        if not spectator_order_fits_capacity(order):
-            order.payment_status = "failed"
-            order.status = "failed"
-            order.failure_reason = "Ticket capacity was reached before PayPal payment approval."
-            db.session.commit()
-            flash("Those tickets sold out before PayPal approval. Your payment was not captured.", "error")
-            return redirect(url_for("user.spectator_order_success", order_id=order.id))
+    event_ids = sorted({item.event_id for item in order.items})
+    Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+    if not spectator_order_fits_capacity(order):
+        order.payment_status = "failed"
+        order.status = "failed"
+        order.failure_reason = "Ticket capacity was reached before PayPal payment approval."
+        db.session.commit()
+        flash("Those tickets sold out before PayPal approval. Your payment was not captured.", "error")
+        return redirect(url_for("user.spectator_order_success", order_id=order.id))
     credentials = _paypal_credentials_for_order(spectator_order=order)
     try:
         captured = capture_paypal_order(
@@ -2045,16 +2057,18 @@ def driver_paypal_return(order_id):
     if order.payment_method != "paypal" or not paypal_order_id or paypal_order_id != order.provider_session_id:
         flash("PayPal could not confirm this order.", "error")
         return redirect(url_for("user.driver_event_checkout", event_id=order.event_id))
+    if order.payment_status == "canceled":
+        flash("That checkout was replaced. Start a new checkout to purchase your ticket.", "error")
+        return redirect(url_for("user.event_detail", event_id=order.event_id))
     if order.payment_status != "paid":
-        if not reservation_is_active(order):
-            Event.query.filter_by(id=order.event_id).with_for_update().one()
-            if not driver_order_fits_capacity(order):
-                order.payment_status = "failed"
-                order.status = "failed"
-                order.failure_reason = "Driver capacity was reached before PayPal payment approval."
-                db.session.commit()
-                flash("Driver tickets sold out before PayPal approval. Your payment was not captured.", "error")
-                return redirect(url_for("user.dashboard"))
+        Event.query.filter_by(id=order.event_id).with_for_update().one()
+        if not driver_order_fits_capacity(order):
+            order.payment_status = "failed"
+            order.status = "failed"
+            order.failure_reason = "Driver capacity was reached before PayPal payment approval."
+            db.session.commit()
+            flash("Driver tickets sold out before PayPal approval. Your payment was not captured.", "error")
+            return redirect(url_for("user.dashboard"))
         credentials = _paypal_credentials_for_order(driver_ticket_order=order)
         try:
             captured = capture_paypal_order(
@@ -2194,10 +2208,18 @@ def paypal_webhook():
     if not verified:
         return "invalid", 400
 
+    webhook_target = spectator_order or driver_ticket_order or private_rental_booking or rfid_order
+    if webhook_target.payment_status == "canceled":
+        return "ok", 200
+
     try:
         if event_type == "CHECKOUT.ORDER.APPROVED":
             target = spectator_order or driver_ticket_order or private_rental_booking or rfid_order
-            if not rfid_order and not reservation_is_active(target):
+            if target.payment_status == "canceled":
+                return "ok", 200
+            if (spectator_order or driver_ticket_order) or (
+                private_rental_booking and not reservation_is_active(target)
+            ):
                 if spectator_order:
                     event_ids = sorted({item.event_id for item in spectator_order.items})
                     Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
@@ -2260,6 +2282,23 @@ def paypal_webhook():
             return "ok", 200
 
         target = spectator_order or driver_ticket_order or private_rental_booking or rfid_order
+        if spectator_order:
+            event_ids = sorted({item.event_id for item in spectator_order.items})
+            Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+            if not spectator_order_fits_capacity(spectator_order):
+                target.payment_status = "failed"
+                target.status = "failed"
+                target.failure_reason = "Ticket capacity was reached before payment confirmation."
+                db.session.commit()
+                return "ok", 200
+        elif driver_ticket_order:
+            Event.query.filter_by(id=driver_ticket_order.event_id).with_for_update().one()
+            if not driver_order_fits_capacity(driver_ticket_order):
+                target.payment_status = "failed"
+                target.status = "failed"
+                target.failure_reason = "Driver capacity was reached before payment confirmation."
+                db.session.commit()
+                return "ok", 200
         expected_cents = target.total_cents if (spectator_order or rfid_order) else target.amount_cents
         transaction_id = _validated_paypal_capture(details, expected_cents)
         if spectator_order:
@@ -3168,9 +3207,6 @@ def signup_event(event_id):
     if driver_already_has_ticket(event.id, current_user.id):
         flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
         return redirect(url_for("user.event_detail", event_id=event.id))
-    if driver_payment_in_progress(event.id, current_user.id):
-        flash("A driver ticket payment is already in progress for this event. Your spot is being held for up to 35 minutes.", "error")
-        return redirect(url_for("user.event_detail", event_id=event.id))
     availability = ticket_availability(event, "driver")
     if availability["sold_out"]:
         flash("Driver tickets are sold out for this event.", "error")
@@ -3212,9 +3248,6 @@ def driver_event_checkout(event_id):
     if driver_already_has_ticket(event.id, current_user.id):
         flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
         return redirect(url_for("user.event_detail", event_id=event.id))
-    if driver_payment_in_progress(event.id, current_user.id):
-        flash("A driver ticket payment is already in progress for this event. Your spot is being held for up to 35 minutes.", "error")
-        return redirect(url_for("user.event_detail", event_id=event.id))
     availability = ticket_availability(event, "driver")
     if availability["sold_out"]:
         flash("Driver tickets are sold out for this event.", "error")
@@ -3249,6 +3282,15 @@ def driver_event_checkout(event_id):
             flash("The final driver ticket was just purchased. This event is now sold out for drivers.", "error")
             return redirect(url_for("user.event_detail", event_id=event.id))
         payment_credentials = _payment_credentials(event.track, form.payment_method.data)
+        stale_orders = DriverTicketOrder.query.filter_by(
+            event_id=event.id,
+            user_id=current_user.id,
+            payment_status="pending",
+        ).all()
+        for stale_order in stale_orders:
+            stale_order.payment_status = "canceled"
+            stale_order.status = "canceled"
+            stale_order.failure_reason = "Replaced by a new checkout attempt."
         driver_ticket_order = DriverTicketOrder(
             event_id=event.id,
             user_id=current_user.id,

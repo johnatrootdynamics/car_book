@@ -53,26 +53,9 @@ def tickets_sold(event_id, category):
 
 
 def tickets_held(event_id, category):
-    category = normalized_ticket_category(category)
-    cutoff = reservation_cutoff()
-    if category == "driver":
-        return DriverTicketOrder.query.filter(
-            DriverTicketOrder.event_id == event_id,
-            DriverTicketOrder.payment_status == "pending",
-            DriverTicketOrder.created_at >= cutoff,
-        ).count()
-    total = (
-        db.session.query(func.coalesce(func.sum(SpectatorOrderItem.quantity), 0))
-        .join(SpectatorOrder, SpectatorOrder.id == SpectatorOrderItem.order_id)
-        .filter(
-            SpectatorOrderItem.event_id == event_id,
-            SpectatorOrderItem.ticket_category == category,
-            SpectatorOrder.payment_status == "pending",
-            SpectatorOrder.created_at >= cutoff,
-        )
-        .scalar()
-    )
-    return int(total or 0)
+    # Starting an external checkout never reserves inventory. Capacity is claimed
+    # only when payment is confirmed and the ticket/registration is issued.
+    return 0
 
 
 def ticket_availability(event, category):
@@ -107,15 +90,9 @@ def driver_already_has_ticket(event_id, user_id):
 
 
 def driver_payment_in_progress(event_id, user_id):
-    return (
-        DriverTicketOrder.query.filter(
-            DriverTicketOrder.event_id == event_id,
-            DriverTicketOrder.user_id == user_id,
-            DriverTicketOrder.payment_status == "pending",
-            DriverTicketOrder.created_at >= reservation_cutoff(),
-        ).first()
-        is not None
-    )
+    # Pending provider sessions are intentionally non-blocking. A driver can
+    # restart checkout after navigating away from PayPal or Stripe.
+    return False
 
 
 def spectator_order_fits_capacity(order):
