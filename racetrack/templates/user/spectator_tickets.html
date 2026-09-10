@@ -94,6 +94,45 @@
     </div>
   </section>
 
+  {% if driver_event_status %}
+    {% set registration = driver_event_status.registration %}
+    {% set inspection = driver_event_status.inspection %}
+    <section class="driver-event-progress" aria-labelledby="driver-event-progress-title">
+      <header>
+        <div><span class="event-page-kicker">Driver event status</span><h3 id="driver-event-progress-title">Your event checklist</h3></div>
+        <strong>{{ ([true, driver_event_status.waiver_complete, driver_event_status.checked_in, inspection and inspection.passed]|select|list|length) }} of 4 complete</strong>
+      </header>
+      <ol>
+        <li class="is-complete">
+          <span><i class="bi bi-check-lg" aria-hidden="true"></i></span>
+          <div><strong>Ticket purchased</strong><small>Your driver entry is confirmed.</small></div>
+        </li>
+        <li class="{{ 'is-complete' if driver_event_status.waiver_complete else 'is-current' }}">
+          <span><i class="bi {{ 'bi-check-lg' if driver_event_status.waiver_complete else 'bi-file-earmark-text' }}" aria-hidden="true"></i></span>
+          <div>
+            <strong>Waiver signed</strong>
+            <small>{{ 'Required waiver is complete.' if driver_event_status.waiver_complete else 'Complete this any time before check-in.' }}</small>
+            {% if not driver_event_status.waiver_complete %}
+              {% if driver_event_status.pending_waiver %}
+                <a href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=driver_event_status.pending_waiver.id) }}">Sign waiver <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+              {% else %}
+                <a href="{{ url_for('waiver.driver_waivers') }}">View waivers <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+              {% endif %}
+            {% endif %}
+          </div>
+        </li>
+        <li class="{{ 'is-complete' if driver_event_status.checked_in else '' }}">
+          <span><i class="bi {{ 'bi-check-lg' if driver_event_status.checked_in else 'bi-qr-code-scan' }}" aria-hidden="true"></i></span>
+          <div><strong>Checked in</strong><small>{{ 'Gate check-in complete.' if driver_event_status.checked_in else 'Present your driver ticket at the gate.' }}</small></div>
+        </li>
+        <li class="{{ 'is-complete' if inspection and inspection.passed else ('has-issue' if inspection else '') }}">
+          <span><i class="bi {{ 'bi-check-lg' if inspection and inspection.passed else ('bi-x-lg' if inspection else 'bi-wrench-adjustable') }}" aria-hidden="true"></i></span>
+          <div><strong>Inspected</strong><small>{% if inspection and inspection.passed %}Vehicle inspection passed.{% elif inspection %}Inspection needs attention.{% else %}Vehicle inspection happens onsite.{% endif %}</small></div>
+        </li>
+      </ol>
+    </section>
+  {% endif %}
+
   <section class="spectator-detail-benefits" aria-label="Ticket information">
     <article><i class="bi bi-phone" aria-hidden="true"></i><div><strong>Mobile ready</strong><span>Keep your confirmation handy at the gate.</span></div></article>
     <article><i class="bi bi-envelope-check" aria-hidden="true"></i><div><strong>Email confirmation</strong><span>Order details are delivered to the buyer.</span></div></article>

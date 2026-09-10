@@ -19,9 +19,11 @@ from .models import (
     Event,
     EventClassSlot,
     DriverTicketOrder,
+    DriverWaiver,
     DriverConnection,
     EnterprisePaymentMethod,
     EventRegistration,
+    Inspection,
     PrivateRentalBooking,
     PrivateRentalSlot,
     RfidTag,
@@ -1347,6 +1349,48 @@ def _event_detail_response(event_id):
         if is_driver_account and not has_driver_ticket
         else False
     )
+    driver_event_status = None
+    if is_driver_account and has_driver_ticket:
+        registration = EventRegistration.query.filter_by(
+            event_id=event.id,
+            user_id=current_user.id,
+        ).first()
+        required_templates = TrackWaiverTemplate.query.filter_by(
+            track_id=event.track_id,
+            is_active=True,
+            required_for_checkin=True,
+        ).all()
+        required_template_ids = [template.id for template in required_templates]
+        waivers = []
+        if required_template_ids:
+            waivers = (
+                DriverWaiver.query.filter(
+                    DriverWaiver.driver_id == current_user.id,
+                    DriverWaiver.waiver_template_id.in_(required_template_ids),
+                    (DriverWaiver.event_id == event.id) | (DriverWaiver.event_id.is_(None)),
+                )
+                .order_by(DriverWaiver.created_at.asc())
+                .all()
+            )
+        signed_template_ids = {
+            waiver.waiver_template_id for waiver in waivers if waiver.status == "signed"
+        }
+        waiver_complete = not required_template_ids or all(
+            template_id in signed_template_ids for template_id in required_template_ids
+        )
+        pending_waiver = next((waiver for waiver in waivers if waiver.status != "signed"), None)
+        inspection = (
+            Inspection.query.filter_by(event_registration_id=registration.id).first()
+            if registration
+            else None
+        )
+        driver_event_status = {
+            "registration": registration,
+            "waiver_complete": waiver_complete,
+            "pending_waiver": pending_waiver,
+            "checked_in": bool(registration and registration.checked_in_at),
+            "inspection": inspection,
+        }
     cart = _get_or_create_spectator_cart()
     availability = _event_ticket_availability(event)
     vendor_items = (
@@ -1381,6 +1425,7 @@ def _event_detail_response(event_id):
         driver_cars=driver_cars,
         has_driver_ticket=has_driver_ticket,
         driver_checkout_pending=driver_checkout_pending,
+        driver_event_status=driver_event_status,
         availability=availability,
         money=_money,
         cart_count=_cart_item_count(cart),
@@ -3278,11 +3323,10 @@ def driver_event_checkout(event_id):
         needs_waiver_action, created_waiver_id = _finalize_driver_ticket_order(driver_ticket_order)
         session.pop(f"driver_checkout_car_{event.id}", None)
         if needs_waiver_action and created_waiver_id:
-            flash("Ticket purchased. Next step: sign waiver.", "success")
-            return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
-
-        flash("Ticket purchased. Waiver on file. Next step: inspection.", "success")
-        return redirect(url_for("waiver.driver_waivers"))
+            flash("Ticket purchased. You can sign the waiver now or come back to it later.", "success")
+        else:
+            flash("Ticket purchased. Waiver on file. Next step: check-in.", "success")
+        return redirect(url_for("user.event_detail", event_id=event.id))
 
     return render_template(
         "user/driver_event_checkout.html",
@@ -3313,11 +3357,10 @@ def driver_event_checkout_success(order_id):
     needs_waiver_action, created_waiver_id = _create_driver_post_purchase_steps(driver_ticket_order)
     db.session.commit()
     if needs_waiver_action and created_waiver_id:
-        flash("Ticket purchased. Next step: sign waiver.", "success")
-        return redirect(url_for("waiver.driver_sign_waiver", driver_waiver_id=created_waiver_id))
-
-    flash("Ticket purchased. Waiver on file. Next step: inspection.", "success")
-    return redirect(url_for("waiver.driver_waivers"))
+        flash("Ticket purchased. You can sign the waiver now or come back to it later.", "success")
+    else:
+        flash("Ticket purchased. Waiver on file. Next step: check-in.", "success")
+    return redirect(url_for("user.event_detail", event_id=driver_ticket_order.event_id))
 
 
 @user_bp.route("/events/<int:event_id>/cancel", methods=["POST"])

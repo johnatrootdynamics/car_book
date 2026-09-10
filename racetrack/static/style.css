@@ -4744,6 +4744,29 @@ details > summary { font-size: .92rem; }
 .spectator-purchase-note { display: flex; align-items: flex-start; gap: 7px; color: #7a8699; font-size: .7rem; line-height: 1.4; }
 .spectator-purchase-note i { color: #14804a; }
 
+.driver-event-progress {
+  margin-top: 12px;
+  padding: 22px 24px;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+}
+.driver-event-progress > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.driver-event-progress > header h3 { margin: 3px 0 0; color: #101828; font-size: 1.05rem; }
+.driver-event-progress > header > strong { color: #087443; font-size: .72rem; }
+.driver-event-progress ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.driver-event-progress li { position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; padding-right: 18px; color: #98a2b3; }
+.driver-event-progress li:not(:last-child)::after { content: ""; position: absolute; top: 16px; left: 34px; right: 0; height: 2px; background: #eaecf0; }
+.driver-event-progress li.is-complete:not(:last-child)::after { background: #32b879; }
+.driver-event-progress li > span { z-index: 1; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: #f2f4f7; border: 2px solid #eaecf0; border-radius: 50%; }
+.driver-event-progress li.is-complete > span { color: #fff; background: #18a66a; border-color: #18a66a; }
+.driver-event-progress li.is-current > span { color: #2457ff; background: #eef3ff; border-color: #94aaf0; }
+.driver-event-progress li.has-issue > span { color: #b42318; background: #fef3f2; border-color: #fecdca; }
+.driver-event-progress li > div { z-index: 1; display: grid; align-content: start; gap: 3px; padding-top: 1px; background: #fff; }
+.driver-event-progress li strong { color: #344054; font-size: .76rem; }
+.driver-event-progress li small { color: #7a8699; font-size: .66rem; line-height: 1.35; }
+.driver-event-progress li a { width: fit-content; margin-top: 3px; color: #2457ff; font-size: .68rem; font-weight: 750; text-decoration: none; }
+
 .spectator-detail-benefits {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4849,6 +4872,9 @@ details > summary { font-size: .92rem; }
   .spectator-detail-event { min-height: 230px; padding: 24px; }
   .spectator-purchase-card { border-top: 1px solid #e4e7ec; border-left: 0; }
   .spectator-detail-benefits { grid-template-columns: 1fr; }
+  .driver-event-progress ol { grid-template-columns: 1fr; gap: 18px; }
+  .driver-event-progress li { min-height: 44px; padding: 0; }
+  .driver-event-progress li:not(:last-child)::after { top: 34px; bottom: -18px; left: 16px; right: auto; width: 2px; height: auto; }
 }
 
 /* Vendor gate operations */
