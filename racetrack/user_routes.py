@@ -955,11 +955,38 @@ def dashboard():
     track_class_by_track_id = {item.track_id: item.driver_class for item in track_classes}
 
     waiver_by_event = {}
+    event_progress_by_event = {}
     slot_notice_by_event = {}
     slot_time_by_event = {}
+    event_ids = [event.id for event in events]
+    registrations = (
+        EventRegistration.query.filter(
+            EventRegistration.user_id == current_user.id,
+            EventRegistration.event_id.in_(event_ids),
+        ).all()
+        if event_ids
+        else []
+    )
+    registration_by_event = {registration.event_id: registration for registration in registrations}
+    registration_ids = [registration.id for registration in registrations]
+    inspections = (
+        Inspection.query.filter(Inspection.event_registration_id.in_(registration_ids)).all()
+        if registration_ids
+        else []
+    )
+    inspection_by_registration = {
+        inspection.event_registration_id: inspection for inspection in inspections
+    }
     for event in events:
         status, waiver = get_required_waiver_status(event.track_id, current_user.id, event.id)
         waiver_by_event[event.id] = {"status": status, "waiver": waiver}
+        registration = registration_by_event.get(event.id)
+        inspection = inspection_by_registration.get(registration.id) if registration else None
+        event_progress_by_event[event.id] = {
+            "waiver_complete": status in {"signed", "not_required"},
+            "checked_in": bool(registration and registration.checked_in_at),
+            "inspection": inspection,
+        }
         driver_class = track_class_by_track_id.get(event.track_id, "C")
         slot = (
             EventClassSlot.query.filter_by(event_id=event.id, class_code=driver_class)
@@ -1001,6 +1028,7 @@ def dashboard():
         cars=cars,
         events=events,
         waiver_by_event=waiver_by_event,
+        event_progress_by_event=event_progress_by_event,
         slot_notice_by_event=slot_notice_by_event,
         slot_time_by_event=slot_time_by_event,
         track_class_by_track_id=track_class_by_track_id,

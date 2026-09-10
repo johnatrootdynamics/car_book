@@ -45,6 +45,9 @@
         {% set next_waiver = waiver_by_event.get(next_event.id, {}).get('waiver') %}
         {% set next_ready = next_status == 'signed' or next_status == 'not_required' %}
         {% set next_class = track_class_by_track_id.get(next_event.track_id, 'C') %}
+        {% set next_progress = event_progress_by_event.get(next_event.id, {}) %}
+        {% set next_checked_in = next_progress.get('checked_in') %}
+        {% set next_inspection = next_progress.get('inspection') %}
         <article class="driver-featured-event">
           <div class="driver-featured-date"><span>{{ next_event.event_date.strftime('%b') }}</span><strong>{{ next_event.event_date.strftime('%-d') }}</strong><small>{{ next_event.event_date.strftime('%a') }}</small></div>
           <div class="driver-featured-event-copy">
@@ -56,6 +59,12 @@
               {% if slot_time_by_event.get(next_event.id) %}<span><i class="bi bi-clock" aria-hidden="true"></i> {{ slot_time_by_event.get(next_event.id) }}</span>{% endif %}
             </div>
             {% if slot_notice_by_event.get(next_event.id) %}<p class="driver-event-notice"><i class="bi bi-megaphone" aria-hidden="true"></i> {{ slot_notice_by_event.get(next_event.id) }}</p>{% endif %}
+            <ol class="driver-compact-progress" aria-label="Event progress">
+              <li class="is-complete"><span><i class="bi bi-check-lg" aria-hidden="true"></i></span><small>Ticket</small></li>
+              <li class="{{ 'is-complete' if next_ready else 'is-current' }}"><span><i class="bi {{ 'bi-check-lg' if next_ready else 'bi-file-earmark-text' }}" aria-hidden="true"></i></span><small>Waiver</small></li>
+              <li class="{{ 'is-complete' if next_checked_in else ('is-current' if next_ready else '') }}"><span><i class="bi {{ 'bi-check-lg' if next_checked_in else 'bi-qr-code-scan' }}" aria-hidden="true"></i></span><small>Check-in</small></li>
+              <li class="{{ 'is-complete' if next_inspection and next_inspection.passed else ('has-issue' if next_inspection else ('is-current' if next_checked_in else '')) }}"><span><i class="bi {{ 'bi-check-lg' if next_inspection and next_inspection.passed else ('bi-x-lg' if next_inspection else 'bi-wrench-adjustable') }}" aria-hidden="true"></i></span><small>Inspection</small></li>
+            </ol>
             <div class="driver-featured-actions">
               <a class="btn btn-sm" href="{{ url_for('user.event_schedule', event_id=next_event.id) }}">Open schedule</a>
               <a class="btn btn-secondary btn-sm" href="{{ url_for('user.event_detail', event_id=next_event.id) }}">Event details</a>

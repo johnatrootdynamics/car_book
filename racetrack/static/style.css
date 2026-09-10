@@ -6988,6 +6988,18 @@ details > summary { font-size: .92rem; }
 .driver-event-chips .driver-readiness.is-ready { color: #187044; background: #eaf8f0; border-color: #c8ead7; }
 .driver-event-chips .driver-readiness.needs-action { color: #a15c08; background: #fff5e6; border-color: #f2dab6; }
 .driver-event-notice { display: flex; align-items: center; gap: 5px; margin: 8px 0 0 !important; color: #3159d5; font-size: .68rem; font-weight: 700; }
+.driver-compact-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 430px; margin: 12px 0 0; padding: 0; list-style: none; }
+.driver-compact-progress li { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 5px; min-width: 0; color: #98a2b3; }
+.driver-compact-progress li:not(:last-child)::after { content: ""; position: absolute; top: 9px; left: 20px; right: 0; height: 2px; background: #dfe4ec; }
+.driver-compact-progress li.is-complete:not(:last-child)::after { background: #39ad78; }
+.driver-compact-progress li > span { z-index: 1; display: grid; width: 20px; height: 20px; color: #7a8699; background: #fff; border: 1.5px solid #d9dee8; border-radius: 50%; font-size: .56rem; place-items: center; }
+.driver-compact-progress li > small { z-index: 1; overflow: hidden; padding-right: 4px; background: #f7f9fe; font-size: .56rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.driver-compact-progress li.is-complete > span { color: #fff; background: #159a61; border-color: #159a61; }
+.driver-compact-progress li.is-complete > small { color: #187044; }
+.driver-compact-progress li.is-current > span { color: #3159d5; background: #eef3ff; border-color: #7894df; }
+.driver-compact-progress li.is-current > small { color: #3159d5; }
+.driver-compact-progress li.has-issue > span { color: #b42318; background: #fef3f2; border-color: #fda29b; }
+.driver-compact-progress li.has-issue > small { color: #b42318; }
 .driver-featured-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
 .driver-registration-menu { position: relative; margin-left: auto; }
 .driver-registration-menu > summary { display: grid; width: 30px; height: 30px; color: #667085; background: #fff; border: 1px solid #d9dee8; border-radius: 6px; cursor: pointer; list-style: none; place-items: center; }
@@ -7081,6 +7093,10 @@ details > summary { font-size: .92rem; }
 }
 
 @media (max-width: 430px) {
+  .driver-compact-progress { grid-template-columns: repeat(4, 20px); justify-content: space-between; max-width: 250px; }
+  .driver-compact-progress li { display: block; }
+  .driver-compact-progress li:not(:last-child)::after { left: 20px; right: -57px; }
+  .driver-compact-progress li > small { display: none; }
   .driver-featured-actions .btn { flex: 1; text-align: center; }
   .driver-waiver-link { width: 100%; justify-content: center; padding-top: 3px; }
   .driver-dashboard-empty { align-items: flex-start; flex-wrap: wrap; }
