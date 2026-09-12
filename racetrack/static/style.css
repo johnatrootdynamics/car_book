@@ -4633,7 +4633,8 @@ details > summary { font-size: .92rem; }
 .spectator-detail-nav > a:first-child:hover { color: #2457ff; }
 
 .spectator-detail-card {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(240px, .72fr) minmax(0, 1.28fr);
   overflow: hidden;
   background: #fff;
   border: 1px solid #e4e7ec;
@@ -4643,19 +4644,19 @@ details > summary { font-size: .92rem; }
 .spectator-detail-event {
   display: flex;
   align-items: flex-start;
-  gap: 18px;
+  gap: 13px;
   min-height: 0;
-  padding: 22px 26px;
+  padding: 20px;
   background:
     radial-gradient(circle at 95% 0%, rgba(36, 87, 255, .09), transparent 42%),
     linear-gradient(145deg, #fbfcff, #f5f7fb);
 }
 .spectator-detail-date {
   display: grid;
-  flex: 0 0 68px;
+  flex: 0 0 58px;
   justify-items: center;
   align-content: center;
-  min-height: 78px;
+  min-height: 68px;
   color: #1d2939;
   background: #fff;
   border: 1px solid #e4e7ec;
@@ -4669,7 +4670,7 @@ details > summary { font-size: .92rem; }
   letter-spacing: .08em;
   text-transform: uppercase;
 }
-.spectator-detail-date strong { font-size: 1.6rem; line-height: 1.05; }
+.spectator-detail-date strong { font-size: 1.35rem; line-height: 1.05; }
 .spectator-detail-date small { color: #98a2b3; font-size: .67rem; }
 .spectator-detail-copy { align-self: center; min-width: 0; }
 .spectator-detail-track {
@@ -4680,8 +4681,8 @@ details > summary { font-size: .92rem; }
   letter-spacing: .05em;
   text-transform: uppercase;
 }
-.spectator-detail-copy h2 { margin: 0 0 8px; color: #101828; font-size: clamp(1.45rem, 3.2vw, 2rem); line-height: 1.08; }
-.spectator-detail-location { display: flex; align-items: center; gap: 6px; margin: 6px 0; color: #667085; font-size: .84rem; }
+.spectator-detail-copy h2 { margin: 0 0 7px; color: #101828; font-size: clamp(1.15rem, 2.4vw, 1.55rem); line-height: 1.08; }
+.spectator-detail-location { display: flex; align-items: center; gap: 5px; margin: 5px 0; color: #667085; font-size: .72rem; }
 .spectator-detail-location i { color: #7b91d2; }
 
 .spectator-purchase-card {
@@ -4691,7 +4692,7 @@ details > summary { font-size: .92rem; }
   padding: 26px;
   border-left: 1px solid #e4e7ec;
 }
-.ticket-purchase-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: center; border-top: 1px solid #e4e7ec; }
+.ticket-purchase-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; border-left: 1px solid #e4e7ec; }
 .ticket-choice-intro { display: grid; grid-column: 1 / -1; gap: 2px; padding: 12px 20px 10px; background: #f8faff; border-bottom: 1px solid #e4e7ec; }
 .ticket-choice-intro span { color: #3159d5; font-size: .62rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
 .ticket-choice-intro strong { color: #1d2939; font-size: .94rem; }.ticket-choice-intro p { margin: 0; color: #667085; font-size: .7rem; }
@@ -4922,7 +4923,8 @@ details > summary { font-size: .92rem; }
     border-top: 1px solid #eaecf0;
   }
   .spectator-event-price { justify-items: start; }
-  .ticket-purchase-options { grid-template-columns: 1fr; }
+  .spectator-detail-card { grid-template-columns: 1fr; }
+  .ticket-purchase-options { grid-template-columns: 1fr; border-top: 1px solid #e4e7ec; border-left: 0; }
   .ticket-purchase-options .spectator-purchase-card + .spectator-purchase-card { border-top: 1px solid #e4e7ec; border-left: 0; }
   .ticket-owned-banner { align-items: flex-start; flex-direction: column; }
   .spectator-detail-event { padding: 20px; }
