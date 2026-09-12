@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
+{% if driver_event_status %}
+  {% set inspection = driver_event_status.inspection %}
+  {% set completed_count = ([true, driver_event_status.waiver_complete, driver_event_status.checked_in, inspection and inspection.passed]|select|list|length) %}
+  {% set event_ready = driver_event_status.waiver_complete and driver_event_status.checked_in and inspection and inspection.passed %}
+{% endif %}
 <div class="spectator-detail-page event-owned-page">
   <nav class="spectator-detail-nav" aria-label="Event navigation">
     <a href="{{ url_for('user.dashboard') }}"><i class="bi bi-chevron-left" aria-hidden="true"></i> Dashboard</a>
@@ -8,7 +13,18 @@
 
   <header class="event-owned-header">
     <div class="spectator-detail-date"><span>{{ event.event_date.strftime('%b') }}</span><strong>{{ event.event_date.strftime('%-d') }}</strong><small>{{ event.event_date.strftime('%Y') }}</small></div>
-    <div><span class="event-page-kicker">My event · {{ event.track.name }}</span><h1>{{ event.event_name }}</h1><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}{% if event.event_start_time %} · {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}{% if event.event_end_time %}–{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}</p></div>
+    <div class="event-owned-heading"><span class="event-page-kicker">My event · {{ event.track.name }}</span><h1>{{ event.event_name }}</h1><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}{% if event.event_start_time %} · {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}{% if event.event_end_time %}–{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}</p></div>
+    {% if driver_event_status %}
+      <aside class="event-hero-checklist" aria-label="Event checklist: {{ completed_count }} of 4 complete">
+        <header><strong>Checklist</strong><span>{{ completed_count }}/4</span></header>
+        <ol>
+          <li class="is-complete"><i class="bi bi-check-lg"></i><span>Ticket</span></li>
+          <li class="{{ 'is-complete' if driver_event_status.waiver_complete else '' }}"><i class="bi {{ 'bi-check-lg' if driver_event_status.waiver_complete else 'bi-file-earmark-text' }}"></i><span>Waiver</span></li>
+          <li class="{{ 'is-complete' if driver_event_status.checked_in else '' }}"><i class="bi {{ 'bi-check-lg' if driver_event_status.checked_in else 'bi-qr-code-scan' }}"></i><span>Check-in</span></li>
+          <li class="{{ 'is-complete' if inspection and inspection.passed else '' }}"><i class="bi {{ 'bi-check-lg' if inspection and inspection.passed else 'bi-wrench-adjustable' }}"></i><span>Inspect</span></li>
+        </ol>
+      </aside>
+    {% endif %}
   </header>
 
   <nav class="event-hub-nav" aria-label="Event sections">
@@ -18,15 +34,20 @@
   </nav>
 
   {% if driver_event_status %}
-    {% set inspection = driver_event_status.inspection %}
-    <section class="driver-event-progress driver-event-progress--compact event-hub-section" id="event-status" aria-labelledby="event-status-title">
-      <header><h3 id="event-status-title">Event checklist</h3><strong>{{ ([true, driver_event_status.waiver_complete, driver_event_status.checked_in, inspection and inspection.passed]|select|list|length) }} of 4 complete</strong></header>
-      <ol>
-        <li class="is-complete"><span><i class="bi bi-check-lg"></i></span><div><strong>Ticket</strong><small>Your driver entry is confirmed.</small></div></li>
-        <li class="{{ 'is-complete' if driver_event_status.waiver_complete else 'is-current' }}"><span><i class="bi {{ 'bi-check-lg' if driver_event_status.waiver_complete else 'bi-file-earmark-text' }}"></i></span><div><strong>Waiver</strong><small>{{ 'Required waiver is complete.' if driver_event_status.waiver_complete else 'Complete this before check-in.' }}</small>{% if not driver_event_status.waiver_complete and driver_event_status.pending_waiver %}{% set waiver = driver_event_status.pending_waiver %}{% if waiver.boldsign_document_id %}<a href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=waiver.id) }}">Sign now <i class="bi bi-arrow-right"></i></a>{% else %}<form class="event-waiver-action-form" method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=waiver.waiver_template_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="event_id" value="{{ event.id }}"><button type="submit">Sign now <i class="bi bi-arrow-right"></i></button></form>{% endif %}{% endif %}</div></li>
-        <li class="{{ 'is-complete' if driver_event_status.checked_in else '' }}"><span><i class="bi {{ 'bi-check-lg' if driver_event_status.checked_in else 'bi-qr-code-scan' }}"></i></span><div><strong>Check-in</strong><small>{{ 'Gate check-in complete.' if driver_event_status.checked_in else 'Present your driver ticket at the gate.' }}</small></div></li>
-        <li class="{{ 'is-complete' if inspection and inspection.passed else ('has-issue' if inspection else '') }}"><span><i class="bi {{ 'bi-check-lg' if inspection and inspection.passed else ('bi-x-lg' if inspection else 'bi-wrench-adjustable') }}"></i></span><div><strong>Inspection</strong><small>{% if inspection and inspection.passed %}Vehicle inspection passed.{% elif inspection %}Inspection needs attention.{% else %}Vehicle inspection happens onsite.{% endif %}</small></div></li>
-      </ol>
+    <section class="event-status-experiments event-hub-section" id="event-status" aria-label="Event status options">
+      <article class="driver-event-progress driver-event-progress--compact" aria-labelledby="event-status-title">
+        <header><h3 id="event-status-title">Event checklist</h3><strong>{{ completed_count }} of 4 complete</strong></header>
+        <ol>
+          <li class="is-complete"><span><i class="bi bi-check-lg"></i></span><div><strong>Ticket</strong><small>Your driver entry is confirmed.</small></div></li>
+          <li class="{{ 'is-complete' if driver_event_status.waiver_complete else 'is-current' }}"><span><i class="bi {{ 'bi-check-lg' if driver_event_status.waiver_complete else 'bi-file-earmark-text' }}"></i></span><div><strong>Waiver</strong><small>{{ 'Required waiver is complete.' if driver_event_status.waiver_complete else 'Complete this before check-in.' }}</small>{% if not driver_event_status.waiver_complete and driver_event_status.pending_waiver %}{% set waiver = driver_event_status.pending_waiver %}{% if waiver.boldsign_document_id %}<a href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=waiver.id) }}">Sign now <i class="bi bi-arrow-right"></i></a>{% else %}<form class="event-waiver-action-form" method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=waiver.waiver_template_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="event_id" value="{{ event.id }}"><button type="submit">Sign now <i class="bi bi-arrow-right"></i></button></form>{% endif %}{% endif %}</div></li>
+          <li class="{{ 'is-complete' if driver_event_status.checked_in else '' }}"><span><i class="bi {{ 'bi-check-lg' if driver_event_status.checked_in else 'bi-qr-code-scan' }}"></i></span><div><strong>Check-in</strong><small>{{ 'Gate check-in complete.' if driver_event_status.checked_in else 'Present your driver ticket at the gate.' }}</small></div></li>
+          <li class="{{ 'is-complete' if inspection and inspection.passed else ('has-issue' if inspection else '') }}"><span><i class="bi {{ 'bi-check-lg' if inspection and inspection.passed else ('bi-x-lg' if inspection else 'bi-wrench-adjustable') }}"></i></span><div><strong>Inspection</strong><small>{% if inspection and inspection.passed %}Vehicle inspection passed.{% elif inspection %}Inspection needs attention.{% else %}Vehicle inspection happens onsite.{% endif %}</small></div></li>
+        </ol>
+      </article>
+      <article class="event-overall-status {{ 'is-ready' if event_ready else 'is-pending' }}">
+        <span><i class="bi {{ 'bi-check-lg' if event_ready else 'bi-exclamation-lg' }}"></i></span>
+        <div><small>Driver event status</small><strong>{{ 'Ready for the track' if event_ready else 'Checklist in progress' }}</strong><p>{% if not driver_event_status.waiver_complete %}Next: sign your waiver.{% elif not driver_event_status.checked_in %}Next: check in at the gate.{% elif not inspection or not inspection.passed %}Next: complete vehicle inspection.{% else %}All event requirements are complete.{% endif %}</p></div>
+      </article>
     </section>
   {% endif %}
 

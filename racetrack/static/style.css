@@ -4785,6 +4785,20 @@ details > summary { font-size: .92rem; }
 .driver-event-progress--compact .event-waiver-action-form,
 .driver-event-progress--compact .event-waiver-action-form button { margin-top: 0; font-size: .61rem; }
 
+.event-status-experiments { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(240px, .75fr); gap: 12px; }
+.event-status-experiments .driver-event-progress { margin: 0; }
+.event-overall-status { display: flex; align-items: center; gap: 11px; min-width: 0; padding: 13px 15px; background: #fffaf0; border: 1px solid #fed7aa; border-radius: 12px; }
+.event-overall-status > span { display: grid; flex: 0 0 32px; width: 32px; height: 32px; color: #fff; background: #e68a00; border-radius: 50%; place-items: center; }
+.event-overall-status > div { display: grid; min-width: 0; gap: 1px; }
+.event-overall-status small { color: #9a5b08; font-size: .57rem; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
+.event-overall-status strong { color: #7a3e00; font-size: .75rem; }
+.event-overall-status p { margin: 0; color: #9a5b08; font-size: .63rem; line-height: 1.3; }
+.event-overall-status.is-ready { background: #ecfdf3; border-color: #a6f4c5; }
+.event-overall-status.is-ready > span { background: #18a66a; }
+.event-overall-status.is-ready small,
+.event-overall-status.is-ready strong,
+.event-overall-status.is-ready p { color: #087443; }
+
 .event-hub-section { scroll-margin-top: 82px; }
 .event-owned-page { display: grid; gap: 12px; }
 .event-owned-header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: linear-gradient(135deg,#111a2d,#213d78); border: 1px solid #263e6c; border-radius: 12px; }
@@ -4792,6 +4806,15 @@ details > summary { font-size: .92rem; }
 .event-owned-header h1 { margin: 3px 0 7px; color: #fff; font-size: clamp(1.45rem,3vw,2rem); line-height: 1.08; }
 .event-owned-header p { margin: 0; color: #cbd5e1; font-size: .75rem; }.event-owned-header p i { color: #aebfee; }
 .event-owned-header .event-page-kicker { color: #b9c9f8; }
+.event-owned-heading { min-width: 0; }
+.event-hero-checklist { flex: 0 0 280px; margin-left: auto; padding: 10px 12px; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 10px; backdrop-filter: blur(8px); }
+.event-hero-checklist header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: .62rem; }
+.event-hero-checklist header span { color: #cbd5e1; }
+.event-hero-checklist ol { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.event-hero-checklist li { display: grid; justify-items: center; gap: 3px; color: #aab7cf; font-size: .52rem; font-weight: 700; }
+.event-hero-checklist li i { display: grid; width: 22px; height: 22px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); border-radius: 50%; font-size: .59rem; place-items: center; }
+.event-hero-checklist li.is-complete { color: #d1fae5; }
+.event-hero-checklist li.is-complete i { color: #fff; background: #18a66a; border-color: #32b879; }
 .event-owned-page .event-hub-nav,.event-owned-page .driver-event-progress,.event-owned-page .event-hub-panel { margin-top: 0; }
 .event-hub-nav { position: sticky; top: 10px; z-index: 12; display: flex; align-items: center; gap: 5px; width: fit-content; margin: 12px auto 0; padding: 5px; background: rgba(255,255,255,.94); border: 1px solid #dfe4ec; border-radius: 999px; box-shadow: 0 8px 24px rgba(16,24,40,.09); backdrop-filter: blur(10px); }
 .event-hub-nav a { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; color: #475467; border-radius: 999px; font-size: .68rem; font-weight: 750; text-decoration: none; }
@@ -4930,6 +4953,10 @@ details > summary { font-size: .92rem; }
   .driver-event-progress--compact li strong { font-size: .61rem; }
   .driver-event-progress--compact li a,
   .driver-event-progress--compact .event-waiver-action-form button { font-size: .57rem; }
+  .event-owned-header { flex-wrap: wrap; }
+  .event-owned-heading { flex: 1; }
+  .event-hero-checklist { flex: 1 0 100%; margin-left: 0; }
+  .event-status-experiments { grid-template-columns: 1fr; }
   .event-hub-panel { padding: 18px 16px; }
   .event-hub-nav { top: 66px; max-width: 100%; }
 }
