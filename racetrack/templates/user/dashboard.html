@@ -61,9 +61,9 @@
             {% if slot_notice_by_event.get(next_event.id) %}<p class="driver-event-notice"><i class="bi bi-megaphone" aria-hidden="true"></i> {{ slot_notice_by_event.get(next_event.id) }}</p>{% endif %}
             <ol class="driver-compact-progress" aria-label="Event progress">
               <li class="is-complete"><span><i class="bi bi-check-lg" aria-hidden="true"></i></span><small>Ticket</small></li>
-              <li class="{{ 'is-complete' if next_ready else 'is-current' }}"><span><i class="bi {{ 'bi-check-lg' if next_ready else 'bi-file-earmark-text' }}" aria-hidden="true"></i></span><small>Waiver</small></li>
-              <li class="{{ 'is-complete' if next_checked_in else ('is-current' if next_ready else '') }}"><span><i class="bi {{ 'bi-check-lg' if next_checked_in else 'bi-qr-code-scan' }}" aria-hidden="true"></i></span><small>Check-in</small></li>
-              <li class="{{ 'is-complete' if next_inspection and next_inspection.passed else ('has-issue' if next_inspection else ('is-current' if next_checked_in else '')) }}"><span><i class="bi {{ 'bi-check-lg' if next_inspection and next_inspection.passed else ('bi-x-lg' if next_inspection else 'bi-wrench-adjustable') }}" aria-hidden="true"></i></span><small>Inspection</small></li>
+              <li class="{{ 'is-complete' if next_ready else 'is-current' }}"><span>{% if next_ready %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}2{% endif %}</span><small>Waiver</small></li>
+              <li class="{{ 'is-complete' if next_checked_in else ('is-current' if next_ready else '') }}"><span>{% if next_checked_in %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}3{% endif %}</span><small>Check-in</small></li>
+              <li class="{{ 'is-complete' if next_inspection and next_inspection.passed else ('has-issue' if next_inspection else ('is-current' if next_checked_in else '')) }}"><span>{% if next_inspection and next_inspection.passed %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% elif next_inspection %}<i class="bi bi-x-lg" aria-hidden="true"></i>{% else %}4{% endif %}</span><small>Inspection</small></li>
             </ol>
             <div class="driver-featured-actions">
               <a class="btn btn-sm" href="{{ url_for('user.event_hub', event_id=next_event.id) }}">Open event</a>
