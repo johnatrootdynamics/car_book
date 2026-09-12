@@ -4697,9 +4697,14 @@ details > summary { font-size: .92rem; }
 .ticket-choice-intro strong { color: #1d2939; font-size: .94rem; }.ticket-choice-intro p { margin: 0; color: #667085; font-size: .7rem; }
 .ticket-purchase-options .spectator-purchase-card { gap: 9px; padding: 16px 20px; border-left: 0; }
 .ticket-purchase-options .spectator-purchase-card + .spectator-purchase-card { border-top: 0; border-left: 1px solid #e4e7ec; }
-.ticket-purchase-options.has-event-access { grid-template-columns: minmax(0, 1fr); }
-.ticket-purchase-options.has-event-access .spectator-purchase-card { grid-template-columns: minmax(0, 1fr) minmax(250px, .75fr); align-items: center; }
-.ticket-purchase-options.has-event-access .spectator-purchase-card > p { margin-right: 14px; }
+.ticket-purchase-options.has-driver-ticket { grid-template-columns: minmax(0, 1fr); }
+.ticket-owned-banner { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 20px; color: #087443; background: #ecfdf3; border-bottom: 1px solid #abefc6; }
+.ticket-owned-banner > span { display: flex; align-items: center; gap: 9px; }
+.ticket-owned-banner > span > i { font-size: 1rem; }
+.ticket-owned-banner > span > span { display: grid; gap: 1px; }
+.ticket-owned-banner strong { font-size: .72rem; }
+.ticket-owned-banner small { color: #29845b; font-size: .63rem; }
+.ticket-owned-banner > a { display: inline-flex; align-items: center; gap: 5px; color: #087443; font-size: .68rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
 .driver-purchase-card { background: linear-gradient(110deg,#fbfcff,#f4f7ff); }
 .driver-purchase-card .spectator-purchase-heading > i { color: #fff; background: #3159d5; }
 .ticket-purchase-options .spectator-purchase-heading span { display: inline-flex; width: fit-content; padding: 4px 8px; color: #1d2939; background: #eef1f5; border-radius: 6px; font-size: .82rem; font-weight: 900; letter-spacing: .035em; line-height: 1.15; text-transform: uppercase; }
@@ -4919,7 +4924,7 @@ details > summary { font-size: .92rem; }
   .spectator-event-price { justify-items: start; }
   .ticket-purchase-options { grid-template-columns: 1fr; }
   .ticket-purchase-options .spectator-purchase-card + .spectator-purchase-card { border-top: 1px solid #e4e7ec; border-left: 0; }
-  .ticket-purchase-options.has-event-access .spectator-purchase-card { grid-template-columns: 1fr; }
+  .ticket-owned-banner { align-items: flex-start; flex-direction: column; }
   .spectator-detail-event { padding: 20px; }
   .spectator-purchase-card { border-top: 1px solid #e4e7ec; border-left: 0; }
   .spectator-detail-benefits { grid-template-columns: 1fr; }
