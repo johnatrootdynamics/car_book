@@ -7032,7 +7032,12 @@ details > summary { font-size: .92rem; }
   text-decoration: none;
 }
 
-.driver-featured-event { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 15px; padding: 16px; background: #f7f9fe; border: 1px solid #dce5f7; border-radius: 9px; }
+.driver-featured-event { position: relative; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 15px; padding: 16px; background: #f7f9fe; border: 1px solid #dce5f7; border-radius: 9px; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.driver-featured-event:hover { background: #f3f6fd; border-color: #b9caee; box-shadow: 0 8px 20px rgba(49,89,213,.08); transform: translateY(-1px); }
+.driver-featured-event:focus-within { border-color: #7894df; box-shadow: 0 0 0 3px rgba(49,89,213,.12); }
+.driver-featured-event-link { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+.driver-featured-date,
+.driver-featured-event-copy { position: relative; z-index: 2; pointer-events: none; }
 .driver-featured-date { display: grid; align-content: center; justify-items: center; min-height: 92px; color: #fff; background: #3159d5; border-radius: 8px; }
 .driver-featured-date span { font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .driver-featured-date strong { color: #fff !important; font-size: 1.72rem; line-height: 1.05; }
@@ -7056,7 +7061,7 @@ details > summary { font-size: .92rem; }
 .driver-compact-progress li.is-current > span { color: #3159d5; background: #fff; box-shadow: inset 0 0 0 1.5px #7894df; }
 .driver-compact-progress li.has-issue { color: #b42318; background: #fef3f2; border-color: #fda29b; }
 .driver-compact-progress li.has-issue > span { color: #b42318; background: #fff; }
-.driver-featured-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.driver-featured-actions { position: relative; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-height: 30px; margin-top: 8px; pointer-events: auto; }
 .driver-registration-menu { position: relative; margin-left: auto; }
 .driver-registration-menu > summary { display: grid; width: 30px; height: 30px; color: #667085; background: #fff; border: 1px solid #d9dee8; border-radius: 6px; cursor: pointer; list-style: none; place-items: center; }
 .driver-registration-menu > summary::-webkit-details-marker { display: none; }
