@@ -28,9 +28,9 @@
       </div>
     </div>
 
-    <div class="ticket-purchase-options">
-      <div class="ticket-choice-intro"><span>Choose admission</span><strong>How are you attending?</strong><p>Select a driver entry or spectator ticket below.</p></div>
-      {% if not is_vendor %}
+    <div class="ticket-purchase-options {% if has_event_access %}has-event-access{% endif %}">
+      <div class="ticket-choice-intro"><span>{{ 'Additional admission' if has_event_access else 'Choose admission' }}</span><strong>{{ 'Need another ticket?' if has_event_access else 'How are you attending?' }}</strong><p>{{ 'Spectator tickets remain available for this event.' if has_event_access else 'Select a driver entry or spectator ticket below.' }}</p></div>
+      {% if not is_vendor and not has_driver_ticket %}
         {% set driver_availability = availability.get('driver') %}
         <aside class="spectator-purchase-card driver-purchase-card">
           <div class="spectator-purchase-heading">

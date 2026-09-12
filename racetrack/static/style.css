@@ -4633,8 +4633,7 @@ details > summary { font-size: .92rem; }
 .spectator-detail-nav > a:first-child:hover { color: #2457ff; }
 
 .spectator-detail-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(300px, .7fr);
+  display: block;
   overflow: hidden;
   background: #fff;
   border: 1px solid #e4e7ec;
@@ -4645,18 +4644,18 @@ details > summary { font-size: .92rem; }
   display: flex;
   align-items: flex-start;
   gap: 18px;
-  min-height: 330px;
-  padding: 34px;
+  min-height: 0;
+  padding: 22px 26px;
   background:
     radial-gradient(circle at 95% 0%, rgba(36, 87, 255, .09), transparent 42%),
     linear-gradient(145deg, #fbfcff, #f5f7fb);
 }
 .spectator-detail-date {
   display: grid;
-  flex: 0 0 76px;
+  flex: 0 0 68px;
   justify-items: center;
   align-content: center;
-  min-height: 92px;
+  min-height: 78px;
   color: #1d2939;
   background: #fff;
   border: 1px solid #e4e7ec;
@@ -4670,7 +4669,7 @@ details > summary { font-size: .92rem; }
   letter-spacing: .08em;
   text-transform: uppercase;
 }
-.spectator-detail-date strong { font-size: 1.85rem; line-height: 1.05; }
+.spectator-detail-date strong { font-size: 1.6rem; line-height: 1.05; }
 .spectator-detail-date small { color: #98a2b3; font-size: .67rem; }
 .spectator-detail-copy { align-self: center; min-width: 0; }
 .spectator-detail-track {
@@ -4681,7 +4680,7 @@ details > summary { font-size: .92rem; }
   letter-spacing: .05em;
   text-transform: uppercase;
 }
-.spectator-detail-copy h2 { margin: 0 0 15px; color: #101828; font-size: clamp(1.65rem, 4vw, 2.35rem); line-height: 1.08; }
+.spectator-detail-copy h2 { margin: 0 0 8px; color: #101828; font-size: clamp(1.45rem, 3.2vw, 2rem); line-height: 1.08; }
 .spectator-detail-location { display: flex; align-items: center; gap: 6px; margin: 6px 0; color: #667085; font-size: .84rem; }
 .spectator-detail-location i { color: #7b91d2; }
 
@@ -4692,12 +4691,15 @@ details > summary { font-size: .92rem; }
   padding: 26px;
   border-left: 1px solid #e4e7ec;
 }
-.ticket-purchase-options { display: grid; align-content: center; border-left: 1px solid #e4e7ec; }
-.ticket-choice-intro { display: grid; gap: 2px; padding: 16px 24px 13px; background: #f8faff; border-bottom: 1px solid #e4e7ec; }
+.ticket-purchase-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: center; border-top: 1px solid #e4e7ec; }
+.ticket-choice-intro { display: grid; grid-column: 1 / -1; gap: 2px; padding: 12px 20px 10px; background: #f8faff; border-bottom: 1px solid #e4e7ec; }
 .ticket-choice-intro span { color: #3159d5; font-size: .62rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
 .ticket-choice-intro strong { color: #1d2939; font-size: .94rem; }.ticket-choice-intro p { margin: 0; color: #667085; font-size: .7rem; }
-.ticket-purchase-options .spectator-purchase-card { gap: 10px; padding: 20px 24px; border-left: 0; }
-.ticket-purchase-options .spectator-purchase-card + .spectator-purchase-card { border-top: 1px solid #e4e7ec; }
+.ticket-purchase-options .spectator-purchase-card { gap: 9px; padding: 16px 20px; border-left: 0; }
+.ticket-purchase-options .spectator-purchase-card + .spectator-purchase-card { border-top: 0; border-left: 1px solid #e4e7ec; }
+.ticket-purchase-options.has-event-access { grid-template-columns: minmax(0, 1fr); }
+.ticket-purchase-options.has-event-access .spectator-purchase-card { grid-template-columns: minmax(0, 1fr) minmax(250px, .75fr); align-items: center; }
+.ticket-purchase-options.has-event-access .spectator-purchase-card > p { margin-right: 14px; }
 .driver-purchase-card { background: linear-gradient(110deg,#fbfcff,#f4f7ff); }
 .driver-purchase-card .spectator-purchase-heading > i { color: #fff; background: #3159d5; }
 .ticket-purchase-options .spectator-purchase-heading span { display: inline-flex; width: fit-content; padding: 4px 8px; color: #1d2939; background: #eef1f5; border-radius: 6px; font-size: .82rem; font-weight: 900; letter-spacing: .035em; line-height: 1.15; text-transform: uppercase; }
@@ -4708,7 +4710,7 @@ details > summary { font-size: .92rem; }
 .ticket-choice-full-button { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
 .ticket-choice-confirmed { display: flex; align-items: center; gap: 9px; padding: 10px 11px; color: #087443; background: #ecfdf3; border: 1px solid #abefc6; border-radius: 8px; }.ticket-choice-confirmed.pending { color: #9a6700; background: #fffaeb; border-color: #fedf89; }.ticket-choice-confirmed > i { font-size: 1rem; }.ticket-choice-confirmed > span { display: flex; flex-direction: column; }.ticket-choice-confirmed strong { font-size: .72rem; }.ticket-choice-confirmed small { font-size: .63rem; }
 .vendor-purchase-card .spectator-purchase-heading > i { color: #8b4a16; background: #fff4e8; }
-.ticket-options-note { padding: 12px 24px 16px; }
+.ticket-options-note { grid-column: 1 / -1; padding: 10px 20px 12px; border-top: 1px solid #edf0f3; }
 .spectator-purchase-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .spectator-purchase-heading > div { display: grid; gap: 3px; }
 .spectator-purchase-heading span { color: #667085; font-size: .74rem; font-weight: 650; }
@@ -4888,9 +4890,10 @@ details > summary { font-size: .92rem; }
     border-top: 1px solid #eaecf0;
   }
   .spectator-event-price { justify-items: start; }
-  .spectator-detail-card { grid-template-columns: 1fr; }
-  .ticket-purchase-options { border-top: 1px solid #e4e7ec; border-left: 0; }
-  .spectator-detail-event { min-height: 230px; padding: 24px; }
+  .ticket-purchase-options { grid-template-columns: 1fr; }
+  .ticket-purchase-options .spectator-purchase-card + .spectator-purchase-card { border-top: 1px solid #e4e7ec; border-left: 0; }
+  .ticket-purchase-options.has-event-access .spectator-purchase-card { grid-template-columns: 1fr; }
+  .spectator-detail-event { padding: 20px; }
   .spectator-purchase-card { border-top: 1px solid #e4e7ec; border-left: 0; }
   .spectator-detail-benefits { grid-template-columns: 1fr; }
   .driver-event-progress ol { grid-template-columns: 1fr; gap: 18px; }
