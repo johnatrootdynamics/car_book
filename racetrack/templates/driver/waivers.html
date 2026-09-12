@@ -40,7 +40,7 @@
             <td data-waiver-signed>{{ w.signed_at or '-' }}</td>
             <td data-waiver-action>
               {% if w.status != 'signed' %}
-                <a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=w.id) }}">Sign</a>
+                {% if w.boldsign_document_id %}<a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=w.id) }}">Sign</a>{% else %}<form class="waiver-table-action-form" method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=w.waiver_template_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% if w.event_id %}<input type="hidden" name="event_id" value="{{ w.event_id }}">{% endif %}<button class="btn btn-secondary btn-sm" type="submit">Sign</button></form>{% endif %}
               {% endif %}
               {% if w.signed_pdf_url %}
                 <a class="btn btn-sm" href="{{ w.signed_pdf_url }}" target="_blank">PDF</a>

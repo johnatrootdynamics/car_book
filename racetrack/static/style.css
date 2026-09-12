@@ -4768,6 +4768,9 @@ details > summary { font-size: .92rem; }
 .driver-event-progress li strong { color: #344054; font-size: .76rem; }
 .driver-event-progress li small { color: #7a8699; font-size: .66rem; line-height: 1.35; }
 .driver-event-progress li a { width: fit-content; margin-top: 3px; color: #2457ff; font-size: .68rem; font-weight: 750; text-decoration: none; }
+.event-waiver-action-form { width: fit-content; margin: 3px 0 0; }
+.event-waiver-action-form button { display: inline-flex; align-items: center; gap: 4px; padding: 0; color: #2457ff; background: none; border: 0; cursor: pointer; font: inherit; font-size: .68rem; font-weight: 750; }
+.driver-waiver-action-form,.waiver-table-action-form { display: inline-flex; margin: 0; }
 
 .event-hub-section { scroll-margin-top: 82px; }
 .event-hub-nav { position: sticky; top: 10px; z-index: 12; display: flex; align-items: center; gap: 5px; width: fit-content; margin: 12px auto 0; padding: 5px; background: rgba(255,255,255,.94); border: 1px solid #dfe4ec; border-radius: 999px; box-shadow: 0 8px 24px rgba(16,24,40,.09); backdrop-filter: blur(10px); }

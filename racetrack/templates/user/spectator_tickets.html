@@ -120,7 +120,7 @@
             <small>{{ 'Required waiver is complete.' if driver_event_status.waiver_complete else 'Complete this any time before check-in.' }}</small>
             {% if not driver_event_status.waiver_complete %}
               {% if driver_event_status.pending_waiver %}
-                <a href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=driver_event_status.pending_waiver.id) }}">Sign waiver <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                {% if driver_event_status.pending_waiver.boldsign_document_id %}<a href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=driver_event_status.pending_waiver.id) }}">Sign waiver <i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% else %}<form class="event-waiver-action-form" method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=driver_event_status.pending_waiver.waiver_template_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="event_id" value="{{ event.id }}"><button type="submit">Sign waiver <i class="bi bi-arrow-right" aria-hidden="true"></i></button></form>{% endif %}
               {% else %}
                 <a href="{{ url_for('waiver.driver_waivers') }}">View waivers <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
               {% endif %}
