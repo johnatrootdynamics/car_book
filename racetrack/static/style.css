@@ -4772,6 +4772,19 @@ details > summary { font-size: .92rem; }
 .event-waiver-action-form button { display: inline-flex; align-items: center; gap: 4px; padding: 0; color: #2457ff; background: none; border: 0; cursor: pointer; font: inherit; font-size: .68rem; font-weight: 750; }
 .driver-waiver-action-form,.waiver-table-action-form { display: inline-flex; margin: 0; }
 
+.driver-event-progress--compact { padding: 12px 15px; }
+.driver-event-progress--compact > header { align-items: center; margin-bottom: 10px; }
+.driver-event-progress--compact > header h3 { margin: 0; font-size: .82rem; }
+.driver-event-progress--compact li { grid-template-columns: 26px minmax(0, 1fr); gap: 7px; padding-right: 10px; }
+.driver-event-progress--compact li:not(:last-child)::after { top: 12px; left: 26px; }
+.driver-event-progress--compact li > span { width: 26px; height: 26px; font-size: .68rem; }
+.driver-event-progress--compact li > div { gap: 1px; }
+.driver-event-progress--compact li strong { font-size: .68rem; }
+.driver-event-progress--compact li small { display: none; }
+.driver-event-progress--compact li a,
+.driver-event-progress--compact .event-waiver-action-form,
+.driver-event-progress--compact .event-waiver-action-form button { margin-top: 0; font-size: .61rem; }
+
 .event-hub-section { scroll-margin-top: 82px; }
 .event-owned-page { display: grid; gap: 12px; }
 .event-owned-header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: linear-gradient(135deg,#111a2d,#213d78); border: 1px solid #263e6c; border-radius: 12px; }
@@ -4909,6 +4922,14 @@ details > summary { font-size: .92rem; }
   .driver-event-progress ol { grid-template-columns: 1fr; gap: 18px; }
   .driver-event-progress li { min-height: 44px; padding: 0; }
   .driver-event-progress li:not(:last-child)::after { top: 34px; bottom: -18px; left: 16px; right: auto; width: 2px; height: auto; }
+  .driver-event-progress--compact { padding: 12px; }
+  .driver-event-progress--compact ol { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+  .driver-event-progress--compact li { grid-template-columns: 1fr; justify-items: center; gap: 4px; min-height: 0; padding: 0; }
+  .driver-event-progress--compact li:not(:last-child)::after { top: 12px; bottom: auto; left: 50%; right: -50%; width: auto; height: 2px; }
+  .driver-event-progress--compact li > div { justify-items: center; text-align: center; }
+  .driver-event-progress--compact li strong { font-size: .61rem; }
+  .driver-event-progress--compact li a,
+  .driver-event-progress--compact .event-waiver-action-form button { font-size: .57rem; }
   .event-hub-panel { padding: 18px 16px; }
   .event-hub-nav { top: 66px; max-width: 100%; }
 }
