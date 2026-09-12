@@ -54,7 +54,7 @@
       <nav class="side-nav">
         {% set ep = request.endpoint or '' %}
         {% if current_user.is_authenticated and is_user %}
-          <a class="side-link {% if ep == 'user.dashboard' %}active{% endif %}" href="{{ url_for('user.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">Dashboard</span></a>
+          <a class="side-link {% if ep in ['user.dashboard','user.event_hub','user.event_schedule','user.attendee_live_track'] %}active{% endif %}" href="{{ url_for('user.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">Dashboard</span></a>
           <a class="side-link {% if ep in ['user.discover','user.tracks_directory','user.spectator_events','user.event_detail','user.spectator_cart','user.spectator_checkout','user.spectator_order_success','user.spectator_tickets','user.private_rental_tracks','user.private_rental_calendar','user.private_rental_booking_success'] %}active{% endif %}" href="{{ url_for('user.discover') }}"><span class="sidebar-icon"><i class="bi bi-compass-fill"></i></span><span class="sidebar-label">Discover</span></a>
           <a class="side-link {% if ep.startswith('user.community') %}active{% endif %}" href="{{ url_for('user.community') }}"><span class="sidebar-icon"><i class="bi bi-people"></i></span><span class="sidebar-label">Community</span></a>
         {% endif %}

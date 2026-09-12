@@ -1371,15 +1371,66 @@ def _event_detail_response(event_id):
         if is_driver_account
         else False
     )
+    has_event_access = (
+        event.id in _attendee_event_ids(current_user.id) if is_driver_account else False
+    )
+    cart = _get_or_create_spectator_cart()
+    availability = _event_ticket_availability(event)
+    vendor_items = (
+        SpectatorOrderItem.query.join(
+            SpectatorOrder,
+            SpectatorOrder.id == SpectatorOrderItem.order_id,
+        )
+        .filter(
+            SpectatorOrderItem.event_id == event.id,
+            SpectatorOrderItem.ticket_category == "vendor",
+            SpectatorOrder.vendor_id.isnot(None),
+        )
+        .order_by(SpectatorOrder.created_at.asc())
+        .all()
+    )
+    onsite_vendors_by_id = {}
+    for item in vendor_items:
+        order = item.order
+        if order.vendor and payment_is_confirmed(
+            order.payment_status,
+            order.payment_method,
+            order.total_cents,
+            order.provider_transaction_id,
+        ):
+            onsite_vendors_by_id.setdefault(order.vendor.id, order.vendor)
+    return render_template(
+        "user/spectator_tickets.html",
+        event=event,
+        spectator_ticket_type=spectator_ticket_type,
+        vendor_ticket_type=vendor_ticket_type,
+        is_driver_account=is_driver_account,
+        driver_cars=driver_cars,
+        has_driver_ticket=has_driver_ticket,
+        has_event_access=has_event_access,
+        availability=availability,
+        money=_money,
+        cart_count=_cart_item_count(cart),
+        onsite_vendors=list(onsite_vendors_by_id.values()),
+    )
+
+
+@user_bp.route("/events/<int:event_id>/my-event")
+@login_required
+def event_hub(event_id):
+    guard = require_user()
+    if guard:
+        return guard
+    event = _attendee_event(event_id)
+    if not event:
+        return "Event access requires a paid ticket.", 403
+    registration = EventRegistration.query.filter_by(
+        event_id=event.id,
+        user_id=current_user.id,
+    ).first()
     driver_event_status = None
     event_schedule_context = None
-    event_live_context = None
-    has_event_access = False
-    if is_driver_account and has_driver_ticket:
-        registration = EventRegistration.query.filter_by(
-            event_id=event.id,
-            user_id=current_user.id,
-        ).first()
+    if registration:
         required_templates = TrackWaiverTemplate.query.filter_by(
             track_id=event.track_id,
             is_active=True,
@@ -1441,51 +1492,12 @@ def _event_detail_response(event_id):
             "slots": slots,
             "notice": schedule_notice,
         }
-    if is_driver_account:
-        has_event_access = event.id in _attendee_event_ids(current_user.id)
-        if has_event_access:
-            event_live_context = _attendee_live_context(event)
-    cart = _get_or_create_spectator_cart()
-    availability = _event_ticket_availability(event)
-    vendor_items = (
-        SpectatorOrderItem.query.join(
-            SpectatorOrder,
-            SpectatorOrder.id == SpectatorOrderItem.order_id,
-        )
-        .filter(
-            SpectatorOrderItem.event_id == event.id,
-            SpectatorOrderItem.ticket_category == "vendor",
-            SpectatorOrder.vendor_id.isnot(None),
-        )
-        .order_by(SpectatorOrder.created_at.asc())
-        .all()
-    )
-    onsite_vendors_by_id = {}
-    for item in vendor_items:
-        order = item.order
-        if order.vendor and payment_is_confirmed(
-            order.payment_status,
-            order.payment_method,
-            order.total_cents,
-            order.provider_transaction_id,
-        ):
-            onsite_vendors_by_id.setdefault(order.vendor.id, order.vendor)
     return render_template(
-        "user/spectator_tickets.html",
+        "user/event_hub.html",
         event=event,
-        spectator_ticket_type=spectator_ticket_type,
-        vendor_ticket_type=vendor_ticket_type,
-        is_driver_account=is_driver_account,
-        driver_cars=driver_cars,
-        has_driver_ticket=has_driver_ticket,
         driver_event_status=driver_event_status,
         event_schedule_context=event_schedule_context,
-        event_live_context=event_live_context,
-        has_event_access=has_event_access,
-        availability=availability,
-        money=_money,
-        cart_count=_cart_item_count(cart),
-        onsite_vendors=list(onsite_vendors_by_id.values()),
+        event_live_context=_attendee_live_context(event),
     )
 
 
@@ -2388,7 +2400,7 @@ def event_schedule(event_id):
     if guard:
         return guard
     EventRegistration.query.filter_by(event_id=event_id, user_id=current_user.id).first_or_404()
-    return redirect(url_for("user.event_detail", event_id=event_id, _anchor="run-schedule"))
+    return redirect(url_for("user.event_hub", event_id=event_id, _anchor="run-schedule"))
 
 
 @user_bp.route("/profile")
@@ -2629,7 +2641,7 @@ def attendee_live_track(event_id):
     event = _attendee_event(event_id)
     if not event:
         return "Event access requires a paid ticket.", 403
-    return redirect(url_for("user.event_detail", event_id=event.id, _anchor="live-track"))
+    return redirect(url_for("user.event_hub", event_id=event.id, _anchor="live-track"))
 
 
 @user_bp.route("/events/<int:event_id>/runs/<int:run_id>/vote", methods=["POST"])
@@ -2689,7 +2701,7 @@ def attendee_run_vote(event_id, run_id):
         )
 
     flash(message, category)
-    return redirect(url_for("user.event_detail", event_id=event_id, _anchor="live-track"))
+    return redirect(url_for("user.event_hub", event_id=event_id, _anchor="live-track"))
 
 
 @user_bp.route("/events/<int:event_id>/runs/<int:run_id>/share", methods=["POST"])
@@ -2730,7 +2742,7 @@ def attendee_run_share(event_id, run_id):
             db.session.rollback()
             flash("This run is already on your feed.", "info")
     return redirect(
-        url_for("user.event_detail", event_id=event.id, _anchor="live-track")
+        url_for("user.event_hub", event_id=event.id, _anchor="live-track")
     )
 
 
@@ -3388,7 +3400,7 @@ def driver_event_checkout(event_id):
             flash("Ticket purchased. You can sign the waiver now or come back to it later.", "success")
         else:
             flash("Ticket purchased. Waiver on file. Next step: check-in.", "success")
-        return redirect(url_for("user.event_detail", event_id=event.id))
+        return redirect(url_for("user.event_hub", event_id=event.id))
 
     return render_template(
         "user/driver_event_checkout.html",
@@ -3422,7 +3434,7 @@ def driver_event_checkout_success(order_id):
         flash("Ticket purchased. You can sign the waiver now or come back to it later.", "success")
     else:
         flash("Ticket purchased. Waiver on file. Next step: check-in.", "success")
-    return redirect(url_for("user.event_detail", event_id=driver_ticket_order.event_id))
+    return redirect(url_for("user.event_hub", event_id=driver_ticket_order.event_id))
 
 
 @user_bp.route("/events/<int:event_id>/cancel", methods=["POST"])

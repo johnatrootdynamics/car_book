@@ -39,7 +39,7 @@
           </div>
           <p>Enter the track with one vehicle. Your driver profile, waiver, and inspection status stay connected to this ticket.</p>
           {% if has_driver_ticket %}
-            <div class="ticket-choice-confirmed"><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>Driver ticket purchased</strong><small>This event is already on your dashboard.</small></span></div>
+            <div class="ticket-choice-confirmed"><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>Driver ticket purchased</strong><small>Your event workspace is ready.</small></span></div><a class="btn ticket-choice-full-button" href="{{ url_for('user.event_hub', event_id=event.id) }}">Open my event <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
           {% elif driver_availability and driver_availability.sold_out %}
             <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ driver_availability.sold }} drivers registered</span></div>
           {% elif is_driver_account and driver_cars %}
@@ -92,7 +92,7 @@
     </div>
   </section>
 
-  {% if has_event_access %}
+  {% if false %}
     <nav class="event-hub-nav" aria-label="Your event sections">
       {% if driver_event_status %}<a href="#event-status"><i class="bi bi-check2-circle" aria-hidden="true"></i> Status</a>{% endif %}
       {% if event_schedule_context %}<a href="#run-schedule"><i class="bi bi-calendar2-week" aria-hidden="true"></i> Schedule</a>{% endif %}

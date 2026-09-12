@@ -4773,6 +4773,13 @@ details > summary { font-size: .92rem; }
 .driver-waiver-action-form,.waiver-table-action-form { display: inline-flex; margin: 0; }
 
 .event-hub-section { scroll-margin-top: 82px; }
+.event-owned-page { display: grid; gap: 12px; }
+.event-owned-header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: linear-gradient(135deg,#111a2d,#213d78); border: 1px solid #263e6c; border-radius: 12px; }
+.event-owned-header .spectator-detail-date { min-height: 76px; }
+.event-owned-header h1 { margin: 3px 0 7px; color: #fff; font-size: clamp(1.45rem,3vw,2rem); line-height: 1.08; }
+.event-owned-header p { margin: 0; color: #cbd5e1; font-size: .75rem; }.event-owned-header p i { color: #aebfee; }
+.event-owned-header .event-page-kicker { color: #b9c9f8; }
+.event-owned-page .event-hub-nav,.event-owned-page .driver-event-progress,.event-owned-page .event-hub-panel { margin-top: 0; }
 .event-hub-nav { position: sticky; top: 10px; z-index: 12; display: flex; align-items: center; gap: 5px; width: fit-content; margin: 12px auto 0; padding: 5px; background: rgba(255,255,255,.94); border: 1px solid #dfe4ec; border-radius: 999px; box-shadow: 0 8px 24px rgba(16,24,40,.09); backdrop-filter: blur(10px); }
 .event-hub-nav a { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; color: #475467; border-radius: 999px; font-size: .68rem; font-weight: 750; text-decoration: none; }
 .event-hub-nav a:hover { color: #174dcc; background: #eef3ff; }
