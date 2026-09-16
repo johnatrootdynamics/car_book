@@ -1593,6 +1593,7 @@ def email_template_edit(template_key):
     if request.method == "GET" and not template:
         form.subject.data = definition["subject"]
         form.body.data = definition["body"]
+        form.ticket_design.data = "pit_pass"
         form.is_enabled.data = True
     if form.validate_on_submit():
         if not template:
@@ -1600,6 +1601,7 @@ def email_template_edit(template_key):
             db.session.add(template)
         template.subject = form.subject.data.strip()
         template.body = form.body.data.strip()
+        template.ticket_design = form.ticket_design.data
         template.is_enabled = bool(form.is_enabled.data)
         db.session.commit()
         flash("Email template saved.", "success")

@@ -2,7 +2,7 @@ from datetime import date
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
-from wtforms import BooleanField, DateField, DecimalField, IntegerField, PasswordField, SelectField, StringField, SubmitField, TextAreaField, TimeField
+from wtforms import BooleanField, DateField, DecimalField, IntegerField, PasswordField, RadioField, SelectField, StringField, SubmitField, TextAreaField, TimeField
 from wtforms.validators import DataRequired, Email, EqualTo, InputRequired, Length, NumberRange, Optional, ValidationError
 
 
@@ -165,6 +165,15 @@ class TrackProfileForm(FlaskForm):
 class TrackEmailTemplateForm(FlaskForm):
     subject = StringField("Subject", validators=[DataRequired(), Length(max=255)])
     body = TextAreaField("Body", validators=[DataRequired(), Length(max=5000)])
+    ticket_design = RadioField(
+        "Ticket design",
+        choices=[
+            ("pit_pass", "Pit Pass"),
+            ("clean_grid", "Clean Grid"),
+        ],
+        default="pit_pass",
+        validators=[DataRequired()],
+    )
     is_enabled = BooleanField("Enabled", default=True)
     submit = SubmitField("Save Email Template")
 

@@ -94,6 +94,12 @@ def create_app():
     app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", app.config["MAIL_USERNAME"])
     app.config["MAIL_DEFAULT_SENDER_NAME"] = os.getenv("MAIL_DEFAULT_SENDER_NAME", "Track Ops")
     app.config["SMTP_CREDENTIAL_KEY"] = os.getenv("SMTP_CREDENTIAL_KEY", "")
+    app.config["APPLE_WALLET_PASS_TYPE_ID"] = os.getenv("APPLE_WALLET_PASS_TYPE_ID", "")
+    app.config["APPLE_WALLET_TEAM_ID"] = os.getenv("APPLE_WALLET_TEAM_ID", "")
+    app.config["APPLE_WALLET_CERTIFICATE_BASE64"] = os.getenv("APPLE_WALLET_CERTIFICATE_BASE64", "")
+    app.config["APPLE_WALLET_CERTIFICATE_PASSWORD"] = os.getenv("APPLE_WALLET_CERTIFICATE_PASSWORD", "")
+    app.config["GOOGLE_WALLET_ISSUER_ID"] = os.getenv("GOOGLE_WALLET_ISSUER_ID", "")
+    app.config["GOOGLE_WALLET_SERVICE_ACCOUNT_JSON"] = os.getenv("GOOGLE_WALLET_SERVICE_ACCOUNT_JSON", "")
     app.config["SQLALCHEMY_DATABASE_URI"] = normalize_database_url(
         os.getenv(
         "DATABASE_URL",
@@ -365,6 +371,9 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE tracks ADD COLUMN IF NOT EXISTS stripe_webhook_secret VARCHAR(255) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE track_email_templates ADD COLUMN IF NOT EXISTS ticket_design VARCHAR(30) NOT NULL DEFAULT 'pit_pass'"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE track_payment_methods ADD COLUMN IF NOT EXISTS public_key VARCHAR(255) NULL"

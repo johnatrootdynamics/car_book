@@ -10,6 +10,26 @@
     {{ form.hidden_tag() }}
     <label>Subject {{ form.subject() }}</label>
     <label>Body {{ form.body(rows=14) }}</label>
+    <fieldset class="ticket-design-fieldset">
+      <legend>Ticket design</legend>
+      <p class="muted-line">Choose the ticket customers will see beneath your message. The QR code and wallet buttons are added automatically.</p>
+      <div class="ticket-design-options">
+        {% for option in form.ticket_design %}
+          <label class="ticket-design-option">
+            {{ option }}
+            <span class="ticket-design-preview {{ option.data }}">
+              {% if option.data == 'pit_pass' %}
+                <span class="ticket-preview-copy"><small>TRACK OPS · ADMISSION</small><strong>Summer Track Day</strong><span>AUG 22 · DEMO SPEEDWAY</span></span><span class="ticket-preview-qr"><i class="bi bi-qr-code" aria-hidden="true"></i><small>SCAN FOR ENTRY</small></span>
+              {% else %}
+                <span class="ticket-preview-date"><small>AUG</small><strong>22</strong><small>2026</small></span><span class="ticket-preview-copy"><small>EVENT TICKET</small><strong>Summer Track Day</strong><span>Demo Speedway · 9:00 AM</span></span><span class="ticket-preview-qr"><i class="bi bi-qr-code" aria-hidden="true"></i></span>
+              {% endif %}
+            </span>
+            <span class="ticket-design-name">{{ option.label.text }}{% if option.data == 'pit_pass' %}<small>Bold, motorsport-inspired ticket</small>{% else %}<small>Bright, minimal event ticket</small>{% endif %}</span>
+          </label>
+        {% endfor %}
+      </div>
+      {% if form.ticket_design.errors %}<span class="form-error">{{ form.ticket_design.errors[0] }}</span>{% endif %}
+    </fieldset>
     <label class="inline">{{ form.is_enabled() }} Enabled</label>
     <div class="inline">
       {{ form.submit(class_='btn') }}
@@ -35,7 +55,7 @@
       <code>{ticket_qr_link}</code>
     {% endif %}
   </div>
-  {% if template_key == 'driver_purchase_receipt' %}<p class="muted-line">The driver’s scannable QR image is attached and displayed automatically, even when you customize this message.</p>{% endif %}
+  <p class="muted-line">The scannable QR ticket and any configured Apple or Google Wallet buttons are displayed automatically, even when you customize this message.</p>
 </section>
 </div>
 {% endblock %}

@@ -2,10 +2,11 @@ import secrets
 import os
 import json
 import hashlib
+from io import BytesIO
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, Response, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, current_app, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
@@ -95,6 +96,43 @@ except Exception:  # pragma: no cover
 
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
+
+
+@user_bp.route("/tickets/<code>/wallet/apple")
+def apple_wallet_ticket(code):
+    from .services.wallet_service import build_apple_pass, resolve_wallet_ticket
+
+    ticket = resolve_wallet_ticket(code)
+    if not ticket:
+        abort(404)
+    try:
+        pass_data = build_apple_pass(ticket)
+    except Exception:
+        current_app.logger.exception("Could not build Apple Wallet pass for ticket %s", code)
+        return "Apple Wallet is temporarily unavailable for this ticket.", 503
+    filename = f"{ticket['event'].event_name}-ticket.pkpass"
+    safe_name = secure_filename(filename) or "trackops-ticket.pkpass"
+    return send_file(
+        BytesIO(pass_data),
+        mimetype="application/vnd.apple.pkpass",
+        as_attachment=True,
+        download_name=safe_name,
+        max_age=0,
+    )
+
+
+@user_bp.route("/tickets/<code>/wallet/google")
+def google_wallet_ticket(code):
+    from .services.wallet_service import build_google_wallet_url, resolve_wallet_ticket
+
+    ticket = resolve_wallet_ticket(code)
+    if not ticket:
+        abort(404)
+    try:
+        return redirect(build_google_wallet_url(ticket))
+    except Exception:
+        current_app.logger.exception("Could not build Google Wallet pass for ticket %s", code)
+        return "Google Wallet is temporarily unavailable for this ticket.", 503
 
 
 @user_bp.route("/rfid-tags", methods=["GET", "POST"])

@@ -104,6 +104,7 @@ class TrackEmailTemplate(db.Model):
     subject = db.Column(db.String(255), nullable=False)
     body = db.Column(db.Text, nullable=False)
     is_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    ticket_design = db.Column(db.String(30), nullable=False, default="pit_pass")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -248,6 +249,31 @@ class SystemEmailSettings(db.Model):
     password_encrypted = db.Column(db.Text, nullable=True)
     sender_name = db.Column(db.String(150), nullable=True)
     sender_email = db.Column(db.String(255), nullable=True)
+    updated_by_admin_id = db.Column(
+        db.Integer,
+        db.ForeignKey("enterprise_admins.id"),
+        nullable=True,
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    updated_by = db.relationship("EnterpriseAdmin")
+
+
+class SystemWalletSettings(db.Model):
+    __tablename__ = "system_wallet_settings"
+
+    id = db.Column(db.Integer, primary_key=True, default=1)
+    apple_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    apple_pass_type_id = db.Column(db.String(255), nullable=True)
+    apple_team_id = db.Column(db.String(50), nullable=True)
+    apple_certificate_encrypted = db.Column(db.Text, nullable=True)
+    apple_certificate_password_encrypted = db.Column(db.Text, nullable=True)
+    google_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    google_issuer_id = db.Column(db.String(100), nullable=True)
+    google_service_account_encrypted = db.Column(db.Text, nullable=True)
     updated_by_admin_id = db.Column(
         db.Integer,
         db.ForeignKey("enterprise_admins.id"),

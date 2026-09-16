@@ -5,7 +5,7 @@
     <div>
       <span class="section-eyebrow">Enterprise configuration</span>
       <h2>Admin Settings</h2>
-      <p>Configure system email and payments for Track Ops-owned products.</p>
+      <p>Configure system email, ticket wallets, and payments for Track Ops.</p>
     </div>
     <span class="smtp-status {{ 'ready' if email_config.configured else 'off' }}">
       <i class="bi {{ 'bi-check-circle-fill' if email_config.configured else 'bi-pause-circle-fill' }}" aria-hidden="true"></i>
@@ -92,6 +92,60 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="email" name="test_email" value="{{ current_user.email }}" aria-label="Test recipient email" required>
       <button type="submit" class="btn btn-secondary"><i class="bi bi-send" aria-hidden="true"></i> Send test</button>
+    </form>
+  </section>
+
+  <section id="wallet-passes" class="card admin-settings-card wallet-settings-card">
+    <div class="admin-settings-card-head">
+      <span class="settings-icon"><i class="bi bi-wallet2" aria-hidden="true"></i></span>
+      <div>
+        <h3>Ticket wallet passes</h3>
+        <p>Configure the platform signing credentials once. Tracks can then include working Apple and Google Wallet buttons in ticket emails.</p>
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('admin.update_wallet_settings') }}" enctype="multipart/form-data" class="wallet-settings-form" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if wallet_config.source == 'environment' and (wallet_config.apple_ready or wallet_config.google_ready) %}
+        <p class="settings-source-note"><i class="bi bi-cloud-check" aria-hidden="true"></i> Wallet credentials are currently supplied by the deployment environment. Saving here moves wallet configuration into encrypted admin-managed storage.</p>
+      {% endif %}
+      <div class="wallet-provider-grid">
+        <section class="wallet-provider-card">
+          <div class="wallet-provider-head">
+            <span class="wallet-provider-mark apple"><i class="bi bi-apple" aria-hidden="true"></i></span>
+            <div><h4>Apple Wallet</h4><p>Signed event-ticket passes for iPhone and Apple Watch.</p></div>
+            <span class="payment-status-pill {{ 'ready' if wallet_config.apple_ready else 'needs-work' }}">{{ 'Ready' if wallet_config.apple_ready else 'Needs setup' }}</span>
+          </div>
+          <label class="settings-toggle-row compact"><span><strong>Enable Apple Wallet</strong><small>Show the button when the signing setup is complete.</small></span><input type="checkbox" name="apple_enabled" value="1" {% if wallet_config.apple_enabled %}checked{% endif %}></label>
+          <div class="form-grid two-col wallet-credential-fields">
+            <label>Pass Type ID<input type="text" name="apple_pass_type_id" value="{{ wallet_config.apple_pass_type_id }}" placeholder="pass.com.example.trackops" spellcheck="false"><span class="hint">Created in Apple Developer Certificates, Identifiers &amp; Profiles.</span></label>
+            <label>Team ID<input type="text" name="apple_team_id" value="{{ wallet_config.apple_team_id }}" placeholder="ABC123DEFG" spellcheck="false"></label>
+            <label class="full">Signing certificate (.p12)<input type="file" name="apple_certificate" accept=".p12,application/x-pkcs12"><span class="hint">{{ 'Certificate saved — upload only to replace it.' if wallet_config.apple_certificate_saved else 'Export the Pass Type ID certificate and private key as a .p12 file.' }}</span></label>
+            <label class="full">Certificate password<input type="password" name="apple_certificate_password" placeholder="{{ 'Saved — enter only when replacing it' if wallet_config.apple_certificate_saved else 'Password used when exporting the .p12' }}" autocomplete="new-password"></label>
+          </div>
+          {% if wallet_config.apple_certificate_saved %}<label class="wallet-clear-option"><input type="checkbox" name="clear_apple_certificate" value="1"> Remove saved Apple certificate</label>{% endif %}
+          <a class="payment-doc-link" href="https://developer.apple.com/documentation/walletpasses/building-a-pass" target="_blank" rel="noopener noreferrer">Apple setup guide <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+        </section>
+
+        <section class="wallet-provider-card">
+          <div class="wallet-provider-head">
+            <span class="wallet-provider-mark google"><i class="bi bi-google" aria-hidden="true"></i></span>
+            <div><h4>Google Wallet</h4><p>Signed Save to Google Wallet links for Android and the web.</p></div>
+            <span class="payment-status-pill {{ 'ready' if wallet_config.google_ready else 'needs-work' }}">{{ 'Ready' if wallet_config.google_ready else 'Needs setup' }}</span>
+          </div>
+          <label class="settings-toggle-row compact"><span><strong>Enable Google Wallet</strong><small>Show the button when the issuer setup is complete.</small></span><input type="checkbox" name="google_enabled" value="1" {% if wallet_config.google_enabled %}checked{% endif %}></label>
+          <div class="form-grid wallet-credential-fields">
+            <label>Issuer ID<input type="text" name="google_issuer_id" value="{{ wallet_config.google_issuer_id }}" placeholder="3388000000022290000" spellcheck="false"></label>
+            <label>Service-account JSON<input type="file" name="google_service_account" accept=".json,application/json"><span class="hint">{{ 'Service account saved — upload only to replace it.' if wallet_config.google_service_account_saved else 'Upload the JSON key for the service account authorized in Google Wallet Console.' }}</span></label>
+          </div>
+          {% if wallet_config.google_service_account_saved %}<label class="wallet-clear-option"><input type="checkbox" name="clear_google_service_account" value="1"> Remove saved Google service account</label>{% endif %}
+          <a class="payment-doc-link" href="https://developers.google.com/wallet/tickets/events/web" target="_blank" rel="noopener noreferrer">Google setup guide <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+        </section>
+      </div>
+      <div class="smtp-form-footer">
+        <p><i class="bi bi-shield-lock" aria-hidden="true"></i> Certificate and service-account files are encrypted and never displayed again.</p>
+        <button type="submit" class="btn"><i class="bi bi-check2" aria-hidden="true"></i> Save wallet settings</button>
+      </div>
     </form>
   </section>
 

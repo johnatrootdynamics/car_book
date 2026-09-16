@@ -13,6 +13,7 @@ from sqlalchemy import or_
 from email_validator import EmailNotValidError, validate_email
 from werkzeug.security import generate_password_hash
 import secrets
+import json
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
@@ -31,6 +32,7 @@ from .models import (
     RfidTagSettings,
     SpectatorOrder,
     SystemEmailSettings,
+    SystemWalletSettings,
     Track,
     TrackWaiverTemplate,
     User,
@@ -40,6 +42,7 @@ from .models import (
 from .security import generate_random_password
 from .services.boldsign_service import list_templates
 from .services.email_service import (
+    encrypt_secret,
     encrypt_smtp_password,
     get_email_configuration,
     send_email,
@@ -51,6 +54,7 @@ from .services.email_service import (
     send_user_login_email,
     send_vendor_login_email,
 )
+from .services.wallet_service import get_wallet_configuration
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status
 from .services.ticket_service import ensure_order_ticket_codes
@@ -214,6 +218,7 @@ def settings():
         return guard
     smtp_settings = SystemEmailSettings.query.get(1)
     email_config = get_email_configuration(include_password=False)
+    wallet_config = get_wallet_configuration(include_secrets=False)
     enterprise_payment_methods = {
         method.provider: method
         for method in EnterprisePaymentMethod.query.all()
@@ -242,6 +247,7 @@ def settings():
         "admin/settings.html",
         smtp_settings=smtp_settings,
         email_config=email_config,
+        wallet_config=wallet_config,
         enterprise_payment_methods=enterprise_payment_methods,
         enterprise_payment_providers=ENTERPRISE_PAYMENT_PROVIDERS,
         enterprise_payment_docs=ENTERPRISE_PAYMENT_DOCS,
@@ -249,6 +255,130 @@ def settings():
         stripe_webhook_url=f"{public_base_url}{url_for('user.stripe_webhook')}",
         paypal_webhook_url=f"{public_base_url}{url_for('user.paypal_webhook')}",
     )
+
+
+@admin_bp.route("/settings/wallets", methods=["POST"])
+@login_required
+def update_wallet_settings():
+    guard = require_admin()
+    if guard:
+        return guard
+
+    settings = SystemWalletSettings.query.get(1)
+    if not settings:
+        settings = SystemWalletSettings(id=1)
+        db.session.add(settings)
+
+    apple_enabled = request.form.get("apple_enabled") == "1"
+    google_enabled = request.form.get("google_enabled") == "1"
+    apple_pass_type_id = (request.form.get("apple_pass_type_id") or "").strip()
+    apple_team_id = (request.form.get("apple_team_id") or "").strip()
+    apple_password = request.form.get("apple_certificate_password") or ""
+    google_issuer_id = (request.form.get("google_issuer_id") or "").strip()
+    apple_file = request.files.get("apple_certificate")
+    google_file = request.files.get("google_service_account")
+    apple_bytes = apple_file.read() if apple_file and apple_file.filename else b""
+    google_bytes = google_file.read() if google_file and google_file.filename else b""
+
+    if request.form.get("clear_apple_certificate") == "1":
+        settings.apple_certificate_encrypted = None
+        settings.apple_certificate_password_encrypted = None
+    if request.form.get("clear_google_service_account") == "1":
+        settings.google_service_account_encrypted = None
+
+    errors = []
+    if apple_bytes:
+        if len(apple_bytes) > 1_500_000:
+            errors.append("The Apple Wallet certificate must be smaller than 1.5 MB.")
+        else:
+            try:
+                from cryptography.x509.oid import NameOID
+                from cryptography.hazmat.primitives.serialization import pkcs12
+
+                key, certificate, _ = pkcs12.load_key_and_certificates(
+                    apple_bytes, apple_password.encode() or None
+                )
+                if not key or not certificate:
+                    raise ValueError("Signing identity missing")
+                certificate_pass_ids = certificate.subject.get_attributes_for_oid(
+                    NameOID.USER_ID
+                )
+                if (
+                    apple_pass_type_id
+                    and certificate_pass_ids
+                    and certificate_pass_ids[0].value != apple_pass_type_id
+                ):
+                    errors.append(
+                        "The Apple certificate does not match the entered Pass Type ID."
+                    )
+                certificate_team_ids = certificate.subject.get_attributes_for_oid(
+                    NameOID.ORGANIZATIONAL_UNIT_NAME
+                )
+                if (
+                    apple_team_id
+                    and certificate_team_ids
+                    and certificate_team_ids[0].value != apple_team_id
+                ):
+                    errors.append("The Apple certificate does not match the entered Team ID.")
+            except Exception:
+                errors.append("The Apple certificate or its password is not valid.")
+    if google_bytes:
+        if len(google_bytes) > 500_000:
+            errors.append("The Google service-account file must be smaller than 500 KB.")
+        else:
+            try:
+                google_data = json.loads(google_bytes.decode("utf-8"))
+                if not google_data.get("client_email") or not google_data.get("private_key"):
+                    raise ValueError("Required service-account fields are missing")
+                from cryptography.hazmat.primitives import serialization
+
+                serialization.load_pem_private_key(
+                    google_data["private_key"].encode("utf-8"), password=None
+                )
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+                errors.append("Upload a valid Google service-account JSON file.")
+
+    apple_certificate_will_exist = bool(
+        apple_bytes or settings.apple_certificate_encrypted
+    )
+    google_account_will_exist = bool(
+        google_bytes or settings.google_service_account_encrypted
+    )
+    if apple_enabled:
+        if not apple_pass_type_id or not apple_team_id:
+            errors.append("Apple Pass Type ID and Team ID are required.")
+        if not apple_certificate_will_exist:
+            errors.append("Upload an Apple Wallet signing certificate (.p12).")
+    if google_enabled:
+        if not google_issuer_id:
+            errors.append("Google Wallet Issuer ID is required.")
+        if not google_account_will_exist:
+            errors.append("Upload a Google Wallet service-account JSON file.")
+
+    if errors:
+        db.session.rollback()
+        for error in errors:
+            flash(error, "error")
+        return redirect(url_for("admin.settings") + "#wallet-passes")
+
+    settings.apple_enabled = apple_enabled
+    settings.apple_pass_type_id = apple_pass_type_id or None
+    settings.apple_team_id = apple_team_id or None
+    settings.google_enabled = google_enabled
+    settings.google_issuer_id = google_issuer_id or None
+    settings.updated_by_admin_id = current_user.id
+    if apple_bytes:
+        settings.apple_certificate_encrypted = encrypt_secret(apple_bytes)
+        settings.apple_certificate_password_encrypted = encrypt_secret(apple_password)
+    elif apple_password:
+        settings.apple_certificate_password_encrypted = encrypt_secret(apple_password)
+    if google_bytes:
+        settings.google_service_account_encrypted = encrypt_secret(
+            google_bytes.decode("utf-8")
+        )
+    db.session.commit()
+    flash("Wallet pass settings updated.", "success")
+    return redirect(url_for("admin.settings") + "#wallet-passes")
 
 
 @admin_bp.route("/settings/store-payments", methods=["POST"])

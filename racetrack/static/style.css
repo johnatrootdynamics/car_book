@@ -9609,3 +9609,122 @@ button.rental-slot-pill.selected { outline: 2px solid #3159d5; outline-offset: 1
   .community-run-attachment > a { grid-column: 2; }
 }
 .run-video-button{display:inline-flex;align-items:center;gap:8px;margin:0 0 16px;padding:10px 15px;border:0;border-radius:999px;background:#2563eb;color:#fff;font:inherit;font-weight:700;cursor:pointer}.run-video-button:hover{background:#1d4ed8}.run-video-dialog{width:min(960px,calc(100vw - 32px));max-width:none;padding:0;border:1px solid #334155;border-radius:16px;background:#080d18;color:#fff;box-shadow:0 24px 80px #000b}.run-video-dialog::backdrop{background:#020617d9;backdrop-filter:blur(4px)}.run-video-dialog header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#111827}.run-video-dialog header button{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:50%;background:#263248;color:#fff;cursor:pointer}.run-video-dialog video{display:block;width:100%;max-height:calc(100vh - 130px);background:#000}
+/* Ticket email design picker and enterprise wallet setup */
+.ticket-design-fieldset {
+  margin: 4px 0;
+  padding: 0;
+  border: 0;
+}
+.ticket-design-fieldset > legend {
+  padding: 0;
+  font-weight: 750;
+  color: var(--ui-text);
+}
+.ticket-design-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.ticket-design-option {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 15px;
+  background: var(--ui-surface);
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.ticket-design-option:hover { transform: translateY(-1px); border-color: #8aa5d4; }
+.ticket-design-option:has(input:checked) {
+  border-color: var(--ui-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 16%, transparent);
+}
+.ticket-design-option > input {
+  position: absolute;
+  top: 17px;
+  right: 17px;
+  width: 18px;
+  height: 18px;
+  z-index: 2;
+}
+.ticket-design-preview {
+  min-height: 120px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  overflow: hidden;
+  border-radius: 11px;
+  box-shadow: 0 8px 20px rgba(15,23,42,.12);
+}
+.ticket-design-preview.pit_pass { background: #111827; color: #fff; border-top: 5px solid #f97316; }
+.ticket-design-preview.clean_grid { grid-template-columns: 64px minmax(0, 1fr) 72px; background: #fff; color: #0f172a; border: 1px solid #dbe3ef; }
+.ticket-preview-copy { display: flex; flex-direction: column; justify-content: center; gap: 7px; padding: 15px; min-width: 0; }
+.ticket-preview-copy small { font-size: .55rem; font-weight: 800; letter-spacing: .09em; color: #fb923c; }
+.clean_grid .ticket-preview-copy small { color: #2563eb; }
+.ticket-preview-copy strong { font-size: .88rem; line-height: 1.15; }
+.ticket-preview-copy > span { font-size: .58rem; color: #aebbd0; }
+.clean_grid .ticket-preview-copy > span { color: #64748b; }
+.ticket-preview-qr { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; background: #fff; color: #0f172a; border-left: 1px dashed #cbd5e1; }
+.ticket-preview-qr i { font-size: 2.8rem; line-height: 1; }
+.ticket-preview-qr small { font-size: .45rem; font-weight: 800; letter-spacing: .05em; }
+.ticket-preview-date { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #1d4ed8; color: #fff; }
+.ticket-preview-date small { font-size: .54rem; font-weight: 800; letter-spacing: .08em; }
+.ticket-preview-date strong { font-size: 1.45rem; }
+.ticket-design-name { display: grid; gap: 2px; padding-right: 26px; font-weight: 750; }
+.ticket-design-name small { font-weight: 500; color: var(--ui-muted); }
+
+.wallet-settings-card { scroll-margin-top: 18px; }
+.settings-source-note {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: .86rem;
+}
+.wallet-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.wallet-provider-card {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 18px;
+  border: 1px solid var(--ui-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ui-surface) 96%, var(--ui-primary) 4%);
+}
+.wallet-provider-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.wallet-provider-head h4 { margin: 0; }
+.wallet-provider-head p { margin: 3px 0 0; color: var(--ui-muted); font-size: .8rem; line-height: 1.35; }
+.wallet-provider-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  font-size: 1.25rem;
+}
+.wallet-provider-mark.apple { color: #fff; background: #111; }
+.wallet-provider-mark.google { color: #fff; background: #4285f4; }
+.settings-toggle-row.compact { padding: 12px; }
+.wallet-credential-fields { align-items: start; }
+.wallet-clear-option { display: flex; align-items: center; gap: 8px; color: var(--ui-muted); font-size: .8rem; }
+.wallet-provider-card > .payment-doc-link { align-self: flex-start; margin-top: auto; }
+
+@media (max-width: 760px) {
+  .ticket-design-options,
+  .wallet-provider-grid { grid-template-columns: 1fr; }
+  .ticket-design-preview { min-height: 108px; }
+  .wallet-provider-head { grid-template-columns: auto minmax(0, 1fr); }
+  .wallet-provider-head .payment-status-pill { grid-column: 2; justify-self: start; }
+}
