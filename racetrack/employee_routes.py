@@ -152,6 +152,27 @@ def active_track_id():
     return current_user.track_id
 
 
+def _available_waiver_templates_for_track(provider_templates, track_id):
+    """Return templates that are unclaimed or already linked to this track."""
+    provider_ids = {
+        template["template_id"] for template in provider_templates
+        if template.get("template_id")
+    }
+    if not provider_ids:
+        return []
+    linked_templates = TrackWaiverTemplate.query.filter(
+        TrackWaiverTemplate.boldsign_template_id.in_(provider_ids)
+    ).all()
+    linked_track_ids = {}
+    for template in linked_templates:
+        linked_track_ids.setdefault(template.boldsign_template_id, set()).add(template.track_id)
+    return [
+        template for template in provider_templates
+        if not linked_track_ids.get(template["template_id"])
+        or track_id in linked_track_ids[template["template_id"]]
+    ]
+
+
 def _configure_event_waiver_choices(form, event=None):
     track_id = active_track_id()
     local_templates = TrackWaiverTemplate.query.filter_by(track_id=track_id).all()
@@ -3125,7 +3146,9 @@ def waiver_template_builder():
     boldsign_templates = []
     boldsign_error = None
     try:
-        boldsign_templates = list_templates()
+        boldsign_templates = _available_waiver_templates_for_track(
+            list_templates(), active_track_id()
+        )
     except Exception as exc:
         boldsign_error = str(exc)
         current_app.logger.warning("Could not load BoldSign templates: %s", exc)
@@ -3152,7 +3175,9 @@ def waiver_templates_api():
         track_id=active_track_id(), is_active=True, required_for_checkin=True
     ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
     try:
-        templates = list_templates()
+        templates = _available_waiver_templates_for_track(
+            list_templates(), active_track_id()
+        )
     except Exception as exc:
         current_app.logger.warning("Could not load BoldSign templates: %s", exc)
         return jsonify({"ok": False, "error": "Could not load signing templates."}), 502
@@ -3205,12 +3230,21 @@ def waiver_template_select():
         return redirect(url_for("employee.waiver_template_builder"))
 
     track_id = active_track_id()
+    claimed_by_another_track = TrackWaiverTemplate.query.filter(
+        TrackWaiverTemplate.boldsign_template_id == provider_template_id,
+        TrackWaiverTemplate.track_id != track_id,
+    ).first()
+    current_track_link = TrackWaiverTemplate.query.filter_by(
+        track_id=track_id, boldsign_template_id=provider_template_id
+    ).first()
+    if claimed_by_another_track and not current_track_link:
+        flash("That waiver is already assigned to another track.", "error")
+        return redirect(url_for("employee.waiver_template_builder"))
+
     TrackWaiverTemplate.query.filter_by(
         track_id=track_id, is_active=True, required_for_checkin=True
     ).update({"is_active": False, "required_for_checkin": False})
-    selected = TrackWaiverTemplate.query.filter_by(
-        track_id=track_id, boldsign_template_id=provider_template_id
-    ).first()
+    selected = current_track_link
     if not selected:
         selected = TrackWaiverTemplate(
             track_id=track_id,
@@ -3284,7 +3318,11 @@ def waiver_template_delete(template_id):
         flash("This waiver is assigned to an event and cannot be deleted.", "error")
         return redirect(url_for("employee.waiver_template_builder"))
     try:
-        if template.boldsign_template_id:
+        linked_elsewhere = TrackWaiverTemplate.query.filter(
+            TrackWaiverTemplate.boldsign_template_id == template.boldsign_template_id,
+            TrackWaiverTemplate.id != template.id,
+        ).first()
+        if template.boldsign_template_id and not linked_elsewhere:
             boldsign_delete_template(template.boldsign_template_id)
     except Exception as exc:
         current_app.logger.warning(

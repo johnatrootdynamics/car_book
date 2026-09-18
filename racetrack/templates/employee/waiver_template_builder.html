@@ -20,7 +20,7 @@
 </section>
 
 <section class="card waiver-selection-card">
-  <div class="enterprise-section-head"><div><span>Signing provider</span><h3>Choose from BoldSign templates</h3><p>Templates are loaded directly from the connected BoldSign account.</p></div><strong>{{ boldsign_templates|length }}</strong></div>
+  <div class="enterprise-section-head"><div><span>Signing provider</span><h3>Choose from available BoldSign templates</h3><p>Templates already assigned to another track are hidden. Unassigned templates can be claimed by this track.</p></div><strong>{{ boldsign_templates|length }}</strong></div>
   {% if boldsign_error %}
     <div class="admin-waiver-inline-empty"><i class="bi bi-cloud-slash" aria-hidden="true"></i><span>BoldSign templates could not be loaded. Refresh this page to try again.</span></div>
   {% elif boldsign_templates %}

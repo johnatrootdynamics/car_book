@@ -189,6 +189,26 @@ def require_admin():
     return None
 
 
+def _available_waiver_templates_for_track(provider_templates, track_id):
+    provider_ids = {
+        template["template_id"] for template in provider_templates
+        if template.get("template_id")
+    }
+    if not provider_ids:
+        return []
+    linked_templates = TrackWaiverTemplate.query.filter(
+        TrackWaiverTemplate.boldsign_template_id.in_(provider_ids)
+    ).all()
+    linked_track_ids = {}
+    for template in linked_templates:
+        linked_track_ids.setdefault(template.boldsign_template_id, set()).add(template.track_id)
+    return [
+        template for template in provider_templates
+        if not linked_track_ids.get(template["template_id"])
+        or track_id in linked_track_ids[template["template_id"]]
+    ]
+
+
 @admin_bp.route("/dashboard")
 @login_required
 def dashboard():
@@ -895,7 +915,9 @@ def waivers():
             .all()
         )
         try:
-            boldsign_templates = list_templates()
+            boldsign_templates = _available_waiver_templates_for_track(
+                list_templates(), track_id
+            )
         except Exception as exc:
             flash(f"Could not load BoldSign templates: {exc}", "error")
     return render_template(
@@ -927,8 +949,16 @@ def waivers_new():
         if pref_title and not form.title.data:
             form.title.data = pref_title
     if form.validate_on_submit():
+        provider_template_id = form.boldsign_template_id.data.strip()
+        claimed_by_another_track = TrackWaiverTemplate.query.filter(
+            TrackWaiverTemplate.boldsign_template_id == provider_template_id,
+            TrackWaiverTemplate.track_id != track_id,
+        ).first()
+        if claimed_by_another_track:
+            flash("That BoldSign template is already assigned to another track.", "error")
+            return render_template("admin/waivers_new.html", form=form)
         existing = TrackWaiverTemplate.query.filter_by(
-            track_id=track_id, boldsign_template_id=form.boldsign_template_id.data.strip()
+            track_id=track_id, boldsign_template_id=provider_template_id
         ).first()
         if existing:
             flash("That BoldSign template is already linked for this track.", "error")
@@ -940,7 +970,7 @@ def waivers_new():
         template = TrackWaiverTemplate(
             track_id=track_id,
             title=form.title.data.strip(),
-            boldsign_template_id=form.boldsign_template_id.data.strip(),
+            boldsign_template_id=provider_template_id,
             is_active=bool(form.is_active.data),
             required_for_checkin=bool(form.required_for_checkin.data),
         )
