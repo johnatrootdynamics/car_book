@@ -345,11 +345,21 @@ def scanner_data():
 
 @employee_bp.route("/live-track")
 @login_required
-def live_track():
+def live_track_legacy():
     guard = require_employee()
     if guard:
         return guard
-    return render_template("employee/live_track.html")
+    return redirect(url_for("employee.events_index"))
+
+
+@employee_bp.route("/events/<int:event_id>/live-track")
+@login_required
+def live_track(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    return render_template("employee/live_track.html", event=event, today=date.today())
 
 
 @employee_bp.route("/cameras")
@@ -403,29 +413,29 @@ def camera_update(camera_id):
 
 @employee_bp.get("/run-history")
 @login_required
-def run_history():
+def run_history_legacy():
     guard = require_employee()
     if guard:
         return guard
-    events = Event.query.filter_by(track_id=active_track_id()).order_by(Event.event_date.desc(), Event.event_start_time.desc()).all()
-    selected_event = None
-    raw_event_id = request.args.get("event_id", type=int)
-    if raw_event_id:
-        selected_event = Event.query.filter_by(id=raw_event_id, track_id=active_track_id()).first_or_404()
-    if not selected_event:
-        event_ids_with_runs = {
-            row[0] for row in db.session.query(TrackRun.event_id)
-            .filter(TrackRun.track_id == active_track_id(), TrackRun.event_id.isnot(None)).distinct().all()
-        }
-        selected_event = next((event for event in events if event.id in event_ids_with_runs), events[0] if events else None)
-    runs = []
-    if selected_event:
-        runs = TrackRun.query.filter_by(
-            track_id=active_track_id(), event_id=selected_event.id
-        ).order_by(TrackRun.started_at.asc()).all()
+    legacy_event_id = request.args.get("event_id", type=int)
+    if legacy_event_id:
+        event = Event.query.filter_by(id=legacy_event_id, track_id=active_track_id()).first_or_404()
+        return redirect(url_for("employee.run_history", event_id=event.id))
+    return redirect(url_for("employee.events_index"))
+
+
+@employee_bp.get("/events/<int:event_id>/run-history")
+@login_required
+def run_history(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    runs = TrackRun.query.filter_by(
+        track_id=active_track_id(), event_id=event.id
+    ).order_by(TrackRun.started_at.asc()).all()
     return render_template(
-        "employee/run_history.html", events=events,
-        selected_event=selected_event, runs=runs,
+        "employee/run_history.html", event=event, runs=runs, today=date.today(),
     )
 
 
@@ -447,19 +457,20 @@ def event_run_voting(event_id):
     return redirect(url_for("employee.event_detail", event_id=event.id, view="general"))
 
 
-@employee_bp.get("/live-track/data")
+@employee_bp.get("/events/<int:event_id>/live-track/data")
 @login_required
-def live_track_data():
+def live_track_data(event_id):
     guard = require_employee()
     if guard:
         return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
     expire_stale_track_states(active_track_id())
-    states = TrackCarStatus.query.filter_by(track_id=active_track_id(), is_on_track=True).order_by(TrackCarStatus.changed_at.asc()).all()
-    today_event_ids = [row[0] for row in db.session.query(Event.id).filter_by(track_id=active_track_id(), event_date=date.today()).all()]
-    completed_query = TrackRun.query.filter_by(track_id=active_track_id(), status="completed")
-    if today_event_ids:
-        completed_query = completed_query.filter(TrackRun.event_id.in_(today_event_ids))
-    completed_runs = completed_query.order_by(TrackRun.ended_at.desc()).limit(12).all()
+    states = TrackCarStatus.query.filter_by(
+        track_id=active_track_id(), event_id=event.id, is_on_track=True
+    ).order_by(TrackCarStatus.changed_at.asc()).all()
+    completed_runs = TrackRun.query.filter_by(
+        track_id=active_track_id(), event_id=event.id, status="completed"
+    ).order_by(TrackRun.ended_at.desc()).limit(12).all()
     return jsonify(count=len(states), cars=[{
         "car_id": state.car_id,
         "car": f"{state.car.car_year} {state.car.make} {state.car.model}",
