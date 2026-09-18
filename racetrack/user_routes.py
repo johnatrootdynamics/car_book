@@ -42,6 +42,7 @@ from .models import (
     SpectatorTicketType,
     Track,
     TrackDriverClass,
+    TrackDriverClassOption,
     TrackPaymentMethod,
     TrackSubscription,
     TrackRun,
@@ -723,6 +724,20 @@ def _safe_send_email(send_fn, *args):
         current_app.logger.warning("Email send failed: %s", exc)
 
 
+def _default_track_class_name(track_id):
+    options = TrackDriverClassOption.query.filter_by(track_id=track_id).order_by(
+        TrackDriverClassOption.sort_order.asc(), TrackDriverClassOption.id.asc()
+    ).all()
+    if not options:
+        options = [
+            TrackDriverClassOption(track_id=track_id, name=name, sort_order=index)
+            for index, name in enumerate(("A", "B", "C"))
+        ]
+        db.session.add_all(options)
+        db.session.flush()
+    return next((option.name for option in options if option.name == "C"), options[0].name)
+
+
 def _create_driver_post_purchase_steps(driver_ticket_order):
     event = driver_ticket_order.event
     user = driver_ticket_order.buyer
@@ -743,7 +758,10 @@ def _create_driver_post_purchase_steps(driver_ticket_order):
 
     track_class = TrackDriverClass.query.filter_by(track_id=event.track_id, user_id=user.id).first()
     if not track_class:
-        db.session.add(TrackDriverClass(track_id=event.track_id, user_id=user.id, driver_class="C"))
+        db.session.add(TrackDriverClass(
+            track_id=event.track_id, user_id=user.id,
+            driver_class=_default_track_class_name(event.track_id),
+        ))
 
     if event.event_type != "private" and not SocialPost.query.filter_by(event_registration_id=reg.id).first():
         db.session.add(
@@ -876,7 +894,10 @@ def _finalize_private_rental_booking(booking, transaction_id=None):
         user_id=booking.user_id,
     ).first():
         db.session.add(
-            TrackDriverClass(track_id=slot.track_id, user_id=booking.user_id, driver_class="C")
+            TrackDriverClass(
+                track_id=slot.track_id, user_id=booking.user_id,
+                driver_class=_default_track_class_name(slot.track_id),
+            )
         )
     if not TrackSubscription.query.filter_by(
         track_id=slot.track_id,
@@ -1025,7 +1046,9 @@ def dashboard():
             "checked_in": bool(registration and registration.checked_in_at),
             "inspection": inspection,
         }
-        driver_class = track_class_by_track_id.get(event.track_id, "C")
+        driver_class = track_class_by_track_id.get(
+            event.track_id, _default_track_class_name(event.track_id)
+        )
         slot = (
             EventClassSlot.query.filter_by(event_id=event.id, class_code=driver_class)
             .order_by(EventClassSlot.start_time.asc())
@@ -1505,7 +1528,10 @@ def event_hub(event_id):
             track_id=event.track_id,
             user_id=current_user.id,
         ).first()
-        driver_class = driver_class_record.driver_class if driver_class_record else "C"
+        driver_class = (
+            driver_class_record.driver_class
+            if driver_class_record else _default_track_class_name(event.track_id)
+        )
         slots = (
             EventClassSlot.query.filter_by(event_id=event.id)
             .order_by(EventClassSlot.start_time.asc())
@@ -2833,7 +2859,10 @@ def subscribe_track(track_id):
         db.session.add(TrackSubscription(track_id=track_id, user_id=current_user.id))
         track_class = TrackDriverClass.query.filter_by(track_id=track_id, user_id=current_user.id).first()
         if not track_class:
-            db.session.add(TrackDriverClass(track_id=track_id, user_id=current_user.id, driver_class="C"))
+            db.session.add(TrackDriverClass(
+                track_id=track_id, user_id=current_user.id,
+                driver_class=_default_track_class_name(track_id),
+            ))
         db.session.commit()
         flash("Track subscribed.", "success")
     return redirect(url_for("user.discover"))

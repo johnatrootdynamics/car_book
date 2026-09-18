@@ -16,31 +16,36 @@
     <span class="driver-class-pill driver-class-{{ current_driver_class }} driver-profile-class">Class {{ current_driver_class }}</span>
   </header>
 
-  <section class="driver-profile-metrics" aria-label="Driver summary">
-    <article><small>Events attended</small><strong>{{ attended_count }}</strong><span>Checked in at {{ track.name }}</span></article>
-    <article><small>Total registrations</small><strong>{{ registrations|length }}</strong><span>{{ (registrations|length) - attended_count }} registered only</span></article>
-    <article><small>Inspections passed</small><strong>{{ passed_inspection_count }}</strong><span>Across this track’s events</span></article>
-    <article><small>Internal notes</small><strong>{{ notes|length }}</strong><span>Visible only to track staff</span></article>
-  </section>
-
   <div class="driver-profile-top-grid">
     <section class="card driver-class-panel">
       <div class="driver-profile-section-head">
         <div><span>Track-specific</span><h3>Driver class</h3></div>
         <span class="driver-class-pill driver-class-{{ current_driver_class }}">Current {{ current_driver_class }}</span>
       </div>
-      <p class="muted-line">Class changes apply to future scheduling and run-group generation at {{ track.name }}.</p>
-      <div class="driver-profile-class-actions">
-        {% for class_code, class_name in [('A', 'Advanced'), ('B', 'Intermediate'), ('C', 'Novice')] %}
-          <form method="post" action="{{ url_for('employee.update_driver_class', track_id=track.id, user_id=driver.id) }}">
+      <p class="muted-line">Used for schedules and automatically generated run groups at {{ track.name }}.</p>
+      <form method="post" action="{{ url_for('employee.update_driver_class', track_id=track.id, user_id=driver.id) }}" class="driver-class-select-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="driver-class-select">Assigned class</label>
+        <select id="driver-class-select" name="driver_class">
+          {% for option in class_options %}<option value="{{ option.name }}" {% if current_driver_class == option.name %}selected{% endif %}>{{ option.name }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-sm" type="submit">Save class</button>
+      </form>
+      {% if is_office_staff %}
+        <details class="driver-class-manage">
+          <summary>Manage track classes</summary>
+          <form method="post" action="{{ url_for('employee.driver_class_create') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="driver_class" value="{{ class_code }}">
-            <button type="submit" class="driver-profile-class-option driver-class-option-{{ class_code }} {% if current_driver_class == class_code %}active{% endif %}">
-              <strong>{{ class_code }}</strong><span>{{ class_name }}</span>{% if current_driver_class == class_code %}<i class="bi bi-check-circle-fill" aria-hidden="true"></i>{% endif %}
-            </button>
+            <input name="class_name" maxlength="50" placeholder="New class name" required>
+            <button class="btn btn-secondary btn-sm" type="submit">Add</button>
           </form>
-        {% endfor %}
-      </div>
+          <div class="driver-class-manage-list">
+            {% for option in class_options %}
+              <span><b class="driver-class-pill">{{ option.name }}</b><form method="post" action="{{ url_for('employee.driver_class_delete', class_id=option.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" aria-label="Delete {{ option.name }}"><i class="bi bi-x-lg"></i></button></form></span>
+            {% endfor %}
+          </div>
+        </details>
+      {% endif %}
       {% if class_changes %}
         <p class="driver-class-last-change">Last changed by <strong>{{ class_changes[0].changed_by_name }}</strong> on {{ class_changes[0].created_at.strftime('%b %-d, %Y at %-I:%M %p') }}.</p>
       {% elif class_record %}
@@ -113,8 +118,8 @@
     {% endif %}
   </section>
 
-  <section class="card driver-class-history-panel">
-    <div class="driver-profile-section-head"><div><span>Audit trail</span><h3>Class change history</h3></div><span>{{ class_changes|length }}</span></div>
+  <details class="card driver-class-history-panel">
+    <summary class="driver-profile-section-head"><div><span>Audit trail</span><h3>Class change history</h3></div><span>{{ class_changes|length }} <i class="bi bi-chevron-down"></i></span></summary>
     {% if class_changes %}
       <div class="driver-class-history-list">
         {% for change in class_changes %}
@@ -127,6 +132,6 @@
     {% else %}
       <div class="driver-profile-empty compact"><i class="bi bi-clock-history" aria-hidden="true"></i><span>No recorded class changes yet.</span></div>
     {% endif %}
-  </section>
+  </details>
 </div>
 {% endblock %}

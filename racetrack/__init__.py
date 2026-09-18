@@ -490,6 +490,22 @@ def create_app():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS driver_class CHAR(1) NOT NULL DEFAULT 'C'"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE track_driver_classes MODIFY COLUMN driver_class VARCHAR(50) NOT NULL DEFAULT 'C'"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE driver_class_changes MODIFY COLUMN previous_class VARCHAR(50) NOT NULL, MODIFY COLUMN new_class VARCHAR(50) NOT NULL"
+            )
+            check_exists = conn.exec_driver_sql(
+                "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema = DATABASE() AND table_name = 'event_class_slots' AND constraint_name = 'chk_event_class_slot_code' AND constraint_type = 'CHECK'"
+            ).scalar()
+            if check_exists:
+                conn.exec_driver_sql(
+                    "ALTER TABLE event_class_slots DROP CHECK chk_event_class_slot_code"
+                )
+            conn.exec_driver_sql(
+                "ALTER TABLE event_class_slots MODIFY COLUMN class_code VARCHAR(50) NOT NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR(500) NULL"
             )
             conn.exec_driver_sql(
@@ -524,7 +540,7 @@ def create_app():
                 "UPDATE users SET driver_class = 'C' WHERE driver_class IS NULL OR driver_class NOT IN ('A','B','C')"
             )
             conn.exec_driver_sql(
-                "UPDATE track_driver_classes SET driver_class = 'C' WHERE driver_class IS NULL OR driver_class NOT IN ('A','B','C')"
+                "INSERT IGNORE INTO track_driver_class_options (track_id, name, sort_order, created_at) SELECT t.id, defaults.name, defaults.sort_order, NOW() FROM tracks t JOIN (SELECT 'A' AS name, 0 AS sort_order UNION ALL SELECT 'B', 1 UNION ALL SELECT 'C', 2) defaults WHERE NOT EXISTS (SELECT 1 FROM track_driver_class_options existing WHERE existing.track_id = t.id)"
             )
             conn.exec_driver_sql(
                 "INSERT IGNORE INTO track_driver_classes (track_id, user_id, driver_class, created_at, updated_at) SELECT DISTINCT e.track_id, er.user_id, CASE WHEN u.driver_class IN ('A','B','C') THEN u.driver_class ELSE 'C' END, NOW(), NOW() FROM event_registrations er JOIN events e ON e.id = er.event_id JOIN users u ON u.id = er.user_id"

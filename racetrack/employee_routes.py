@@ -42,6 +42,7 @@ from .models import (
     TrackRunParticipant,
     TrackRunVideo,
     TrackDriverClass,
+    TrackDriverClassOption,
     TrackEmailTemplate,
     TrackLayout,
     TrackPaymentMethod,
@@ -225,10 +226,30 @@ def _assign_event_waiver_to_registrations(event, template):
 def _get_or_create_track_driver_class(track_id, user_id):
     record = TrackDriverClass.query.filter_by(track_id=track_id, user_id=user_id).first()
     if not record:
-        record = TrackDriverClass(track_id=track_id, user_id=user_id, driver_class="C")
+        class_names = _track_class_names(track_id)
+        default_class = "C" if "C" in class_names else class_names[0]
+        record = TrackDriverClass(track_id=track_id, user_id=user_id, driver_class=default_class)
         db.session.add(record)
         db.session.flush()
     return record
+
+
+def _track_class_options(track_id):
+    options = TrackDriverClassOption.query.filter_by(track_id=track_id).order_by(
+        TrackDriverClassOption.sort_order.asc(), TrackDriverClassOption.id.asc()
+    ).all()
+    if not options:
+        options = [
+            TrackDriverClassOption(track_id=track_id, name=name, sort_order=index)
+            for index, name in enumerate(("A", "B", "C"))
+        ]
+        db.session.add_all(options)
+        db.session.commit()
+    return options
+
+
+def _track_class_names(track_id):
+    return [option.name for option in _track_class_options(track_id)]
 
 
 def _current_staff_actor():
@@ -2251,6 +2272,7 @@ def event_detail(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    class_options = _track_class_options(event.track_id)
     track_layouts = TrackLayout.query.filter_by(track_id=event.track_id).order_by(TrackLayout.name.asc()).all()
 
     regs = EventRegistration.query.filter_by(event_id=event.id).order_by(EventRegistration.created_at.asc()).all()
@@ -2264,7 +2286,7 @@ def event_detail(event_id):
     )
     signup_trend = [{"day": str(day), "count": count} for day, count in signup_by_day]
 
-    class_counts = {"A": 0, "B": 0, "C": 0}
+    class_counts = {option.name: 0 for option in class_options}
     for reg in regs:
         dc = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
         if dc not in class_counts:
@@ -2335,6 +2357,7 @@ def event_detail(event_id):
         inspections=inspections,
         waiver_status=waiver_status,
         class_slots=class_slots,
+        class_options=class_options,
         today=date.today(),
     )
 
@@ -2346,10 +2369,10 @@ def event_slot_new(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
-    class_code = (request.form.get("class_code") or "").strip().upper()
+    class_code = (request.form.get("class_code") or "").strip()
     start_time = request.form.get("start_time")
     end_time = request.form.get("end_time")
-    if class_code not in {"A", "B", "C"} or not start_time or not end_time:
+    if class_code not in _track_class_names(event.track_id) or not start_time or not end_time:
         flash("Class, start time, and end time are required.", "error")
         return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
     try:
@@ -2392,11 +2415,11 @@ def event_slot_save(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
-    class_code = (request.form.get("class_code") or "").strip().upper()
+    class_code = (request.form.get("class_code") or "").strip()
     slot_id = request.form.get("slot_id", type=int)
     start_time = request.form.get("start_time")
     end_time = request.form.get("end_time")
-    if class_code not in {"A", "B", "C"} or not start_time or not end_time:
+    if class_code not in _track_class_names(event.track_id) or not start_time or not end_time:
         flash("Class, start time, and end time are required.", "error")
         return redirect(url_for("employee.event_detail", event_id=event.id, view="slots"))
     try:
@@ -2607,7 +2630,7 @@ def run_group_generate(event_id):
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
     force = request.form.get("force") == "1"
 
-    default_names = ["A", "B", "C"]
+    default_names = _track_class_names(event.track_id)
     group_by_name = {
         group.name: group
         for group in RunGroup.query.filter_by(event_id=event.id).all()
@@ -2622,7 +2645,7 @@ def run_group_generate(event_id):
     registrations = EventRegistration.query.filter_by(event_id=event.id).all()
     for reg in registrations:
         driver_class = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
-        target_group = group_by_name.get(driver_class) or group_by_name["C"]
+        target_group = group_by_name.get(driver_class) or group_by_name[default_names[0]]
         existing = RunGroupAssignment.query.filter_by(event_registration_id=reg.id).first()
         if existing and not force:
             continue
@@ -2859,13 +2882,8 @@ def driver_profile(user_id):
         for registration in registrations
         if registration.checked_in_at or inspections.get(registration.id)
     }
-    attended_count = len(attended_registration_ids)
-    passed_inspection_count = sum(
-        1
-        for registration in registrations
-        if inspections.get(registration.id) and inspections[registration.id].passed
-    )
     class_record = TrackDriverClass.query.filter_by(track_id=track_id, user_id=driver.id).first()
+    class_options = _track_class_options(track_id)
     class_changes = (
         DriverClassChange.query.filter_by(track_id=track_id, user_id=driver.id)
         .order_by(DriverClassChange.created_at.desc())
@@ -2888,11 +2906,12 @@ def driver_profile(user_id):
         track=Track.query.get_or_404(track_id),
         registrations=registrations,
         inspections=inspections,
-        attended_count=attended_count,
         attended_registration_ids=attended_registration_ids,
-        passed_inspection_count=passed_inspection_count,
         class_record=class_record,
-        current_driver_class=class_record.driver_class if class_record else "C",
+        current_driver_class=class_record.driver_class if class_record else (
+            "C" if any(option.name == "C" for option in class_options) else class_options[0].name
+        ),
+        class_options=class_options,
         class_changes=class_changes,
         notes=notes,
         used_cars=used_cars,
@@ -2987,8 +3006,8 @@ def update_driver_class(track_id, user_id):
         return redirect(url_for("employee.dashboard"))
     driver = _load_track_driver(track_id, user_id)
 
-    selected = (request.form.get("driver_class") or "").strip().upper()
-    if selected not in {"A", "B", "C"}:
+    selected = (request.form.get("driver_class") or "").strip()
+    if selected not in _track_class_names(track_id):
         flash("Invalid class selected.", "error")
         return redirect(request.referrer or url_for("employee.dashboard"))
 
@@ -3015,6 +3034,59 @@ def update_driver_class(track_id, user_id):
     db.session.commit()
     flash(f"{driver.first_name} {driver.last_name} moved from class {previous_class} to {selected}.", "success")
     return redirect(request.referrer or url_for("employee.driver_profile", user_id=user_id))
+
+
+@employee_bp.post("/driver-classes")
+@login_required
+def driver_class_create():
+    guard = require_office_staff()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    name = " ".join((request.form.get("class_name") or "").split())
+    if not 1 <= len(name) <= 50:
+        flash("Class names must be between 1 and 50 characters.", "error")
+    elif TrackDriverClassOption.query.filter(
+        TrackDriverClassOption.track_id == track_id,
+        func.lower(TrackDriverClassOption.name) == name.lower(),
+    ).first():
+        flash("That driver class already exists.", "error")
+    else:
+        max_sort = db.session.query(func.max(TrackDriverClassOption.sort_order)).filter_by(
+            track_id=track_id
+        ).scalar()
+        db.session.add(TrackDriverClassOption(
+            track_id=track_id, name=name, sort_order=(max_sort or 0) + 1
+        ))
+        db.session.commit()
+        flash(f"Driver class {name} created.", "success")
+    return redirect(request.referrer or url_for("employee.drivers"))
+
+
+@employee_bp.post("/driver-classes/<int:class_id>/delete")
+@login_required
+def driver_class_delete(class_id):
+    guard = require_office_staff()
+    if guard:
+        return guard
+    option = TrackDriverClassOption.query.filter_by(
+        id=class_id, track_id=active_track_id()
+    ).first_or_404()
+    assigned = TrackDriverClass.query.filter_by(
+        track_id=option.track_id, driver_class=option.name
+    ).first()
+    scheduled = EventClassSlot.query.join(Event, Event.id == EventClassSlot.event_id).filter(
+        Event.track_id == option.track_id, EventClassSlot.class_code == option.name
+    ).first()
+    if assigned or scheduled:
+        flash("Move assigned drivers and remove scheduled slots before deleting this class.", "error")
+    elif TrackDriverClassOption.query.filter_by(track_id=option.track_id).count() <= 1:
+        flash("A track must keep at least one driver class.", "error")
+    else:
+        db.session.delete(option)
+        db.session.commit()
+        flash(f"Driver class {option.name} deleted.", "success")
+    return redirect(request.referrer or url_for("employee.drivers"))
 
 
 @employee_bp.route("/inspection-rules", methods=["POST"])

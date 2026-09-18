@@ -78,6 +78,10 @@ class Track(db.Model):
     driver_classes = db.relationship(
         "TrackDriverClass", backref="track", cascade="all, delete-orphan"
     )
+    class_options = db.relationship(
+        "TrackDriverClassOption", backref="track", cascade="all, delete-orphan",
+        order_by="TrackDriverClassOption.sort_order",
+    )
     layouts = db.relationship("TrackLayout", backref="track", cascade="all, delete-orphan")
 
 
@@ -592,7 +596,7 @@ class TrackDriverClass(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    driver_class = db.Column(db.String(1), nullable=False, default="C")
+    driver_class = db.Column(db.String(50), nullable=False, default="C")
     updated_by_employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
@@ -606,14 +610,28 @@ class TrackDriverClass(db.Model):
     )
 
 
+class TrackDriverClassOption(db.Model):
+    __tablename__ = "track_driver_class_options"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False, index=True)
+    name = db.Column(db.String(50), nullable=False)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("track_id", "name", name="uniq_track_driver_class_option"),
+    )
+
+
 class DriverClassChange(db.Model):
     __tablename__ = "driver_class_changes"
 
     id = db.Column(db.Integer, primary_key=True)
     track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    previous_class = db.Column(db.String(1), nullable=False)
-    new_class = db.Column(db.String(1), nullable=False)
+    previous_class = db.Column(db.String(50), nullable=False)
+    new_class = db.Column(db.String(50), nullable=False)
     changed_by_type = db.Column(db.String(20), nullable=False)
     changed_by_id = db.Column(db.Integer, nullable=False)
     changed_by_name = db.Column(db.String(150), nullable=False)
@@ -688,14 +706,11 @@ class EventClassSlot(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
-    class_code = db.Column(db.String(1), nullable=False)
+    class_code = db.Column(db.String(50), nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    __table_args__ = (
-        db.CheckConstraint("class_code IN ('A','B','C')", name="chk_event_class_slot_code"),
-    )
 
 
 class SpectatorTicketOrder(db.Model):

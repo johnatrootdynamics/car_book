@@ -256,7 +256,8 @@
           <p class="muted-line">Read-only schedule set by office staff.</p>
           {% if class_slots %}
             <div class="track-schedule-grid">
-              {% for class_code in ['A', 'B', 'C'] %}
+              {% for class_option in class_options %}
+                {% set class_code = class_option.name %}
                 {% set slots_for_class = class_slots|selectattr('class_code', 'equalto', class_code)|list %}
                 <article class="track-schedule-class">
                   <span class="driver-class-pill driver-class-{{ class_code }}">Class {{ class_code }}</span>
@@ -290,11 +291,9 @@
             {% set ns.time_options = ns.time_options + [value] %}
           {% endfor %}
         {% endif %}
-        {% set slot_a = (class_slots|selectattr('class_code', 'equalto', 'A')|list|first) %}
-        {% set slot_b = (class_slots|selectattr('class_code', 'equalto', 'B')|list|first) %}
-        {% set slot_c = (class_slots|selectattr('class_code', 'equalto', 'C')|list|first) %}
         <div class="form-grid" style="margin-bottom:14px;">
-          {% for class_code in ['A', 'B', 'C'] %}
+          {% for class_option in class_options %}
+            {% set class_code = class_option.name %}
             {% set slots_for_class = class_slots|selectattr('class_code', 'equalto', class_code)|list %}
             <details class="card" style="margin:0;">
               <summary class="row-space" style="cursor:pointer; list-style:none;">
@@ -447,9 +446,7 @@
       <section class="card">
         <h3>Driver Class Breakdown</h3>
         <div class="actions-row" style="flex-wrap:wrap; gap:14px;">
-          <span class="driver-class-pill driver-class-A">Class A <strong>{{ class_counts.get('A', 0) }}</strong></span>
-          <span class="driver-class-pill driver-class-B">Class B <strong>{{ class_counts.get('B', 0) }}</strong></span>
-          <span class="driver-class-pill driver-class-C">Class C <strong>{{ class_counts.get('C', 0) }}</strong></span>
+          {% for class_option in class_options %}<span class="driver-class-pill">Class {{ class_option.name }} <strong>{{ class_counts.get(class_option.name, 0) }}</strong></span>{% endfor %}
           <span class="badge badge-viewed">Total {{ total_signups }}</span>
         </div>
       </section>
