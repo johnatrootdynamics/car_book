@@ -122,8 +122,8 @@ def driver_waivers():
         .all()
     )
     templates = (
-        TrackWaiverTemplate.query.filter_by(is_active=True)
-        .order_by(TrackWaiverTemplate.updated_at.desc())
+        TrackWaiverTemplate.query.filter_by(is_active=True, required_for_checkin=True)
+        .order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc())
         .all()
     )
     return render_template("driver/waivers.html", waivers=waivers, templates=templates)
@@ -396,16 +396,15 @@ def waiver_debug():
 
 
 def get_required_waiver_status(track_id, driver_id, event_id=None):
-    required_templates = TrackWaiverTemplate.query.filter_by(
+    required_template = TrackWaiverTemplate.query.filter_by(
         track_id=track_id, is_active=True, required_for_checkin=True
-    ).all()
-    if not required_templates:
+    ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+    if not required_template:
         return "not_required", None
-    template_ids = [t.id for t in required_templates]
     query = DriverWaiver.query.filter(
         DriverWaiver.track_id == track_id,
         DriverWaiver.driver_id == driver_id,
-        DriverWaiver.waiver_template_id.in_(template_ids),
+        DriverWaiver.waiver_template_id == required_template.id,
     )
     if event_id is not None:
         query = query.filter((DriverWaiver.event_id == event_id) | (DriverWaiver.event_id.is_(None)))

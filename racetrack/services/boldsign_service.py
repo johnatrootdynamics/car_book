@@ -154,7 +154,12 @@ def list_templates(page=1, page_size=50):
             payload = response.json() or {}
             templates = payload.get("result") or payload.get("data") or payload.get("templates") or []
             if isinstance(templates, dict):
-                templates = templates.get("items") or templates.get("results") or []
+                templates = (
+                    templates.get("items")
+                    or templates.get("results")
+                    or templates.get("templates")
+                    or []
+                )
             normalized = []
             for item in templates:
                 template_id = item.get("templateId") or item.get("id")

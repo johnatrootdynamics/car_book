@@ -4778,6 +4778,17 @@ details > summary { font-size: .92rem; }
 .event-waiver-action-form button { display: inline-flex; align-items: center; gap: 4px; padding: 0; color: #2457ff; background: none; border: 0; cursor: pointer; font: inherit; font-size: .68rem; font-weight: 750; }
 .driver-waiver-action-form,.waiver-table-action-form { display: inline-flex; margin: 0; }
 
+.waiver-selection-card { display: grid; gap: 14px; }
+.waiver-selected-template { display: flex; align-items: center; gap: 12px; padding: 14px; color: #087443; background: #ecfdf3; border: 1px solid #abefc6; border-radius: 9px; }
+.waiver-selected-template > span { display: grid; flex: 0 0 36px; width: 36px; height: 36px; color: #fff; background: #18a66a; border-radius: 50%; place-items: center; }
+.waiver-selected-template > div { display: grid; gap: 2px; min-width: 0; }
+.waiver-selected-template strong { font-size: .82rem; }.waiver-selected-template small { font-size: .67rem; }.waiver-selected-template code { margin-top: 3px; color: #087443; font-size: .6rem; }
+.waiver-provider-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap: 8px; }
+.waiver-provider-grid article { display: grid; grid-template-columns: 34px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 11px; background: #fafbfc; border: 1px solid #e4e7ec; border-radius: 8px; }
+.waiver-provider-grid article > span { display: grid; width: 34px; height: 34px; color: #5573cc; background: #eef3ff; border-radius: 8px; place-items: center; }
+.waiver-provider-grid article > div { display: grid; min-width: 0; gap: 3px; }.waiver-provider-grid article strong { overflow: hidden; color: #344054; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }.waiver-provider-grid article code { overflow: hidden; color: #7a8699; font-size: .57rem; text-overflow: ellipsis; }
+.waiver-provider-grid article.is-selected { background: #ecfdf3; border-color: #abefc6; }.waiver-provider-grid article.is-selected > span { color: #fff; background: #18a66a; }.waiver-provider-grid article em { color: #087443; font-size: .62rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
+
 .event-hub-section { scroll-margin-top: 82px; }
 .event-owned-page { display: grid; gap: 12px; }
 .event-owned-header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: linear-gradient(135deg,#111a2d,#213d78); border: 1px solid #263e6c; border-radius: 12px; }

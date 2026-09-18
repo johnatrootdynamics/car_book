@@ -762,10 +762,10 @@ def _create_driver_post_purchase_steps(driver_ticket_order):
 def _ensure_driver_event_waivers(event, user):
     from .models import DriverWaiver
 
-    required_templates = TrackWaiverTemplate.query.filter_by(
+    required_template = TrackWaiverTemplate.query.filter_by(
         track_id=event.track_id, is_active=True, required_for_checkin=True
-    ).all()
-    if not required_templates and FORCED_BOLDSIGN_TEMPLATE_ID:
+    ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+    if not required_template and FORCED_BOLDSIGN_TEMPLATE_ID:
         fallback_template = TrackWaiverTemplate(
             track_id=event.track_id,
             title="Track Waiver",
@@ -775,11 +775,12 @@ def _ensure_driver_event_waivers(event, user):
         )
         db.session.add(fallback_template)
         db.session.flush()
-        required_templates = [fallback_template]
+        required_template = fallback_template
 
     created_waiver_id = None
     needs_waiver_action = False
-    for template in required_templates:
+    if required_template:
+        template = required_template
         exists = DriverWaiver.query.filter_by(
             track_id=event.track_id,
             driver_id=user.id,
@@ -1469,30 +1470,30 @@ def event_hub(event_id):
     driver_event_status = None
     event_schedule_context = None
     if registration:
-        required_templates = TrackWaiverTemplate.query.filter_by(
+        required_template = TrackWaiverTemplate.query.filter_by(
             track_id=event.track_id,
             is_active=True,
             required_for_checkin=True,
-        ).all()
-        required_template_ids = [template.id for template in required_templates]
-        waivers = []
-        if required_template_ids:
-            waivers = (
-                DriverWaiver.query.filter(
-                    DriverWaiver.driver_id == current_user.id,
-                    DriverWaiver.waiver_template_id.in_(required_template_ids),
-                    (DriverWaiver.event_id == event.id) | (DriverWaiver.event_id.is_(None)),
+        ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+        waiver = None
+        if required_template:
+            waiver = DriverWaiver.query.filter(
+                DriverWaiver.driver_id == current_user.id,
+                DriverWaiver.waiver_template_id == required_template.id,
+                (DriverWaiver.event_id == event.id) | (DriverWaiver.event_id.is_(None)),
+            ).order_by(DriverWaiver.event_id.desc(), DriverWaiver.updated_at.desc()).first()
+            if not waiver:
+                waiver = DriverWaiver(
+                    track_id=event.track_id,
+                    driver_id=current_user.id,
+                    event_id=event.id,
+                    waiver_template_id=required_template.id,
+                    status="not_sent",
                 )
-                .order_by(DriverWaiver.created_at.asc())
-                .all()
-            )
-        signed_template_ids = {
-            waiver.waiver_template_id for waiver in waivers if waiver.status == "signed"
-        }
-        waiver_complete = not required_template_ids or all(
-            template_id in signed_template_ids for template_id in required_template_ids
-        )
-        pending_waiver = next((waiver for waiver in waivers if waiver.status != "signed"), None)
+                db.session.add(waiver)
+                db.session.commit()
+        waiver_complete = not required_template or bool(waiver and waiver.status == "signed")
+        pending_waiver = waiver if waiver and waiver.status != "signed" else None
         inspection = (
             Inspection.query.filter_by(event_registration_id=registration.id).first()
             if registration

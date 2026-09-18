@@ -933,6 +933,10 @@ def waivers_new():
         if existing:
             flash("That BoldSign template is already linked for this track.", "error")
             return render_template("admin/waivers_new.html", form=form)
+        if form.is_active.data and form.required_for_checkin.data:
+            TrackWaiverTemplate.query.filter_by(
+                track_id=track_id, is_active=True, required_for_checkin=True
+            ).update({"is_active": False, "required_for_checkin": False})
         template = TrackWaiverTemplate(
             track_id=track_id,
             title=form.title.data.strip(),

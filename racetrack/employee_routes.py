@@ -18,6 +18,7 @@ from .models import (
     DriverClassChange,
     DriverNote,
     DriverTicketOrder,
+    DriverWaiver,
     Employee,
     Event,
     EventClassSlot,
@@ -49,7 +50,7 @@ from .models import (
     VendorAccount,
     db,
 )
-from .services.boldsign_service import create_embedded_template_url
+from .services.boldsign_service import create_embedded_template_url, list_templates
 from .services.boldsign_service import delete_template as boldsign_delete_template
 from .security import generate_random_password
 from .services.email_service import (
@@ -3074,6 +3075,9 @@ def waiver_template_builder():
                 embedded_url = result.get("createUrl")
                 created_template_id = (result.get("templateId") or "").strip()
                 if created_template_id:
+                    TrackWaiverTemplate.query.filter_by(
+                        track_id=active_track_id(), is_active=True, required_for_checkin=True
+                    ).update({"is_active": False, "required_for_checkin": False})
                     existing = TrackWaiverTemplate.query.filter_by(
                         track_id=active_track_id(),
                         boldsign_template_id=created_template_id,
@@ -3088,7 +3092,10 @@ def waiver_template_builder():
                                 required_for_checkin=True,
                             )
                         )
-                        db.session.commit()
+                    else:
+                        existing.is_active = True
+                        existing.required_for_checkin = True
+                    db.session.commit()
                 if not embedded_url:
                     flash("BoldSign did not return an embedded template URL.", "error")
                 else:
@@ -3101,11 +3108,115 @@ def waiver_template_builder():
         .order_by(TrackWaiverTemplate.updated_at.desc())
         .all()
     )
+    selected_template = next(
+        (template for template in templates if template.is_active and template.required_for_checkin),
+        None,
+    )
+    boldsign_templates = []
+    boldsign_error = None
+    try:
+        boldsign_templates = list_templates()
+    except Exception as exc:
+        boldsign_error = str(exc)
+        current_app.logger.warning("Could not load BoldSign templates: %s", exc)
     return render_template(
         "employee/waiver_template_builder.html",
         embedded_url=embedded_url,
         templates=templates,
+        selected_template=selected_template,
+        boldsign_templates=boldsign_templates,
+        boldsign_error=boldsign_error,
     )
+
+
+@employee_bp.route("/waivers/templates/api", methods=["GET"])
+@login_required
+def waiver_templates_api():
+    guard = require_office_staff()
+    if guard:
+        return guard
+    selected = TrackWaiverTemplate.query.filter_by(
+        track_id=active_track_id(), is_active=True, required_for_checkin=True
+    ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+    try:
+        templates = list_templates()
+    except Exception as exc:
+        current_app.logger.warning("Could not load BoldSign templates: %s", exc)
+        return jsonify({"ok": False, "error": "Could not load signing templates."}), 502
+    return jsonify({
+        "ok": True,
+        "selected_template_id": selected.boldsign_template_id if selected else None,
+        "templates": templates,
+    })
+
+
+@employee_bp.route("/waivers/templates/select", methods=["POST"])
+@login_required
+def waiver_template_select():
+    guard = require_office_staff()
+    if guard:
+        return guard
+    provider_template_id = (request.form.get("template_id") or "").strip()
+    provider_title = (request.form.get("title") or "").strip()
+    if not provider_template_id:
+        flash("Choose a waiver template.", "error")
+        return redirect(url_for("employee.waiver_template_builder"))
+    try:
+        provider_templates = list_templates()
+    except Exception as exc:
+        current_app.logger.warning("Could not verify BoldSign template selection: %s", exc)
+        flash("Could not verify the signing template. Try again.", "error")
+        return redirect(url_for("employee.waiver_template_builder"))
+    provider_template = next(
+        (item for item in provider_templates if item["template_id"] == provider_template_id),
+        None,
+    )
+    if not provider_template:
+        flash("That signing template is no longer available.", "error")
+        return redirect(url_for("employee.waiver_template_builder"))
+
+    track_id = active_track_id()
+    TrackWaiverTemplate.query.filter_by(
+        track_id=track_id, is_active=True, required_for_checkin=True
+    ).update({"is_active": False, "required_for_checkin": False})
+    selected = TrackWaiverTemplate.query.filter_by(
+        track_id=track_id, boldsign_template_id=provider_template_id
+    ).first()
+    if not selected:
+        selected = TrackWaiverTemplate(
+            track_id=track_id,
+            title=provider_template["title"] or provider_title or "Driver Waiver",
+            boldsign_template_id=provider_template_id,
+        )
+        db.session.add(selected)
+        db.session.flush()
+    selected.title = provider_template["title"] or provider_title or selected.title
+    selected.is_active = True
+    selected.required_for_checkin = True
+
+    registrations = (
+        EventRegistration.query.join(Event, Event.id == EventRegistration.event_id)
+        .filter(Event.track_id == track_id, Event.event_date >= date.today())
+        .all()
+    )
+    for registration in registrations:
+        existing = DriverWaiver.query.filter_by(
+            track_id=track_id,
+            driver_id=registration.user_id,
+            event_id=registration.event_id,
+            waiver_template_id=selected.id,
+        ).first()
+        if not existing:
+            db.session.add(DriverWaiver(
+                track_id=track_id,
+                driver_id=registration.user_id,
+                event_id=registration.event_id,
+                waiver_template_id=selected.id,
+                status="not_sent",
+            ))
+    db.session.commit()
+    flash(f"{selected.title} is now the driver waiver.", "success")
+    return redirect(url_for("employee.waiver_template_builder"))
 
 
 @employee_bp.route("/waivers/templates/<int:template_id>/delete", methods=["POST"])
