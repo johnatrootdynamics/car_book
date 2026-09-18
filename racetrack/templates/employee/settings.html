@@ -103,7 +103,7 @@
   <div class="row-space">
     <div>
       <h2>Settings</h2>
-      <p class="muted-line">Manage track configuration, staff access, waivers, inspections, communication, and payments.</p>
+      <p class="muted-line">Manage track configuration, staff access, hardware, waivers, inspections, communication, and payments.</p>
     </div>
     <span class="track-settings-role">{{ 'Office staff' if can_manage_settings else 'Track staff' }}</span>
   </div>
@@ -113,6 +113,16 @@
   <a class="settings-tool-card" href="{{ url_for('employee.staff_accounts') }}">
     <span><i class="bi bi-person-badge" aria-hidden="true"></i></span>
     <div><h3>Staff Accounts</h3><p>{% if can_manage_settings %}Create accounts, assign roles, and reset passwords.{% else %}Reset passwords for eligible track staff accounts.{% endif %}</p></div>
+    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+  </a>
+  <a class="settings-tool-card" href="{{ url_for('employee.scanners') }}">
+    <span><i class="bi bi-broadcast" aria-hidden="true"></i></span>
+    <div><h3>Scanners</h3><p>View scanner devices, zone assignments, and reader status.</p></div>
+    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+  </a>
+  <a class="settings-tool-card" href="{{ url_for('employee.cameras') }}">
+    <span><i class="bi bi-camera-video" aria-hidden="true"></i></span>
+    <div><h3>Cameras</h3><p>View camera controllers and recording readiness.</p></div>
     <i class="bi bi-chevron-right" aria-hidden="true"></i>
   </a>
   {% if can_manage_settings %}
