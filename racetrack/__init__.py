@@ -355,6 +355,9 @@ def create_app():
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS track_layout_id INT NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS waiver_template_id INT NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) NOT NULL DEFAULT 'public'"
             )
             conn.exec_driver_sql(

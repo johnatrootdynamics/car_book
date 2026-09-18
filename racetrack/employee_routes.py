@@ -73,6 +73,7 @@ from .services.rental_service import (
 )
 from .services.run_service import expire_stale_track_states
 from .services.ticket_service import ensure_order_ticket_codes, normalize_ticket_code
+from .services.waiver_service import required_waiver_template_for_event
 
 
 employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
@@ -149,6 +150,82 @@ def active_track_id():
     if current_user.account_type == "admin":
         return int(session.get("impersonate_track_id"))
     return current_user.track_id
+
+
+def _configure_event_waiver_choices(form, event=None):
+    track_id = active_track_id()
+    local_templates = TrackWaiverTemplate.query.filter_by(track_id=track_id).all()
+    local_titles = {
+        template.boldsign_template_id: template.title for template in local_templates
+    }
+    try:
+        provider_templates = list_templates()
+        titles_by_provider_id = {
+            template["template_id"]: template["title"] for template in provider_templates
+        }
+    except Exception as exc:
+        current_app.logger.warning("Could not load BoldSign templates for event form: %s", exc)
+        titles_by_provider_id = dict(local_titles)
+    if event and event.waiver_template_id:
+        current_template = next(
+            (template for template in local_templates if template.id == event.waiver_template_id),
+            None,
+        )
+        if current_template:
+            titles_by_provider_id.setdefault(
+                current_template.boldsign_template_id, current_template.title
+            )
+    form.waiver_template_id.choices = [("", "Select a driver waiver")] + sorted(
+        titles_by_provider_id.items(), key=lambda item: item[1].lower()
+    )
+    if request.method == "GET":
+        selected = required_waiver_template_for_event(event) if event else (
+            TrackWaiverTemplate.query.filter_by(
+                track_id=track_id, is_active=True, required_for_checkin=True
+            ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+        )
+        form.waiver_template_id.data = selected.boldsign_template_id if selected else ""
+    return titles_by_provider_id
+
+
+def _resolve_event_waiver(provider_template_id, titles_by_provider_id):
+    provider_template_id = (provider_template_id or "").strip()
+    if not provider_template_id or provider_template_id not in titles_by_provider_id:
+        return None
+    template = TrackWaiverTemplate.query.filter_by(
+        track_id=active_track_id(), boldsign_template_id=provider_template_id
+    ).first()
+    if not template:
+        template = TrackWaiverTemplate(
+            track_id=active_track_id(),
+            title=titles_by_provider_id[provider_template_id],
+            boldsign_template_id=provider_template_id,
+            is_active=False,
+            required_for_checkin=False,
+        )
+        db.session.add(template)
+        db.session.flush()
+    return template
+
+
+def _assign_event_waiver_to_registrations(event, template):
+    if not template:
+        return
+    for registration in event.registrations:
+        existing = DriverWaiver.query.filter_by(
+            track_id=event.track_id,
+            driver_id=registration.user_id,
+            event_id=event.id,
+            waiver_template_id=template.id,
+        ).first()
+        if not existing:
+            db.session.add(DriverWaiver(
+                track_id=event.track_id,
+                driver_id=registration.user_id,
+                event_id=event.id,
+                waiver_template_id=template.id,
+                status="not_sent",
+            ))
 
 
 def _get_or_create_track_driver_class(track_id, user_id):
@@ -1890,6 +1967,7 @@ def event_new():
     if guard:
         return guard
     form = EventForm()
+    waiver_titles = _configure_event_waiver_choices(form)
     layouts = TrackLayout.query.filter_by(track_id=active_track_id()).order_by(TrackLayout.name.asc()).all()
     form.track_layout_id.choices = [(0, "Default Track Layout")] + [
         (layout.id, layout.name) for layout in layouts
@@ -1947,6 +2025,13 @@ def event_new():
             db.session.commit()
             flash("Private rental availability created.", "success")
             return redirect(url_for("employee.events_index"))
+        waiver_template = _resolve_event_waiver(form.waiver_template_id.data, waiver_titles)
+        if not waiver_template:
+            flash("Select the driver waiver required for this event.", "error")
+            return render_template(
+                "employee/event_form.html", form=form, title="Create Event",
+                track_layouts=layouts, event=None,
+            )
         if form.event_start_time.data and form.event_end_time.data:
             if form.event_end_time.data <= form.event_start_time.data:
                 flash("Event end time must be after start time.", "error")
@@ -1983,6 +2068,7 @@ def event_new():
             vendor_capacity=form.vendor_capacity.data,
             event_start_time=form.event_start_time.data,
             event_end_time=form.event_end_time.data,
+            waiver_template_id=waiver_template.id,
         )
         layout_error = _apply_event_layout_selection(event, active_track_id())
         if layout_error:
@@ -2020,6 +2106,7 @@ def event_edit(event_id):
         flash("Private rental dates and times are managed from the rental calendar.", "error")
         return redirect(url_for("employee.private_rentals", month=event.event_date.strftime("%Y-%m")))
     form = EventForm(obj=event)
+    waiver_titles = _configure_event_waiver_choices(form, event=event)
     layouts = TrackLayout.query.filter_by(track_id=active_track_id()).order_by(TrackLayout.name.asc()).all()
     form.track_layout_id.choices = [(0, "Default Track Layout")] + [
         (layout.id, layout.name) for layout in layouts
@@ -2037,6 +2124,13 @@ def event_edit(event_id):
             if form.event_end_time.data <= form.event_start_time.data:
                 flash("Event end time must be after start time.", "error")
                 return render_template("employee/event_form.html", form=form, title="Edit Event")
+        waiver_template = _resolve_event_waiver(form.waiver_template_id.data, waiver_titles)
+        if not waiver_template:
+            flash("Select the driver waiver required for this event.", "error")
+            return render_template(
+                "employee/event_form.html", form=form, title="Edit Event",
+                track_layouts=layouts, event=event,
+            )
         Track.query.filter_by(id=active_track_id()).with_for_update().one()
         rental_conflict = event_conflicts_with_rental_slot(
             active_track_id(),
@@ -2089,6 +2183,8 @@ def event_edit(event_id):
         event.vendor_capacity = form.vendor_capacity.data
         event.event_start_time = form.event_start_time.data
         event.event_end_time = form.event_end_time.data
+        event.waiver_template_id = waiver_template.id
+        _assign_event_waiver_to_registrations(event, waiver_template)
         upload = form.thumbnail_image.data
         if upload:
             clean_name = secure_filename(upload.filename)
@@ -3196,7 +3292,11 @@ def waiver_template_select():
 
     registrations = (
         EventRegistration.query.join(Event, Event.id == EventRegistration.event_id)
-        .filter(Event.track_id == track_id, Event.event_date >= date.today())
+        .filter(
+            Event.track_id == track_id,
+            Event.event_date >= date.today(),
+            Event.waiver_template_id.is_(None),
+        )
         .all()
     )
     for registration in registrations:
@@ -3226,6 +3326,9 @@ def waiver_template_delete(template_id):
     if guard:
         return guard
     template = TrackWaiverTemplate.query.filter_by(id=template_id, track_id=active_track_id()).first_or_404()
+    if Event.query.filter_by(track_id=active_track_id(), waiver_template_id=template.id).first():
+        flash("This waiver is assigned to an event and cannot be deleted.", "error")
+        return redirect(url_for("employee.waiver_template_builder"))
     try:
         if template.boldsign_template_id:
             boldsign_delete_template(template.boldsign_template_id)

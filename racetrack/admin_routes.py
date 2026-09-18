@@ -962,6 +962,9 @@ def waivers_delete_template(template_id):
     if not track_id or template.track_id != track_id:
         flash("Template does not belong to the impersonated track.", "error")
         return redirect(url_for("admin.waivers"))
+    if Event.query.filter_by(track_id=track_id, waiver_template_id=template.id).first():
+        flash("This waiver is assigned to an event and cannot be deleted.", "error")
+        return redirect(url_for("admin.waivers"))
     db.session.delete(template)
     db.session.commit()
     flash("Waiver template deleted.", "success")

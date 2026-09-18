@@ -123,6 +123,7 @@ class EventForm(FlaskForm):
         validators=[FileAllowed(["jpg", "jpeg", "png", "webp"], "Images only")],
     )
     track_layout_id = SelectField("Track Layout", coerce=int, validators=[Optional()])
+    waiver_template_id = SelectField("Driver Waiver", validators=[Optional()])
     submit = SubmitField("Create Event")
 
 

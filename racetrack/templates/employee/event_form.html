@@ -32,6 +32,7 @@
     {% if event %}<label><span class="event-form-label"><i class="bi bi-ui-checks"></i> Event Type</span><input value="{{ 'Private rental' if event.event_type == 'private' else 'Public event' }}" disabled><input type="hidden" name="event_type" value="{{ event.event_type }}"></label>{% else %}<label><span class="event-form-label"><i class="bi bi-ui-checks"></i> Event Type</span> {{ form.event_type(data_event_type=true) }}<small>Private rentals become available for a driver to reserve.</small></label>{% endif %}
     <label><span class="event-form-label"><i class="bi bi-flag"></i> Event Name</span> {{ form.event_name() }}</label>
     <label><span class="event-form-label"><i class="bi bi-calendar-event"></i> Event Date</span> {{ form.event_date() }}</label>
+    <label data-public-event-field><span class="event-form-label"><i class="bi bi-file-earmark-text"></i> Driver Waiver</span> {{ form.waiver_template_id(data_event_waiver=true) }}<small>Select the one waiver drivers must sign for this event. <a href="{{ url_for('employee.waiver_template_builder') }}">Manage waiver templates</a></small></label>
     <label><span class="event-form-label" data-driver-price-label><i class="bi bi-speedometer2"></i> Driver Price (USD)</span> {{ form.driver_price(step='0.01', min='0') }}</label>
     <label data-public-event-field><span class="event-form-label"><i class="bi bi-ticket-perforated"></i> Spectator Price (USD)</span> {{ form.spectator_price(step='0.01', min='0') }}</label>
     <label data-public-event-field><span class="event-form-label"><i class="bi bi-shop"></i> Vendor Price per Person (USD)</span> {{ form.vendor_price(step='0.01', min='0') }}</label>
@@ -117,6 +118,8 @@
     const updateEventType = () => {
       const isPrivate = typeSelect && typeSelect.value === "private"
       form.querySelectorAll("[data-public-event-field]").forEach((field) => { field.hidden = isPrivate })
+      const waiverSelect = form.querySelector("[data-event-waiver]")
+      if (waiverSelect) waiverSelect.required = !isPrivate
       const priceLabel = form.querySelector("[data-driver-price-label]")
       if (priceLabel) priceLabel.innerHTML = isPrivate ? '<i class="bi bi-cash-stack"></i> Rental Price (USD)' : '<i class="bi bi-speedometer2"></i> Driver Price (USD)'
     }

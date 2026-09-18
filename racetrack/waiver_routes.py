@@ -11,6 +11,7 @@ from .services.boldsign_service import (
     send_waiver_from_template,
     verify_webhook_signature_details,
 )
+from .services.waiver_service import required_waiver_template_for_event
 
 
 waiver_bp = Blueprint("waiver", __name__)
@@ -183,9 +184,11 @@ def driver_waiver_statuses():
 @login_required
 def send_driver_waiver(waiver_template_id):
     _require_user()
-    template = TrackWaiverTemplate.query.filter_by(id=waiver_template_id, is_active=True).first_or_404()
+    template = TrackWaiverTemplate.query.filter_by(id=waiver_template_id).first_or_404()
     event_id = request.form.get("event_id", type=int)
-    event = Event.query.get(event_id) if event_id else None
+    event = Event.query.filter_by(id=event_id, track_id=template.track_id).first() if event_id else None
+    if not template.is_active and (not event or event.waiver_template_id != template.id):
+        abort(404)
 
     waiver = DriverWaiver.query.filter_by(
         track_id=template.track_id,
@@ -396,9 +399,12 @@ def waiver_debug():
 
 
 def get_required_waiver_status(track_id, driver_id, event_id=None):
-    required_template = TrackWaiverTemplate.query.filter_by(
-        track_id=track_id, is_active=True, required_for_checkin=True
-    ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+    event = Event.query.filter_by(id=event_id, track_id=track_id).first() if event_id else None
+    required_template = required_waiver_template_for_event(event) if event else (
+        TrackWaiverTemplate.query.filter_by(
+            track_id=track_id, is_active=True, required_for_checkin=True
+        ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+    )
     if not required_template:
         return "not_required", None
     query = DriverWaiver.query.filter(

@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS events (
   track_id INT NOT NULL,
   event_name VARCHAR(200) NOT NULL,
   event_date DATE NOT NULL,
+  waiver_template_id INT NULL,
   thumbnail_image_path VARCHAR(255) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_events_track FOREIGN KEY (track_id) REFERENCES tracks(id)
@@ -325,7 +326,8 @@ ALTER TABLE tracks
 
 ALTER TABLE events
   ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) NOT NULL DEFAULT 'public',
-  ADD COLUMN IF NOT EXISTS private_owner_user_id INT NULL;
+  ADD COLUMN IF NOT EXISTS private_owner_user_id INT NULL,
+  ADD COLUMN IF NOT EXISTS waiver_template_id INT NULL;
 
 CREATE TABLE IF NOT EXISTS private_rental_slots (
   id INT AUTO_INCREMENT PRIMARY KEY,

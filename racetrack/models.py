@@ -307,6 +307,9 @@ class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     track_id = db.Column(db.Integer, db.ForeignKey("tracks.id"), nullable=False)
     track_layout_id = db.Column(db.Integer, db.ForeignKey("track_layouts.id"), nullable=True)
+    waiver_template_id = db.Column(
+        db.Integer, db.ForeignKey("track_waiver_templates.id"), nullable=True
+    )
     event_name = db.Column(db.String(200), nullable=False)
     event_date = db.Column(db.Date, nullable=False)
     event_type = db.Column(db.String(20), nullable=False, default="public")
@@ -342,6 +345,7 @@ class Event(db.Model):
         "SpectatorTicketType", backref="event", cascade="all, delete-orphan"
     )
     track_layout = db.relationship("TrackLayout")
+    waiver_template = db.relationship("TrackWaiverTemplate", foreign_keys=[waiver_template_id])
     private_owner = db.relationship("User", foreign_keys=[private_owner_user_id])
 
 

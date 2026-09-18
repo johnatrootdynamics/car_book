@@ -88,6 +88,7 @@ from .services.ticket_service import (
     generate_driver_ticket_code,
     generate_ticket_code,
 )
+from .services.waiver_service import required_waiver_template_for_event
 
 try:
     import stripe
@@ -762,9 +763,7 @@ def _create_driver_post_purchase_steps(driver_ticket_order):
 def _ensure_driver_event_waivers(event, user):
     from .models import DriverWaiver
 
-    required_template = TrackWaiverTemplate.query.filter_by(
-        track_id=event.track_id, is_active=True, required_for_checkin=True
-    ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+    required_template = required_waiver_template_for_event(event)
     if not required_template and FORCED_BOLDSIGN_TEMPLATE_ID:
         fallback_template = TrackWaiverTemplate(
             track_id=event.track_id,
@@ -1470,11 +1469,7 @@ def event_hub(event_id):
     driver_event_status = None
     event_schedule_context = None
     if registration:
-        required_template = TrackWaiverTemplate.query.filter_by(
-            track_id=event.track_id,
-            is_active=True,
-            required_for_checkin=True,
-        ).order_by(TrackWaiverTemplate.updated_at.desc(), TrackWaiverTemplate.id.desc()).first()
+        required_template = required_waiver_template_for_event(event)
         waiver = None
         if required_template:
             waiver = DriverWaiver.query.filter(
