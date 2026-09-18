@@ -14,7 +14,6 @@
       {% if is_office_staff %}
         <a class="btn btn-secondary" href="{{ url_for('employee.event_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New event</a>
       {% endif %}
-      <a class="btn" href="{{ url_for('employee.inspections_hub') }}"><i class="bi bi-clipboard2-check" aria-hidden="true"></i> Open inspections</a>
     </div>
   </header>
 
@@ -96,41 +95,9 @@
       {% endif %}
     </section>
 
-    <aside class="card employee-quick-actions-card">
-      <div class="employee-dashboard-section-head">
-        <div><span>Shortcuts</span><h3>Quick actions</h3></div>
-      </div>
-      <nav class="employee-quick-actions" aria-label="Dashboard shortcuts">
-        <a href="{{ url_for('employee.inspections_hub') }}">
-          <i class="bi bi-clipboard2-check" aria-hidden="true"></i>
-          <span><strong>Run inspections</strong><small>Open today’s driver queue</small></span>
-          <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
-        </a>
-        <a href="{{ url_for('employee.events_index') }}">
-          <i class="bi bi-calendar3" aria-hidden="true"></i>
-          <span><strong>Manage events</strong><small>Schedules, drivers, and check-in</small></span>
-          <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
-        </a>
-        {% if is_office_staff %}
-          <a href="{{ url_for('employee.settings') }}">
-            <i class="bi bi-sliders" aria-hidden="true"></i>
-            <span><strong>Track settings</strong><small>Staff, waivers, payments, and email</small></span>
-            <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
-          </a>
-        {% endif %}
-      </nav>
-    </aside>
   </div>
 
   <div class="employee-dashboard-secondary-grid">
-    <section class="card employee-class-manager-card driver-records-promo">
-      <div class="employee-dashboard-section-head">
-        <div><span>People</span><h3>Driver and vendor records</h3></div>
-      </div>
-      <p class="muted-line">Find driver history, internal notes, class records, and reusable vendor profiles in one place.</p>
-      <a class="driver-records-promo-link" href="{{ url_for('employee.drivers') }}"><span><i class="bi bi-people" aria-hidden="true"></i><strong>Open People</strong></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-    </section>
-
     <section class="card employee-last-event-card">
       <div class="employee-dashboard-section-head">
         <div><span>Recently completed</span><h3>Last event</h3></div>
@@ -154,36 +121,5 @@
       {% endif %}
     </section>
   </div>
-
-  <section class="card employee-past-events-card">
-    <details>
-      <summary>
-        <span><i class="bi bi-clock-history" aria-hidden="true"></i> Past events</span>
-        <span>{{ past_events|length }}</span>
-      </summary>
-      {% if past_events %}
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Name</th><th>Date</th><th>Drivers</th><th>Actions</th></tr></thead>
-            <tbody>
-              {% for event in past_events %}
-              <tr>
-                <td><a class="event-row-link" href="{{ url_for('employee.event_detail', event_id=event.id) }}">{{ event.event_name }}</a></td>
-                <td>{{ event.event_date }}</td>
-                <td>{{ signup_counts.get(event.id, 0) }}</td>
-                <td>
-                  <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_detail', event_id=event.id) }}">Open</a>
-                  {% if is_office_staff %}<a class="btn btn-secondary btn-sm" href="{{ url_for('employee.event_edit', event_id=event.id) }}">Edit</a>{% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <p class="muted-line">No past events.</p>
-      {% endif %}
-    </details>
-  </section>
 </div>
 {% endblock %}

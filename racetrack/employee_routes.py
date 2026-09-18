@@ -627,13 +627,13 @@ def dashboard():
         .order_by(Event.event_date.asc())
         .all()
     )
-    past_events = (
+    last_event = (
         Event.query.filter(
             Event.track_id == active_track_id(),
             Event.event_date < date.today(),
         )
         .order_by(Event.event_date.desc())
-        .all()
+        .first()
     )
     signup_counts_raw = (
         db.session.query(EventRegistration.event_id, func.count(EventRegistration.id))
@@ -644,7 +644,6 @@ def dashboard():
     )
     signup_counts = {event_id: count for event_id, count in signup_counts_raw}
     upcoming_driver_count = sum(signup_counts.get(event.id, 0) for event in upcoming_events)
-    last_event = past_events[0] if past_events else None
     last_event_participants = signup_counts.get(last_event.id, 0) if last_event else 0
     last_event_spectator_tickets = 0
     last_event_vendor_tickets = 0
@@ -666,7 +665,6 @@ def dashboard():
     return render_template(
         "employee/dashboard.html",
         upcoming_events=upcoming_events,
-        past_events=past_events,
         track=track,
         signup_counts=signup_counts,
         upcoming_driver_count=upcoming_driver_count,
