@@ -27,10 +27,17 @@
     <div class="waiver-provider-grid">
       {% for template in boldsign_templates %}
         {% set is_selected = selected_template and selected_template.boldsign_template_id == template.template_id %}
+        {% set linked_template = linked_templates_by_provider_id.get(template.template_id) %}
         <article class="{{ 'is-selected' if is_selected else '' }}">
           <span><i class="bi {{ 'bi-check-lg' if is_selected else 'bi-file-earmark-text' }}" aria-hidden="true"></i></span>
           <div><strong>{{ template.title }}</strong><code>{{ template.template_id }}</code></div>
-          {% if is_selected %}<em>Selected</em>{% else %}<form method="post" action="{{ url_for('employee.waiver_template_select') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="template_id" value="{{ template.template_id }}"><input type="hidden" name="title" value="{{ template.title }}"><button class="btn btn-secondary btn-sm" type="submit">Use this waiver</button></form>{% endif %}
+          {% if is_selected %}<em>Selected</em>{% endif %}
+          <form method="post" action="{{ url_for('employee.waiver_template_select') }}" class="waiver-provider-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="template_id" value="{{ template.template_id }}">
+            <label>Staff-facing name <input type="text" name="waiver_name" value="{{ linked_template.title if linked_template else template.title }}" maxlength="255" required></label>
+            <button class="btn btn-secondary btn-sm" type="submit">{{ 'Save name' if is_selected else 'Use this waiver' }}</button>
+          </form>
         </article>
       {% endfor %}
     </div>
@@ -44,6 +51,7 @@
   <p>Upload a waiver PDF only when the template you need is not already in BoldSign.</p>
   <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Waiver name <input type="text" name="waiver_name" maxlength="255" placeholder="Example: 2026 Driver Release" required></label>
     <label>Waiver PDF <input type="file" name="template_file" accept="application/pdf" required></label>
     <button type="submit" class="btn">Open Template Builder</button>
   </form>
@@ -67,7 +75,13 @@
         <tbody>
           {% for t in templates %}
             <tr>
-              <td>{{ t.title }}</td>
+              <td>
+                <form method="post" action="{{ url_for('employee.waiver_template_rename', template_id=t.id) }}" class="waiver-rename-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="text" name="waiver_name" value="{{ t.title }}" maxlength="255" aria-label="Waiver name" required>
+                  <button type="submit" class="btn btn-secondary btn-sm">Save</button>
+                </form>
+              </td>
               <td><code>{{ t.boldsign_template_id }}</code></td>
               <td>{% if t.is_active and t.required_for_checkin %}<span class="badge badge-signed">Selected</span>{% else %}<span class="badge">Inactive</span>{% endif %}</td>
               <td>

@@ -155,26 +155,9 @@ def active_track_id():
 def _configure_event_waiver_choices(form, event=None):
     track_id = active_track_id()
     local_templates = TrackWaiverTemplate.query.filter_by(track_id=track_id).all()
-    local_titles = {
+    titles_by_provider_id = {
         template.boldsign_template_id: template.title for template in local_templates
     }
-    try:
-        provider_templates = list_templates()
-        titles_by_provider_id = {
-            template["template_id"]: template["title"] for template in provider_templates
-        }
-    except Exception as exc:
-        current_app.logger.warning("Could not load BoldSign templates for event form: %s", exc)
-        titles_by_provider_id = dict(local_titles)
-    if event and event.waiver_template_id:
-        current_template = next(
-            (template for template in local_templates if template.id == event.waiver_template_id),
-            None,
-        )
-        if current_template:
-            titles_by_provider_id.setdefault(
-                current_template.boldsign_template_id, current_template.title
-            )
     form.waiver_template_id.choices = [("", "Select a driver waiver")] + sorted(
         titles_by_provider_id.items(), key=lambda item: item[1].lower()
     )
@@ -195,16 +178,6 @@ def _resolve_event_waiver(provider_template_id, titles_by_provider_id):
     template = TrackWaiverTemplate.query.filter_by(
         track_id=active_track_id(), boldsign_template_id=provider_template_id
     ).first()
-    if not template:
-        template = TrackWaiverTemplate(
-            track_id=active_track_id(),
-            title=titles_by_provider_id[provider_template_id],
-            boldsign_template_id=provider_template_id,
-            is_active=False,
-            required_for_checkin=False,
-        )
-        db.session.add(template)
-        db.session.flush()
     return template
 
 
@@ -3164,8 +3137,13 @@ def waiver_template_builder():
         return guard
     embedded_url = None
     if request.method == "POST":
+        waiver_name = (request.form.get("waiver_name") or "").strip()
         upload = request.files.get("template_file")
-        if not upload or not upload.filename:
+        if not waiver_name:
+            flash("Give the waiver a name your staff will recognize.", "error")
+        elif len(waiver_name) > 255:
+            flash("Waiver names must be 255 characters or fewer.", "error")
+        elif not upload or not upload.filename:
             flash("Upload a PDF file to create an embedded template.", "error")
         elif not upload.filename.lower().endswith(".pdf"):
             flash("Only PDF files are supported for template creation.", "error")
@@ -3177,7 +3155,7 @@ def waiver_template_builder():
                     file_bytes=file_bytes,
                     filename=upload.filename,
                     redirect_url=redirect_url,
-                    title=f"{Track.query.get(active_track_id()).name} Waiver Template",
+                    title=waiver_name,
                 )
                 embedded_url = result.get("createUrl")
                 created_template_id = (result.get("templateId") or "").strip()
@@ -3193,13 +3171,14 @@ def waiver_template_builder():
                         db.session.add(
                             TrackWaiverTemplate(
                                 track_id=active_track_id(),
-                                title=f"Track Waiver {created_template_id[:8]}",
+                                title=waiver_name,
                                 boldsign_template_id=created_template_id,
                                 is_active=True,
                                 required_for_checkin=True,
                             )
                         )
                     else:
+                        existing.title = waiver_name
                         existing.is_active = True
                         existing.required_for_checkin = True
                     db.session.commit()
@@ -3233,6 +3212,9 @@ def waiver_template_builder():
         selected_template=selected_template,
         boldsign_templates=boldsign_templates,
         boldsign_error=boldsign_error,
+        linked_templates_by_provider_id={
+            template.boldsign_template_id: template for template in templates
+        },
     )
 
 
@@ -3250,6 +3232,16 @@ def waiver_templates_api():
     except Exception as exc:
         current_app.logger.warning("Could not load BoldSign templates: %s", exc)
         return jsonify({"ok": False, "error": "Could not load signing templates."}), 502
+    linked_templates = TrackWaiverTemplate.query.filter_by(
+        track_id=active_track_id()
+    ).all()
+    linked_by_provider_id = {
+        template.boldsign_template_id: template for template in linked_templates
+    }
+    for template in templates:
+        linked = linked_by_provider_id.get(template["template_id"])
+        template["linked"] = linked is not None
+        template["display_name"] = linked.title if linked else template["title"]
     return jsonify({
         "ok": True,
         "selected_template_id": selected.boldsign_template_id if selected else None,
@@ -3264,9 +3256,15 @@ def waiver_template_select():
     if guard:
         return guard
     provider_template_id = (request.form.get("template_id") or "").strip()
-    provider_title = (request.form.get("title") or "").strip()
+    waiver_name = (request.form.get("waiver_name") or "").strip()
     if not provider_template_id:
         flash("Choose a waiver template.", "error")
+        return redirect(url_for("employee.waiver_template_builder"))
+    if not waiver_name:
+        flash("Give the waiver a name your staff will recognize.", "error")
+        return redirect(url_for("employee.waiver_template_builder"))
+    if len(waiver_name) > 255:
+        flash("Waiver names must be 255 characters or fewer.", "error")
         return redirect(url_for("employee.waiver_template_builder"))
     try:
         provider_templates = list_templates()
@@ -3292,12 +3290,12 @@ def waiver_template_select():
     if not selected:
         selected = TrackWaiverTemplate(
             track_id=track_id,
-            title=provider_template["title"] or provider_title or "Driver Waiver",
+            title=waiver_name,
             boldsign_template_id=provider_template_id,
         )
         db.session.add(selected)
         db.session.flush()
-    selected.title = provider_template["title"] or provider_title or selected.title
+    selected.title = waiver_name
     selected.is_active = True
     selected.required_for_checkin = True
 
@@ -3327,6 +3325,27 @@ def waiver_template_select():
             ))
     db.session.commit()
     flash(f"{selected.title} is now the driver waiver.", "success")
+    return redirect(url_for("employee.waiver_template_builder"))
+
+
+@employee_bp.route("/waivers/templates/<int:template_id>/rename", methods=["POST"])
+@login_required
+def waiver_template_rename(template_id):
+    guard = require_office_staff()
+    if guard:
+        return guard
+    template = TrackWaiverTemplate.query.filter_by(
+        id=template_id, track_id=active_track_id()
+    ).first_or_404()
+    waiver_name = (request.form.get("waiver_name") or "").strip()
+    if not waiver_name:
+        flash("Waiver name cannot be empty.", "error")
+    elif len(waiver_name) > 255:
+        flash("Waiver names must be 255 characters or fewer.", "error")
+    else:
+        template.title = waiver_name
+        db.session.commit()
+        flash("Waiver name updated.", "success")
     return redirect(url_for("employee.waiver_template_builder"))
 
 

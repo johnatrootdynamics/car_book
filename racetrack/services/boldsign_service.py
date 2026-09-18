@@ -162,8 +162,18 @@ def list_templates(page=1, page_size=50):
                 )
             normalized = []
             for item in templates:
-                template_id = item.get("templateId") or item.get("id")
-                title = item.get("title") or item.get("name") or template_id
+                template_id = (
+                    item.get("templateId")
+                    or item.get("documentId")
+                    or item.get("id")
+                )
+                title = (
+                    item.get("title")
+                    or item.get("messageTitle")
+                    or item.get("documentTitle")
+                    or item.get("name")
+                    or template_id
+                )
                 if template_id:
                     normalized.append({"template_id": template_id, "title": title})
             return normalized
