@@ -5858,13 +5858,11 @@ details > summary { font-size: .92rem; }
 .driver-profile-section-head > span:not(.driver-class-pill) { color: #7a8699; font-size: .68rem; }
 .driver-class-select-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; margin-top: 13px; }
 .driver-class-select-form label { grid-column: 1 / -1; color: #667085; font-size: .68rem; font-weight: 700; }
-.driver-class-manage { margin-top: 12px; padding-top: 10px; border-top: 1px solid #eaecf0; }
-.driver-class-manage > summary { color: #475467; cursor: pointer; font-size: .72rem; font-weight: 700; }
-.driver-class-manage > form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; margin-top: 10px; }
-.driver-class-manage-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-.driver-class-manage-list > span { display: inline-flex; align-items: center; gap: 2px; }
-.driver-class-manage-list form { margin: 0; }
-.driver-class-manage-list button { padding: 5px; color: #98a2b3; background: transparent; border: 0; cursor: pointer; }
+.driver-classes-settings { display: grid; gap: 18px; }
+.driver-class-create-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; }
+.driver-classes-settings-list { display: grid; gap: 8px; }
+.driver-classes-settings-list article { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; background: #f8fafc; border: 1px solid #e4e7ec; border-radius: 8px; }
+.driver-classes-settings-list form { margin: 0; }
 .driver-class-last-change { margin: 11px 0 0; color: #7a8699; font-size: .66rem; }
 .driver-vehicle-list { display: grid; gap: 7px; margin-top: 12px; }
 .driver-vehicle-list article { display: flex; align-items: center; gap: 9px; padding: 9px; background: #f8fafc; border: 1px solid #edf0f4; border-radius: 7px; }
@@ -5914,6 +5912,7 @@ details > summary { font-size: .92rem; }
   .driver-directory-activity { display: none; }
   .driver-profile-person { align-items: flex-start; }
   .driver-profile-person p { overflow-wrap: anywhere; }
+  .driver-class-create-form { grid-template-columns: 1fr; }
   .driver-note-form { grid-template-columns: 1fr; }
   .driver-note-list article > div { align-items: flex-start; flex-direction: column; gap: 2px; }
   .driver-class-history-list article { grid-template-columns: 1fr; gap: 6px; }

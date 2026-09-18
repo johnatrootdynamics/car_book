@@ -136,6 +136,11 @@
       <div><h3>Inspection Setup</h3><p>Manage the vehicle inspection checklist.</p></div>
       <i class="bi bi-chevron-right" aria-hidden="true"></i>
     </a>
+    <a class="settings-tool-card" href="{{ url_for('employee.settings', section='classes') }}">
+      <span><i class="bi bi-collection" aria-hidden="true"></i></span>
+      <div><h3>Driver Classes</h3><p>Create the classes used for driver assignments, schedules, and run groups.</p></div>
+      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
     <a class="settings-tool-card" href="{{ url_for('employee.waiver_template_builder') }}">
       <span><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
       <div><h3>Waiver Builder</h3><p>Create and manage required driver waivers.</p></div>
@@ -157,6 +162,36 @@
 {% if not can_manage_settings %}
   <aside class="staff-permission-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Office staff manage track configuration, waivers, inspection rules, email templates, and payment providers.</aside>
 {% endif %}
+{% endif %}
+
+{% if can_manage_settings and settings_section == 'classes' %}
+<header class="settings-focused-header">
+  <a class="settings-back-link" href="{{ url_for('employee.settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Settings</a>
+  <div>
+    <span>Track operations</span>
+    <h2>Driver Classes</h2>
+    <p>Manage the class names available throughout {{ track.name }}.</p>
+  </div>
+</header>
+<section class="card driver-classes-settings">
+  <form method="post" action="{{ url_for('employee.driver_class_create') }}" class="driver-class-create-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="class-name">New class name<input id="class-name" name="class_name" maxlength="50" placeholder="For example: Novice or Pro" required></label>
+    <button class="btn" type="submit"><i class="bi bi-plus-lg"></i> Add class</button>
+  </form>
+  <div class="driver-classes-settings-list">
+    {% for option in class_options %}
+      <article>
+        <span class="driver-class-pill">{{ option.name }}</span>
+        <form method="post" action="{{ url_for('employee.driver_class_delete', class_id=option.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-secondary btn-sm" type="submit"><i class="bi bi-trash"></i> Delete</button>
+        </form>
+      </article>
+    {% endfor %}
+  </div>
+  <p class="muted-line">A class cannot be deleted while drivers or event schedule slots still use it.</p>
+</section>
 {% endif %}
 
 {% if can_manage_settings and settings_section == 'email' %}

@@ -1511,7 +1511,7 @@ def settings():
         return guard
     can_manage_settings = has_office_access()
     settings_section = (request.args.get("section") or "").strip().lower()
-    if not can_manage_settings or settings_section not in {"email", "payments"}:
+    if not can_manage_settings or settings_section not in {"classes", "email", "payments"}:
         settings_section = ""
     track = Track.query.get_or_404(active_track_id())
     templates = {}
@@ -1547,6 +1547,7 @@ def settings():
         paypal_webhook_url=paypal_webhook_url,
         can_manage_settings=can_manage_settings,
         settings_section=settings_section,
+        class_options=_track_class_options(track.id) if can_manage_settings else [],
     )
 
 
@@ -3060,7 +3061,7 @@ def driver_class_create():
         ))
         db.session.commit()
         flash(f"Driver class {name} created.", "success")
-    return redirect(request.referrer or url_for("employee.drivers"))
+    return redirect(url_for("employee.settings", section="classes"))
 
 
 @employee_bp.post("/driver-classes/<int:class_id>/delete")
@@ -3086,7 +3087,7 @@ def driver_class_delete(class_id):
         db.session.delete(option)
         db.session.commit()
         flash(f"Driver class {option.name} deleted.", "success")
-    return redirect(request.referrer or url_for("employee.drivers"))
+    return redirect(url_for("employee.settings", section="classes"))
 
 
 @employee_bp.route("/inspection-rules", methods=["POST"])

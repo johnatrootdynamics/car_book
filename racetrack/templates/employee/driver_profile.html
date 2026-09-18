@@ -31,21 +31,6 @@
         </select>
         <button class="btn btn-sm" type="submit">Save class</button>
       </form>
-      {% if is_office_staff %}
-        <details class="driver-class-manage">
-          <summary>Manage track classes</summary>
-          <form method="post" action="{{ url_for('employee.driver_class_create') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input name="class_name" maxlength="50" placeholder="New class name" required>
-            <button class="btn btn-secondary btn-sm" type="submit">Add</button>
-          </form>
-          <div class="driver-class-manage-list">
-            {% for option in class_options %}
-              <span><b class="driver-class-pill">{{ option.name }}</b><form method="post" action="{{ url_for('employee.driver_class_delete', class_id=option.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" aria-label="Delete {{ option.name }}"><i class="bi bi-x-lg"></i></button></form></span>
-            {% endfor %}
-          </div>
-        </details>
-      {% endif %}
       {% if class_changes %}
         <p class="driver-class-last-change">Last changed by <strong>{{ class_changes[0].changed_by_name }}</strong> on {{ class_changes[0].created_at.strftime('%b %-d, %Y at %-I:%M %p') }}.</p>
       {% elif class_record %}
