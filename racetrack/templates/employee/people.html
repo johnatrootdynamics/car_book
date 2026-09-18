@@ -8,7 +8,7 @@
       <p>Find driver records and reusable vendor profiles from one workspace.</p>
     </div>
     {% if directory_view == 'vendors' %}
-      <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.vendors') }}"><i class="bi bi-calendar-check" aria-hidden="true"></i> Event vendor check-in</a>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.ticket_verification') }}"><i class="bi bi-qr-code-scan" aria-hidden="true"></i> Scan vendor tickets</a>
     {% else %}
       <span class="driver-directory-count">{{ rows|length }} shown</span>
     {% endif %}

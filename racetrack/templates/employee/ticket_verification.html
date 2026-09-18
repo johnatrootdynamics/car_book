@@ -136,7 +136,7 @@
         <form method="post" action="{{ url_for('employee.ticket_checkin', event_id=item.event_id, item_id=item.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="scanner_active" value="{{ '1' if scanner_active else '0' }}">
-          <button type="submit" class="btn ticket-admit-button"><i class="bi bi-check2-circle" aria-hidden="true"></i> Verify and check in</button>
+          <button type="submit" class="btn ticket-admit-button"><i class="bi bi-check2-circle" aria-hidden="true"></i> Verify and check in {{ 'vendor' if item.ticket_category == 'vendor' else 'guest' }}</button>
         </form>
       {% endif %}
     </section>
