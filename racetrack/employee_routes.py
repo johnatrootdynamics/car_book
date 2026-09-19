@@ -51,7 +51,11 @@ from .models import (
     VendorAccount,
     db,
 )
-from .services.boldsign_service import create_embedded_template_url, list_templates
+from .services.boldsign_service import (
+    create_embedded_template_url,
+    get_embedded_template_edit_url,
+    list_templates,
+)
 from .services.boldsign_service import delete_template as boldsign_delete_template
 from .security import generate_random_password
 from .services.email_service import (
@@ -172,6 +176,14 @@ def _available_waiver_templates_for_track(provider_templates, track_id):
         if not linked_track_ids.get(template["template_id"])
         or track_id in linked_track_ids[template["template_id"]]
     ]
+
+
+def _waiver_editor_complete_url():
+    configured_base = (current_app.config.get("APP_BASE_URL") or "").rstrip("/")
+    callback_path = url_for("employee.waiver_template_complete")
+    return f"{configured_base}{callback_path}" if configured_base else url_for(
+        "employee.waiver_template_complete", _external=True
+    )
 
 
 def _configure_event_waiver_choices(form, event=None):
@@ -3152,6 +3164,7 @@ def waiver_template_builder():
     if guard:
         return guard
     embedded_url = None
+    editor_title = None
     if request.method == "POST":
         waiver_name = (request.form.get("waiver_name") or "").strip()
         upload = request.files.get("template_file")
@@ -3166,7 +3179,7 @@ def waiver_template_builder():
         else:
             try:
                 file_bytes = upload.read()
-                redirect_url = f"{current_app.config.get('APP_BASE_URL', '')}{url_for('employee.waiver_template_builder')}"
+                redirect_url = _waiver_editor_complete_url()
                 result = create_embedded_template_url(
                     file_bytes=file_bytes,
                     filename=upload.filename,
@@ -3174,6 +3187,7 @@ def waiver_template_builder():
                     title=waiver_name,
                 )
                 embedded_url = result.get("createUrl")
+                editor_title = f"Finish setting up {waiver_name}"
                 created_template_id = (result.get("templateId") or "").strip()
                 if created_template_id:
                     TrackWaiverTemplate.query.filter_by(
@@ -3220,9 +3234,33 @@ def waiver_template_builder():
         boldsign_templates = _available_waiver_templates_for_track(
             list_templates(), active_track_id()
         )
+        linked_provider_ids = {
+            template.boldsign_template_id for template in templates
+        }
+        boldsign_templates = [
+            template for template in boldsign_templates
+            if template["template_id"] not in linked_provider_ids
+        ]
     except Exception as exc:
         boldsign_error = str(exc)
         current_app.logger.warning("Could not load BoldSign templates: %s", exc)
+    edit_template_id = request.args.get("edit", type=int)
+    if request.method == "GET" and edit_template_id:
+        template_to_edit = TrackWaiverTemplate.query.filter_by(
+            id=edit_template_id, track_id=active_track_id()
+        ).first_or_404()
+        try:
+            result = get_embedded_template_edit_url(
+                template_to_edit.boldsign_template_id,
+                _waiver_editor_complete_url(),
+            )
+            embedded_url = result.get("editUrl")
+            editor_title = f"Edit {template_to_edit.title}"
+            if not embedded_url:
+                flash("BoldSign did not return a template editor URL.", "error")
+        except Exception as exc:
+            current_app.logger.exception("Embedded template edit failed: %s", exc)
+            flash("Could not open the waiver editor.", "error")
     return render_template(
         "employee/waiver_template_builder.html",
         embedded_url=embedded_url,
@@ -3230,10 +3268,17 @@ def waiver_template_builder():
         selected_template=selected_template,
         boldsign_templates=boldsign_templates,
         boldsign_error=boldsign_error,
+        editor_title=editor_title,
+        show_add=request.args.get("add") == "1",
         linked_templates_by_provider_id={
             template.boldsign_template_id: template for template in templates
         },
     )
+
+
+@employee_bp.route("/waivers/template-builder/complete")
+def waiver_template_complete():
+    return render_template("employee/waiver_template_complete.html")
 
 
 @employee_bp.route("/waivers/templates/api", methods=["GET"])
@@ -3375,6 +3420,26 @@ def waiver_template_rename(template_id):
         template.title = waiver_name
         db.session.commit()
         flash("Waiver name updated.", "success")
+    return redirect(url_for("employee.waiver_template_builder"))
+
+
+@employee_bp.route("/waivers/templates/<int:template_id>/default", methods=["POST"])
+@login_required
+def waiver_template_default(template_id):
+    guard = require_office_staff()
+    if guard:
+        return guard
+    track_id = active_track_id()
+    template = TrackWaiverTemplate.query.filter_by(
+        id=template_id, track_id=track_id
+    ).first_or_404()
+    TrackWaiverTemplate.query.filter_by(
+        track_id=track_id, is_active=True, required_for_checkin=True
+    ).update({"is_active": False, "required_for_checkin": False})
+    template.is_active = True
+    template.required_for_checkin = True
+    db.session.commit()
+    flash(f"{template.title} is now the default waiver.", "success")
     return redirect(url_for("employee.waiver_template_builder"))
 
 

@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Waiver saved</title></head>
+<body>
+  <p>Waiver saved. Returning to settings…</p>
+  <script>
+    if (window.parent && window.parent !== window) window.parent.postMessage("boldsign-template-complete", window.location.origin);
+    else window.location.replace("{{ url_for('employee.waiver_template_builder') }}");
+  </script>
+</body>
+</html>

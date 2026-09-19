@@ -130,6 +130,31 @@ def create_embedded_template_url(file_bytes, filename, redirect_url, title="Trac
     return response.json()
 
 
+def get_embedded_template_edit_url(template_id, redirect_url):
+    query = urlencode({"templateId": template_id})
+    endpoint = f"{BOLDSIGN_API_BASE}/template/getEmbeddedTemplateEditUrl?{query}"
+    data = {
+        "RedirectURL": redirect_url,
+        "ViewOption": "PreparePage",
+        "ShowToolbar": "true",
+        "ShowSaveButton": "true",
+        "ShowCreateButton": "true",
+        "ShowPreviewButton": "true",
+        "ShowNavigationButtons": "false",
+        "ShowTooltip": "false",
+    }
+    response = requests.post(
+        endpoint,
+        headers={"X-API-KEY": BOLDSIGN_API_KEY, "Accept": "application/json"},
+        data=data,
+        timeout=30,
+    )
+    if not response.ok:
+        logger.error("BoldSign embedded template edit failed: %s %s", response.status_code, response.text)
+        response.raise_for_status()
+    return response.json()
+
+
 def download_signed_document(document_id):
     endpoint = f"{BOLDSIGN_API_BASE}/document/download?documentId={document_id}"
     response = requests.get(endpoint, headers=_headers(), timeout=30)

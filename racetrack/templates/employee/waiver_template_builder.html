@@ -1,103 +1,76 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="settings-focused-page">
-<header class="settings-focused-header">
-  <a class="settings-back-link" href="{{ url_for('employee.settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Settings</a>
-  <div>
-    <span>Driver requirements</span>
-    <h2>Driver Waiver</h2>
-    <p>Select the single waiver every driver must sign for this track.</p>
-  </div>
-</header>
+<div class="settings-focused-page waiver-library-page">
+  <header class="settings-focused-header waiver-library-header">
+    <a class="settings-back-link" href="{{ url_for('employee.settings') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Settings</a>
+    <div><span>Driver requirements</span><h2>Waivers</h2><p>Manage the waivers available to this track and choose the default.</p></div>
+    <a class="btn" href="{{ url_for('employee.waiver_template_builder', add=1) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add waiver</a>
+  </header>
 
-<section class="card waiver-selection-card">
-  <div class="enterprise-section-head"><div><span>Current requirement</span><h3>Selected driver waiver</h3></div>{% if selected_template %}<span class="badge badge-signed">Active</span>{% endif %}</div>
-  {% if selected_template %}
-    <div class="waiver-selected-template"><span><i class="bi bi-file-earmark-check" aria-hidden="true"></i></span><div><strong>{{ selected_template.title }}</strong><small>All drivers are assigned this waiver for each event.</small><code>{{ selected_template.boldsign_template_id }}</code></div></div>
-  {% else %}
-    <div class="admin-waiver-inline-empty"><i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>No driver waiver is selected. Drivers can check in without a waiver until one is selected.</span></div>
+  {% if show_add %}
+  <section class="card waiver-add-panel">
+    <div class="enterprise-section-head">
+      <div><span>New waiver</span><h3>Add a waiver</h3><p>Choose an existing unassigned BoldSign template or upload a new PDF.</p></div>
+      <a class="icon-button" href="{{ url_for('employee.waiver_template_builder') }}" aria-label="Close"><i class="bi bi-x-lg"></i></a>
+    </div>
+    <div class="waiver-add-options">
+      <form method="post" action="{{ url_for('employee.waiver_template_select') }}" class="waiver-add-option">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h4>Use an existing BoldSign template</h4>
+        {% if boldsign_error %}<p class="form-help">BoldSign templates could not be loaded. Refresh to try again.</p>
+        {% elif boldsign_templates %}
+          <label>Template<select name="template_id" required><option value="">Select a template</option>{% for template in boldsign_templates %}<option value="{{ template.template_id }}">{{ template.title }}</option>{% endfor %}</select></label>
+          <label>Waiver name <input type="text" name="waiver_name" maxlength="255" placeholder="Example: 2026 Driver Release" required></label>
+          <button class="btn btn-secondary" type="submit">Add to this track</button>
+        {% else %}<p class="form-help">There are no unassigned BoldSign templates available.</p>{% endif %}
+      </form>
+      <form method="post" enctype="multipart/form-data" class="waiver-add-option" data-enhanced>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h4>Create one from a PDF</h4>
+        <label>Waiver name <input type="text" name="waiver_name" maxlength="255" placeholder="Example: 2026 Driver Release" required></label>
+        <label>Waiver PDF <input type="file" name="template_file" accept="application/pdf" required></label>
+        <button type="submit" class="btn btn-secondary">Open waiver builder</button>
+      </form>
+    </div>
+  </section>
   {% endif %}
-</section>
 
-<section class="card waiver-selection-card">
-  <div class="enterprise-section-head"><div><span>Signing provider</span><h3>Choose from available BoldSign templates</h3><p>Templates already assigned to another track are hidden. Unassigned templates can be claimed by this track.</p></div><strong>{{ boldsign_templates|length }}</strong></div>
-  {% if boldsign_error %}
-    <div class="admin-waiver-inline-empty"><i class="bi bi-cloud-slash" aria-hidden="true"></i><span>BoldSign templates could not be loaded. Refresh this page to try again.</span></div>
-  {% elif boldsign_templates %}
-    <div class="waiver-provider-grid">
-      {% for template in boldsign_templates %}
-        {% set is_selected = selected_template and selected_template.boldsign_template_id == template.template_id %}
-        {% set linked_template = linked_templates_by_provider_id.get(template.template_id) %}
-        <article class="{{ 'is-selected' if is_selected else '' }}">
-          <span><i class="bi {{ 'bi-check-lg' if is_selected else 'bi-file-earmark-text' }}" aria-hidden="true"></i></span>
-          <div><strong>{{ template.title }}</strong><code>{{ template.template_id }}</code></div>
-          {% if is_selected %}<em>Selected</em>{% endif %}
-          <form method="post" action="{{ url_for('employee.waiver_template_select') }}" class="waiver-provider-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="template_id" value="{{ template.template_id }}">
-            <label>Staff-facing name <input type="text" name="waiver_name" value="{{ linked_template.title if linked_template else template.title }}" maxlength="255" required></label>
-            <button class="btn btn-secondary btn-sm" type="submit">{{ 'Save name' if is_selected else 'Use this waiver' }}</button>
-          </form>
+  {% if embedded_url %}
+  <section class="card waiver-editor-card" data-waiver-editor>
+    <div class="enterprise-section-head"><div><span>BoldSign editor</span><h3>{{ editor_title or 'Waiver editor' }}</h3></div><a class="btn btn-secondary btn-sm" href="{{ url_for('employee.waiver_template_builder') }}">Close editor</a></div>
+    <iframe src="{{ embedded_url }}" title="BoldSign waiver editor"></iframe>
+  </section>
+  {% endif %}
+
+  <section class="card waiver-list-card">
+    <div class="enterprise-section-head"><div><span>{{ templates|length }} total</span><h3>Track waivers</h3></div></div>
+    {% if templates %}
+      <div class="waiver-simple-list">
+        {% for waiver in templates %}
+        {% set is_default = waiver.is_active and waiver.required_for_checkin %}
+        <article>
+          <span class="waiver-list-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
+          <div class="waiver-list-main"><div class="waiver-list-title"><strong>{{ waiver.title }}</strong>{% if is_default %}<span class="badge badge-signed">Default</span>{% endif %}</div><small>BoldSign template · {{ waiver.boldsign_template_id }}</small></div>
+          <div class="waiver-list-actions">
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('employee.waiver_template_builder', edit=waiver.id) }}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit waiver</a>
+            {% if not is_default %}<form method="post" action="{{ url_for('employee.waiver_template_default', template_id=waiver.id) }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-secondary btn-sm" type="submit">Make default</button></form>{% endif %}
+            <details class="waiver-row-menu">
+              <summary aria-label="More options"><i class="bi bi-three-dots"></i></summary>
+              <div>
+                <form method="post" action="{{ url_for('employee.waiver_template_rename', template_id=waiver.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Display name <input type="text" name="waiver_name" value="{{ waiver.title }}" maxlength="255" required></label><button type="submit" class="btn btn-secondary btn-sm">Save name</button></form>
+                <form method="post" action="{{ url_for('employee.waiver_template_delete', template_id=waiver.id) }}" data-enhanced><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-sm danger-btn">Delete waiver</button></form>
+              </div>
+            </details>
+          </div>
         </article>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="admin-waiver-inline-empty"><i class="bi bi-file-earmark-x" aria-hidden="true"></i><span>No templates are available in BoldSign.</span></div>
-  {% endif %}
-</section>
-
-<section class="card">
-  <h3>Create a new template</h3>
-  <p>Upload a waiver PDF only when the template you need is not already in BoldSign.</p>
-  <form method="post" enctype="multipart/form-data" class="form-grid" data-enhanced>
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label>Waiver name <input type="text" name="waiver_name" maxlength="255" placeholder="Example: 2026 Driver Release" required></label>
-    <label>Waiver PDF <input type="file" name="template_file" accept="application/pdf" required></label>
-    <button type="submit" class="btn">Open Template Builder</button>
-  </form>
-</section>
-
-{% if embedded_url %}
-<section class="card">
-  <h3>Template Editor</h3>
-  <div style="height:80vh;border:1px solid rgba(255,255,255,.2);border-radius:10px;overflow:hidden;">
-    <iframe src="{{ embedded_url }}" style="width:100%;height:100%;border:0;" title="BoldSign Embedded Template Builder"></iframe>
-  </div>
-</section>
-{% endif %}
-
-<section class="card">
-  <h3>Previously linked templates</h3>
-  {% if templates %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Title</th><th>BoldSign Template ID</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>
-          {% for t in templates %}
-            <tr>
-              <td>
-                <form method="post" action="{{ url_for('employee.waiver_template_rename', template_id=t.id) }}" class="waiver-rename-form">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="text" name="waiver_name" value="{{ t.title }}" maxlength="255" aria-label="Waiver name" required>
-                  <button type="submit" class="btn btn-secondary btn-sm">Save</button>
-                </form>
-              </td>
-              <td><code>{{ t.boldsign_template_id }}</code></td>
-              <td>{% if t.is_active and t.required_for_checkin %}<span class="badge badge-signed">Selected</span>{% else %}<span class="badge">Inactive</span>{% endif %}</td>
-              <td>
-                <form method="post" action="{{ url_for('employee.waiver_template_delete', template_id=t.id) }}" class="inline" data-enhanced>
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm danger-btn">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p>No templates linked to this track yet.</p>
-  {% endif %}
-</section>
+        {% endfor %}
+      </div>
+    {% else %}<div class="admin-waiver-inline-empty"><i class="bi bi-file-earmark-plus" aria-hidden="true"></i><span>No waivers have been added to this track yet.</span></div>{% endif %}
+  </section>
 </div>
+<script>
+window.addEventListener("message", function (event) {
+  if (event.origin === window.location.origin && event.data === "boldsign-template-complete") window.location.href = "{{ url_for('employee.waiver_template_builder') }}";
+});
+</script>
 {% endblock %}
