@@ -4859,20 +4859,20 @@ details > summary { font-size: .92rem; }
 .staging-road-gate span { padding: 4px 12px; color: #101828; background: #f7c948; border: 2px solid #101828; border-radius: 4px; box-shadow: 0 2px 0 #000; font-size: .65rem; font-weight: 950; letter-spacing: .14em; }
 .staging-road-gate i { position: absolute; bottom: -23px; color: #f7c948; font-size: 1.15rem; }
 .staging-road-lanes { position: relative; z-index: 1; display: flex; min-width: min-content; padding: 30px 12px 12px; }
-.staging-road-lane { position: relative; display: flex; flex: 1 0 150px; flex-direction: column; align-items: center; justify-content: space-between; gap: 20px; min-height: 245px; padding: 18px 12px 12px; text-align: center; border-right: 3px dashed rgba(255,255,255,.8); }
+.staging-road-lane { position: relative; display: flex; flex: 1 0 175px; flex-direction: column; align-items: center; justify-content: space-between; gap: 20px; min-height: 245px; padding: 18px 12px 12px; text-align: center; border-right: 3px dashed rgba(255,255,255,.8); }
 .staging-road-lane:last-child { border-right: 0; }
 .road-lane-arrow { color: rgba(255,255,255,.8); font-size: 2rem; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,.3); }
-.road-lane-sign { display: grid; align-content: center; width: 100%; min-height: 102px; padding: 12px 9px; color: #fff; background: #146c43; border: 3px solid #fff; border-radius: 5px; box-shadow: 0 3px 8px rgba(0,0,0,.45); }
-.road-lane-sign small { color: #b7f7d5; font-size: .58rem; font-weight: 900; letter-spacing: .14em; }
-.road-lane-sign strong { margin-top: 4px; color: #fff; font-size: .9rem; line-height: 1.15; }
-.road-lane-sign span { margin-top: 5px; color: #e7fff2; font-size: .65rem; line-height: 1.25; }
+.road-lane-sign { display: grid; align-content: center; width: 100%; min-height: 118px; padding: 15px 12px; color: #fff; background: #0f7045; border: 3px solid #fff; border-radius: 5px; box-shadow: 0 3px 8px rgba(0,0,0,.45); }
+.road-lane-sign small { justify-self: center; padding: 3px 7px; color: #17202a; background: #f7c948; border-radius: 3px; font-size: .65rem; font-weight: 950; letter-spacing: .15em; line-height: 1.2; }
+.road-lane-sign strong { margin-top: 8px; color: #fff; font-size: 1.08rem; font-weight: 900; line-height: 1.16; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.road-lane-sign span { margin-top: 7px; color: #fff; font-size: .76rem; font-weight: 650; line-height: 1.35; }
 .road-car { display: grid; place-items: center; width: 48px; height: 58px; color: #f7c948; background: #1b1e23; border: 2px solid #f7c948; border-radius: 14px 14px 9px 9px; box-shadow: 0 4px 7px rgba(0,0,0,.4); font-size: 1.5rem; }
 .staging-road-start { position: relative; z-index: 2; padding: 8px; color: #101828; background: #f7c948; text-align: center; font-size: .58rem; font-weight: 950; letter-spacing: .18em; }
 .staging-road-preview { margin: 18px 0 4px; }
 .staging-road-preview .staging-road-lane { min-height: 190px; }
 .staging-road-preview .road-car { width: 38px; height: 46px; font-size: 1.15rem; }
 @media (max-width: 720px) { .lane-editor-row { grid-template-columns: 34px 1fr 38px; } .lane-editor-row label:nth-of-type(2) { grid-column: 2 / 4; } }
-@media (max-width: 720px) { .staging-road { overflow-x: auto; } .staging-road-gate { position: sticky; left: 0; } .staging-road-lane { flex-basis: 138px; } .staging-road-start { position: sticky; left: 0; } }
+@media (max-width: 720px) { .staging-road { overflow-x: auto; } .staging-road-gate { position: sticky; left: 0; } .staging-road-lane { flex-basis: 160px; } .staging-road-start { position: sticky; left: 0; } .road-lane-sign strong { font-size: 1rem; } .road-lane-sign span { font-size: .72rem; } }
 .event-hub-notice { display: flex; align-items: center; gap: 6px; margin: -5px 0 13px; padding: 9px 11px; color: #174dcc; background: #eef3ff; border-radius: 7px; font-size: .7rem; font-weight: 750; }
 .event-hub-schedule { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .event-hub-schedule article { display: grid; grid-template-columns: 28px minmax(0,1fr); align-items: center; gap: 9px; min-height: 62px; padding: 10px; background: #fafbfc; border: 1px solid #eaecf0; border-radius: 8px; }
