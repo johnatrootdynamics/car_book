@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from ..models import (
     DriverTicketOrder,
+    Event,
     EventRegistration,
     SpectatorOrder,
     SpectatorOrderItem,
@@ -40,7 +41,19 @@ def ticket_capacity(event, category):
 def tickets_sold(event_id, category):
     category = normalized_ticket_category(category)
     if category == "driver":
-        return EventRegistration.query.filter_by(event_id=event_id).count()
+        paid_order_exists = db.session.query(DriverTicketOrder.id).filter(
+            DriverTicketOrder.event_id == EventRegistration.event_id,
+            DriverTicketOrder.user_id == EventRegistration.user_id,
+            DriverTicketOrder.payment_status == "paid",
+        ).exists()
+        return (
+            EventRegistration.query.join(Event, Event.id == EventRegistration.event_id)
+            .filter(
+                EventRegistration.event_id == event_id,
+                or_(Event.event_type == "private", paid_order_exists),
+            )
+            .count()
+        )
     total = (
         db.session.query(func.coalesce(func.sum(SpectatorTicketOrder.quantity), 0))
         .filter(
@@ -77,8 +90,6 @@ def ticket_availability(event, category):
 
 
 def driver_already_has_ticket(event_id, user_id):
-    if EventRegistration.query.filter_by(event_id=event_id, user_id=user_id).first():
-        return True
     return (
         DriverTicketOrder.query.filter_by(
             event_id=event_id,
@@ -112,8 +123,6 @@ def spectator_order_fits_capacity(order):
 
 
 def driver_order_fits_capacity(order):
-    if EventRegistration.query.filter_by(event_id=order.event_id, user_id=order.user_id).first():
-        return False
     if DriverTicketOrder.query.filter(
         DriverTicketOrder.event_id == order.event_id,
         DriverTicketOrder.user_id == order.user_id,

@@ -295,7 +295,7 @@ def mark_driver_ticket_paid(driver_ticket_order, transaction_id=None):
         raise ValueError("Online driver orders require a provider transaction ID.")
     driver_ticket_order.payment_status = "paid"
     driver_ticket_order.status = "recorded"
-    driver_ticket_order.paid_at = datetime.utcnow()
+    driver_ticket_order.paid_at = driver_ticket_order.paid_at or datetime.utcnow()
     if transaction_id:
         driver_ticket_order.provider_transaction_id = transaction_id
 

@@ -18,6 +18,11 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-secondary btn-sm"><i class="bi bi-envelope-arrow-up" aria-hidden="true"></i> {{ 'Resend tickets' if kind == 'spectator' else 'Resend confirmation' }}</button>
         </form>
+      {% elif kind == 'driver' and resolve_endpoint is defined and order.provider_transaction_id and order.paid_at %}
+        <form method="post" action="{{ url_for(resolve_endpoint, order_id=order.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-sm"><i class="bi bi-wrench-adjustable-circle" aria-hidden="true"></i> Resolve paid order</button>
+        </form>
       {% endif %}
     </div>
   </div>

@@ -201,6 +201,12 @@
         <div class="lane-editor-heading"><div><h3>Lineup lanes</h3><p class="muted-line">Shown to drivers in this order. Add short instructions so everyone knows where to queue.</p></div></div>
         <form method="post" action="{{ url_for('employee.event_lineup_lanes', event_id=event.id) }}" data-lane-editor>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="staging-road staging-road-preview" data-road-preview aria-label="Driver preview" {% if not lineup_lanes %}hidden{% endif %}>
+            <div class="staging-road-gate"><span>TRACK ENTRY</span><i class="bi bi-chevron-double-up"></i></div>
+            <div class="staging-road-lanes" data-road-lanes>
+              {% for lane in lineup_lanes %}<div class="staging-road-lane"><span class="road-lane-arrow"><i class="bi bi-arrow-up"></i></span><div class="road-lane-sign"><small>LANE {{ loop.index }}</small><strong>{{ lane.name }}</strong>{% if lane.description %}<span>{{ lane.description }}</span>{% endif %}</div><span class="road-car"><i class="bi bi-car-front-fill"></i></span></div>{% endfor %}
+            </div>
+          </div>
           <div class="lane-editor-list" data-lane-list>
             {% for lane in lineup_lanes %}
               <div class="lane-editor-row" data-lane-row>
@@ -218,10 +224,12 @@
         <script>
           (() => {
             const editor = document.querySelector('[data-lane-editor]'); if (!editor) return
-            const list = editor.querySelector('[data-lane-list]'), empty = editor.querySelector('[data-lane-empty]')
-            const renumber = () => { const rows = [...list.querySelectorAll('[data-lane-row]')]; rows.forEach((row, i) => row.querySelector('.lane-number').textContent = i + 1); empty.hidden = rows.length > 0 }
+            const list = editor.querySelector('[data-lane-list]'), empty = editor.querySelector('[data-lane-empty]'), road = editor.querySelector('[data-road-lanes]'), preview = editor.querySelector('[data-road-preview]')
+            const renderRoad = rows => { road.replaceChildren(...rows.map((row, i) => { const lane = document.createElement('div'); lane.className = 'staging-road-lane'; const arrow = document.createElement('span'); arrow.className = 'road-lane-arrow'; arrow.innerHTML = '<i class="bi bi-arrow-up"></i>'; const sign = document.createElement('div'); sign.className = 'road-lane-sign'; const number = document.createElement('small'); number.textContent = `LANE ${i + 1}`; const name = document.createElement('strong'); name.textContent = row.querySelector('[name="lane_name"]').value.trim() || 'New lane'; const description = document.createElement('span'); description.textContent = row.querySelector('[name="lane_description"]').value.trim(); sign.append(number, name); if (description.textContent) sign.append(description); const car = document.createElement('span'); car.className = 'road-car'; car.innerHTML = '<i class="bi bi-car-front-fill"></i>'; lane.append(arrow, sign, car); return lane })) }
+            const renumber = () => { const rows = [...list.querySelectorAll('[data-lane-row]')]; rows.forEach((row, i) => row.querySelector('.lane-number').textContent = i + 1); empty.hidden = rows.length > 0; preview.hidden = rows.length === 0; renderRoad(rows) }
             editor.querySelector('[data-add-lane]').addEventListener('click', () => { if (list.children.length >= 20) return; const row = document.querySelector('[data-lane-template]').content.firstElementChild.cloneNode(true); list.append(row); renumber(); row.querySelector('input').focus() })
             list.addEventListener('click', e => { const remove = e.target.closest('[data-remove-lane]'); if (remove) { remove.closest('[data-lane-row]').remove(); renumber(); return } const move = e.target.closest('[data-move-lane]'); if (!move) return; const row = move.closest('[data-lane-row]'); if (move.dataset.moveLane === 'up' && row.previousElementSibling) list.insertBefore(row, row.previousElementSibling); if (move.dataset.moveLane === 'down' && row.nextElementSibling) list.insertBefore(row.nextElementSibling, row); renumber() })
+            list.addEventListener('input', renumber)
             renumber()
           })()
         </script>

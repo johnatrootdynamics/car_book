@@ -1000,6 +1000,14 @@ def dashboard():
         .filter(
             EventRegistration.user_id == current_user.id,
             Event.event_date >= date.today(),
+            or_(
+                Event.event_type == "private",
+                db.session.query(DriverTicketOrder.id).filter(
+                    DriverTicketOrder.event_id == Event.id,
+                    DriverTicketOrder.user_id == current_user.id,
+                    DriverTicketOrder.payment_status == "paid",
+                ).exists(),
+            ),
         )
         .order_by(Event.event_date.asc())
         .all()
@@ -2097,6 +2105,8 @@ def stripe_webhook():
         session_obj = event["data"]["object"]
         session_id = session_obj.get("id")
         target = rfid_order or order or driver_ticket_order or private_rental_booking
+        if target.payment_status == "paid":
+            return "ok", 200
         expected_cents = target.total_cents if (order or rfid_order) else target.amount_cents
         if (
             session_obj.get("payment_status") != "paid"
@@ -2116,6 +2126,9 @@ def stripe_webhook():
         if order:
             event_ids = sorted({item.event_id for item in order.items})
             Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+            db.session.refresh(order, with_for_update=True)
+            if order.payment_status == "paid":
+                return "ok", 200
             if not spectator_order_fits_capacity(order):
                 order.payment_status = "failed"
                 order.status = "failed"
@@ -2124,6 +2137,9 @@ def stripe_webhook():
                 return "ok", 200
         elif driver_ticket_order:
             Event.query.filter_by(id=driver_ticket_order.event_id).with_for_update().one()
+            db.session.refresh(driver_ticket_order, with_for_update=True)
+            if driver_ticket_order.payment_status == "paid":
+                return "ok", 200
             if not driver_order_fits_capacity(driver_ticket_order):
                 driver_ticket_order.payment_status = "failed"
                 driver_ticket_order.status = "failed"
@@ -2158,6 +2174,9 @@ def spectator_paypal_return(order_id):
         return redirect(url_for("user.spectator_order_success", order_id=order.id))
     event_ids = sorted({item.event_id for item in order.items})
     Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+    db.session.refresh(order, with_for_update=True)
+    if order.payment_status == "paid":
+        return redirect(url_for("user.spectator_order_success", order_id=order.id))
     if not spectator_order_fits_capacity(order):
         order.payment_status = "failed"
         order.status = "failed"
@@ -2201,6 +2220,10 @@ def driver_paypal_return(order_id):
         return redirect(url_for("user.event_detail", event_id=order.event_id))
     if order.payment_status != "paid":
         Event.query.filter_by(id=order.event_id).with_for_update().one()
+        db.session.refresh(order, with_for_update=True)
+        if order.payment_status == "paid":
+            flash("Driver ticket paid successfully.", "success")
+            return redirect(url_for("user.event_hub", event_id=order.event_id))
         if not driver_order_fits_capacity(order):
             order.payment_status = "failed"
             order.status = "failed"
@@ -2350,6 +2373,8 @@ def paypal_webhook():
     webhook_target = spectator_order or driver_ticket_order or private_rental_booking or rfid_order
     if webhook_target.payment_status == "canceled":
         return "ok", 200
+    if webhook_target.payment_status == "paid":
+        return "ok", 200
 
     try:
         if event_type == "CHECKOUT.ORDER.APPROVED":
@@ -2362,9 +2387,15 @@ def paypal_webhook():
                 if spectator_order:
                     event_ids = sorted({item.event_id for item in spectator_order.items})
                     Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+                    db.session.refresh(spectator_order, with_for_update=True)
+                    if spectator_order.payment_status == "paid":
+                        return "ok", 200
                     capacity_available = spectator_order_fits_capacity(spectator_order)
                 elif driver_ticket_order:
                     Event.query.filter_by(id=driver_ticket_order.event_id).with_for_update().one()
+                    db.session.refresh(driver_ticket_order, with_for_update=True)
+                    if driver_ticket_order.payment_status == "paid":
+                        return "ok", 200
                     capacity_available = driver_order_fits_capacity(driver_ticket_order)
                 else:
                     PrivateRentalSlot.query.filter_by(
@@ -2421,6 +2452,12 @@ def paypal_webhook():
             return "ok", 200
 
         target = spectator_order or driver_ticket_order or private_rental_booking or rfid_order
+        # The browser return and PayPal webhook may capture the same checkout at
+        # nearly the same time. Reload before fulfillment so a completed sibling
+        # request is treated as success instead of a capacity conflict.
+        db.session.refresh(target, with_for_update=True)
+        if target.payment_status == "paid":
+            return "ok", 200
         if spectator_order:
             event_ids = sorted({item.event_id for item in spectator_order.items})
             Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
@@ -2594,7 +2631,8 @@ def discover():
 def _attendee_event_ids(user_id):
     event_ids = {
         row[0] for row in db.session.query(EventRegistration.event_id)
-        .filter(EventRegistration.user_id == user_id).all()
+        .join(Event, Event.id == EventRegistration.event_id)
+        .filter(EventRegistration.user_id == user_id, Event.event_type == "private").all()
     }
     event_ids.update(
         row[0] for row in db.session.query(DriverTicketOrder.event_id)

@@ -67,7 +67,7 @@ from .services.email_service import (
 )
 from .services.storage_service import upload_public_image
 from .services.storage_service import build_presigned_read_url
-from .services.capacity_service import ticket_availability
+from .services.capacity_service import driver_order_fits_capacity, ticket_availability
 from .services.order_service import filter_order_rows, format_money, load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status, payment_is_confirmed
 from .services.rental_service import (
@@ -1445,7 +1445,43 @@ def order_detail(kind, order_id):
         money=format_money,
         back_endpoint="employee.orders",
         resend_endpoint="employee.resend_order_email",
+        resolve_endpoint="employee.resolve_driver_order",
     )
+
+
+@employee_bp.route("/orders/driver/<int:order_id>/resolve", methods=["POST"])
+@login_required
+def resolve_driver_order(order_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    order = (
+        DriverTicketOrder.query.join(Event, Event.id == DriverTicketOrder.event_id)
+        .filter(DriverTicketOrder.id == order_id, Event.track_id == active_track_id())
+        .first_or_404()
+    )
+    if effective_payment_status(order) == "paid":
+        flash("This driver order is already fulfilled.", "success")
+        return redirect(url_for("employee.order_detail", kind="driver", order_id=order.id))
+    if not order.provider_transaction_id or not order.paid_at:
+        flash("This order cannot be resolved because no completed provider payment is recorded.", "error")
+        return redirect(url_for("employee.order_detail", kind="driver", order_id=order.id))
+
+    Event.query.filter_by(id=order.event_id).with_for_update().one()
+    registration = EventRegistration.query.filter_by(
+        event_id=order.event_id, user_id=order.user_id
+    ).first()
+    if not registration and not driver_order_fits_capacity(order):
+        flash("The order cannot be fulfilled because driver capacity is currently full.", "error")
+        return redirect(url_for("employee.order_detail", kind="driver", order_id=order.id))
+
+    order.payment_status = "pending"
+    order.status = "pending"
+    order.failure_reason = None
+    from .user_routes import _finalize_driver_ticket_order
+    _finalize_driver_ticket_order(order, transaction_id=order.provider_transaction_id)
+    flash("Payment confirmed and the driver registration was restored.", "success")
+    return redirect(url_for("employee.order_detail", kind="driver", order_id=order.id))
 
 
 @employee_bp.route("/orders/<kind>/<int:order_id>/resend-email", methods=["POST"])
@@ -2182,6 +2218,18 @@ def event_delete(event_id):
     return redirect(url_for("employee.events_index"))
 
 
+def _eligible_event_registrations(event):
+    query = EventRegistration.query.filter(EventRegistration.event_id == event.id)
+    if event.event_type == "public":
+        paid_order_exists = db.session.query(DriverTicketOrder.id).filter(
+            DriverTicketOrder.event_id == EventRegistration.event_id,
+            DriverTicketOrder.user_id == EventRegistration.user_id,
+            DriverTicketOrder.payment_status == "paid",
+        ).exists()
+        query = query.filter(paid_order_exists)
+    return query
+
+
 @employee_bp.route("/events/<int:event_id>/participants")
 @login_required
 def participants(event_id):
@@ -2189,7 +2237,7 @@ def participants(event_id):
     if guard:
         return guard
     event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
-    regs = EventRegistration.query.filter_by(event_id=event.id).order_by(EventRegistration.created_at.asc()).all()
+    regs = _eligible_event_registrations(event).order_by(EventRegistration.created_at.asc()).all()
     inspections = {
         inspection.event_registration_id: inspection
         for inspection in Inspection.query.join(EventRegistration, EventRegistration.id == Inspection.event_registration_id)
@@ -2289,7 +2337,7 @@ def event_detail(event_id):
     class_options = _track_class_options(event.track_id)
     track_layouts = TrackLayout.query.filter_by(track_id=event.track_id).order_by(TrackLayout.name.asc()).all()
 
-    regs = EventRegistration.query.filter_by(event_id=event.id).order_by(EventRegistration.created_at.asc()).all()
+    regs = _eligible_event_registrations(event).order_by(EventRegistration.created_at.asc()).all()
 
     signup_by_day = (
         db.session.query(func.date(EventRegistration.created_at), func.count(EventRegistration.id))
@@ -2325,11 +2373,9 @@ def event_detail(event_id):
     lineup_lanes = []
 
     if view == "participants":
-        participants = (
-            EventRegistration.query.filter_by(event_id=event.id)
-            .order_by(EventRegistration.created_at.asc())
-            .all()
-        )
+        participants = _eligible_event_registrations(event).order_by(
+            EventRegistration.created_at.asc()
+        ).all()
         inspections = {
             inspection.event_registration_id: inspection
             for inspection in Inspection.query.join(
@@ -2697,7 +2743,7 @@ def run_group_generate(event_id):
             db.session.flush()
             group_by_name[name] = group
 
-    registrations = EventRegistration.query.filter_by(event_id=event.id).all()
+    registrations = _eligible_event_registrations(event).all()
     for reg in registrations:
         driver_class = _get_or_create_track_driver_class(event.track_id, reg.user_id).driver_class
         target_group = group_by_name.get(driver_class) or group_by_name[default_names[0]]
