@@ -35,6 +35,7 @@
   <nav class="event-hub-nav" aria-label="Event sections">
     {% if driver_event_status %}<a href="#event-status"><i class="bi bi-check2-circle" aria-hidden="true"></i> Status</a>{% endif %}
     {% if event_schedule_context %}<a href="#run-schedule"><i class="bi bi-calendar2-week" aria-hidden="true"></i> Schedule</a>{% endif %}
+    {% if driver_event_status %}<a href="#lineup-lanes"><i class="bi bi-signpost-split" aria-hidden="true"></i> Lineup lanes</a>{% endif %}
     <a href="#live-track"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Live track</a>
   </nav>
 
@@ -43,6 +44,13 @@
       <header class="event-hub-panel-head"><div><span class="event-page-kicker">Run schedule</span><h3 id="schedule-title">Class track times</h3><p>Your class is highlighted below.</p></div><span class="driver-class-pill driver-class-{{ event_schedule_context.driver_class }}">Class {{ event_schedule_context.driver_class }}</span></header>
       {% if event_schedule_context.notice %}<p class="event-hub-notice"><i class="bi bi-megaphone"></i> {{ event_schedule_context.notice }}</p>{% endif %}
       {% if event_schedule_context.slots %}<div class="event-hub-schedule">{% for slot in event_schedule_context.slots %}<article class="{{ 'is-mine' if slot.class_code == event_schedule_context.driver_class else '' }}"><span class="driver-class-pill driver-class-{{ slot.class_code }}">{{ slot.class_code }}</span><div><strong>{{ slot.start_time.strftime('%I:%M %p').lstrip('0') }}</strong><small>to {{ slot.end_time.strftime('%I:%M %p').lstrip('0') }}</small></div>{% if slot.class_code == event_schedule_context.driver_class %}<em>Your class</em>{% endif %}</article>{% endfor %}</div>{% else %}<div class="event-hub-empty"><i class="bi bi-calendar2-week"></i><div><strong>Schedule not published</strong><span>Class run times will appear here when the track publishes them.</span></div></div>{% endif %}
+    </section>
+  {% endif %}
+
+  {% if driver_event_status %}
+    <section class="event-hub-panel event-hub-section" id="lineup-lanes" aria-labelledby="lanes-title">
+      <header class="event-hub-panel-head"><div><span class="event-page-kicker">Event information</span><h3 id="lanes-title">Where to line up</h3><p>Follow the lane signs and track staff directions when staging.</p></div><i class="bi bi-signpost-split lane-panel-icon" aria-hidden="true"></i></header>
+      {% if lineup_lanes %}<ol class="driver-lane-list">{% for lane in lineup_lanes %}<li><span class="driver-lane-number">{{ loop.index }}</span><div><strong>{{ lane.name }}</strong>{% if lane.description %}<p>{{ lane.description }}</p>{% endif %}</div></li>{% endfor %}</ol>{% else %}<div class="event-hub-empty"><i class="bi bi-signpost-split"></i><div><strong>Lineup lanes not published</strong><span>The track will post staging directions here when they are ready.</span></div></div>{% endif %}
     </section>
   {% endif %}
 

@@ -15,6 +15,7 @@
       <a class="{% if view == 'analytics' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='analytics') }}"><i class="bi bi-graph-up-arrow"></i><span>Analytics</span></a>
     {% endif %}
     <a class="{% if view == 'slots' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='slots') }}"><i class="bi bi-clock-history"></i><span>Schedule</span></a>
+    <a class="{% if view == 'lanes' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='lanes') }}"><i class="bi bi-signpost-split"></i><span>Lineup lanes</span></a>
     <a class="{% if view == 'participants' %}active{% endif %}" href="{{ url_for('employee.event_detail', event_id=event.id, view='participants') }}"><i class="bi bi-people"></i><span>Participants</span></a>
     <a href="{{ url_for('employee.live_track', event_id=event.id) }}"><i class="bi bi-broadcast"></i><span>Live Track</span></a>
     <a href="{{ url_for('employee.run_history', event_id=event.id) }}"><i class="bi bi-flag"></i><span>Run History</span></a>
@@ -194,6 +195,34 @@
                 button.disabled = false
               }
             })
+          })()
+        </script>
+      {% elif view == 'lanes' %}
+        <div class="lane-editor-heading"><div><h3>Lineup lanes</h3><p class="muted-line">Shown to drivers in this order. Add short instructions so everyone knows where to queue.</p></div></div>
+        <form method="post" action="{{ url_for('employee.event_lineup_lanes', event_id=event.id) }}" data-lane-editor>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="lane-editor-list" data-lane-list>
+            {% for lane in lineup_lanes %}
+              <div class="lane-editor-row" data-lane-row>
+                <span class="lane-order"><button type="button" data-move-lane="up" aria-label="Move lane up"><i class="bi bi-chevron-up"></i></button><span class="lane-number">{{ loop.index }}</span><button type="button" data-move-lane="down" aria-label="Move lane down"><i class="bi bi-chevron-down"></i></button></span>
+                <label>Lane name<input name="lane_name" maxlength="80" value="{{ lane.name }}" placeholder="e.g. Beginner drivers" required></label>
+                <label>Instructions<input name="lane_description" maxlength="240" value="{{ lane.description or '' }}" placeholder="Optional landmark or staging note"></label>
+                <button type="button" class="lane-remove" data-remove-lane aria-label="Remove {{ lane.name }}"><i class="bi bi-trash3"></i></button>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="lane-editor-empty" data-lane-empty {% if lineup_lanes %}hidden{% endif %}><i class="bi bi-signpost-split"></i><strong>No lanes set up yet</strong><span>Add the first lane to publish lineup directions to drivers.</span></div>
+          <div class="lane-editor-actions"><button type="button" class="btn btn-secondary" data-add-lane><i class="bi bi-plus-lg"></i> Add lane</button><button type="submit" class="btn"><i class="bi bi-check2"></i> Save lanes</button></div>
+        </form>
+        <template data-lane-template><div class="lane-editor-row" data-lane-row><span class="lane-order"><button type="button" data-move-lane="up" aria-label="Move lane up"><i class="bi bi-chevron-up"></i></button><span class="lane-number"></span><button type="button" data-move-lane="down" aria-label="Move lane down"><i class="bi bi-chevron-down"></i></button></span><label>Lane name<input name="lane_name" maxlength="80" placeholder="e.g. Tandem drivers" required></label><label>Instructions<input name="lane_description" maxlength="240" placeholder="Optional landmark or staging note"></label><button type="button" class="lane-remove" data-remove-lane aria-label="Remove lane"><i class="bi bi-trash3"></i></button></div></template>
+        <script>
+          (() => {
+            const editor = document.querySelector('[data-lane-editor]'); if (!editor) return
+            const list = editor.querySelector('[data-lane-list]'), empty = editor.querySelector('[data-lane-empty]')
+            const renumber = () => { const rows = [...list.querySelectorAll('[data-lane-row]')]; rows.forEach((row, i) => row.querySelector('.lane-number').textContent = i + 1); empty.hidden = rows.length > 0 }
+            editor.querySelector('[data-add-lane]').addEventListener('click', () => { if (list.children.length >= 20) return; const row = document.querySelector('[data-lane-template]').content.firstElementChild.cloneNode(true); list.append(row); renumber(); row.querySelector('input').focus() })
+            list.addEventListener('click', e => { const remove = e.target.closest('[data-remove-lane]'); if (remove) { remove.closest('[data-lane-row]').remove(); renumber(); return } const move = e.target.closest('[data-move-lane]'); if (!move) return; const row = move.closest('[data-lane-row]'); if (move.dataset.moveLane === 'up' && row.previousElementSibling) list.insertBefore(row, row.previousElementSibling); if (move.dataset.moveLane === 'down' && row.nextElementSibling) list.insertBefore(row.nextElementSibling, row); renumber() })
+            renumber()
           })()
         </script>
       {% elif view == 'participants' %}

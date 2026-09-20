@@ -19,6 +19,7 @@ from .models import (
     Car,
     Event,
     EventClassSlot,
+    EventLineupLane,
     DriverTicketOrder,
     DriverWaiver,
     DriverConnection,
@@ -1558,6 +1559,9 @@ def event_hub(event_id):
         driver_event_status=driver_event_status,
         event_schedule_context=event_schedule_context,
         event_live_context=_attendee_live_context(event),
+        lineup_lanes=(EventLineupLane.query.filter_by(event_id=event.id).order_by(
+            EventLineupLane.sort_order.asc(), EventLineupLane.id.asc()
+        ).all() if registration else []),
     )
 
 

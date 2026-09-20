@@ -22,6 +22,7 @@ from .models import (
     Employee,
     Event,
     EventClassSlot,
+    EventLineupLane,
     EventRegistration,
     Inspection,
     InspectionItem,
@@ -2308,7 +2309,7 @@ def event_detail(event_id):
     db.session.commit()
 
     view = (request.args.get("view") or "general").strip().lower()
-    if view not in {"general", "analytics", "participants", "inspect", "slots"}:
+    if view not in {"general", "analytics", "participants", "inspect", "slots", "lanes"}:
         view = "general"
     if view == "analytics" and not has_office_access():
         flash("Office staff access required for event analytics.", "error")
@@ -2321,6 +2322,7 @@ def event_detail(event_id):
     inspections = {}
     waiver_status = {}
     class_slots = []
+    lineup_lanes = []
 
     if view == "participants":
         participants = (
@@ -2351,6 +2353,11 @@ def event_detail(event_id):
             .all()
         )
 
+    if view == "lanes":
+        lineup_lanes = EventLineupLane.query.filter_by(event_id=event.id).order_by(
+            EventLineupLane.sort_order.asc(), EventLineupLane.id.asc()
+        ).all()
+
     return render_template(
         "employee/event_detail.html",
         event=event,
@@ -2370,9 +2377,44 @@ def event_detail(event_id):
         inspections=inspections,
         waiver_status=waiver_status,
         class_slots=class_slots,
+        lineup_lanes=lineup_lanes,
         class_options=class_options,
         today=date.today(),
     )
+
+
+@employee_bp.route("/events/<int:event_id>/lineup-lanes", methods=["POST"])
+@login_required
+def event_lineup_lanes(event_id):
+    guard = require_employee()
+    if guard:
+        return guard
+    event = Event.query.filter_by(id=event_id, track_id=active_track_id()).first_or_404()
+    names = request.form.getlist("lane_name")
+    descriptions = request.form.getlist("lane_description")
+    lanes = []
+    for index, raw_name in enumerate(names):
+        name = raw_name.strip()
+        description = (descriptions[index] if index < len(descriptions) else "").strip()
+        if not name:
+            continue
+        if len(name) > 80 or len(description) > 240:
+            flash("Lane names must be 80 characters or fewer and instructions 240 or fewer.", "error")
+            return redirect(url_for("employee.event_detail", event_id=event.id, view="lanes"))
+        lanes.append((name, description))
+    if len(lanes) > 20:
+        flash("An event can have up to 20 lineup lanes.", "error")
+        return redirect(url_for("employee.event_detail", event_id=event.id, view="lanes"))
+
+    EventLineupLane.query.filter_by(event_id=event.id).delete(synchronize_session=False)
+    for sort_order, (name, description) in enumerate(lanes):
+        db.session.add(EventLineupLane(
+            event_id=event.id, name=name, description=description or None,
+            sort_order=sort_order, updated_by_employee_id=current_user.id,
+        ))
+    db.session.commit()
+    flash("Lineup lanes updated.", "success")
+    return redirect(url_for("employee.event_detail", event_id=event.id, view="lanes"))
 
 
 @employee_bp.route("/events/<int:event_id>/slots/new", methods=["POST"])

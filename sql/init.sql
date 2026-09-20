@@ -379,3 +379,19 @@ CREATE TABLE IF NOT EXISTS private_rental_bookings (
     ON DELETE SET NULL ON UPDATE CASCADE,
   INDEX idx_private_rental_booking_slot_status (slot_id, status)
 );
+
+CREATE TABLE IF NOT EXISTS event_lineup_lanes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  event_id INT NOT NULL,
+  name VARCHAR(80) NOT NULL,
+  description VARCHAR(240) NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  updated_by_employee_id INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_event_lineup_lanes_event FOREIGN KEY (event_id) REFERENCES events(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_event_lineup_lanes_employee FOREIGN KEY (updated_by_employee_id) REFERENCES employees(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX idx_event_lineup_lanes_order (event_id, sort_order)
+);

@@ -339,6 +339,10 @@ class Event(db.Model):
     class_slots = db.relationship(
         "EventClassSlot", backref="event", cascade="all, delete-orphan"
     )
+    lineup_lanes = db.relationship(
+        "EventLineupLane", backref="event", cascade="all, delete-orphan",
+        order_by="EventLineupLane.sort_order",
+    )
     spectator_ticket_orders = db.relationship(
         "SpectatorTicketOrder", backref="event", cascade="all, delete-orphan"
     )
@@ -711,6 +715,21 @@ class EventClassSlot(db.Model):
     end_time = db.Column(db.Time, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+
+
+class EventLineupLane(db.Model):
+    __tablename__ = "event_lineup_lanes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False, index=True)
+    name = db.Column(db.String(80), nullable=False)
+    description = db.Column(db.String(240), nullable=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    updated_by_employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    updated_by = db.relationship("Employee")
 
 
 class SpectatorTicketOrder(db.Model):
