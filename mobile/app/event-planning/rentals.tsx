@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -49,10 +49,11 @@ export default function RentalAvailabilityScreen() {
   const selectedValue = dateValue(selectedDate);
   const selectedSlots = monthSlots[selectedValue] || [];
   const selectedEvents = monthEvents[selectedValue] || [];
+  const goBack = () => router.canGoBack() ? router.back() : router.replace('/events');
 
-  if (account?.type !== 'employee' || account.role !== 'office_staff') return <Screen><Empty title="Office staff only" detail="Rental availability is managed by back-office track staff." /></Screen>;
+  if (account?.type !== 'employee' || account.role !== 'office_staff') return <Screen><BackButton onPress={goBack} /><Empty title="Office staff only" detail="Rental availability is managed by back-office track staff." /></Screen>;
   if (loading && !data) return <Loading />;
-  if (!data) return <Screen><Empty title="Rental calendar unavailable" detail={error || 'Try again in a moment.'} /><Button title="Try again" onPress={load} /></Screen>;
+  if (!data) return <Screen><BackButton onPress={goBack} /><Empty title="Rental calendar unavailable" detail={error || 'Try again in a moment.'} /><Button title="Try again" onPress={load} /></Screen>;
 
   const selectDay = (value: string) => {
     const next = dateFromValue(value);
@@ -75,6 +76,7 @@ export default function RentalAvailabilityScreen() {
   } }]);
 
   return <Screen>
+    <BackButton onPress={goBack} />
     <Hero eyebrow="Office staff" title="Rental availability" subtitle="Publish private track windows, see holds and bookings, and prevent scheduling conflicts." />
     {notice ? <Notice tone="success" text={notice} /> : null}{error ? <Notice tone="error" text={error} /> : null}
 
@@ -122,6 +124,7 @@ export default function RentalAvailabilityScreen() {
 }
 
 function LabeledField({ label, ...props }: { label: string } & React.ComponentProps<typeof Field>) { return <View><Text style={ui.label}>{label}</Text><Field {...props} /></View>; }
+function BackButton({ onPress }: { onPress: () => void }) { return <Pressable accessibilityRole="button" accessibilityLabel="Back to events" hitSlop={8} onPress={onPress} style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}><Text style={styles.backArrow}>‹</Text><Text style={styles.backText}>Events</Text></Pressable>; }
 function Legend({ color, label }: { color: string; label: string }) { return <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: color }]} /><Text style={styles.legendText}>{label}</Text></View>; }
 function Status({ value }: { value: RentalSlot['status'] }) { return <View style={[styles.status, { backgroundColor: statusSoft(value) }]}><Text style={[styles.statusText, { color: statusColor(value) }]}>{value === 'open' ? 'Open' : value === 'held' ? 'Held' : 'Booked'}</Text></View>; }
 function Notice({ tone, text }: { tone: 'success' | 'error'; text: string }) { return <View style={[styles.notice, tone === 'success' ? styles.successNotice : styles.errorNotice]}><Text style={[styles.noticeText, { color: tone === 'success' ? palette.green : palette.red }]}>{text}</Text></View>; }
@@ -139,6 +142,7 @@ function timeRange(start?: string | null, end?: string | null) { return start &&
 function calendarDays(monthValue: string) { const [year, month] = monthValue.split('-').map(Number); const first = new Date(year, month - 1, 1, 12); const start = new Date(first); start.setDate(1 - first.getDay()); const count = Math.ceil((first.getDay() + new Date(year, month, 0).getDate()) / 7) * 7; return Array.from({ length: count }, (_, index) => { const value = new Date(start); value.setDate(start.getDate() + index); return { value: dateValue(value), day: value.getDate(), inMonth: value.getMonth() === month - 1 }; }); }
 
 const styles = StyleSheet.create({
+  backButton: { alignSelf: 'flex-start', minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, paddingHorizontal: 13 }, backButtonPressed: { opacity: .65 }, backArrow: { color: palette.orange, fontSize: 28, lineHeight: 30, marginTop: -2 }, backText: { color: palette.ink, fontSize: 14, fontWeight: '900' },
   notice: { borderRadius: 14, padding: 14 }, successNotice: { backgroundColor: palette.greenSoft }, errorNotice: { backgroundColor: palette.redSoft }, noticeText: { fontWeight: '800' },
   calendarCard: { gap: 13, padding: 14 }, calendarHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }, kicker: { color: palette.orange, fontSize: 10, fontWeight: '900', letterSpacing: 1 }, monthTitle: { color: palette.ink, fontSize: 21, fontWeight: '900', marginTop: 3 }, monthNav: { flexDirection: 'row', alignItems: 'center', gap: 6 }, navButton: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, borderColor: palette.line, alignItems: 'center', justifyContent: 'center' }, navText: { color: palette.ink, fontSize: 27, lineHeight: 28 }, todayButton: { height: 38, borderRadius: 12, backgroundColor: palette.orangeSoft, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center' }, todayText: { color: '#C2410C', fontSize: 12, fontWeight: '900' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 }, legendDot: { width: 8, height: 8, borderRadius: 4 }, legendText: { color: palette.muted, fontSize: 10, fontWeight: '800' }, weekRow: { flexDirection: 'row' }, weekday: { width: '14.285%', textAlign: 'center', color: palette.muted, fontSize: 10, fontWeight: '900' }, calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' }, dayCell: { width: '14.285%', aspectRatio: .82, borderRadius: 10, alignItems: 'center', justifyContent: 'center', gap: 4 }, outsideDay: { opacity: .32 }, pastDay: { opacity: .25 }, selectedDay: { backgroundColor: palette.navy }, dayNumber: { color: palette.ink, fontSize: 13, fontWeight: '800' }, selectedDayText: { color: 'white' }, daySignals: { minHeight: 4, flexDirection: 'row', gap: 2 }, signal: { width: 4, height: 4, borderRadius: 2 },
