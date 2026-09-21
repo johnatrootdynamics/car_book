@@ -37,6 +37,10 @@ from .models import (
     MobileRefreshToken,
     PrivateRentalBooking,
     PrivateRentalSlot,
+    RfidTag,
+    RfidTagOrder,
+    RfidTagOrderItem,
+    RfidTagSettings,
     ScannerDevice,
     ScannerObservation,
     SocialPost,
@@ -73,6 +77,7 @@ from .services.payment_service import (
     capture_paypal_order,
     create_driver_stripe_checkout_session,
     create_paypal_order,
+    create_rfid_stripe_checkout_session,
     create_spectator_order_stripe_checkout_session,
     effective_payment_status,
     payment_is_confirmed,
@@ -504,6 +509,88 @@ def _mobile_spectator_app_url(order, status):
         }
     )
     return f"trackops://event/{event_id}/spectator-checkout?{query}"
+
+
+def _rfid_order_payload(order):
+    return {
+        "id": order.id,
+        "number": order.order_number,
+        "amount": _money(order.total_cents),
+        "payment_method": order.payment_method,
+        "payment_mode": order.payment_mode,
+        "payment_status": effective_payment_status(order),
+        "fulfillment_status": order.fulfillment_status,
+        "created_at": _iso(order.created_at),
+        "fulfilled_at": _iso(order.fulfilled_at),
+        "shipping": {
+            "name": order.shipping_name,
+            "street": order.shipping_street,
+            "city": order.shipping_city,
+            "state": order.shipping_state,
+            "postal_code": order.shipping_postal_code,
+        },
+        "items": [
+            {
+                "id": item.id,
+                "car": _car_payload(item.car),
+                "unit_price": _money(item.unit_price_cents),
+                "tag": (
+                    {
+                        "id": item.tag.id,
+                        "serial": item.tag.public_serial,
+                        "status": item.tag.status,
+                    }
+                    if item.tag
+                    else None
+                ),
+            }
+            for item in order.items
+        ],
+    }
+
+
+def _mobile_rfid_checkout_token(order):
+    return _checkout_serializer().dumps(
+        {"order_type": "rfid", "order_id": order.id, "user_id": order.user_id}
+    )
+
+
+def _mobile_rfid_checkout_order(order_id, token):
+    try:
+        payload = _checkout_serializer().loads(
+            token or "", max_age=MOBILE_CHECKOUT_SECONDS
+        )
+    except (SignatureExpired, BadSignature):
+        return None
+    order = db.session.get(RfidTagOrder, order_id)
+    if not order:
+        return None
+    if (
+        payload.get("order_type") != "rfid"
+        or payload.get("order_id") != order.id
+        or payload.get("user_id") != order.user_id
+    ):
+        return None
+    return order
+
+
+def _mobile_rfid_app_url(order, status):
+    query = urlencode({"checkout_status": status, "order_id": order.id})
+    return f"trackops://rfid?{query}"
+
+
+def _mark_mobile_rfid_order_paid(order, transaction_id=None):
+    if (
+        int(order.total_cents or 0) > 0
+        and order.payment_method in {"stripe", "paypal"}
+        and not transaction_id
+    ):
+        raise ValueError("Paid RFID orders require a provider transaction ID.")
+    order.payment_status = "paid"
+    if order.fulfillment_status == "cancelled":
+        order.fulfillment_status = "pending"
+    order.provider_transaction_id = transaction_id
+    order.paid_at = order.paid_at or datetime.utcnow()
 
 
 @mobile_api_bp.post("/auth/login")
@@ -1436,6 +1523,368 @@ def driver_spectator_checkout_return(order_id):
     return redirect(_mobile_spectator_app_url(order, status))
 
 
+@mobile_api_bp.get("/driver/rfid")
+@mobile_login_required("user")
+def driver_rfid():
+    from .user_routes import _rfid_payment_choices
+
+    user = g.mobile_user
+    cars = Car.query.filter_by(user_id=user.id).order_by(Car.created_at.desc()).all()
+    tags = RfidTag.query.filter_by(activated_by_user_id=user.id).order_by(
+        RfidTag.activated_at.desc()
+    ).all()
+    orders = RfidTagOrder.query.filter_by(user_id=user.id).order_by(
+        RfidTagOrder.created_at.desc()
+    ).limit(25).all()
+    active_by_car = {tag.car_id: tag for tag in tags if tag.car_id and tag.status == "active"}
+    open_items = (
+        RfidTagOrderItem.query.join(RfidTagOrder)
+        .filter(
+            RfidTagOrder.user_id == user.id,
+            RfidTagOrder.payment_status.in_(("pending", "paid")),
+            RfidTagOrder.fulfillment_status != "cancelled",
+        )
+        .all()
+    )
+    ordered_by_car = {item.car_id: item.order for item in open_items}
+    settings = db.session.get(RfidTagSettings, 1)
+    if not settings:
+        settings = RfidTagSettings(id=1, price_cents=0)
+        db.session.add(settings)
+        db.session.commit()
+    return jsonify(
+        {
+            "unit_price": _money(settings.price_cents),
+            "cars": [
+                {
+                    **_car_payload(car),
+                    "tag": (
+                        {
+                            "id": active_by_car[car.id].id,
+                            "serial": active_by_car[car.id].public_serial,
+                            "status": active_by_car[car.id].status,
+                        }
+                        if car.id in active_by_car
+                        else None
+                    ),
+                    "open_order": (
+                        {
+                            "id": ordered_by_car[car.id].id,
+                            "number": ordered_by_car[car.id].order_number,
+                            "payment_status": effective_payment_status(ordered_by_car[car.id]),
+                            "fulfillment_status": ordered_by_car[car.id].fulfillment_status,
+                        }
+                        if car.id in ordered_by_car
+                        else None
+                    ),
+                }
+                for car in cars
+            ],
+            "tags": [
+                {
+                    "id": tag.id,
+                    "serial": tag.public_serial,
+                    "status": tag.status,
+                    "activated_at": _iso(tag.activated_at),
+                    "car": _car_payload(tag.car) if tag.car else None,
+                }
+                for tag in tags
+            ],
+            "orders": [_rfid_order_payload(order) for order in orders],
+            "payment_methods": [
+                {"provider": provider, "label": label}
+                for provider, label in _rfid_payment_choices()
+            ],
+            "shipping": {
+                "name": f"{user.first_name} {user.last_name}".strip(),
+                "street": user.street,
+                "city": user.city,
+                "state": user.state,
+                "postal_code": user.postal_code,
+            },
+        }
+    )
+
+
+@mobile_api_bp.post("/driver/rfid/activate")
+@mobile_login_required("user")
+def driver_rfid_activate():
+    user = g.mobile_user
+    body = request.get_json(silent=True) or {}
+    serial = (body.get("serial") or "").strip().upper()
+    activation_code = (body.get("activation_code") or "").strip().upper()
+    try:
+        car_id = int(body.get("car_id") or 0)
+    except (TypeError, ValueError):
+        car_id = 0
+    car = Car.query.filter_by(id=car_id, user_id=user.id).first()
+    tag = RfidTag.query.filter_by(public_serial=serial).first()
+    if not car:
+        return _json_error("Choose a vehicle from your garage.", 400, "invalid_vehicle")
+    if RfidTag.query.filter_by(car_id=car.id, status="active").first():
+        return _json_error("That vehicle already has an active tag.", 409, "tag_exists")
+    if (
+        not tag
+        or tag.status != "inventory"
+        or not check_password_hash(tag.activation_code_hash, activation_code)
+    ):
+        return _json_error(
+            "That tag serial or activation code is invalid.", 400, "invalid_activation"
+        )
+    ordered_item = RfidTagOrderItem.query.filter_by(rfid_tag_id=tag.id).first()
+    if ordered_item and (
+        ordered_item.order.user_id != user.id or ordered_item.car_id != car.id
+    ):
+        return _json_error(
+            "That tag was fulfilled for a different vehicle.", 403, "wrong_vehicle"
+        )
+    tag.car_id = car.id
+    tag.activated_by_user_id = user.id
+    tag.activated_at = datetime.utcnow()
+    tag.status = "active"
+    db.session.commit()
+    return jsonify({"message": f"{tag.public_serial} is now active on {car.car_year} {car.make} {car.model}."})
+
+
+@mobile_api_bp.post("/driver/rfid/orders")
+@mobile_login_required("user")
+def driver_rfid_order_create():
+    from .user_routes import (
+        _enterprise_payment_credentials,
+        _rfid_payment_choices,
+    )
+
+    user = g.mobile_user
+    body = request.get_json(silent=True) or {}
+    raw_car_ids = body.get("car_ids") if isinstance(body.get("car_ids"), list) else []
+    try:
+        car_ids = list(dict.fromkeys(int(value) for value in raw_car_ids))
+    except (TypeError, ValueError):
+        car_ids = []
+    if not car_ids or len(car_ids) > 10:
+        return _json_error("Choose between 1 and 10 vehicles.", 400, "invalid_vehicles")
+    cars = Car.query.filter(Car.user_id == user.id, Car.id.in_(car_ids)).all()
+    if len(cars) != len(car_ids):
+        return _json_error("One of those vehicles is not in your garage.", 400, "invalid_vehicle")
+    if RfidTag.query.filter(RfidTag.car_id.in_(car_ids), RfidTag.status == "active").first():
+        return _json_error("One of those vehicles already has an active tag.", 409, "tag_exists")
+
+    pending_orders = (
+        RfidTagOrder.query.join(RfidTagOrderItem)
+        .filter(
+            RfidTagOrder.user_id == user.id,
+            RfidTagOrder.payment_status == "pending",
+            RfidTagOrderItem.car_id.in_(car_ids),
+        )
+        .all()
+    )
+    for pending in pending_orders:
+        pending.payment_status = "canceled"
+        pending.fulfillment_status = "cancelled"
+    existing = (
+        RfidTagOrderItem.query.join(RfidTagOrder)
+        .filter(
+            RfidTagOrder.user_id == user.id,
+            RfidTagOrder.payment_status == "paid",
+            RfidTagOrder.fulfillment_status != "cancelled",
+            RfidTagOrderItem.car_id.in_(car_ids),
+        )
+        .first()
+    )
+    if existing:
+        db.session.rollback()
+        return _json_error("A tag has already been ordered for one of those vehicles.", 409, "tag_order_exists")
+
+    shipping = body.get("shipping") if isinstance(body.get("shipping"), dict) else {}
+    shipping_values = {
+        "name": (shipping.get("name") or "").strip(),
+        "street": (shipping.get("street") or "").strip(),
+        "city": (shipping.get("city") or "").strip(),
+        "state": (shipping.get("state") or "").strip(),
+        "postal_code": (shipping.get("postal_code") or "").strip(),
+    }
+    if not all(shipping_values.values()):
+        db.session.rollback()
+        return _json_error("Enter a complete shipping address.", 400, "shipping_required")
+
+    settings = db.session.get(RfidTagSettings, 1) or RfidTagSettings(id=1, price_cents=0)
+    unit_price_cents = max(0, int(settings.price_cents or 0))
+    total_cents = unit_price_cents * len(cars)
+    choices = _rfid_payment_choices()
+    available_providers = {provider for provider, _label in choices}
+    payment_method = (body.get("payment_method") or "").strip().lower()
+    if total_cents > 0 and payment_method not in available_providers:
+        db.session.rollback()
+        return _json_error("Choose an available payment method.", 400, "invalid_payment_method")
+    if total_cents <= 0:
+        payment_method = "free"
+        credentials = {"mode": "live"}
+    else:
+        credentials = _enterprise_payment_credentials(payment_method)
+
+    order = RfidTagOrder(
+        order_number=f"RFID-{datetime.utcnow():%Y%m%d}-{secrets.token_hex(3).upper()}",
+        user_id=user.id,
+        total_cents=total_cents,
+        payment_method=payment_method,
+        payment_mode=credentials["mode"],
+        payment_status="pending",
+        fulfillment_status="pending",
+        shipping_name=shipping_values["name"][:200],
+        shipping_street=shipping_values["street"][:255],
+        shipping_city=shipping_values["city"][:100],
+        shipping_state=shipping_values["state"][:100],
+        shipping_postal_code=shipping_values["postal_code"][:20],
+    )
+    db.session.add(order)
+    db.session.flush()
+    car_by_id = {car.id: car for car in cars}
+    for car_id in car_ids:
+        if car_id in car_by_id:
+            db.session.add(
+                RfidTagOrderItem(
+                    order_id=order.id,
+                    car_id=car_id,
+                    unit_price_cents=unit_price_cents,
+                )
+            )
+    db.session.flush()
+
+    if total_cents <= 0:
+        _mark_mobile_rfid_order_paid(order)
+        db.session.commit()
+        return jsonify({"order": _rfid_order_payload(order), "completed": True}), 201
+
+    checkout_token = _mobile_rfid_checkout_token(order)
+    success_url = url_for(
+        "mobile_api.driver_rfid_order_return",
+        order_id=order.id,
+        checkout_token=checkout_token,
+        _external=True,
+    )
+    cancel_url = url_for(
+        "mobile_api.driver_rfid_order_cancel",
+        order_id=order.id,
+        checkout_token=checkout_token,
+        _external=True,
+    )
+    try:
+        if payment_method == "stripe":
+            if not stripe or not credentials.get("secret_key") or not credentials.get("webhook_secret"):
+                raise ValueError("Stripe is not configured.")
+            stripe.api_key = credentials["secret_key"]
+            checkout = create_rfid_stripe_checkout_session(
+                stripe,
+                order,
+                success_url=f"{success_url}&session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=cancel_url,
+            )
+            order.provider_session_id = checkout.id
+            checkout_url = checkout.url
+        elif payment_method == "paypal":
+            if not all(credentials.get(key) for key in ("public_key", "secret_key", "webhook_secret")):
+                raise ValueError("PayPal is not configured.")
+            paypal_order, checkout_url = create_paypal_order(
+                credentials,
+                total_cents,
+                "TrackOps UHF RFID vehicle tags",
+                f"rfid:{order.id}",
+                success_url,
+                cancel_url,
+                f"mobile-rfid-create-{order.id}",
+            )
+            order.provider_session_id = paypal_order["id"]
+        else:
+            raise ValueError("Unsupported payment provider.")
+    except Exception:
+        current_app.logger.exception("Mobile RFID checkout creation failed for order %s", order.id)
+        db.session.rollback()
+        return _json_error(
+            "Payment checkout could not be started. Please try again.",
+            502,
+            "checkout_start_failed",
+        )
+    db.session.commit()
+    return jsonify(
+        {
+            "order": _rfid_order_payload(order),
+            "completed": False,
+            "checkout_url": checkout_url,
+            "return_url": _mobile_rfid_app_url(order, "return").split("?", 1)[0],
+        }
+    ), 201
+
+
+@mobile_api_bp.get("/driver/rfid/orders/<int:order_id>")
+@mobile_login_required("user")
+def driver_rfid_order_status(order_id):
+    order = RfidTagOrder.query.filter_by(id=order_id, user_id=g.mobile_user.id).first()
+    if not order:
+        return _json_error("RFID order not found.", 404, "order_not_found")
+    return jsonify({"order": _rfid_order_payload(order)})
+
+
+@mobile_api_bp.get("/driver/rfid/orders/<int:order_id>/payment-cancel")
+def driver_rfid_order_cancel(order_id):
+    order = _mobile_rfid_checkout_order(order_id, request.args.get("checkout_token"))
+    if not order:
+        return _json_error("This checkout return link is invalid or expired.", 401, "invalid_checkout")
+    if effective_payment_status(order) != "paid":
+        order.payment_status = "canceled"
+        order.fulfillment_status = "cancelled"
+        db.session.commit()
+    return redirect(_mobile_rfid_app_url(order, "canceled"))
+
+
+@mobile_api_bp.get("/driver/rfid/orders/<int:order_id>/payment-return")
+def driver_rfid_order_return(order_id):
+    from .user_routes import _enterprise_payment_credentials, _validated_paypal_capture
+
+    order = _mobile_rfid_checkout_order(order_id, request.args.get("checkout_token"))
+    if not order:
+        return _json_error("This checkout return link is invalid or expired.", 401, "invalid_checkout")
+    if effective_payment_status(order) == "paid":
+        return redirect(_mobile_rfid_app_url(order, "paid"))
+    try:
+        db.session.refresh(order, with_for_update=True)
+        credentials = _enterprise_payment_credentials(order.payment_method, mode=order.payment_mode)
+        if order.payment_method == "stripe":
+            session_id = (request.args.get("session_id") or "").strip()
+            if not stripe or not session_id or session_id != order.provider_session_id:
+                raise ValueError("Stripe checkout session did not match the order.")
+            stripe.api_key = credentials["secret_key"]
+            checkout = stripe.checkout.Session.retrieve(session_id)
+            if (
+                checkout.payment_status != "paid"
+                or str(checkout.currency or "").lower() != "usd"
+                or int(checkout.amount_total or -1) != int(order.total_cents or 0)
+                or not checkout.payment_intent
+            ):
+                raise ValueError("Stripe payment is not confirmed.")
+            _mark_mobile_rfid_order_paid(order, str(checkout.payment_intent))
+        elif order.payment_method == "paypal":
+            paypal_order_id = (request.args.get("token") or "").strip()
+            if not paypal_order_id or paypal_order_id != order.provider_session_id:
+                raise ValueError("PayPal checkout session did not match the order.")
+            captured = capture_paypal_order(
+                credentials, paypal_order_id, f"mobile-rfid-capture-{order.id}"
+            )
+            transaction_id = _validated_paypal_capture(
+                paypal_capture_details(captured), order.total_cents
+            )
+            _mark_mobile_rfid_order_paid(order, transaction_id)
+        else:
+            raise ValueError("Unsupported payment provider.")
+        db.session.commit()
+    except Exception:
+        current_app.logger.exception(
+            "Mobile RFID checkout return could not be confirmed for order %s", order.id
+        )
+        db.session.rollback()
+    status = "paid" if effective_payment_status(order) == "paid" else "processing"
+    return redirect(_mobile_rfid_app_url(order, status))
+
+
 @mobile_api_bp.get("/driver/tickets")
 @mobile_login_required("user")
 def driver_tickets():
@@ -1627,6 +2076,187 @@ def admin_dashboard():
             }
         }
     )
+
+
+def _admin_rfid_payload():
+    settings = db.session.get(RfidTagSettings, 1) or RfidTagSettings(id=1, price_cents=0)
+    tags = RfidTag.query.order_by(RfidTag.created_at.desc()).limit(100).all()
+    orders = RfidTagOrder.query.order_by(RfidTagOrder.created_at.desc()).limit(100).all()
+    return {
+        "unit_price": _money(settings.price_cents),
+        "inventory": [
+            {
+                "id": tag.id,
+                "serial": tag.public_serial,
+                "epc": tag.epc,
+                "tid": tag.tid,
+                "status": tag.status,
+                "car": _car_payload(tag.car) if tag.car else None,
+                "created_at": _iso(tag.created_at),
+            }
+            for tag in tags
+        ],
+        "orders": [_rfid_order_payload(order) for order in orders],
+    }
+
+
+@mobile_api_bp.get("/admin/rfid")
+@mobile_login_required("admin")
+def admin_rfid():
+    return jsonify(_admin_rfid_payload())
+
+
+@mobile_api_bp.put("/admin/rfid/settings")
+@mobile_login_required("admin")
+def admin_rfid_settings_update():
+    raw_price = (request.get_json(silent=True) or {}).get("unit_price")
+    try:
+        price_cents = int((Decimal(str(raw_price)) * 100).quantize(Decimal("1")))
+    except (InvalidOperation, TypeError, ValueError):
+        price_cents = -1
+    if price_cents < 0:
+        return _json_error("Enter a valid non-negative tag price.", 400, "invalid_price")
+    settings = db.session.get(RfidTagSettings, 1)
+    if not settings:
+        settings = RfidTagSettings(id=1)
+        db.session.add(settings)
+    settings.price_cents = price_cents
+    db.session.commit()
+    return jsonify({"message": "RFID tag price saved.", **_admin_rfid_payload()})
+
+
+@mobile_api_bp.post("/admin/rfid/inventory")
+@mobile_login_required("admin")
+def admin_rfid_inventory_create():
+    body = request.get_json(silent=True) or {}
+    epc = "".join(ch for ch in (body.get("epc") or "").upper() if ch.isalnum())
+    tid = "".join(ch for ch in (body.get("tid") or "").upper() if ch.isalnum()) or None
+    if not epc:
+        return _json_error("Enter the tag EPC.", 400, "epc_required")
+    if RfidTag.query.filter_by(epc=epc).first():
+        return _json_error("That EPC is already provisioned.", 409, "epc_exists")
+    if tid and RfidTag.query.filter_by(tid=tid).first():
+        return _json_error("That TID is already provisioned.", 409, "tid_exists")
+    serial = "TAG-" + secrets.token_hex(4).upper()
+    activation_code = "-".join(secrets.token_hex(2).upper() for _ in range(3))
+    tag = RfidTag(
+        epc=epc,
+        tid=tid,
+        public_serial=serial,
+        activation_code_hash=generate_password_hash(activation_code),
+    )
+    db.session.add(tag)
+    db.session.commit()
+    return jsonify(
+        {
+            "message": "Tag added to inventory. Save the one-time activation label now.",
+            "issued_tag": {"id": tag.id, "serial": serial, "activation_code": activation_code},
+            **_admin_rfid_payload(),
+        }
+    ), 201
+
+
+@mobile_api_bp.get("/admin/rfid/orders/<int:order_id>")
+@mobile_login_required("admin")
+def admin_rfid_order(order_id):
+    order = db.session.get(RfidTagOrder, order_id)
+    if not order:
+        return _json_error("RFID order not found.", 404, "order_not_found")
+    available_tags = (
+        RfidTag.query.outerjoin(RfidTagOrderItem)
+        .filter(
+            RfidTag.status == "inventory",
+            RfidTag.car_id.is_(None),
+            RfidTagOrderItem.id.is_(None),
+        )
+        .order_by(RfidTag.created_at.asc())
+        .all()
+    )
+    return jsonify(
+        {
+            "order": _rfid_order_payload(order),
+            "available_tags": [
+                {"id": tag.id, "serial": tag.public_serial, "epc": tag.epc}
+                for tag in available_tags
+            ],
+        }
+    )
+
+
+@mobile_api_bp.post("/admin/rfid/orders/<int:order_id>/fulfill")
+@mobile_login_required("admin")
+def admin_rfid_order_fulfill(order_id):
+    from .services.email_service import send_email
+
+    order = db.session.get(RfidTagOrder, order_id)
+    if not order:
+        return _json_error("RFID order not found.", 404, "order_not_found")
+    if effective_payment_status(order) != "paid":
+        return _json_error("Payment must be confirmed before fulfillment.", 409, "payment_required")
+    if order.fulfillment_status == "fulfilled":
+        return _json_error("That order has already been fulfilled.", 409, "already_fulfilled")
+    assignments = (request.get_json(silent=True) or {}).get("assignments")
+    if not isinstance(assignments, dict):
+        return _json_error("Assign one inventory tag to every vehicle.", 400, "assignments_required")
+
+    chosen = []
+    chosen_tag_ids = set()
+    for item in order.items:
+        try:
+            tag_id = int(assignments.get(str(item.id), assignments.get(item.id)) or 0)
+        except (TypeError, ValueError):
+            tag_id = 0
+        tag = RfidTag.query.filter_by(id=tag_id, status="inventory", car_id=None).first()
+        assigned_item = RfidTagOrderItem.query.filter_by(rfid_tag_id=tag_id).first() if tag_id else None
+        if not tag or assigned_item or tag_id in chosen_tag_ids:
+            return _json_error(
+                "Choose a different available inventory tag for every vehicle.",
+                400,
+                "invalid_assignment",
+            )
+        activation_code = "-".join(secrets.token_hex(2).upper() for _ in range(3))
+        chosen.append((item, tag, activation_code))
+        chosen_tag_ids.add(tag_id)
+
+    lines = [f"Your TrackOps RFID order {order.order_number} has been fulfilled.", ""]
+    for item, tag, activation_code in chosen:
+        lines.extend(
+            [
+                f"{item.car.car_year} {item.car.make} {item.car.model}",
+                f"Tag serial: {tag.public_serial}",
+                f"Activation code: {activation_code}",
+                "",
+            ]
+        )
+    lines.append(
+        "Open RFID Tags in the TrackOps app and enter the serial and activation code for the matching car."
+    )
+    now = datetime.utcnow()
+    for item, tag, activation_code in chosen:
+        tag.activation_code_hash = generate_password_hash(activation_code)
+        item.rfid_tag_id = tag.id
+        item.fulfilled_at = now
+    order.fulfillment_status = "fulfilled"
+    order.fulfilled_at = now
+    db.session.flush()
+    try:
+        sent = send_email(
+            order.buyer.email,
+            f"Your RFID tags are ready — {order.order_number}",
+            "\n".join(lines),
+        )
+    except Exception:
+        current_app.logger.exception("Mobile RFID fulfillment email failed")
+        sent = False
+    if not sent:
+        db.session.rollback()
+        return _json_error(
+            "The fulfillment email could not be sent, so the order was not changed.",
+            503,
+            "email_failed",
+        )
+    db.session.commit()
+    return jsonify({"message": "Order fulfilled and activation codes emailed to the driver.", **_admin_rfid_payload()})
 
 
 @mobile_api_bp.get("/staff/dashboard")
@@ -3212,6 +3842,43 @@ def staff_scanner_update(scanner_id):
     scanner.role = role
     db.session.commit()
     return jsonify({"message": "Scanner settings saved."})
+
+
+@mobile_api_bp.post("/staff/hardware/scanners/register")
+@mobile_login_required("employee")
+def staff_scanner_register():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    body = request.get_json(silent=True) or {}
+    pairing_code = (body.get("pairing_code") or "").strip().upper()
+    name = (body.get("name") or "").strip()[:120]
+    if not pairing_code or not name:
+        return _json_error("Enter the scanner name and pairing code.", 400, "pairing_required")
+    now = datetime.utcnow()
+    pending = ScannerDevice.query.filter(
+        ScannerDevice.status == "pending", ScannerDevice.pairing_expires_at >= now
+    ).all()
+    device = next(
+        (
+            item
+            for item in pending
+            if check_password_hash(item.pairing_code_hash or "", pairing_code)
+        ),
+        None,
+    )
+    if not device:
+        return _json_error(
+            "That pairing code is invalid or has expired.", 400, "invalid_pairing_code"
+        )
+    device.track_id = g.mobile_user.track_id
+    device.name = name
+    device.status = "active"
+    device.claimed_at = now
+    device.pairing_code_hash = None
+    device.pairing_expires_at = None
+    db.session.commit()
+    return jsonify({"message": f"{device.name} is now registered to this track."}), 201
 
 
 def _staff_settings_payload(employee):

@@ -63,6 +63,12 @@ def _event_for_observation(track_id, observed_at):
     ]
     if timed_matches:
         return max(timed_matches, key=lambda event: event.event_start_time or datetime.min.time())
+    untimed_matches = [
+        event for event in events
+        if not event.event_start_time or not event.event_end_time
+    ]
+    if len(untimed_matches) == 1:
+        return untimed_matches[0]
     return None
 
 
@@ -74,14 +80,15 @@ def _driver_eligibility(event, tag):
     ).first()
     if not registration:
         return False, "Driver is not registered for this event"
-    ticket = DriverTicketOrder.query.filter_by(
-        event_id=event.id, user_id=tag.car.user_id, car_id=tag.car_id
-    ).order_by(DriverTicketOrder.created_at.desc()).first()
-    if not ticket or not payment_is_confirmed(
-        ticket.payment_status, ticket.payment_method,
-        ticket.amount_cents, ticket.provider_transaction_id,
-    ):
-        return False, "Driver ticket is not paid"
+    if event.event_type != "private":
+        ticket = DriverTicketOrder.query.filter_by(
+            event_id=event.id, user_id=tag.car.user_id, car_id=tag.car_id
+        ).order_by(DriverTicketOrder.created_at.desc()).first()
+        if not ticket or not payment_is_confirmed(
+            ticket.payment_status, ticket.payment_method,
+            ticket.amount_cents, ticket.provider_transaction_id,
+        ):
+            return False, "Driver ticket is not paid"
     inspection = Inspection.query.filter_by(event_registration_id=registration.id).first()
     if not inspection or not inspection.passed:
         return False, "Event inspection has not been passed"
@@ -230,13 +237,19 @@ def observations():
                 event = _event_for_observation(device.track_id, observed_at)
                 eligible, eligibility_reason = _driver_eligibility(event, tag)
                 was_eligible = state.is_eligible
-                state.is_on_track = desired_state
                 if desired_state:
                     state.event_id = event.id if event else None
                     state.is_eligible = eligible
                     state.eligibility_reason = eligibility_reason
+                    state.is_on_track = eligible
+                    if not eligible:
+                        result = "denied"
+                        reason = eligibility_reason
+                        observation.result = result
+                        observation.reason = reason
                 else:
                     eligible = was_eligible
+                    state.is_on_track = False
                 state.last_scanner_id = device.id
                 state.last_observation_id = observation.id
                 state.changed_at = observed_at
@@ -244,7 +257,10 @@ def observations():
                 _record_run_transition(
                     device, tag, desired_state, observed_at, event, eligible
                 )
-        results.append({"event_id": event_uuid, "status": result})
+        result_payload = {"event_id": event_uuid, "status": result}
+        if reason:
+            result_payload["reason"] = reason
+        results.append(result_payload)
     device.last_seen_at = datetime.utcnow()
     try:
         db.session.commit()

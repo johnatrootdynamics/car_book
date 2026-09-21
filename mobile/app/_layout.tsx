@@ -21,6 +21,7 @@ export default function RootLayout() {
           <Stack.Screen name="event-planning/new" options={{ title: 'Create event' }} />
           <Stack.Screen name="event-planning/rentals" options={{ title: 'Rental availability' }} />
           <Stack.Screen name="car/[id]" options={{ title: 'Garage' }} />
+          <Stack.Screen name="rfid" options={{ title: 'RFID tags' }} />
           <Stack.Screen name="inspection/[id]" options={{ title: 'Vehicle inspection' }} />
           <Stack.Screen name="staff/people" options={{ title: 'People' }} />
           <Stack.Screen name="staff/driver/[id]" options={{ title: 'Driver profile' }} />
@@ -28,6 +29,7 @@ export default function RootLayout() {
           <Stack.Screen name="staff/order/[kind]/[id]" options={{ title: 'Order details' }} />
           <Stack.Screen name="staff/hardware" options={{ title: 'Scanners & cameras' }} />
           <Stack.Screen name="staff/settings" options={{ title: 'Track settings' }} />
+          <Stack.Screen name="admin/rfid" options={{ title: 'RFID fulfillment' }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

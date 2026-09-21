@@ -11,6 +11,8 @@ Expo SDK 57 application for iOS and Android. It uses the existing Track Ops acco
 - Continuous QR scanner with manual name/email/code lookup
 - Same-track and confirmed-payment enforcement before admission
 - Clear already-used ticket warning
+- Native RFID tag ordering, payment, fulfillment, activation, and scanner pairing
+- RFID entrance/exit monitoring with event, ticket, and inspection eligibility checks
 
 ## Run
 

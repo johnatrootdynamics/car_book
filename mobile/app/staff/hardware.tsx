@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, Empty, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
+import { Button, Card, Empty, Field, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
 import { palette } from '@/lib/theme';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -16,7 +16,11 @@ export default function StaffHardwareScreen() {
   const { account, api } = useAuth();
   const [data, setData] = useState<Hardware | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState<number | null>(null);
+  const [pairing, setPairing] = useState(false);
+  const [scannerName, setScannerName] = useState('');
+  const [pairingCode, setPairingCode] = useState('');
 
   const load = useCallback(async () => {
     setError('');
@@ -36,11 +40,35 @@ export default function StaffHardwareScreen() {
     } finally { setBusy(null); }
   };
 
+  const pairScanner = async () => {
+    setPairing(true); setError(''); setNotice('');
+    try {
+      const result = await api<{ message: string }>('/staff/hardware/scanners/register', {
+        method: 'POST',
+        body: JSON.stringify({ name: scannerName, pairing_code: pairingCode }),
+      });
+      setScannerName(''); setPairingCode(''); setNotice(result.message); await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to pair the scanner.');
+    } finally { setPairing(false); }
+  };
+
   if (!data && !error) return <Loading />;
   return <Screen>
     <Hero eyebrow="Track hardware" title="Scanners & cameras" subtitle="A clear view of every zone, device connection, and recent read." />
     <Button tone="secondary" title="Refresh device status" onPress={load} />
+    {notice ? <Text style={styles.notice}>{notice}</Text> : null}
     {error ? <Text style={styles.error}>{error}</Text> : null}
+
+    {account?.role === 'office_staff' ? <>
+      <SectionTitle title="Pair a scanner" />
+      <Card style={styles.pairCard}>
+        <Text style={ui.body}>Enter the temporary code shown on the scanner setup screen.</Text>
+        <View><Text style={ui.label}>Scanner name</Text><Field placeholder="North gate scanner" value={scannerName} onChangeText={setScannerName} /></View>
+        <View><Text style={ui.label}>Pairing code</Text><Field autoCapitalize="characters" autoCorrect={false} placeholder="ABC123" value={pairingCode} onChangeText={setPairingCode} /></View>
+        <Button title={pairing ? 'Pairing…' : 'Pair scanner'} disabled={pairing || !scannerName.trim() || !pairingCode.trim()} onPress={pairScanner} />
+      </Card>
+    </> : null}
 
     <SectionTitle title="RFID scanners" />
     {data?.scanners.length ? data.scanners.map(scanner => <Card key={scanner.id}>
@@ -75,6 +103,8 @@ function isOnline(connected: boolean, value?: string | null) {
 
 const styles = StyleSheet.create({
   error: { color: palette.red, fontWeight: '800' },
+  notice: { color: palette.green, fontWeight: '800' },
+  pairCard: { gap: 13 },
   deviceTitle: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   online: { backgroundColor: palette.green },

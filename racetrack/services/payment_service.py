@@ -274,6 +274,32 @@ def create_driver_stripe_checkout_session(stripe_client, driver_ticket_order, su
     return session
 
 
+def create_rfid_stripe_checkout_session(stripe_client, order, success_url, cancel_url):
+    unit_price_cents = int(order.items[0].unit_price_cents or 0) if order.items else 0
+    return stripe_client.checkout.Session.create(
+        mode="payment",
+        expires_at=int(time()) + 1860,
+        customer_email=order.buyer.email,
+        line_items=[
+            {
+                "price_data": {
+                    "currency": "usd",
+                    "unit_amount": unit_price_cents,
+                    "product_data": {"name": "TrackOps UHF RFID vehicle tag"},
+                },
+                "quantity": len(order.items),
+            }
+        ],
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={
+            "order_type": "rfid",
+            "rfid_tag_order_id": str(order.id),
+            "order_number": order.order_number,
+        },
+    )
+
+
 def create_private_rental_stripe_checkout_session(stripe_client, booking, success_url, cancel_url):
     slot = booking.slot
     session = stripe_client.checkout.Session.create(

@@ -19,7 +19,7 @@ const driverTools: Destination[] = [
   { title: 'Community', detail: 'Friends, circles, posts, and shared runs', path: '/user/community', symbol: 'person.2.fill' },
   { title: 'Event tickets', detail: 'Shop driver and spectator admission', path: '/user/spectator/events', symbol: 'ticket.fill' },
   { title: 'Private rentals', detail: 'Find and manage private track days', path: '/user/private-rentals', symbol: 'calendar.badge.plus' },
-  { title: 'RFID tags', detail: 'Order and manage vehicle tags', path: '/user/rfid-tags', symbol: 'wave.3.right' },
+  { title: 'RFID tags', detail: 'Order, activate, and manage vehicle tags', route: '/rfid', symbol: 'wave.3.right' },
   { title: 'Driver profile', detail: 'Public profile, follows, and account details', path: '/user/profile', symbol: 'person.crop.circle' },
 ];
 
@@ -43,7 +43,7 @@ const adminTools: Destination[] = [
   { title: 'Tracks & onboarding', detail: 'Create tracks and onboard office staff', path: '/admin/dashboard', symbol: 'map.fill' },
   { title: 'Accounts', detail: 'Manage every account and password reset', path: '/admin/accounts', symbol: 'person.3.fill' },
   { title: 'All orders', detail: 'Review commerce across the platform', path: '/admin/orders', symbol: 'list.bullet.rectangle' },
-  { title: 'RFID fulfillment', detail: 'Products, orders, inventory, and shipping', path: '/admin/rfid-tag-orders', symbol: 'shippingbox.fill' },
+  { title: 'RFID fulfillment', detail: 'Products, orders, inventory, and shipping', route: '/admin/rfid', symbol: 'shippingbox.fill' },
   { title: 'Platform settings', detail: 'Enterprise payments, SMTP, wallet, and templates', path: '/admin/settings', symbol: 'gearshape.fill' },
 ];
 
