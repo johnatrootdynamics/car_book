@@ -24,13 +24,10 @@ const driverTools: Destination[] = [
 const staffDaily: Destination[] = [
   { title: 'People', detail: 'Driver history, notes, classes, and vendors', path: '/employee/drivers', symbol: 'person.2.fill' },
   { title: 'Orders', detail: 'Track purchases, tickets, and resends', path: '/employee/orders', symbol: 'list.bullet.rectangle' },
-  { title: 'Live track', detail: 'Current sessions, run groups, and timing', path: '/employee/live-track', symbol: 'flag.checkered' },
   { title: 'RFID scanners', detail: 'Zones, readers, cameras, and activity', path: '/employee/scanners', symbol: 'sensor.tag.radiowaves.forward.fill' },
 ];
 
 const staffOffice: Destination[] = [
-  { title: 'Event planning', detail: 'Create events, schedules, pricing, and limits', path: '/employee/events', symbol: 'calendar' },
-  { title: 'Private rentals', detail: 'Availability, slots, bookings, and pricing', path: '/employee/private-rentals', symbol: 'calendar.badge.clock' },
   { title: 'Track settings', detail: 'Payments, staff, waivers, email, and inspections', path: '/employee/settings', symbol: 'gearshape.fill' },
 ];
 
@@ -71,7 +68,7 @@ export default function MoreScreen() {
   else if (account.type === 'vendor') sections = [{ title: 'Vendor tools', items: vendorTools }];
   else if (account.type === 'admin') sections = [{ title: 'Enterprise tools', items: adminTools }];
   else sections = [
-    { title: 'Track operations', items: staffDaily },
+    { title: 'Track tools', items: staffDaily },
     ...(account.role === 'office_staff' ? [{ title: 'Office management', items: staffOffice }] : []),
   ];
 

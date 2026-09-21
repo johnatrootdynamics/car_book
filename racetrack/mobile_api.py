@@ -783,12 +783,13 @@ def _driver_ticket_payload(registration):
     }
 
 
-def _ticket_match(code, track_id):
-    item = (
-        SpectatorOrderItem.query.join(Event)
-        .filter(SpectatorOrderItem.qr_code == code, Event.track_id == track_id)
-        .first()
+def _ticket_match(code, track_id, event_id=None):
+    item_query = SpectatorOrderItem.query.join(Event).filter(
+        SpectatorOrderItem.qr_code == code, Event.track_id == track_id
     )
+    if event_id:
+        item_query = item_query.filter(Event.id == event_id)
+    item = item_query.first()
     if item:
         order = item.order
         name = (
@@ -806,11 +807,12 @@ def _ticket_match(code, track_id):
             "event": _event_payload(item.event),
             "checked_in_at": _iso(item.checked_in_at),
         }
-    registration = (
-        EventRegistration.query.join(Event)
-        .filter(EventRegistration.checkin_code == code, Event.track_id == track_id)
-        .first()
+    registration_query = EventRegistration.query.join(Event).filter(
+        EventRegistration.checkin_code == code, Event.track_id == track_id
     )
+    if event_id:
+        registration_query = registration_query.filter(Event.id == event_id)
+    registration = registration_query.first()
     if not registration:
         return None
     return _driver_ticket_payload(registration)
@@ -819,11 +821,21 @@ def _ticket_match(code, track_id):
 @mobile_api_bp.post("/staff/tickets/lookup")
 @mobile_login_required("employee")
 def staff_ticket_lookup():
-    raw_lookup = ((request.get_json(silent=True) or {}).get("query") or "").strip()
+    body = request.get_json(silent=True) or {}
+    raw_lookup = (body.get("query") or "").strip()
     if not raw_lookup:
         return _json_error("Scan a QR code or enter a name, email, or ticket code.")
+    event_id = body.get("event_id")
+    if event_id is not None:
+        try:
+            event_id = int(event_id)
+        except (TypeError, ValueError):
+            return _json_error("Select a valid event.", 400, "invalid_event")
+        event = Event.query.filter_by(id=event_id, track_id=g.mobile_user.track_id).first()
+        if not event:
+            return _json_error("That event is not part of your track.", 404, "event_not_found")
     code = normalize_ticket_code(raw_lookup)
-    direct = _ticket_match(code, g.mobile_user.track_id)
+    direct = _ticket_match(code, g.mobile_user.track_id, event_id)
     if not direct:
         registration = (
             EventRegistration.query.join(User, User.id == EventRegistration.user_id)
@@ -832,13 +844,14 @@ def staff_ticket_lookup():
             .filter(
                 Event.track_id == g.mobile_user.track_id,
                 Event.event_date >= _local_today(),
+                *([Event.id == event_id] if event_id else []),
                 or_(User.static_qr_code == code, Car.static_qr_code == code),
             )
             .order_by(Event.event_date.asc())
             .first()
         )
         if registration:
-            direct = _ticket_match(registration.checkin_code, g.mobile_user.track_id)
+            direct = _driver_ticket_payload(registration)
     if direct:
         return jsonify({"results": [direct]})
     like = f"%{raw_lookup}%"
@@ -848,6 +861,7 @@ def staff_ticket_lookup():
         .filter(
             Event.track_id == g.mobile_user.track_id,
             Event.event_date >= _local_today(),
+            *([Event.id == event_id] if event_id else []),
             or_(
                 User.first_name.ilike(like),
                 User.last_name.ilike(like),
@@ -868,11 +882,21 @@ def staff_ticket_lookup():
 def staff_ticket_check_in(raw_code):
     code = normalize_ticket_code(raw_code)
     employee = g.mobile_user
-    item = (
-        SpectatorOrderItem.query.join(Event)
-        .filter(SpectatorOrderItem.qr_code == code, Event.track_id == employee.track_id)
-        .first()
+    body = request.get_json(silent=True) or {}
+    event_id = body.get("event_id")
+    if event_id is not None:
+        try:
+            event_id = int(event_id)
+        except (TypeError, ValueError):
+            return _json_error("Select a valid event.", 400, "invalid_event")
+        if not Event.query.filter_by(id=event_id, track_id=employee.track_id).first():
+            return _json_error("That event is not part of your track.", 404, "event_not_found")
+    item_query = SpectatorOrderItem.query.join(Event).filter(
+        SpectatorOrderItem.qr_code == code, Event.track_id == employee.track_id
     )
+    if event_id:
+        item_query = item_query.filter(Event.id == event_id)
+    item = item_query.first()
     now = datetime.utcnow()
     if item:
         state = _spectator_state(item)
@@ -883,12 +907,13 @@ def staff_ticket_check_in(raw_code):
         item.checked_in_at = now
         item.checked_in_by_employee_id = employee.id
         db.session.commit()
-        return jsonify({"ticket": _ticket_match(code, employee.track_id)})
-    registration = (
-        EventRegistration.query.join(Event)
-        .filter(EventRegistration.checkin_code == code, Event.track_id == employee.track_id)
-        .first()
+        return jsonify({"ticket": _ticket_match(code, employee.track_id, event_id)})
+    registration_query = EventRegistration.query.join(Event).filter(
+        EventRegistration.checkin_code == code, Event.track_id == employee.track_id
     )
+    if event_id:
+        registration_query = registration_query.filter(Event.id == event_id)
+    registration = registration_query.first()
     if not registration:
         return _json_error("No ticket at this track matches that code.", 404, "ticket_not_found")
     order = (
@@ -906,7 +931,7 @@ def staff_ticket_check_in(raw_code):
     registration.checked_in_at = now
     registration.checked_in_by_employee_id = employee.id
     db.session.commit()
-    return jsonify({"ticket": _ticket_match(code, employee.track_id)})
+    return jsonify({"ticket": _ticket_match(code, employee.track_id, event_id)})
 
 
 def _staff_registration(registration_id):
