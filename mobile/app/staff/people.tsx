@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, Empty, Field, Hero, Loading, Screen, ui } from '@/components/ui';
+import { Card, Empty, Field, Hero, Loading, Screen, ui } from '@/components/ui';
 import { palette } from '@/lib/theme';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -35,25 +35,38 @@ export default function StaffPeopleScreen() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const requestSequence = useRef(0);
 
-  const load = useCallback(async (nextView = view, term = query) => {
-    setLoading(true);
-    setError('');
+  const load = useCallback(async (nextView: 'drivers' | 'vendors', term: string, requestId: number) => {
     try {
       const body = await api<{ drivers?: Driver[]; vendors?: Vendor[] }>(`/staff/people?view=${nextView}&q=${encodeURIComponent(term.trim())}`);
-      setDrivers(body.drivers || []);
-      setVendors(body.vendors || []);
+      if (requestId !== requestSequence.current) return;
+      if (nextView === 'drivers') setDrivers(body.drivers || []);
+      else setVendors(body.vendors || []);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to load people.');
+      if (requestId === requestSequence.current) setError(caught instanceof Error ? caught.message : 'Unable to load people.');
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) {
+        setLoading(false);
+        setReady(true);
+      }
     }
-  }, [api, query, view]);
+  }, [api]);
 
-  useEffect(() => { load(view, ''); }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const requestId = ++requestSequence.current;
+    setLoading(true);
+    setError('');
+    const timer = setTimeout(() => load(view, query, requestId), query.trim() ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [load, query, view]);
 
   const switchView = (next: 'drivers' | 'vendors') => {
+    if (next === view) return;
+    requestSequence.current += 1;
+    setReady(false);
     setQuery('');
     setView(next);
   };
@@ -63,12 +76,15 @@ export default function StaffPeopleScreen() {
     <View style={styles.segment}>
       {(['drivers', 'vendors'] as const).map(option => <Pressable key={option} onPress={() => switchView(option)} style={[styles.segmentButton, view === option && styles.segmentActive]}><Text style={[styles.segmentText, view === option && styles.segmentTextActive]}>{option === 'drivers' ? 'Drivers' : 'Vendors'}</Text></Pressable>)}
     </View>
-    <View style={styles.search}><Field style={{ flex: 1 }} value={query} onChangeText={setQuery} onSubmitEditing={() => load()} placeholder={`Search ${view}`} autoCapitalize="none" /><View style={{ width: 88 }}><Button title="Find" onPress={() => load()} /></View></View>
+    <View style={styles.search}>
+      <Field style={styles.searchField} value={query} onChangeText={setQuery} placeholder={`Search ${view} as you type`} autoCapitalize="none" autoCorrect={false} returnKeyType="search" />
+      {loading && ready ? <Text style={styles.searching}>Searching…</Text> : null}
+    </View>
     {error ? <Text style={styles.error}>{error}</Text> : null}
-    {loading ? <Loading /> : view === 'drivers' ? <>
-      {drivers.length ? drivers.map(driver => <Pressable key={driver.id} onPress={() => router.push({ pathname: '/staff/driver/[id]', params: { id: String(driver.id) } })}><Card style={styles.row}><View style={styles.avatar}><Text style={styles.initials}>{initials(driver.name)}</Text></View><View style={styles.copy}><View style={ui.between}><Text style={styles.name}>{driver.name}</Text><Text style={styles.classPill}>Class {driver.driver_class}</Text></View><Text style={ui.body}>{driver.email}</Text><Text style={styles.meta}>{driver.attended_count} attended · {driver.registered_count} registered · {driver.note_count} notes</Text></View><Text style={styles.arrow}>›</Text></Card></Pressable>) : <Empty title="No drivers found" detail="Drivers appear after registering for an event at this track." />}
+    {loading && !ready ? <Loading /> : view === 'drivers' ? <>
+      {drivers.length ? drivers.map(driver => <Pressable key={driver.id} onPress={() => router.push({ pathname: '/staff/driver/[id]', params: { id: String(driver.id) } })}><Card style={styles.row}><View style={styles.avatar}><Text style={styles.initials}>{initials(driver.name)}</Text></View><View style={styles.copy}><View style={ui.between}><Text style={styles.name}>{driver.name}</Text><Text style={styles.classPill}>Class {driver.driver_class}</Text></View><Text style={ui.body}>{driver.email}</Text><Text style={styles.meta}>{driver.attended_count} attended · {driver.registered_count} registered · {driver.note_count} notes</Text></View><Text style={styles.arrow}>›</Text></Card></Pressable>) : <Empty title="No drivers found" detail={query.trim() ? "Try a different name, username, or email." : "Drivers appear after registering for an event at this track."} />}
     </> : <>
-      {vendors.length ? vendors.map(vendor => <Card key={vendor.id} style={styles.row}><View style={styles.vendorAvatar}><Text style={styles.initials}>{initials(vendor.business_name)}</Text></View><View style={styles.copy}><Text style={styles.name}>{vendor.business_name}</Text>{vendor.contact_name ? <Text style={ui.body}>{vendor.contact_name}{vendor.email ? ` · ${vendor.email}` : ''}</Text> : null}<Text numberOfLines={2} style={styles.meta}>{vendor.description || vendor.website || 'Vendor profile'}</Text></View></Card>) : <Empty title="No vendors found" detail="Vendor accounts will appear here when they join TrackOps." />}
+      {vendors.length ? vendors.map(vendor => <Card key={vendor.id} style={styles.row}><View style={styles.vendorAvatar}><Text style={styles.initials}>{initials(vendor.business_name)}</Text></View><View style={styles.copy}><Text style={styles.name}>{vendor.business_name}</Text>{vendor.contact_name ? <Text style={ui.body}>{vendor.contact_name}{vendor.email ? ` · ${vendor.email}` : ''}</Text> : null}<Text numberOfLines={2} style={styles.meta}>{vendor.description || vendor.website || 'Vendor profile'}</Text></View></Card>) : <Empty title="No vendors found" detail={query.trim() ? "Try a different business name or contact." : "Vendor accounts will appear here when they join TrackOps."} />}
     </>}
   </Screen>;
 }
@@ -83,7 +99,9 @@ const styles = StyleSheet.create({
   segmentActive: { backgroundColor: 'white' },
   segmentText: { color: palette.muted, fontWeight: '800' },
   segmentTextActive: { color: palette.ink },
-  search: { flexDirection: 'row', gap: 9, alignItems: 'center' },
+  search: { position: 'relative' },
+  searchField: { paddingRight: 100 },
+  searching: { position: 'absolute', right: 14, top: 18, color: palette.muted, fontSize: 12, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   avatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: palette.navy, alignItems: 'center', justifyContent: 'center' },
   vendorAvatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: palette.orange, alignItems: 'center', justifyContent: 'center' },
