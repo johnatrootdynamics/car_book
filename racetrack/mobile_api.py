@@ -1,6 +1,6 @@
 """Versioned JSON API for the Track Ops iOS and Android applications."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import wraps
 import hashlib
 import secrets
@@ -22,6 +22,8 @@ from .models import (
     Employee,
     EnterpriseAdmin,
     Event,
+    EventClassSlot,
+    EventLineupLane,
     EventRegistration,
     Inspection,
     InspectionItem,
@@ -35,11 +37,14 @@ from .models import (
     SpectatorOrder,
     SpectatorOrderItem,
     Track,
+    TrackCarStatus,
     TrackDriverClass,
     TrackDriverClassOption,
     TrackEmailTemplate,
     TrackPaymentMethod,
     TrackWaiverTemplate,
+    TrackLayout,
+    TrackRun,
     User,
     VendorAccount,
     db,
@@ -55,6 +60,8 @@ from .services.order_service import load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status, payment_is_confirmed
 from .services.ticket_service import ensure_order_ticket_codes, normalize_ticket_code, ticket_verification_url
 from .services.wallet_service import wallet_links_for_ticket
+from .services.run_service import expire_stale_track_states
+from .services.storage_service import build_presigned_read_url
 from .security import generate_random_password
 
 
@@ -248,6 +255,63 @@ def _event_payload(event, include_availability=False):
             for category in ("driver", "spectator", "vendor")
         }
     return result
+
+
+def _mobile_asset_url(stored_value):
+    if not stored_value:
+        return None
+    if stored_value.startswith(("http://", "https://")):
+        return stored_value
+    if stored_value.startswith("uploads/"):
+        return url_for("static", filename=stored_value, _external=True)
+    read_key = current_app.config.get("S3_READ_ACCESS_KEY")
+    read_secret = current_app.config.get("S3_READ_SECRET_KEY")
+    if not read_key or not read_secret:
+        return None
+    return build_presigned_read_url(
+        stored_value,
+        bucket=current_app.config["S3_BUCKET"],
+        endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+        access_key=read_key,
+        secret_key=read_secret,
+    )
+
+
+def _mobile_event_registrations(event):
+    query = EventRegistration.query.filter(EventRegistration.event_id == event.id)
+    if event.event_type == "public":
+        paid_order_exists = db.session.query(DriverTicketOrder.id).filter(
+            DriverTicketOrder.event_id == EventRegistration.event_id,
+            DriverTicketOrder.user_id == EventRegistration.user_id,
+            DriverTicketOrder.payment_status == "paid",
+        ).exists()
+        query = query.filter(paid_order_exists)
+    return query
+
+
+def _mobile_class_names(track_id):
+    options = (
+        TrackDriverClassOption.query.filter_by(track_id=track_id)
+        .order_by(TrackDriverClassOption.sort_order.asc(), TrackDriverClassOption.id.asc())
+        .all()
+    )
+    return [option.name for option in options] or ["A", "B", "C"]
+
+
+def _mobile_driver_classes(track_id, registrations):
+    user_ids = {registration.user_id for registration in registrations}
+    rows = TrackDriverClass.query.filter(
+        TrackDriverClass.track_id == track_id,
+        TrackDriverClass.user_id.in_(user_ids or {-1}),
+    ).all()
+    values = {row.user_id: row.driver_class for row in rows}
+    options = _mobile_class_names(track_id)
+    default_class = "C" if "C" in options else options[0]
+    return {user_id: values.get(user_id, default_class) for user_id in user_ids}
+
+
+def _time_value(value):
+    return value.strftime("%H:%M") if value else None
 
 
 def _car_payload(car):
@@ -772,6 +836,496 @@ def _mobile_office_guard():
             "office_staff_required",
         )
     return None
+
+
+def _staff_event_for_mobile(event_id):
+    return Event.query.filter_by(id=event_id, track_id=g.mobile_user.track_id).first()
+
+
+def _staff_general_payload(event):
+    layouts = (
+        TrackLayout.query.filter_by(track_id=event.track_id)
+        .order_by(TrackLayout.name.asc())
+        .all()
+    )
+    selected_layout = event.track_layout
+    return {
+        "event": _event_payload(event, include_availability=True),
+        "general": {
+            "name": event.event_name,
+            "date": event.event_date.isoformat(),
+            "start_time": _time_value(event.event_start_time),
+            "end_time": _time_value(event.event_end_time),
+            "driver_price": _money(event.driver_price_cents),
+            "spectator_price": _money(event.spectator_price_cents),
+            "vendor_price": _money(event.vendor_price_cents),
+            "driver_capacity": event.driver_capacity,
+            "spectator_capacity": event.spectator_capacity,
+            "vendor_capacity": event.vendor_capacity,
+            "run_voting_enabled": bool(event.run_voting_enabled),
+            "thumbnail_url": _mobile_asset_url(event.thumbnail_image_path),
+            "layout": (
+                {
+                    "id": selected_layout.id,
+                    "name": selected_layout.name,
+                    "image_url": _mobile_asset_url(selected_layout.image_path),
+                }
+                if selected_layout
+                else {
+                    "id": None,
+                    "name": "Default Track Layout",
+                    "image_url": _mobile_asset_url(event.track.layout_image_path),
+                }
+            ),
+            "layouts": [
+                {
+                    "id": layout.id,
+                    "name": layout.name,
+                    "image_url": _mobile_asset_url(layout.image_path),
+                }
+                for layout in layouts
+            ],
+        },
+    }
+
+
+def _staff_participants_payload(event):
+    registrations = _mobile_event_registrations(event).order_by(
+        EventRegistration.created_at.asc()
+    ).all()
+    registration_ids = [registration.id for registration in registrations]
+    inspections = {
+        inspection.event_registration_id: inspection
+        for inspection in Inspection.query.filter(
+            Inspection.event_registration_id.in_(registration_ids or [-1])
+        ).all()
+    }
+    classes = _mobile_driver_classes(event.track_id, registrations)
+    from .waiver_routes import get_required_waiver_status
+
+    items = []
+    for registration in registrations:
+        waiver_status, _ = get_required_waiver_status(
+            event.track_id, registration.user_id, event.id
+        )
+        inspection = inspections.get(registration.id)
+        items.append(
+            {
+                "registration_id": registration.id,
+                "user_id": registration.user_id,
+                "name": f"{registration.user.first_name} {registration.user.last_name}".strip(),
+                "email": registration.user.email,
+                "car": _car_payload(registration.car),
+                "driver_class": classes[registration.user_id],
+                "checked_in_at": _iso(registration.checked_in_at),
+                "waiver_status": waiver_status,
+                "inspection_status": (
+                    "passed"
+                    if inspection and inspection.passed
+                    else "needs_attention"
+                    if inspection
+                    else "not_started"
+                ),
+            }
+        )
+    return {"event": _event_payload(event), "participants": items}
+
+
+def _staff_schedule_payload(event):
+    slots = (
+        EventClassSlot.query.filter_by(event_id=event.id)
+        .order_by(EventClassSlot.start_time.asc(), EventClassSlot.id.asc())
+        .all()
+    )
+    return {
+        "event": _event_payload(event),
+        "schedule": {
+            "start_time": _time_value(event.event_start_time),
+            "end_time": _time_value(event.event_end_time),
+            "classes": _mobile_class_names(event.track_id),
+            "can_edit": g.mobile_user.role == "office_staff",
+            "slots": [
+                {
+                    "id": slot.id,
+                    "class_code": slot.class_code,
+                    "start_time": _time_value(slot.start_time),
+                    "end_time": _time_value(slot.end_time),
+                }
+                for slot in slots
+            ],
+        },
+    }
+
+
+def _staff_lanes_payload(event):
+    lanes = (
+        EventLineupLane.query.filter_by(event_id=event.id)
+        .order_by(EventLineupLane.sort_order.asc(), EventLineupLane.id.asc())
+        .all()
+    )
+    return {
+        "event": _event_payload(event),
+        "lanes": [
+            {"id": lane.id, "name": lane.name, "description": lane.description or ""}
+            for lane in lanes
+        ],
+    }
+
+
+def _staff_analytics_payload(event):
+    registrations = _mobile_event_registrations(event).order_by(
+        EventRegistration.created_at.asc()
+    ).all()
+    classes = _mobile_driver_classes(event.track_id, registrations)
+    class_names = _mobile_class_names(event.track_id)
+    class_counts = {name: 0 for name in class_names}
+    signup_counts = {}
+    for registration in registrations:
+        class_code = classes[registration.user_id]
+        class_counts[class_code] = class_counts.get(class_code, 0) + 1
+        signup_day = registration.created_at.date().isoformat()
+        signup_counts[signup_day] = signup_counts.get(signup_day, 0) + 1
+    return {
+        "event": _event_payload(event),
+        "analytics": {
+            "total_signups": len(registrations),
+            "checked_in": sum(1 for registration in registrations if registration.checked_in_at),
+            "signup_trend": [
+                {"day": day, "count": signup_counts[day]}
+                for day in sorted(signup_counts)
+            ],
+            "class_counts": [
+                {"class_code": name, "count": class_counts.get(name, 0)}
+                for name in class_names
+            ],
+        },
+    }
+
+
+def _run_participant_payload(participant):
+    return {
+        "car_id": participant.car_id,
+        "car": _car_payload(participant.car),
+        "driver_id": participant.driver_id,
+        "driver": f"{participant.driver.first_name} {participant.driver.last_name}".strip(),
+        "driver_initials": f"{participant.driver.first_name[:1]}{participant.driver.last_name[:1]}",
+        "driver_image_url": _mobile_asset_url(participant.driver.profile_image_url),
+        "car_image_url": _mobile_asset_url(participant.car.image_url),
+        "entered_at": _iso(participant.entered_at),
+        "exited_at": _iso(participant.exited_at),
+    }
+
+
+def _staff_live_payload(event):
+    expire_stale_track_states(event.track_id)
+    states = (
+        TrackCarStatus.query.filter_by(
+            track_id=event.track_id, event_id=event.id, is_on_track=True
+        )
+        .order_by(TrackCarStatus.changed_at.asc())
+        .all()
+    )
+    completed_runs = (
+        TrackRun.query.filter_by(track_id=event.track_id, event_id=event.id, status="completed")
+        .order_by(TrackRun.ended_at.desc())
+        .limit(12)
+        .all()
+    )
+    return {
+        "event": _event_payload(event),
+        "live": {
+            "count": len(states),
+            "cars": [
+                {
+                    "car_id": state.car_id,
+                    "car": _car_payload(state.car),
+                    "driver_id": state.car.owner.id,
+                    "driver": f"{state.car.owner.first_name} {state.car.owner.last_name}".strip(),
+                    "driver_initials": f"{state.car.owner.first_name[:1]}{state.car.owner.last_name[:1]}",
+                    "driver_image_url": _mobile_asset_url(state.car.owner.profile_image_url),
+                    "car_image_url": _mobile_asset_url(state.car.image_url),
+                    "entered_at": _iso(state.changed_at),
+                    "scanner": state.last_scanner.name if state.last_scanner else None,
+                    "eligible": bool(state.is_eligible),
+                    "eligibility_reason": state.eligibility_reason,
+                }
+                for state in states
+            ],
+            "runs": [
+                {
+                    "id": run.id,
+                    "started_at": _iso(run.started_at),
+                    "ended_at": _iso(run.ended_at),
+                    "participants": [
+                        _run_participant_payload(participant)
+                        for participant in run.participants
+                    ],
+                }
+                for run in completed_runs
+            ],
+        },
+    }
+
+
+def _staff_history_payload(event):
+    runs = (
+        TrackRun.query.filter_by(track_id=event.track_id, event_id=event.id)
+        .order_by(TrackRun.started_at.desc())
+        .all()
+    )
+    return {
+        "event": _event_payload(event),
+        "history": {
+            "runs": [
+                {
+                    "id": run.id,
+                    "status": run.status,
+                    "started_at": _iso(run.started_at),
+                    "ended_at": _iso(run.ended_at),
+                    "participants": [
+                        _run_participant_payload(participant)
+                        for participant in run.participants
+                    ],
+                    "votes": {
+                        "up": sum(1 for vote in run.votes if vote.vote == 1),
+                        "down": sum(1 for vote in run.votes if vote.vote == -1),
+                    },
+                    "videos": [
+                        {
+                            "id": video.id,
+                            "name": video.source_name,
+                            "source_key": video.source_key,
+                            "status": video.status,
+                            "url": _mobile_asset_url(video.object_key)
+                            if video.status == "ready"
+                            else None,
+                        }
+                        for video in run.videos
+                    ],
+                }
+                for run in runs
+            ]
+        },
+    }
+
+
+@mobile_api_bp.get("/staff/events/<int:event_id>/operations/<action>")
+@mobile_login_required("employee")
+def staff_event_operation(event_id, action):
+    event = _staff_event_for_mobile(event_id)
+    if not event:
+        return _json_error("That event is not part of your track.", 404, "event_not_found")
+    if action in {"general", "analytics"} and g.mobile_user.role != "office_staff":
+        return _json_error("Office staff access is required for this event tool.", 403, "office_staff_required")
+    payloads = {
+        "general": _staff_general_payload,
+        "participants": _staff_participants_payload,
+        "schedule": _staff_schedule_payload,
+        "lanes": _staff_lanes_payload,
+        "live": _staff_live_payload,
+        "history": _staff_history_payload,
+        "analytics": _staff_analytics_payload,
+    }
+    payload = payloads.get(action)
+    if not payload:
+        return _json_error("Unknown event tool.", 404, "event_tool_not_found")
+    return jsonify(payload(event))
+
+
+@mobile_api_bp.patch("/staff/events/<int:event_id>/operations/general")
+@mobile_login_required("employee")
+def staff_event_general_update(event_id):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    event = _staff_event_for_mobile(event_id)
+    if not event:
+        return _json_error("That event is not part of your track.", 404, "event_not_found")
+    if event.event_type == "private":
+        return _json_error("Private rental details are managed from rental availability.", 400, "private_event")
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    try:
+        event_date = date.fromisoformat((body.get("date") or "").strip())
+        start_time = datetime.strptime(body.get("start_time") or "", "%H:%M").time()
+        end_time = datetime.strptime(body.get("end_time") or "", "%H:%M").time()
+        prices = {
+            category: int(round(float(body.get(f"{category}_price")) * 100))
+            for category in ("driver", "spectator", "vendor")
+        }
+        capacities = {
+            category: int(body.get(f"{category}_capacity"))
+            for category in ("driver", "spectator", "vendor")
+        }
+    except (TypeError, ValueError):
+        return _json_error("Enter valid dates, times, prices, and capacities.", 400, "invalid_event")
+    if not name or len(name) > 200:
+        return _json_error("Event name is required and must be 200 characters or fewer.", 400, "invalid_name")
+    if end_time <= start_time:
+        return _json_error("Event end time must be after the start time.", 400, "invalid_time")
+    if any(value < 0 for value in (*prices.values(), *capacities.values())):
+        return _json_error("Prices and capacities cannot be negative.", 400, "invalid_amount")
+    layout_id = body.get("layout_id")
+    layout = None
+    if layout_id not in (None, "", 0, "0"):
+        try:
+            layout_id = int(layout_id)
+        except (TypeError, ValueError):
+            return _json_error("Choose a valid track layout.", 400, "invalid_layout")
+        layout = TrackLayout.query.filter_by(id=layout_id, track_id=event.track_id).first()
+        if not layout:
+            return _json_error("Choose a valid track layout.", 400, "invalid_layout")
+    event.event_name = name
+    event.event_date = event_date
+    event.event_start_time = start_time
+    event.event_end_time = end_time
+    event.driver_price_cents = prices["driver"]
+    event.spectator_price_cents = prices["spectator"]
+    event.vendor_price_cents = prices["vendor"]
+    event.driver_capacity = capacities["driver"]
+    event.spectator_capacity = capacities["spectator"]
+    event.vendor_capacity = capacities["vendor"]
+    event.track_layout_id = layout.id if layout else None
+    event.run_voting_enabled = bool(body.get("run_voting_enabled"))
+    db.session.commit()
+    return jsonify(_staff_general_payload(event))
+
+
+@mobile_api_bp.post("/staff/events/<int:event_id>/participants/<int:registration_id>/check-in")
+@mobile_login_required("employee")
+def staff_event_participant_check_in(event_id, registration_id):
+    event = _staff_event_for_mobile(event_id)
+    if not event:
+        return _json_error("That event is not part of your track.", 404, "event_not_found")
+    registration = _mobile_event_registrations(event).filter(
+        EventRegistration.id == registration_id
+    ).first()
+    if not registration:
+        return _json_error("Driver registration not found.", 404, "registration_not_found")
+    if registration.checked_in_at:
+        return _json_error("This driver is already checked in.", 409, "already_checked_in")
+    from .waiver_routes import get_required_waiver_status
+
+    waiver_status, _ = get_required_waiver_status(
+        event.track_id, registration.user_id, event.id
+    )
+    if waiver_status not in {"signed", "not_required"}:
+        return _json_error("The driver must complete the required waiver before check-in.", 409, "waiver_required")
+    registration.checked_in_at = datetime.utcnow()
+    registration.checked_in_by_employee_id = g.mobile_user.id
+    db.session.commit()
+    return jsonify(_staff_participants_payload(event))
+
+
+def _event_slot_values(event, body, slot_id=None):
+    class_code = (body.get("class_code") or "").strip()
+    if class_code not in _mobile_class_names(event.track_id):
+        return None, "Choose a valid driver class."
+    try:
+        start_time = datetime.strptime(body.get("start_time") or "", "%H:%M").time()
+        end_time = datetime.strptime(body.get("end_time") or "", "%H:%M").time()
+    except ValueError:
+        return None, "Enter start and end times as HH:MM."
+    if end_time <= start_time:
+        return None, "End time must be after start time."
+    if not event.event_start_time or not event.event_end_time:
+        return None, "Set the event start and end time in General first."
+    if start_time < event.event_start_time or end_time > event.event_end_time:
+        return None, "Class slots must stay within the event time window."
+    overlap = EventClassSlot.query.filter(
+        EventClassSlot.event_id == event.id,
+        EventClassSlot.start_time < end_time,
+        EventClassSlot.end_time > start_time,
+    )
+    if slot_id:
+        overlap = overlap.filter(EventClassSlot.id != slot_id)
+    if overlap.first():
+        return None, "Class slots cannot overlap."
+    return {"class_code": class_code, "start_time": start_time, "end_time": end_time}, None
+
+
+@mobile_api_bp.post("/staff/events/<int:event_id>/operations/schedule")
+@mobile_login_required("employee")
+def staff_event_slot_save(event_id):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    event = _staff_event_for_mobile(event_id)
+    if not event:
+        return _json_error("That event is not part of your track.", 404, "event_not_found")
+    body = request.get_json(silent=True) or {}
+    try:
+        slot_id = int(body.get("slot_id")) if body.get("slot_id") else None
+    except (TypeError, ValueError):
+        return _json_error("Choose a valid schedule slot.", 400, "invalid_slot")
+    values, error = _event_slot_values(event, body, slot_id)
+    if error:
+        return _json_error(error, 400, "invalid_slot")
+    slot = EventClassSlot.query.filter_by(id=slot_id, event_id=event.id).first() if slot_id else None
+    if slot_id and not slot:
+        return _json_error("Schedule slot not found.", 404, "slot_not_found")
+    if not slot:
+        slot = EventClassSlot(event_id=event.id)
+        db.session.add(slot)
+    slot.class_code = values["class_code"]
+    slot.start_time = values["start_time"]
+    slot.end_time = values["end_time"]
+    db.session.commit()
+    return jsonify(_staff_schedule_payload(event))
+
+
+@mobile_api_bp.delete("/staff/events/<int:event_id>/operations/schedule/<int:slot_id>")
+@mobile_login_required("employee")
+def staff_event_slot_remove(event_id, slot_id):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    event = _staff_event_for_mobile(event_id)
+    if not event:
+        return _json_error("That event is not part of your track.", 404, "event_not_found")
+    slot = EventClassSlot.query.filter_by(id=slot_id, event_id=event.id).first()
+    if not slot:
+        return _json_error("Schedule slot not found.", 404, "slot_not_found")
+    db.session.delete(slot)
+    db.session.commit()
+    return jsonify(_staff_schedule_payload(event))
+
+
+@mobile_api_bp.put("/staff/events/<int:event_id>/operations/lanes")
+@mobile_login_required("employee")
+def staff_event_lanes_update(event_id):
+    event = _staff_event_for_mobile(event_id)
+    if not event:
+        return _json_error("That event is not part of your track.", 404, "event_not_found")
+    raw_lanes = (request.get_json(silent=True) or {}).get("lanes")
+    if not isinstance(raw_lanes, list):
+        return _json_error("Send a valid lineup lane list.", 400, "invalid_lanes")
+    lanes = []
+    for raw_lane in raw_lanes:
+        if not isinstance(raw_lane, dict):
+            return _json_error("Send a valid lineup lane list.", 400, "invalid_lanes")
+        name = (raw_lane.get("name") or "").strip()
+        description = (raw_lane.get("description") or "").strip()
+        if not name:
+            continue
+        if len(name) > 80 or len(description) > 240:
+            return _json_error("Lane names are limited to 80 characters and instructions to 240.", 400, "invalid_lanes")
+        lanes.append((name, description))
+    if len(lanes) > 20:
+        return _json_error("An event can have up to 20 lineup lanes.", 400, "too_many_lanes")
+    EventLineupLane.query.filter_by(event_id=event.id).delete(synchronize_session=False)
+    for index, (name, description) in enumerate(lanes):
+        db.session.add(
+            EventLineupLane(
+                event_id=event.id,
+                name=name,
+                description=description or None,
+                sort_order=index,
+                updated_by_employee_id=g.mobile_user.id,
+            )
+        )
+    db.session.commit()
+    return jsonify(_staff_lanes_payload(event))
 
 
 def _staff_driver_query(track_id):

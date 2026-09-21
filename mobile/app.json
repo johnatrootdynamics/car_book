@@ -51,7 +51,8 @@
             "enableSceneSupport": true
           }
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

@@ -20,17 +20,15 @@ type EventTool = {
   title: string;
   detail: string;
   symbol: string;
-  path?: string;
+  action?: 'general' | 'participants' | 'schedule' | 'lanes' | 'live' | 'history' | 'analytics';
   native?: 'scanner';
 };
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { account, api, openPortal } = useAuth();
+  const { account, api } = useAuth();
   const [event, setEvent] = useState<Detail | null>(null);
   const [failed, setFailed] = useState(false);
-  const [opening, setOpening] = useState('');
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!account || !['user', 'employee'].includes(account.type)) {
@@ -46,34 +44,26 @@ export default function EventDetailScreen() {
 
   const tools: EventTool[] = account?.type === 'employee' ? [
     ...(account.role === 'office_staff' ? [
-      { title: 'General & pricing', detail: 'Event details, capacity, tickets, layout, and voting', symbol: 'slider.horizontal.3', path: `/employee/events/${id}?view=general` },
+      { title: 'General & pricing', detail: 'Event details, capacity, tickets, layout, and voting', symbol: 'slider.horizontal.3', action: 'general' as const },
     ] : []),
     { title: 'Check in & inspect', detail: 'Scan tickets, find drivers, and complete inspections', symbol: 'qrcode.viewfinder', native: 'scanner' },
-    { title: 'Participants', detail: 'Drivers, cars, classes, waivers, and status', symbol: 'person.2.fill', path: `/employee/events/${id}?view=participants` },
-    { title: 'Schedule', detail: 'Run times and class slots for this event', symbol: 'clock.fill', path: `/employee/events/${id}?view=slots` },
-    { title: 'Lineup lanes', detail: 'Staging lanes and driver instructions', symbol: 'signpost.right.fill', path: `/employee/events/${id}?view=lanes` },
-    { title: 'Live track', detail: 'Current sessions, run groups, and timing', symbol: 'flag.checkered', path: `/employee/events/${id}/live-track` },
-    { title: 'Run history', detail: 'Completed sessions, participants, votes, and video', symbol: 'clock.arrow.circlepath', path: `/employee/events/${id}/run-history` },
+    { title: 'Participants', detail: 'Drivers, cars, classes, waivers, and status', symbol: 'person.2.fill', action: 'participants' },
+    { title: 'Schedule', detail: 'Run times and class slots for this event', symbol: 'clock.fill', action: 'schedule' },
+    { title: 'Lineup lanes', detail: 'Staging lanes and driver instructions', symbol: 'signpost.right.fill', action: 'lanes' },
+    { title: 'Live track', detail: 'Current sessions, run groups, and timing', symbol: 'flag.checkered', action: 'live' },
+    { title: 'Run history', detail: 'Completed sessions, participants, votes, and video', symbol: 'clock.arrow.circlepath', action: 'history' },
     ...(account.role === 'office_staff' ? [
-      { title: 'Analytics', detail: 'Registration trends and class distribution', symbol: 'chart.bar.fill', path: `/employee/events/${id}?view=analytics` },
+      { title: 'Analytics', detail: 'Registration trends and class distribution', symbol: 'chart.bar.fill', action: 'analytics' as const },
     ] : []),
   ] : [];
 
-  const openTool = async (tool: EventTool) => {
+  const openTool = (tool: EventTool) => {
     if (tool.native === 'scanner') {
       router.push({ pathname: '/(tabs)/scanner', params: { eventId: String(event.id), eventName: event.name } });
       return;
     }
-    if (!tool.path) return;
-    setOpening(tool.path);
-    setError('');
-    try {
-      await openPortal(tool.path);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to open that event tool.');
-    } finally {
-      setOpening('');
-    }
+    if (!tool.action) return;
+    router.push({ pathname: '/event-tools/[id]/[action]', params: { id: String(event.id), action: tool.action } });
   };
 
   return <Screen>
@@ -92,13 +82,12 @@ export default function EventDetailScreen() {
     {account?.type === 'employee' ? <>
       <SectionTitle title="Event operations" />
       <Card style={styles.toolList}>
-        {tools.map((tool, index) => <Pressable key={tool.title} disabled={!!opening} onPress={() => openTool(tool)} style={({ pressed }) => [styles.toolRow, index > 0 && styles.toolDivider, pressed && styles.pressed]}>
+        {tools.map((tool, index) => <Pressable key={tool.title} onPress={() => openTool(tool)} style={({ pressed }) => [styles.toolRow, index > 0 && styles.toolDivider, pressed && styles.pressed]}>
           <View style={styles.toolIcon}><SymbolView name={{ ios: tool.symbol, android: tool.symbol, web: tool.symbol } as any} tintColor={palette.orange} size={21} /></View>
-          <View style={styles.toolCopy}><Text style={styles.toolTitle}>{tool.title}</Text><Text style={ui.body}>{opening === tool.path ? 'Opening securely…' : tool.detail}</Text></View>
+          <View style={styles.toolCopy}><Text style={styles.toolTitle}>{tool.title}</Text><Text style={ui.body}>{tool.detail}</Text></View>
           <Text style={styles.arrow}>›</Text>
         </Pressable>)}
       </Card>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
     </> : null}
 
     {account?.type === 'user' ? <>
@@ -122,7 +111,6 @@ const styles = StyleSheet.create({
   toolTitle: { color: palette.ink, fontSize: 16, fontWeight: '900' },
   arrow: { color: palette.orange, fontSize: 28 },
   pressed: { opacity: 0.6 },
-  error: { color: palette.red, fontWeight: '800' },
   vendorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   vendor: { width: '48%', alignItems: 'center' },
   vendorLogo: { width: 76, height: 76, borderRadius: 20, backgroundColor: palette.navy, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
