@@ -1,4 +1,4 @@
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerChangeEvent } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -24,9 +24,9 @@ export function NativeDateTimeField({
 }) {
   const [open, setOpen] = useState(false);
   const selected = value || defaultValue(mode, minimumDate);
-  const update = (event: DateTimePickerEvent, next?: Date) => {
+  const update = (_event: DateTimePickerChangeEvent, next: Date) => {
     if (Platform.OS !== 'ios') setOpen(false);
-    if (event.type !== 'dismissed' && next) onChange(next);
+    onChange(next);
   };
   return <View style={styles.fieldGroup}>
     <View style={styles.labelRow}><Text style={styles.label}>{label}</Text>{optional ? <Text style={styles.optional}>Optional</Text> : null}</View>
@@ -35,12 +35,12 @@ export function NativeDateTimeField({
       <Text style={styles.chevron}>›</Text>
     </Pressable>
     {optional && value ? <Pressable onPress={() => onChange(null)} style={styles.clearButton}><Text style={styles.clearText}>Clear time</Text></Pressable> : null}
-    {open && Platform.OS !== 'ios' ? <DateTimePicker value={selected} mode={mode} minuteInterval={mode === 'time' ? 30 : undefined} minimumDate={minimumDate} onChange={update} /> : null}
+    {open && Platform.OS !== 'ios' ? <DateTimePicker value={selected} mode={mode} minuteInterval={mode === 'time' ? 30 : undefined} minimumDate={minimumDate} onValueChange={update} onDismiss={() => setOpen(false)} /> : null}
     {Platform.OS === 'ios' ? <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
       <Pressable style={styles.modalShade} onPress={() => setOpen(false)}>
         <Pressable style={styles.modalCard} onPress={event => event.stopPropagation()}>
           <View style={styles.modalHead}><Text style={styles.modalTitle}>{label}</Text><Pressable onPress={() => setOpen(false)}><Text style={styles.done}>Done</Text></Pressable></View>
-          <DateTimePicker value={selected} mode={mode} display={mode === 'date' ? 'inline' : 'spinner'} minuteInterval={mode === 'time' ? 30 : undefined} minimumDate={minimumDate} accentColor={palette.orange} onChange={update} />
+          <DateTimePicker value={selected} mode={mode} display={mode === 'date' ? 'inline' : 'spinner'} minuteInterval={mode === 'time' ? 30 : undefined} minimumDate={minimumDate} accentColor={palette.orange} onValueChange={update} onDismiss={() => setOpen(false)} />
           <Button title="Use this selection" onPress={() => setOpen(false)} />
         </Pressable>
       </Pressable>
