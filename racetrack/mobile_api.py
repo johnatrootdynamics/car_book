@@ -59,6 +59,7 @@ from .models import (
 from .services.capacity_service import (
     driver_already_has_ticket,
     driver_order_fits_capacity,
+    spectator_order_fits_capacity,
     ticket_availability,
 )
 from .services.email_service import (
@@ -72,11 +73,17 @@ from .services.payment_service import (
     capture_paypal_order,
     create_driver_stripe_checkout_session,
     create_paypal_order,
+    create_spectator_order_stripe_checkout_session,
     effective_payment_status,
     payment_is_confirmed,
     paypal_capture_details,
 )
-from .services.ticket_service import ensure_order_ticket_codes, normalize_ticket_code, ticket_verification_url
+from .services.ticket_service import (
+    ensure_order_ticket_codes,
+    generate_ticket_code,
+    normalize_ticket_code,
+    ticket_verification_url,
+)
 from .services.wallet_service import wallet_links_for_ticket
 from .services.run_service import expire_stale_track_states
 from .services.rental_service import (
@@ -433,6 +440,70 @@ def _mobile_checkout_app_url(order, status):
         }
     )
     return f"trackops://event/{order.event_id}/checkout?{query}"
+
+
+def _spectator_order_event_id(order):
+    return order.items[0].event_id if order.items else None
+
+
+def _spectator_order_payload(order):
+    status = effective_payment_status(order)
+    if status == "pending" and order.status in {"failed", "canceled"}:
+        status = order.status
+    return {
+        "id": order.id,
+        "number": order.order_number,
+        "event_id": _spectator_order_event_id(order),
+        "amount": _money(order.total_cents),
+        "ticket_count": len(order.items),
+        "payment_method": order.payment_method,
+        "payment_mode": order.payment_mode,
+        "payment_status": status,
+        "created_at": _iso(order.created_at),
+        "failure_reason": order.failure_reason,
+    }
+
+
+def _mobile_spectator_checkout_token(order):
+    return _checkout_serializer().dumps(
+        {
+            "order_type": "spectator",
+            "order_id": order.id,
+            "user_id": order.user_id,
+            "event_id": _spectator_order_event_id(order),
+        }
+    )
+
+
+def _mobile_spectator_checkout_order(order_id, token):
+    try:
+        payload = _checkout_serializer().loads(
+            token or "", max_age=MOBILE_CHECKOUT_SECONDS
+        )
+    except (SignatureExpired, BadSignature):
+        return None
+    order = db.session.get(SpectatorOrder, order_id)
+    if not order or not order.user_id:
+        return None
+    if (
+        payload.get("order_type") != "spectator"
+        or payload.get("order_id") != order.id
+        or payload.get("user_id") != order.user_id
+        or payload.get("event_id") != _spectator_order_event_id(order)
+    ):
+        return None
+    return order
+
+
+def _mobile_spectator_app_url(order, status):
+    event_id = _spectator_order_event_id(order)
+    query = urlencode(
+        {
+            "checkout_status": status,
+            "order_id": order.id,
+        }
+    )
+    return f"trackops://event/{event_id}/spectator-checkout?{query}"
 
 
 @mobile_api_bp.post("/auth/login")
@@ -987,13 +1058,396 @@ def driver_event_checkout_return(order_id):
     return redirect(_mobile_checkout_app_url(order, status))
 
 
+def _mobile_spectator_ticket_types(event):
+    from .user_routes import _get_or_create_default_ticket_type, _ticket_purchase_limit
+
+    ticket_types = (
+        SpectatorTicketType.query.filter_by(
+            event_id=event.id,
+            ticket_category="spectator",
+            is_active=True,
+        )
+        .order_by(SpectatorTicketType.created_at.asc(), SpectatorTicketType.id.asc())
+        .all()
+    )
+    if not ticket_types:
+        ticket_types = [_get_or_create_default_ticket_type(event, "spectator")]
+    result = []
+    for ticket_type in ticket_types:
+        purchase_limit, availability = _ticket_purchase_limit(event, ticket_type)
+        result.append(
+            {
+                "id": ticket_type.id,
+                "name": ticket_type.name,
+                "price": _money(ticket_type.price_cents),
+                "max_per_order": max(0, purchase_limit),
+                "availability": availability,
+            }
+        )
+    return result
+
+
+@mobile_api_bp.get("/driver/events/<int:event_id>/spectator-checkout")
+@mobile_login_required("user")
+def driver_spectator_checkout(event_id):
+    from .user_routes import _configured_payment_choices
+
+    user = g.mobile_user
+    event = db.session.get(Event, event_id)
+    if not event:
+        return _json_error("Event not found.", 404, "event_not_found")
+    if event.event_type != "public":
+        return _json_error(
+            "Private rentals do not offer spectator admission.",
+            400,
+            "private_event",
+        )
+    if event.event_date < _local_today():
+        return _json_error(
+            "Spectator tickets are no longer available for this event.",
+            400,
+            "past_event",
+        )
+    ticket_types = _mobile_spectator_ticket_types(event)
+    purchasable = [item for item in ticket_types if item["max_per_order"] > 0]
+    amount_options = [
+        int(round(Decimal(str(item["price"])) * 100)) for item in purchasable
+    ]
+    payment_amount = max(amount_options) if amount_options else 0
+    payment_choices = _configured_payment_choices(event.track, payment_amount)
+    return jsonify(
+        {
+            "event": _event_payload(event, include_availability=True),
+            "ticket_types": ticket_types,
+            "payment_methods": [
+                {"provider": provider, "label": label}
+                for provider, label in payment_choices
+            ],
+            "buyer": {
+                "name": f"{user.first_name} {user.last_name}".strip(),
+                "email": user.email,
+            },
+        }
+    )
+
+
+@mobile_api_bp.post("/driver/events/<int:event_id>/spectator-checkout")
+@mobile_login_required("user")
+def driver_spectator_checkout_create(event_id):
+    from .user_routes import (
+        _configured_payment_choices,
+        _finalize_spectator_order,
+        _payment_credentials,
+        _ticket_purchase_limit,
+    )
+
+    user = g.mobile_user
+    body = request.get_json(silent=True) or {}
+    event = Event.query.filter_by(id=event_id).with_for_update().first()
+    if not event:
+        return _json_error("Event not found.", 404, "event_not_found")
+    if event.event_type != "public":
+        return _json_error(
+            "Private rentals do not offer spectator admission.",
+            400,
+            "private_event",
+        )
+    if event.event_date < _local_today():
+        return _json_error(
+            "Spectator tickets are no longer available for this event.",
+            400,
+            "past_event",
+        )
+    try:
+        ticket_type_id = int(body.get("ticket_type_id") or 0)
+        quantity = int(body.get("quantity") or 0)
+    except (TypeError, ValueError):
+        ticket_type_id = 0
+        quantity = 0
+    ticket_type = SpectatorTicketType.query.filter_by(
+        id=ticket_type_id,
+        event_id=event.id,
+        ticket_category="spectator",
+        is_active=True,
+    ).first()
+    if not ticket_type:
+        return _json_error("Choose an available spectator ticket.", 400, "invalid_ticket_type")
+    purchase_limit, availability = _ticket_purchase_limit(event, ticket_type)
+    if purchase_limit <= 0:
+        return _json_error("Spectator tickets are sold out.", 409, "sold_out")
+    if quantity < 1 or quantity > purchase_limit:
+        return _json_error(
+            f"Choose between 1 and {purchase_limit} spectator tickets.",
+            400,
+            "invalid_quantity",
+        )
+
+    total_cents = max(0, int(ticket_type.price_cents or 0)) * quantity
+    payment_choices = _configured_payment_choices(event.track, total_cents)
+    available_providers = {provider for provider, _label in payment_choices}
+    payment_method = (body.get("payment_method") or "").strip().lower()
+    if payment_method not in available_providers:
+        return _json_error(
+            "Choose an available payment method.", 400, "invalid_payment_method"
+        )
+    credentials = _payment_credentials(event.track, payment_method)
+
+    pending_orders = (
+        SpectatorOrder.query.join(SpectatorOrderItem)
+        .filter(
+            SpectatorOrder.user_id == user.id,
+            SpectatorOrder.payment_status == "pending",
+            SpectatorOrderItem.event_id == event.id,
+        )
+        .all()
+    )
+    for pending in pending_orders:
+        pending.payment_status = "canceled"
+        pending.status = "canceled"
+        pending.failure_reason = "Replaced by a new mobile checkout attempt."
+
+    order = SpectatorOrder(
+        order_number=f"SP-{secrets.token_hex(4).upper()}",
+        user_id=user.id,
+        guest_full_name=f"{user.first_name} {user.last_name}".strip(),
+        guest_email=user.email,
+        guest_phone=user.phone,
+        payment_method=payment_method,
+        payment_mode=credentials["mode"],
+        payment_status="pending",
+        status="pending",
+        total_cents=total_cents,
+    )
+    db.session.add(order)
+    db.session.flush()
+    for _index in range(quantity):
+        db.session.add(
+            SpectatorOrderItem(
+                order_id=order.id,
+                event_id=event.id,
+                ticket_type_name=ticket_type.name,
+                ticket_category="spectator",
+                unit_price_cents=max(0, int(ticket_type.price_cents or 0)),
+                quantity=1,
+                line_total_cents=max(0, int(ticket_type.price_cents or 0)),
+                qr_code=generate_ticket_code(),
+            )
+        )
+    db.session.flush()
+
+    if total_cents <= 0:
+        _finalize_spectator_order(order)
+        return jsonify(
+            {
+                "order": _spectator_order_payload(order),
+                "completed": True,
+                "return_url": _mobile_spectator_app_url(order, "paid").split("?", 1)[0],
+            }
+        ), 201
+
+    checkout_token = _mobile_spectator_checkout_token(order)
+    success_url = url_for(
+        "mobile_api.driver_spectator_checkout_return",
+        order_id=order.id,
+        checkout_token=checkout_token,
+        _external=True,
+    )
+    cancel_url = url_for(
+        "mobile_api.driver_spectator_checkout_cancel",
+        order_id=order.id,
+        checkout_token=checkout_token,
+        _external=True,
+    )
+
+    try:
+        if payment_method == "stripe":
+            if not stripe or not credentials["secret_key"] or not credentials["webhook_secret"]:
+                db.session.rollback()
+                return _json_error(
+                    "Stripe is not ready for this track.",
+                    503,
+                    "payment_provider_unavailable",
+                )
+            stripe.api_key = credentials["secret_key"]
+            checkout = create_spectator_order_stripe_checkout_session(
+                stripe,
+                order,
+                success_url=f"{success_url}&session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=cancel_url,
+            )
+            order.provider_session_id = checkout.id
+            checkout_url = checkout.url
+        elif payment_method == "paypal":
+            if not (
+                credentials["public_key"]
+                and credentials["secret_key"]
+                and credentials["webhook_secret"]
+            ):
+                db.session.rollback()
+                return _json_error(
+                    "PayPal is not ready for this track.",
+                    503,
+                    "payment_provider_unavailable",
+                )
+            paypal_order, checkout_url = create_paypal_order(
+                credentials,
+                total_cents,
+                f"Spectator tickets - {event.event_name}",
+                f"spectator:{order.id}",
+                success_url,
+                cancel_url,
+                f"mobile-spectator-create-{order.id}",
+            )
+            order.provider_session_id = paypal_order["id"]
+        else:
+            db.session.rollback()
+            return _json_error(
+                "That provider cannot confirm online payments yet.",
+                400,
+                "payment_provider_unavailable",
+            )
+    except Exception:
+        current_app.logger.exception(
+            "Mobile spectator checkout creation failed for event %s", event.id
+        )
+        db.session.rollback()
+        return _json_error(
+            "Payment checkout could not be started. Please try again.",
+            502,
+            "checkout_start_failed",
+        )
+
+    db.session.commit()
+    return jsonify(
+        {
+            "order": _spectator_order_payload(order),
+            "completed": False,
+            "checkout_url": checkout_url,
+            "return_url": _mobile_spectator_app_url(order, "return").split("?", 1)[0],
+        }
+    ), 201
+
+
+@mobile_api_bp.get("/driver/spectator-orders/<int:order_id>")
+@mobile_login_required("user")
+def driver_spectator_order_status(order_id):
+    order = SpectatorOrder.query.filter_by(
+        id=order_id, user_id=g.mobile_user.id
+    ).first()
+    if not order:
+        return _json_error("Order not found.", 404, "order_not_found")
+    return jsonify({"order": _spectator_order_payload(order)})
+
+
+@mobile_api_bp.get("/driver/spectator-orders/<int:order_id>/payment-cancel")
+def driver_spectator_checkout_cancel(order_id):
+    order = _mobile_spectator_checkout_order(
+        order_id, request.args.get("checkout_token")
+    )
+    if not order:
+        return _json_error(
+            "This checkout return link is invalid or expired.",
+            401,
+            "invalid_checkout",
+        )
+    return redirect(_mobile_spectator_app_url(order, "canceled"))
+
+
+@mobile_api_bp.get("/driver/spectator-orders/<int:order_id>/payment-return")
+def driver_spectator_checkout_return(order_id):
+    from .user_routes import (
+        _finalize_spectator_order,
+        _payment_credentials,
+        _validated_paypal_capture,
+    )
+
+    order = _mobile_spectator_checkout_order(
+        order_id, request.args.get("checkout_token")
+    )
+    if not order:
+        return _json_error(
+            "This checkout return link is invalid or expired.",
+            401,
+            "invalid_checkout",
+        )
+    if effective_payment_status(order) == "paid":
+        return redirect(_mobile_spectator_app_url(order, "paid"))
+    if order.payment_status == "canceled":
+        return redirect(_mobile_spectator_app_url(order, "failed"))
+
+    try:
+        event_ids = sorted({item.event_id for item in order.items})
+        Event.query.filter(Event.id.in_(event_ids)).order_by(Event.id.asc()).with_for_update().all()
+        db.session.refresh(order, with_for_update=True)
+        if effective_payment_status(order) == "paid":
+            return redirect(_mobile_spectator_app_url(order, "paid"))
+        if not spectator_order_fits_capacity(order):
+            order.payment_status = "failed"
+            order.status = "failed"
+            order.failure_reason = "Ticket capacity was reached before payment confirmation."
+            db.session.commit()
+            return redirect(_mobile_spectator_app_url(order, "failed"))
+
+        payment_track = order.items[0].event.track
+        credentials = _payment_credentials(
+            payment_track, order.payment_method, mode=order.payment_mode
+        )
+        if order.payment_method == "stripe":
+            session_id = (request.args.get("session_id") or "").strip()
+            if not stripe or not session_id or session_id != order.provider_session_id:
+                raise ValueError("Stripe checkout session did not match the order.")
+            stripe.api_key = credentials["secret_key"]
+            checkout = stripe.checkout.Session.retrieve(session_id)
+            if (
+                checkout.payment_status != "paid"
+                or str(checkout.currency or "").lower() != "usd"
+                or int(checkout.amount_total or -1) != int(order.total_cents or 0)
+                or not checkout.payment_intent
+            ):
+                raise ValueError("Stripe payment is not confirmed.")
+            _finalize_spectator_order(
+                order, transaction_id=str(checkout.payment_intent)
+            )
+        elif order.payment_method == "paypal":
+            paypal_order_id = (request.args.get("token") or "").strip()
+            if not paypal_order_id or paypal_order_id != order.provider_session_id:
+                raise ValueError("PayPal checkout session did not match the order.")
+            captured = capture_paypal_order(
+                credentials,
+                paypal_order_id,
+                f"mobile-spectator-capture-{order.id}",
+            )
+            transaction_id = _validated_paypal_capture(
+                paypal_capture_details(captured), order.total_cents
+            )
+            _finalize_spectator_order(order, transaction_id=transaction_id)
+        else:
+            raise ValueError("Unsupported mobile payment provider.")
+    except Exception:
+        current_app.logger.exception(
+            "Mobile spectator checkout return could not be confirmed for order %s",
+            order.id,
+        )
+        db.session.rollback()
+
+    status = effective_payment_status(order)
+    if status != "paid":
+        status = "failed" if order.status == "failed" else "processing"
+    return redirect(_mobile_spectator_app_url(order, status))
+
+
 @mobile_api_bp.get("/driver/tickets")
 @mobile_login_required("user")
 def driver_tickets():
     user = g.mobile_user
     tickets = []
     driver_orders = (
-        DriverTicketOrder.query.filter_by(user_id=user.id, payment_status="paid")
+        DriverTicketOrder.query.join(Event)
+        .filter(
+            DriverTicketOrder.user_id == user.id,
+            DriverTicketOrder.payment_status == "paid",
+            Event.event_date >= _local_today(),
+        )
         .order_by(DriverTicketOrder.created_at.desc())
         .all()
     )
@@ -1018,7 +1472,12 @@ def driver_tickets():
         )
     spectator_items = (
         SpectatorOrderItem.query.join(SpectatorOrder)
-        .filter(SpectatorOrder.user_id == user.id, SpectatorOrder.payment_status == "paid")
+        .join(Event, Event.id == SpectatorOrderItem.event_id)
+        .filter(
+            SpectatorOrder.user_id == user.id,
+            SpectatorOrder.payment_status == "paid",
+            Event.event_date >= _local_today(),
+        )
         .order_by(SpectatorOrder.created_at.desc(), SpectatorOrderItem.id.asc())
         .all()
     )

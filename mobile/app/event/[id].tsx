@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, Empty, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
+import { Card, Empty, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
 import { eventDate, money } from '@/lib/format';
 import { palette } from '@/lib/theme';
 import type { TrackEvent } from '@/lib/types';
@@ -91,11 +91,17 @@ export default function EventDetailScreen() {
     </> : null}
 
     {account?.type === 'user' ? <>
-      {!event.registration && event.type === 'public' ? <Card style={styles.ticketCard}>
-        <View style={styles.ticketTop}><View style={{ flex: 1 }}><Text style={styles.ticketEyebrow}>DRIVER TICKET</Text><Text style={styles.ticketPrice}>{money(event.prices.driver)}</Text><Text style={ui.body}>{event.availability?.driver?.unlimited ? 'Driver capacity is open' : `${event.availability?.driver?.remaining ?? 0} spots remaining`}</Text></View><View style={styles.ticketIcon}><SymbolView name={{ ios: 'ticket.fill', android: 'ticket.fill', web: 'ticket.fill' } as any} tintColor={palette.orange} size={28} /></View></View>
-        <Button title={event.availability?.driver?.sold_out ? 'Driver tickets sold out' : 'Buy driver ticket'} disabled={!!event.availability?.driver?.sold_out} onPress={() => router.push({ pathname: '/event/[id]/checkout', params: { id: String(event.id) } })} />
-        <Text style={styles.ticketNote}>Choose your car and pay securely without leaving the app workflow.</Text>
-      </Card> : null}
+      {event.type === 'public' ? <>
+        <SectionTitle title="Tickets" />
+        <Card style={styles.ticketMenu}>
+          <Pressable disabled={!!event.registration || !!event.availability?.driver?.sold_out} onPress={() => router.push({ pathname: '/event/[id]/checkout', params: { id: String(event.id) } })} style={({ pressed }) => [styles.ticketRow, pressed && styles.pressed, (event.registration || event.availability?.driver?.sold_out) && styles.ticketDisabled]}>
+            <View style={styles.ticketIcon}><SymbolView name={{ ios: 'car.fill', android: 'car.fill', web: 'car.fill' } as any} tintColor={palette.orange} size={22} /></View><View style={styles.ticketCopy}><Text style={styles.ticketTitle}>Driver admission</Text><Text style={ui.body}>{event.registration ? 'Already in your tickets' : event.availability?.driver?.sold_out ? 'Sold out' : `${money(event.prices.driver)} · One per driver`}</Text></View><Text style={styles.ticketAction}>{event.registration ? 'Owned' : event.availability?.driver?.sold_out ? 'Full' : 'Buy ›'}</Text>
+          </Pressable>
+          <Pressable disabled={!!event.availability?.spectator?.sold_out} onPress={() => router.push({ pathname: '/event/[id]/spectator-checkout', params: { id: String(event.id) } })} style={({ pressed }) => [styles.ticketRow, styles.ticketDivider, pressed && styles.pressed, event.availability?.spectator?.sold_out && styles.ticketDisabled]}>
+            <View style={styles.ticketIcon}><SymbolView name={{ ios: 'person.2.fill', android: 'person.2.fill', web: 'person.2.fill' } as any} tintColor={palette.orange} size={22} /></View><View style={styles.ticketCopy}><Text style={styles.ticketTitle}>Spectator admission</Text><Text style={ui.body}>{event.availability?.spectator?.sold_out ? 'Sold out' : `${money(event.prices.spectator)} · Buy for your guests`}</Text></View><Text style={styles.ticketAction}>{event.availability?.spectator?.sold_out ? 'Full' : 'Buy ›'}</Text>
+          </Pressable>
+        </Card>
+      </> : null}
       <SectionTitle title="Vendors onsite" />
       {event.vendors?.length ? <View style={styles.vendorGrid}>{event.vendors.map((vendor, index) => <Card key={`${vendor.id}-${index}`} style={styles.vendor}><View style={styles.vendorLogo}><Text style={styles.vendorInitial}>{vendor.business_name.slice(0, 2).toUpperCase()}</Text></View><Text numberOfLines={2} style={styles.vendorName}>{vendor.business_name}</Text></Card>)}</View> : <Empty title="No vendors announced" detail="Paid event vendors will appear here." />}
     </> : null}
@@ -121,5 +127,5 @@ const styles = StyleSheet.create({
   vendorLogo: { width: 76, height: 76, borderRadius: 20, backgroundColor: palette.navy, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   vendorInitial: { color: 'white', fontWeight: '900', fontSize: 21 },
   vendorName: { color: palette.ink, textAlign: 'center', fontWeight: '800' },
-  ticketCard: { gap: 14 }, ticketTop: { flexDirection: 'row', alignItems: 'center', gap: 12 }, ticketEyebrow: { color: palette.orange, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 }, ticketPrice: { color: palette.ink, fontSize: 28, fontWeight: '900', marginVertical: 2 }, ticketIcon: { width: 54, height: 54, borderRadius: 17, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' }, ticketNote: { color: palette.muted, textAlign: 'center', fontSize: 11, lineHeight: 16 },
+  ticketMenu: { paddingVertical: 3 }, ticketRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }, ticketDivider: { borderTopWidth: 1, borderTopColor: palette.line }, ticketDisabled: { opacity: .55 }, ticketIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' }, ticketCopy: { flex: 1 }, ticketTitle: { color: palette.ink, fontSize: 15, fontWeight: '900', marginBottom: 2 }, ticketAction: { color: palette.orange, fontSize: 12, fontWeight: '900' },
 });

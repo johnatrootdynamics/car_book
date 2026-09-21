@@ -222,6 +222,36 @@ def create_stripe_checkout_session(stripe_client, order, rows, success_url, canc
     return session
 
 
+def create_spectator_order_stripe_checkout_session(
+    stripe_client, order, success_url, cancel_url
+):
+    line_items = [
+        {
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": int(item.unit_price_cents or 0),
+                "product_data": {
+                    "name": f"{item.event.event_name} - {item.ticket_type_name}",
+                },
+            },
+            "quantity": max(1, int(item.quantity or 1)),
+        }
+        for item in order.items
+    ]
+    return stripe_client.checkout.Session.create(
+        mode="payment",
+        expires_at=int(time()) + 1860,
+        line_items=line_items,
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={
+            "order_type": "spectator",
+            "order_id": str(order.id),
+            "order_number": order.order_number,
+        },
+    )
+
+
 def create_driver_stripe_checkout_session(stripe_client, driver_ticket_order, success_url, cancel_url):
     event = driver_ticket_order.event
     session = stripe_client.checkout.Session.create(

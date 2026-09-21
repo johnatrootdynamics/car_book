@@ -112,7 +112,7 @@ export default function DriverCheckoutScreen() {
   if (order?.payment_status === 'paid') return <Screen>
     <Hero eyebrow="Payment confirmed" title="You’re going racing" subtitle="Your registration is complete and the ticket QR code is ready in the app." />
     <Card style={styles.successCard}><View style={styles.successIcon}><SymbolView name={{ ios: 'checkmark', android: 'checkmark', web: 'checkmark' } as any} tintColor="white" size={28} /></View><Text style={styles.successTitle}>Driver ticket confirmed</Text><Text style={styles.centerCopy}>We also sent the ticket to your email. Bring the QR code to check-in and inspection.</Text></Card>
-    <Button title="View my tickets" onPress={() => router.replace('/(tabs)/tickets')} />
+    <Button title="View ticket for this event" onPress={() => router.replace({ pathname: '/(tabs)/tickets', params: { eventId: String(eventId) } })} />
     <Button tone="secondary" title="Back to event" onPress={() => router.replace(`/event/${eventId}`)} />
   </Screen>;
   if (!data) return <Screen><BackButton eventId={eventId} /><Empty title="Checkout unavailable" detail={error || 'Try again in a moment.'} /><Button title="Try again" onPress={load} /></Screen>;
