@@ -241,6 +241,26 @@ class VendorAccount(db.Model, UserMixin):
         return f"vendor:{self.id}"
 
 
+class MobileRefreshToken(db.Model):
+    """Revocable mobile session. Only a SHA-256 digest is stored."""
+
+    __tablename__ = "mobile_refresh_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    account_type = db.Column(db.String(20), nullable=False, index=True)
+    account_id = db.Column(db.Integer, nullable=False, index=True)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True)
+    device_name = db.Column(db.String(150), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.Index("idx_mobile_session_account", "account_type", "account_id"),
+    )
+
+
 class SystemEmailSettings(db.Model):
     __tablename__ = "system_email_settings"
 

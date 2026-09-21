@@ -395,3 +395,19 @@ CREATE TABLE IF NOT EXISTS event_lineup_lanes (
     ON DELETE SET NULL ON UPDATE CASCADE,
   INDEX idx_event_lineup_lanes_order (event_id, sort_order)
 );
+
+CREATE TABLE IF NOT EXISTS mobile_refresh_tokens (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  account_type VARCHAR(20) NOT NULL,
+  account_id INT NOT NULL,
+  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  device_name VARCHAR(150) NULL,
+  expires_at DATETIME NOT NULL,
+  last_used_at DATETIME NULL,
+  revoked_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX ix_mobile_refresh_tokens_account_type (account_type),
+  INDEX ix_mobile_refresh_tokens_account_id (account_id),
+  INDEX ix_mobile_refresh_tokens_expires_at (expires_at),
+  INDEX idx_mobile_session_account (account_type, account_id)
+);
