@@ -1,8 +1,12 @@
 """Versioned JSON API for the Track Ops iOS and Android applications."""
 
+import base64
+import binascii
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
 import hashlib
+from io import BytesIO
 import secrets
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -10,7 +14,9 @@ from flask import Blueprint, current_app, g, jsonify, redirect, request, url_for
 from flask_login import login_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from urllib.parse import urlsplit
+from werkzeug.datastructures import FileStorage
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .models import (
@@ -36,6 +42,7 @@ from .models import (
     SocialPost,
     SpectatorOrder,
     SpectatorOrderItem,
+    SpectatorTicketType,
     Track,
     TrackCarStatus,
     TrackDriverClass,
@@ -61,7 +68,14 @@ from .services.payment_service import effective_payment_status, payment_is_confi
 from .services.ticket_service import ensure_order_ticket_codes, normalize_ticket_code, ticket_verification_url
 from .services.wallet_service import wallet_links_for_ticket
 from .services.run_service import expire_stale_track_states
-from .services.storage_service import build_presigned_read_url
+from .services.rental_service import (
+    active_bookings_by_slot,
+    event_conflicts_with_rental_slot,
+    rental_month_context,
+    slot_conflicts_with_event,
+    slot_conflicts_with_slot,
+)
+from .services.storage_service import build_presigned_read_url, upload_public_image
 from .security import generate_random_password
 
 
@@ -811,6 +825,506 @@ def staff_events():
         .all()
     )
     return jsonify({"events": [_event_payload(event) for event in events]})
+
+
+MOBILE_IMAGE_TYPES = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+}
+MOBILE_IMAGE_LIMIT_BYTES = 8 * 1024 * 1024
+
+
+def _mobile_image_file(data_url, filename_prefix):
+    if not data_url:
+        return None, None
+    if not isinstance(data_url, str) or ";base64," not in data_url:
+        return None, "Choose a valid JPG, PNG, or WebP image."
+    header, encoded = data_url.split(",", 1)
+    mime_type = header.removeprefix("data:").removesuffix(";base64").lower()
+    extension = MOBILE_IMAGE_TYPES.get(mime_type)
+    if not extension:
+        return None, "Choose a valid JPG, PNG, or WebP image."
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError):
+        return None, "The selected image could not be read."
+    if not raw or len(raw) > MOBILE_IMAGE_LIMIT_BYTES:
+        return None, "Images must be smaller than 8 MB."
+    return FileStorage(
+        stream=BytesIO(raw),
+        filename=f"{filename_prefix}.{extension}",
+        content_type=mime_type,
+    ), None
+
+
+def _mobile_upload_image(file_storage, key_prefix):
+    return upload_public_image(
+        file_storage,
+        bucket=current_app.config["S3_BUCKET"],
+        endpoint_url=current_app.config["S3_API_ENDPOINT_URL"],
+        access_key=current_app.config["S3_ACCESS_KEY"],
+        secret_key=current_app.config["S3_SECRET_KEY"],
+        key_prefix=key_prefix,
+    )
+
+
+def _mobile_date(raw_value, label="Date"):
+    try:
+        value = date.fromisoformat((raw_value or "").strip())
+    except (AttributeError, TypeError, ValueError):
+        return None, f"{label} is required."
+    if value < _local_today():
+        return None, f"{label} cannot be in the past."
+    return value, None
+
+
+def _mobile_time(raw_value, required=False):
+    value = str(raw_value).strip() if raw_value is not None else ""
+    if not value:
+        return (None, "Start and end times are required.") if required else (None, None)
+    try:
+        return datetime.strptime(value, "%H:%M").time(), None
+    except (TypeError, ValueError):
+        return None, "Choose a valid time."
+
+
+def _mobile_cents(raw_value, label):
+    try:
+        value = Decimal(str(raw_value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, TypeError, ValueError):
+        return None, f"Enter a valid {label.lower()}."
+    if not value.is_finite() or value < 0:
+        return None, f"{label} cannot be negative."
+    return int(value * 100), None
+
+
+def _mobile_capacity(raw_value, label, minimum=0, maximum=None):
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        return None, f"Enter a valid {label.lower()}."
+    if value < minimum or (maximum is not None and value > maximum):
+        if maximum is None:
+            return None, f"{label} must be at least {minimum}."
+        return None, f"{label} must be between {minimum} and {maximum}."
+    return value, None
+
+
+def _sync_mobile_event_ticket_types(event):
+    configurations = (
+        ("spectator", "General Admission", event.spectator_price_cents, 10),
+        ("vendor", "Vendor Admission", event.vendor_price_cents, 20),
+    )
+    for category, name, price_cents, max_per_order in configurations:
+        db.session.add(
+            SpectatorTicketType(
+                event_id=event.id,
+                name=name,
+                ticket_category=category,
+                price_cents=max(0, price_cents or 0),
+                is_active=True,
+                max_per_order=max_per_order,
+            )
+        )
+
+
+def _staff_event_planning_payload():
+    track_id = g.mobile_user.track_id
+    waivers = (
+        TrackWaiverTemplate.query.filter_by(track_id=track_id)
+        .order_by(TrackWaiverTemplate.title.asc())
+        .all()
+    )
+    default_waiver = next(
+        (
+            waiver
+            for waiver in sorted(
+                waivers, key=lambda item: (item.updated_at or item.created_at), reverse=True
+            )
+            if waiver.is_active and waiver.required_for_checkin
+        ),
+        None,
+    )
+    layouts = (
+        TrackLayout.query.filter_by(track_id=track_id)
+        .order_by(TrackLayout.name.asc())
+        .all()
+    )
+    return {
+        "defaults": {
+            "event_type": "public",
+            "date": _local_today().isoformat(),
+            "driver_price": 0,
+            "spectator_price": 25,
+            "vendor_price": 100,
+            "driver_capacity": 50,
+            "spectator_capacity": 100,
+            "vendor_capacity": 4,
+            "default_waiver_id": default_waiver.id if default_waiver else None,
+        },
+        "waivers": [
+            {
+                "id": waiver.id,
+                "title": waiver.title,
+                "is_active": bool(waiver.is_active),
+                "required_for_checkin": bool(waiver.required_for_checkin),
+            }
+            for waiver in waivers
+        ],
+        "layouts": [
+            {
+                "id": layout.id,
+                "name": layout.name,
+                "image_url": _mobile_asset_url(layout.image_path),
+            }
+            for layout in layouts
+        ],
+    }
+
+
+@mobile_api_bp.get("/staff/event-planning")
+@mobile_login_required("employee")
+def staff_event_planning():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    return jsonify(_staff_event_planning_payload())
+
+
+@mobile_api_bp.post("/staff/events")
+@mobile_login_required("employee")
+def staff_event_create():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    body = request.get_json(silent=True) or {}
+    event_type = (body.get("event_type") or "public").strip().lower()
+    if event_type not in {"public", "private"}:
+        return _json_error("Choose a valid event type.", 400, "invalid_event_type")
+    name = (body.get("name") or "").strip()
+    if not name or len(name) > 200:
+        return _json_error("Event name is required and must be 200 characters or fewer.", 400, "invalid_name")
+    event_date, error = _mobile_date(body.get("date"), "Event date")
+    if error:
+        return _json_error(error, 400, "invalid_date")
+    start_time, start_error = _mobile_time(body.get("start_time"), required=event_type == "private")
+    end_time, end_error = _mobile_time(body.get("end_time"), required=event_type == "private")
+    if start_error or end_error:
+        return _json_error(start_error or end_error, 400, "invalid_time")
+    if start_time and end_time and end_time <= start_time:
+        return _json_error("End time must be after the start time.", 400, "invalid_time")
+
+    driver_price, error = _mobile_cents(body.get("driver_price"), "Driver price")
+    if error:
+        return _json_error(error, 400, "invalid_price")
+    driver_capacity, error = _mobile_capacity(
+        body.get("driver_capacity"), "Driver capacity", minimum=1 if event_type == "private" else 0,
+        maximum=500 if event_type == "private" else None,
+    )
+    if error:
+        return _json_error(error, 400, "invalid_capacity")
+
+    track_id = g.mobile_user.track_id
+    if event_type == "private":
+        db.session.query(Track).filter(Track.id == track_id).with_for_update().one()
+        conflicting_slot = slot_conflicts_with_slot(
+            track_id, event_date, start_time, end_time
+        )
+        conflicting_event = slot_conflicts_with_event(
+            track_id, event_date, start_time, end_time
+        )
+        if conflicting_slot or conflicting_event:
+            conflict_name = conflicting_event.event_name if conflicting_event else "another private rental"
+            return _json_error(
+                f"That rental overlaps {conflict_name}.", 409, "rental_conflict"
+            )
+        slot = PrivateRentalSlot(
+            track_id=track_id,
+            name=name[:120],
+            slot_date=event_date,
+            start_time=start_time,
+            end_time=end_time,
+            price_cents=driver_price,
+            driver_limit=driver_capacity,
+            created_by_employee_id=g.mobile_user.id,
+        )
+        db.session.add(slot)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return _json_error("That exact rental slot already exists.", 409, "duplicate_slot")
+        return jsonify({"created": "rental_slot", "slot": _rental_slot_payload(slot)}), 201
+
+    spectator_price, error = _mobile_cents(body.get("spectator_price"), "Spectator price")
+    if error:
+        return _json_error(error, 400, "invalid_price")
+    vendor_price, error = _mobile_cents(body.get("vendor_price"), "Vendor price")
+    if error:
+        return _json_error(error, 400, "invalid_price")
+    spectator_capacity, error = _mobile_capacity(body.get("spectator_capacity"), "Spectator capacity")
+    if error:
+        return _json_error(error, 400, "invalid_capacity")
+    vendor_capacity, error = _mobile_capacity(body.get("vendor_capacity"), "Vendor capacity")
+    if error:
+        return _json_error(error, 400, "invalid_capacity")
+    try:
+        waiver_id = int(body.get("waiver_id"))
+    except (TypeError, ValueError):
+        return _json_error("Select the driver waiver required for this event.", 400, "invalid_waiver")
+    waiver = TrackWaiverTemplate.query.filter_by(id=waiver_id, track_id=track_id).first()
+    if not waiver:
+        return _json_error("Select the driver waiver required for this event.", 400, "invalid_waiver")
+
+    db.session.query(Track).filter(Track.id == track_id).with_for_update().one()
+    rental_conflict = event_conflicts_with_rental_slot(
+        track_id, event_date, start_time, end_time
+    )
+    if rental_conflict:
+        return _json_error(
+            "This event overlaps private-rental availability. Remove that slot or choose another date and time.",
+            409,
+            "rental_conflict",
+        )
+
+    layout_mode = (body.get("layout_mode") or "default").strip().lower()
+    layout_id = None
+    layout_file = None
+    if layout_mode == "existing":
+        try:
+            selected_layout_id = int(body.get("layout_id"))
+        except (TypeError, ValueError):
+            return _json_error("Choose a valid track layout.", 400, "invalid_layout")
+        selected_layout = TrackLayout.query.filter_by(
+            id=selected_layout_id, track_id=track_id
+        ).first()
+        if not selected_layout:
+            return _json_error("Choose a valid track layout.", 400, "invalid_layout")
+        layout_id = selected_layout.id
+    elif layout_mode in {"upload", "draw"}:
+        layout_file, error = _mobile_image_file(
+            body.get("layout_image"), "drawn_layout" if layout_mode == "draw" else "uploaded_layout"
+        )
+        if error:
+            return _json_error(error, 400, "invalid_layout_image")
+        layout_name = (body.get("layout_name") or name).strip()
+        if not layout_name or len(layout_name) > 120:
+            return _json_error("Layout name is required and must be 120 characters or fewer.", 400, "invalid_layout_name")
+        if TrackLayout.query.filter_by(track_id=track_id, name=layout_name).first():
+            return _json_error("A track layout with that name already exists.", 409, "duplicate_layout")
+    elif layout_mode != "default":
+        return _json_error("Choose a valid layout source.", 400, "invalid_layout")
+
+    thumbnail_file, error = _mobile_image_file(body.get("thumbnail_image"), "event_thumbnail")
+    if error:
+        return _json_error(error, 400, "invalid_thumbnail")
+    event = Event(
+        track_id=track_id,
+        event_type="public",
+        event_name=name,
+        event_date=event_date,
+        driver_price_cents=driver_price,
+        spectator_price_cents=spectator_price,
+        vendor_price_cents=vendor_price,
+        driver_capacity=driver_capacity,
+        spectator_capacity=spectator_capacity,
+        vendor_capacity=vendor_capacity,
+        event_start_time=start_time,
+        event_end_time=end_time,
+        waiver_template_id=waiver.id,
+        track_layout_id=layout_id,
+    )
+    try:
+        if layout_file:
+            layout = TrackLayout(track_id=track_id, name=(body.get("layout_name") or name).strip())
+            layout.image_path = _mobile_upload_image(layout_file, f"track_layouts/{track_id}")
+            db.session.add(layout)
+            db.session.flush()
+            event.track_layout_id = layout.id
+        if thumbnail_file:
+            event.thumbnail_image_path = _mobile_upload_image(
+                thumbnail_file, f"events/{track_id}"
+            )
+        db.session.add(event)
+        db.session.flush()
+        _sync_mobile_event_ticket_types(event)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Could not create event from mobile app")
+        return _json_error("The event could not be created. Try again.", 500, "event_create_failed")
+    return jsonify({"created": "event", "event": _event_payload(event, include_availability=True)}), 201
+
+
+def _rental_slot_payload(slot, booking=None):
+    status = "booked" if booking and booking.status == "confirmed" else "held" if booking else "open"
+    return {
+        "id": slot.id,
+        "name": slot.name,
+        "date": slot.slot_date.isoformat(),
+        "start_time": _time_value(slot.start_time),
+        "end_time": _time_value(slot.end_time),
+        "price": _money(slot.price_cents),
+        "driver_limit": slot.driver_limit,
+        "status": status,
+        "booking": (
+            {
+                "id": booking.id,
+                "name": f"{booking.buyer.first_name} {booking.buyer.last_name}".strip(),
+                "event_id": booking.event_id,
+            }
+            if booking
+            else None
+        ),
+    }
+
+
+def _staff_rental_payload(raw_month=None):
+    track_id = g.mobile_user.track_id
+    calendar = rental_month_context(raw_month, today=_local_today())
+    next_month = (calendar["first"] + timedelta(days=32)).replace(day=1)
+    month_slots = (
+        PrivateRentalSlot.query.filter(
+            PrivateRentalSlot.track_id == track_id,
+            PrivateRentalSlot.slot_date >= calendar["first"],
+            PrivateRentalSlot.slot_date < next_month,
+            PrivateRentalSlot.is_active.is_(True),
+        )
+        .order_by(PrivateRentalSlot.slot_date.asc(), PrivateRentalSlot.start_time.asc())
+        .all()
+    )
+    upcoming_slots = (
+        PrivateRentalSlot.query.filter(
+            PrivateRentalSlot.track_id == track_id,
+            PrivateRentalSlot.slot_date >= _local_today(),
+            PrivateRentalSlot.is_active.is_(True),
+        )
+        .order_by(PrivateRentalSlot.slot_date.asc(), PrivateRentalSlot.start_time.asc())
+        .limit(80)
+        .all()
+    )
+    all_slots = {slot.id: slot for slot in [*month_slots, *upcoming_slots]}
+    bookings = active_bookings_by_slot(list(all_slots))
+    events = (
+        Event.query.filter(
+            Event.track_id == track_id,
+            Event.event_date >= calendar["first"],
+            Event.event_date < next_month,
+        )
+        .order_by(Event.event_date.asc(), Event.event_start_time.asc())
+        .all()
+    )
+    return {
+        "month": {
+            "value": calendar["month_value"],
+            "label": calendar["label"],
+            "previous": calendar["previous_value"],
+            "next": calendar["next_value"],
+        },
+        "today": _local_today().isoformat(),
+        "slots": [
+            _rental_slot_payload(slot, bookings.get(slot.id)) for slot in month_slots
+        ],
+        "upcoming": [
+            _rental_slot_payload(slot, bookings.get(slot.id)) for slot in upcoming_slots
+        ],
+        "events": [
+            {
+                "id": event.id,
+                "name": event.event_name,
+                "date": event.event_date.isoformat(),
+                "start_time": _time_value(event.event_start_time),
+                "end_time": _time_value(event.event_end_time),
+            }
+            for event in events
+        ],
+    }
+
+
+@mobile_api_bp.get("/staff/private-rentals")
+@mobile_login_required("employee")
+def staff_private_rentals():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    return jsonify(_staff_rental_payload(request.args.get("month")))
+
+
+@mobile_api_bp.post("/staff/private-rentals")
+@mobile_login_required("employee")
+def staff_private_rental_create():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    if not name or len(name) > 120:
+        return _json_error("Slot name is required and must be 120 characters or fewer.", 400, "invalid_name")
+    slot_date, error = _mobile_date(body.get("date"), "Available date")
+    if error:
+        return _json_error(error, 400, "invalid_date")
+    start_time, start_error = _mobile_time(body.get("start_time"), required=True)
+    end_time, end_error = _mobile_time(body.get("end_time"), required=True)
+    if start_error or end_error:
+        return _json_error(start_error or end_error, 400, "invalid_time")
+    if end_time <= start_time:
+        return _json_error("Rental end time must be after the start time.", 400, "invalid_time")
+    price_cents, error = _mobile_cents(body.get("price"), "Rental price")
+    if error:
+        return _json_error(error, 400, "invalid_price")
+    driver_limit, error = _mobile_capacity(body.get("driver_limit"), "Driver limit", 1, 500)
+    if error:
+        return _json_error(error, 400, "invalid_capacity")
+    track_id = g.mobile_user.track_id
+    db.session.query(Track).filter(Track.id == track_id).with_for_update().one()
+    if slot_conflicts_with_slot(track_id, slot_date, start_time, end_time):
+        return _json_error("That time overlaps another private rental slot.", 409, "rental_conflict")
+    conflicting_event = slot_conflicts_with_event(track_id, slot_date, start_time, end_time)
+    if conflicting_event:
+        return _json_error(
+            f"That time overlaps {conflicting_event.event_name}. Choose another window.",
+            409,
+            "event_conflict",
+        )
+    slot = PrivateRentalSlot(
+        track_id=track_id,
+        name=name,
+        slot_date=slot_date,
+        start_time=start_time,
+        end_time=end_time,
+        price_cents=price_cents,
+        driver_limit=driver_limit,
+        created_by_employee_id=g.mobile_user.id,
+    )
+    db.session.add(slot)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return _json_error("That exact rental slot already exists.", 409, "duplicate_slot")
+    return jsonify(_staff_rental_payload(slot.slot_date.strftime("%Y-%m"))), 201
+
+
+@mobile_api_bp.delete("/staff/private-rentals/<int:slot_id>")
+@mobile_login_required("employee")
+def staff_private_rental_remove(slot_id):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    slot = PrivateRentalSlot.query.filter_by(
+        id=slot_id, track_id=g.mobile_user.track_id, is_active=True
+    ).first()
+    if not slot:
+        return _json_error("Rental slot not found.", 404, "slot_not_found")
+    if active_bookings_by_slot([slot.id]).get(slot.id):
+        return _json_error(
+            "Booked or held rental slots cannot be removed.", 409, "slot_booked"
+        )
+    month = slot.slot_date.strftime("%Y-%m")
+    slot.is_active = False
+    db.session.commit()
+    return jsonify(_staff_rental_payload(month))
 
 
 @mobile_api_bp.get("/staff/events/<int:event_id>")

@@ -16,6 +16,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="event/[id]" options={{ title: 'Event details' }} />
           <Stack.Screen name="event-tools/[id]/[action]" options={{ title: 'Event operations' }} />
+          <Stack.Screen name="event-planning/new" options={{ title: 'Create event' }} />
+          <Stack.Screen name="event-planning/rentals" options={{ title: 'Rental availability' }} />
           <Stack.Screen name="car/[id]" options={{ title: 'Garage' }} />
           <Stack.Screen name="inspection/[id]" options={{ title: 'Vehicle inspection' }} />
           <Stack.Screen name="staff/people" options={{ title: 'People' }} />
