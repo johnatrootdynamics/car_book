@@ -761,6 +761,28 @@ def _inspection_state(registration):
     return "passed" if inspection.passed else "needs_attention"
 
 
+def _driver_ticket_payload(registration):
+    order = (
+        DriverTicketOrder.query.filter_by(
+            event_id=registration.event_id, user_id=registration.user_id
+        )
+        .order_by(DriverTicketOrder.created_at.desc())
+        .first()
+    )
+    return {
+        "code": registration.checkin_code,
+        "kind": "driver",
+        "ticket_type": "Driver admission",
+        "name": f"{registration.user.first_name} {registration.user.last_name}".strip(),
+        "state": _driver_state(registration, order),
+        "event": _event_payload(registration.event),
+        "car": _car_payload(registration.car),
+        "registration_id": registration.id,
+        "inspection_state": _inspection_state(registration),
+        "checked_in_at": _iso(registration.checked_in_at),
+    }
+
+
 def _ticket_match(code, track_id):
     item = (
         SpectatorOrderItem.query.join(Event)
@@ -791,25 +813,7 @@ def _ticket_match(code, track_id):
     )
     if not registration:
         return None
-    order = (
-        DriverTicketOrder.query.filter_by(
-            event_id=registration.event_id, user_id=registration.user_id
-        )
-        .order_by(DriverTicketOrder.created_at.desc())
-        .first()
-    )
-    return {
-        "code": code,
-        "kind": "driver",
-        "ticket_type": "Driver admission",
-        "name": f"{registration.user.first_name} {registration.user.last_name}".strip(),
-        "state": _driver_state(registration, order),
-        "event": _event_payload(registration.event),
-        "car": _car_payload(registration.car),
-        "registration_id": registration.id,
-        "inspection_state": _inspection_state(registration),
-        "checked_in_at": _iso(registration.checked_in_at),
-    }
+    return _driver_ticket_payload(registration)
 
 
 @mobile_api_bp.post("/staff/tickets/lookup")
@@ -827,9 +831,10 @@ def staff_ticket_lookup():
             .join(Event, Event.id == EventRegistration.event_id)
             .filter(
                 Event.track_id == g.mobile_user.track_id,
+                Event.event_date >= _local_today(),
                 or_(User.static_qr_code == code, Car.static_qr_code == code),
             )
-            .order_by(Event.event_date.desc())
+            .order_by(Event.event_date.asc())
             .first()
         )
         if registration:
@@ -842,6 +847,7 @@ def staff_ticket_lookup():
         .join(Event, Event.id == EventRegistration.event_id)
         .filter(
             Event.track_id == g.mobile_user.track_id,
+            Event.event_date >= _local_today(),
             or_(
                 User.first_name.ilike(like),
                 User.last_name.ilike(like),
@@ -853,11 +859,7 @@ def staff_ticket_lookup():
         .limit(20)
         .all()
     )
-    results = [
-        match
-        for registration in registrations
-        if (match := _ticket_match(registration.checkin_code, g.mobile_user.track_id))
-    ]
+    results = [_driver_ticket_payload(registration) for registration in registrations]
     return jsonify({"results": results})
 
 
