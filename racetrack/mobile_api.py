@@ -15,6 +15,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .models import (
     Car,
+    CameraDevice,
+    DriverClassChange,
+    DriverNote,
     DriverTicketOrder,
     Employee,
     EnterpriseAdmin,
@@ -25,18 +28,34 @@ from .models import (
     InspectionRule,
     MobileRefreshToken,
     PrivateRentalBooking,
+    PrivateRentalSlot,
+    ScannerDevice,
+    ScannerObservation,
     SocialPost,
     SpectatorOrder,
     SpectatorOrderItem,
     Track,
+    TrackDriverClass,
+    TrackDriverClassOption,
+    TrackEmailTemplate,
+    TrackPaymentMethod,
+    TrackWaiverTemplate,
     User,
     VendorAccount,
     db,
 )
 from .services.capacity_service import ticket_availability
+from .services.email_service import (
+    send_driver_purchase_receipt,
+    send_employee_login_email,
+    send_private_rental_confirmation,
+    send_spectator_order_receipt,
+)
+from .services.order_service import load_order_rows, summarize_orders
 from .services.payment_service import effective_payment_status, payment_is_confirmed
-from .services.ticket_service import normalize_ticket_code, ticket_verification_url
+from .services.ticket_service import ensure_order_ticket_codes, normalize_ticket_code, ticket_verification_url
 from .services.wallet_service import wallet_links_for_ticket
+from .security import generate_random_password
 
 
 mobile_api_bp = Blueprint("mobile_api", __name__, url_prefix="/api/v1/mobile")
@@ -48,6 +67,17 @@ ACCOUNT_MODELS = {
     "employee": Employee,
     "admin": EnterpriseAdmin,
     "vendor": VendorAccount,
+}
+MOBILE_PAYMENT_PROVIDERS = {
+    "stripe": "Stripe",
+    "paypal": "PayPal",
+    "toast": "Toast",
+    "quickbooks": "QuickBooks Payments",
+    "other": "Other / Manual",
+}
+MOBILE_EMAIL_TEMPLATES = {
+    "spectator_purchase_receipt": "Event ticket purchase receipt",
+    "driver_purchase_receipt": "Driver purchase receipt",
 }
 
 
@@ -732,6 +762,875 @@ def staff_event(event_id):
         EventRegistration.checked_in_at.isnot(None),
     ).count()
     return jsonify({"event": result})
+
+
+def _mobile_office_guard():
+    if g.mobile_user.role != "office_staff":
+        return _json_error(
+            "Office staff access is required for this setting.",
+            403,
+            "office_staff_required",
+        )
+    return None
+
+
+def _staff_driver_query(track_id):
+    return (
+        User.query.join(EventRegistration, EventRegistration.user_id == User.id)
+        .join(Event, Event.id == EventRegistration.event_id)
+        .filter(Event.track_id == track_id)
+        .distinct()
+    )
+
+
+def _staff_driver_or_none(track_id, user_id):
+    return _staff_driver_query(track_id).filter(User.id == user_id).first()
+
+
+def _driver_directory_payload(driver, track_id):
+    registrations = (
+        EventRegistration.query.join(Event, Event.id == EventRegistration.event_id)
+        .filter(Event.track_id == track_id, EventRegistration.user_id == driver.id)
+        .all()
+    )
+    registration_ids = [registration.id for registration in registrations]
+    inspected_ids = {
+        row[0]
+        for row in db.session.query(Inspection.event_registration_id)
+        .filter(Inspection.event_registration_id.in_(registration_ids or [-1]))
+        .all()
+    }
+    class_record = TrackDriverClass.query.filter_by(
+        track_id=track_id, user_id=driver.id
+    ).first()
+    attended = sum(
+        1
+        for registration in registrations
+        if registration.checked_in_at or registration.id in inspected_ids
+    )
+    last_date = max((registration.event.event_date for registration in registrations), default=None)
+    return {
+        "id": driver.id,
+        "name": f"{driver.first_name} {driver.last_name}".strip(),
+        "username": driver.username,
+        "email": driver.email,
+        "phone": driver.phone,
+        "profile_image_url": driver.profile_image_url,
+        "driver_class": class_record.driver_class if class_record else "C",
+        "registered_count": len(registrations),
+        "attended_count": attended,
+        "note_count": DriverNote.query.filter_by(track_id=track_id, user_id=driver.id).count(),
+        "last_event_date": last_date.isoformat() if last_date else None,
+    }
+
+
+@mobile_api_bp.get("/staff/people")
+@mobile_login_required("employee")
+def staff_people():
+    employee = g.mobile_user
+    directory_view = (request.args.get("view") or "drivers").strip().lower()
+    query_text = (request.args.get("q") or "").strip()
+    if directory_view == "vendors":
+        query = VendorAccount.query
+        if query_text:
+            like = f"%{query_text}%"
+            filters = [
+                VendorAccount.business_name.ilike(like),
+                VendorAccount.website.ilike(like),
+                VendorAccount.description.ilike(like),
+            ]
+            if employee.role == "office_staff":
+                filters.extend(
+                    [
+                        VendorAccount.full_name.ilike(like),
+                        VendorAccount.email.ilike(like),
+                        VendorAccount.phone.ilike(like),
+                    ]
+                )
+            query = query.filter(or_(*filters))
+        vendors = query.order_by(VendorAccount.business_name.asc()).limit(200).all()
+        return jsonify(
+            {
+                "view": "vendors",
+                "vendors": [
+                    {
+                        "id": vendor.id,
+                        "business_name": vendor.business_name,
+                        "website": vendor.website,
+                        "description": vendor.description,
+                        "logo_url": vendor.logo_image_path,
+                        **(
+                            {
+                                "contact_name": vendor.full_name,
+                                "email": vendor.email,
+                                "phone": vendor.phone,
+                                "business_address": vendor.business_address,
+                            }
+                            if employee.role == "office_staff"
+                            else {}
+                        ),
+                    }
+                    for vendor in vendors
+                ],
+            }
+        )
+    query = _staff_driver_query(employee.track_id)
+    if query_text:
+        like = f"%{query_text}%"
+        query = query.filter(
+            or_(
+                User.first_name.ilike(like),
+                User.last_name.ilike(like),
+                User.username.ilike(like),
+                User.email.ilike(like),
+                User.phone.ilike(like),
+            )
+        )
+    drivers = query.order_by(User.last_name.asc(), User.first_name.asc()).limit(200).all()
+    return jsonify(
+        {
+            "view": "drivers",
+            "drivers": [
+                _driver_directory_payload(driver, employee.track_id) for driver in drivers
+            ],
+        }
+    )
+
+
+@mobile_api_bp.get("/staff/people/drivers/<int:user_id>")
+@mobile_login_required("employee")
+def staff_driver_detail(user_id):
+    employee = g.mobile_user
+    driver = _staff_driver_or_none(employee.track_id, user_id)
+    if not driver:
+        return _json_error("Driver not found at your track.", 404, "driver_not_found")
+    registrations = (
+        EventRegistration.query.join(Event, Event.id == EventRegistration.event_id)
+        .filter(Event.track_id == employee.track_id, EventRegistration.user_id == driver.id)
+        .order_by(Event.event_date.desc(), EventRegistration.created_at.desc())
+        .all()
+    )
+    registration_ids = [registration.id for registration in registrations]
+    inspections = {
+        inspection.event_registration_id: inspection
+        for inspection in Inspection.query.filter(
+            Inspection.event_registration_id.in_(registration_ids or [-1])
+        ).all()
+    }
+    notes = (
+        DriverNote.query.filter_by(track_id=employee.track_id, user_id=driver.id)
+        .order_by(DriverNote.created_at.desc())
+        .all()
+    )
+    class_changes = (
+        DriverClassChange.query.filter_by(track_id=employee.track_id, user_id=driver.id)
+        .order_by(DriverClassChange.created_at.desc())
+        .limit(25)
+        .all()
+    )
+    class_options = (
+        TrackDriverClassOption.query.filter_by(track_id=employee.track_id)
+        .order_by(TrackDriverClassOption.sort_order.asc(), TrackDriverClassOption.name.asc())
+        .all()
+    )
+    summary = _driver_directory_payload(driver, employee.track_id)
+    return jsonify(
+        {
+            "driver": summary,
+            "class_options": [option.name for option in class_options]
+            or [summary["driver_class"]],
+            "events": [
+                {
+                    "registration_id": registration.id,
+                    "event": _event_payload(registration.event),
+                    "car": _car_payload(registration.car),
+                    "checked_in_at": _iso(registration.checked_in_at),
+                    "inspection_state": (
+                        "passed"
+                        if inspections.get(registration.id) and inspections[registration.id].passed
+                        else "needs_attention"
+                        if inspections.get(registration.id)
+                        else "not_started"
+                    ),
+                }
+                for registration in registrations
+            ],
+            "notes": [
+                {
+                    "id": note.id,
+                    "text": note.note_text,
+                    "author": note.author_name,
+                    "created_at": _iso(note.created_at),
+                }
+                for note in notes
+            ],
+            "class_changes": [
+                {
+                    "id": change.id,
+                    "previous": change.previous_class,
+                    "new": change.new_class,
+                    "author": change.changed_by_name,
+                    "created_at": _iso(change.created_at),
+                }
+                for change in class_changes
+            ],
+        }
+    )
+
+
+@mobile_api_bp.post("/staff/people/drivers/<int:user_id>/notes")
+@mobile_login_required("employee")
+def staff_driver_note_create(user_id):
+    employee = g.mobile_user
+    driver = _staff_driver_or_none(employee.track_id, user_id)
+    if not driver:
+        return _json_error("Driver not found at your track.", 404, "driver_not_found")
+    text = ((request.get_json(silent=True) or {}).get("text") or "").strip()
+    if not text or len(text) > 2000:
+        return _json_error("Enter a note between 1 and 2,000 characters.", 400, "invalid_note")
+    note = DriverNote(
+        track_id=employee.track_id,
+        user_id=driver.id,
+        note_text=text,
+        author_type="employee",
+        author_id=employee.id,
+        author_name=employee.full_name,
+    )
+    db.session.add(note)
+    db.session.commit()
+    return jsonify(
+        {
+            "note": {
+                "id": note.id,
+                "text": note.note_text,
+                "author": note.author_name,
+                "created_at": _iso(note.created_at),
+            }
+        }
+    ), 201
+
+
+@mobile_api_bp.put("/staff/people/drivers/<int:user_id>/class")
+@mobile_login_required("employee")
+def staff_driver_class_update(user_id):
+    employee = g.mobile_user
+    driver = _staff_driver_or_none(employee.track_id, user_id)
+    if not driver:
+        return _json_error("Driver not found at your track.", 404, "driver_not_found")
+    selected = ((request.get_json(silent=True) or {}).get("driver_class") or "").strip()
+    valid = {
+        option.name
+        for option in TrackDriverClassOption.query.filter_by(track_id=employee.track_id).all()
+    }
+    if selected not in valid:
+        return _json_error("Choose a valid driver class.", 400, "invalid_driver_class")
+    record = TrackDriverClass.query.filter_by(
+        track_id=employee.track_id, user_id=driver.id
+    ).first()
+    if not record:
+        record = TrackDriverClass(
+            track_id=employee.track_id,
+            user_id=driver.id,
+            driver_class=selected,
+            updated_by_employee_id=employee.id,
+        )
+        previous = driver.driver_class or "C"
+        db.session.add(record)
+    else:
+        previous = record.driver_class
+        record.driver_class = selected
+        record.updated_by_employee_id = employee.id
+    if previous != selected:
+        db.session.add(
+            DriverClassChange(
+                track_id=employee.track_id,
+                user_id=driver.id,
+                previous_class=previous,
+                new_class=selected,
+                changed_by_type="employee",
+                changed_by_id=employee.id,
+                changed_by_name=employee.full_name,
+            )
+        )
+    db.session.commit()
+    return jsonify({"driver_class": selected})
+
+
+def _staff_order_rows(employee):
+    rows = load_order_rows(track_id=employee.track_id)
+    if employee.role != "office_staff":
+        rows = [row for row in rows if row["kind"] != "rental"]
+        for row in rows:
+            if "vendor" in row.get("ticket_categories", set()):
+                row["buyer_name"] = row.get("vendor_business_name") or "Vendor"
+                row["buyer_email"] = ""
+    return rows
+
+
+def _order_row_payload(row):
+    return {
+        "kind": row["kind"],
+        "kind_label": row["kind_label"],
+        "id": row["id"],
+        "number": row["number"],
+        "event_names": row["event_names"],
+        "buyer_name": row["buyer_name"],
+        "buyer_email": row["buyer_email"],
+        "amount": _money(row["amount_cents"]),
+        "provider": row["provider"],
+        "mode": row["mode"],
+        "payment_status": row["payment_status"],
+        "transaction_id": row["transaction_id"],
+        "created_at": _iso(row["created_at"]),
+        "paid_at": _iso(row["paid_at"]),
+    }
+
+
+@mobile_api_bp.get("/staff/orders")
+@mobile_login_required("employee")
+def staff_orders():
+    rows = _staff_order_rows(g.mobile_user)
+    query_text = (request.args.get("q") or "").strip().lower()
+    if query_text:
+        rows = [
+            row
+            for row in rows
+            if query_text
+            in " ".join(
+                [
+                    row["number"],
+                    row["buyer_name"],
+                    row["buyer_email"],
+                    row["provider"],
+                    *row["event_names"],
+                ]
+            ).lower()
+        ]
+    summary = summarize_orders(rows)
+    return jsonify(
+        {
+            "summary": {
+                **summary,
+                "paid_total": _money(summary["paid_cents"]),
+            },
+            "orders": [_order_row_payload(row) for row in rows[:200]],
+        }
+    )
+
+
+def _staff_order_row_or_none(kind, order_id):
+    return next(
+        (
+            row
+            for row in _staff_order_rows(g.mobile_user)
+            if row["kind"] == kind and row["id"] == order_id
+        ),
+        None,
+    )
+
+
+@mobile_api_bp.get("/staff/orders/<kind>/<int:order_id>")
+@mobile_login_required("employee")
+def staff_order_detail(kind, order_id):
+    row = _staff_order_row_or_none(kind, order_id)
+    if not row:
+        return _json_error("Order not found at your track.", 404, "order_not_found")
+    order = row["order"]
+    payload = _order_row_payload(row)
+    payload["items"] = []
+    if kind == "spectator":
+        payload["items"] = [
+            {
+                "id": item.id,
+                "label": item.ticket_type_name,
+                "category": item.ticket_category,
+                "event": item.event.event_name,
+                "quantity": item.quantity,
+                "amount": _money(item.line_total_cents),
+                "checked_in_at": _iso(item.checked_in_at),
+            }
+            for item in order.items
+            if item.event.track_id == g.mobile_user.track_id
+        ]
+    elif kind == "driver":
+        registration = EventRegistration.query.filter_by(
+            event_id=order.event_id, user_id=order.user_id
+        ).first()
+        payload["items"] = [
+            {
+                "label": "Driver admission",
+                "event": order.event.event_name,
+                "car": _car_payload(order.car),
+                "checked_in_at": _iso(registration.checked_in_at) if registration else None,
+            }
+        ]
+    elif kind == "rental":
+        payload["items"] = [
+            {
+                "label": order.slot.name,
+                "event": order.event.event_name if order.event else None,
+                "date": order.slot.slot_date.isoformat(),
+                "car": _car_payload(order.car),
+            }
+        ]
+    return jsonify({"order": payload})
+
+
+@mobile_api_bp.post("/staff/orders/<kind>/<int:order_id>/resend")
+@mobile_login_required("employee")
+def staff_order_resend(kind, order_id):
+    row = _staff_order_row_or_none(kind, order_id)
+    if not row:
+        return _json_error("Order not found at your track.", 404, "order_not_found")
+    order = row["order"]
+    if effective_payment_status(order) != "paid":
+        return _json_error(
+            "Payment must be confirmed before an email can be resent.",
+            409,
+            "payment_not_confirmed",
+        )
+    if kind == "spectator":
+        if ensure_order_ticket_codes(order):
+            db.session.commit()
+        send_fn = send_spectator_order_receipt
+    elif kind == "driver":
+        send_fn = send_driver_purchase_receipt
+    elif kind == "rental" and g.mobile_user.role == "office_staff":
+        send_fn = send_private_rental_confirmation
+    else:
+        return _json_error("This order email cannot be resent.", 403, "forbidden")
+    try:
+        sent = send_fn(order)
+    except Exception:
+        current_app.logger.exception("Could not resend mobile order email")
+        sent = False
+    if not sent:
+        return _json_error(
+            "The email could not be sent. Check the track SMTP settings.",
+            503,
+            "email_failed",
+        )
+    return jsonify({"message": f"The {row['kind_label'].lower()} email was resent."})
+
+
+@mobile_api_bp.get("/staff/hardware")
+@mobile_login_required("employee")
+def staff_hardware():
+    track_id = g.mobile_user.track_id
+    scanners = ScannerDevice.query.filter_by(track_id=track_id).order_by(ScannerDevice.name).all()
+    cameras = CameraDevice.query.filter_by(track_id=track_id).order_by(CameraDevice.name).all()
+    observations = (
+        ScannerObservation.query.join(ScannerDevice)
+        .filter(ScannerDevice.track_id == track_id)
+        .order_by(ScannerObservation.received_at.desc())
+        .limit(50)
+        .all()
+    )
+    return jsonify(
+        {
+            "scanners": [
+                {
+                    "id": scanner.id,
+                    "name": scanner.name,
+                    "role": scanner.role,
+                    "status": scanner.status,
+                    "reader_connected": scanner.reader_connected,
+                    "last_seen_at": _iso(scanner.last_seen_at),
+                    "software_version": scanner.software_version,
+                }
+                for scanner in scanners
+            ],
+            "cameras": [
+                {
+                    "id": camera.id,
+                    "name": camera.name,
+                    "status": camera.status,
+                    "camera_connected": camera.camera_connected,
+                    "last_seen_at": _iso(camera.last_seen_at),
+                    "software_version": camera.software_version,
+                }
+                for camera in cameras
+            ],
+            "observations": [
+                {
+                    "id": observation.id,
+                    "scanner": observation.scanner.name,
+                    "role": observation.scanner.role,
+                    "result": observation.result,
+                    "reason": observation.reason,
+                    "epc": observation.epc,
+                    "driver": (
+                        f"{observation.car.owner.first_name} {observation.car.owner.last_name}".strip()
+                        if observation.car
+                        else None
+                    ),
+                    "car": _car_payload(observation.car) if observation.car else None,
+                    "observed_at": _iso(observation.observed_at),
+                }
+                for observation in observations
+            ],
+        }
+    )
+
+
+@mobile_api_bp.put("/staff/hardware/scanners/<int:scanner_id>")
+@mobile_login_required("employee")
+def staff_scanner_update(scanner_id):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    scanner = ScannerDevice.query.filter_by(
+        id=scanner_id, track_id=g.mobile_user.track_id
+    ).first()
+    if not scanner:
+        return _json_error("Scanner not found.", 404, "scanner_not_found")
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or scanner.name).strip()[:120]
+    role = (body.get("role") or scanner.role).strip()
+    if role not in {"unassigned", "track_entrance", "track_exit"}:
+        return _json_error("Choose a valid scanner zone.", 400, "invalid_scanner_role")
+    if role != "unassigned":
+        ScannerDevice.query.filter(
+            ScannerDevice.track_id == g.mobile_user.track_id,
+            ScannerDevice.role == role,
+            ScannerDevice.id != scanner.id,
+        ).update({"role": "unassigned"}, synchronize_session=False)
+    scanner.name = name or scanner.name
+    scanner.role = role
+    db.session.commit()
+    return jsonify({"message": "Scanner settings saved."})
+
+
+def _staff_settings_payload(employee):
+    track = db.session.get(Track, employee.track_id)
+    payment_records = {
+        item.provider: item
+        for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
+    }
+    staff = Employee.query.filter_by(track_id=track.id).order_by(Employee.full_name).all()
+    rules = InspectionRule.query.filter_by(track_id=track.id).order_by(
+        InspectionRule.sort_order.asc(), InspectionRule.id.asc()
+    ).all()
+    waivers = TrackWaiverTemplate.query.filter_by(track_id=track.id).order_by(
+        TrackWaiverTemplate.updated_at.desc()
+    ).all()
+    email_records = {
+        item.template_key: item
+        for item in TrackEmailTemplate.query.filter_by(track_id=track.id).all()
+    }
+    class_options = TrackDriverClassOption.query.filter_by(track_id=track.id).order_by(
+        TrackDriverClassOption.sort_order.asc(), TrackDriverClassOption.name.asc()
+    ).all()
+    return {
+        "track": {"id": track.id, "name": track.name, "city": track.city, "state": track.state},
+        "payments": [
+            {
+                "provider": provider,
+                "label": label,
+                "enabled": bool(payment_records.get(provider) and payment_records[provider].is_enabled),
+                "mode": payment_records[provider].mode if payment_records.get(provider) else "live",
+                "live_configured": bool(
+                    payment_records.get(provider)
+                    and (
+                        payment_records[provider].public_key
+                        or payment_records[provider].secret_key
+                        or payment_records[provider].merchant_id
+                    )
+                ),
+                "test_configured": bool(
+                    payment_records.get(provider)
+                    and (
+                        payment_records[provider].test_public_key
+                        or payment_records[provider].test_secret_key
+                        or payment_records[provider].test_merchant_id
+                    )
+                ),
+            }
+            for provider, label in MOBILE_PAYMENT_PROVIDERS.items()
+        ],
+        "staff": [
+            {
+                "id": member.id,
+                "name": member.full_name,
+                "email": member.email,
+                "role": member.role,
+                "must_change_password": member.must_change_password,
+                "can_reset": member.id != employee.id,
+            }
+            for member in staff
+        ],
+        "inspection_rules": [
+            {"id": rule.id, "text": rule.rule_text, "active": rule.active}
+            for rule in rules
+        ],
+        "waivers": [
+            {
+                "id": waiver.id,
+                "title": waiver.title,
+                "active": waiver.is_active,
+                "required_for_checkin": waiver.required_for_checkin,
+            }
+            for waiver in waivers
+        ],
+        "email_templates": [
+            {
+                "key": key,
+                "label": label,
+                "configured": key in email_records,
+                "enabled": email_records[key].is_enabled if key in email_records else True,
+                "ticket_design": email_records[key].ticket_design if key in email_records else "pit_pass",
+            }
+            for key, label in MOBILE_EMAIL_TEMPLATES.items()
+        ],
+        "driver_classes": [
+            {"id": option.id, "name": option.name} for option in class_options
+        ],
+    }
+
+
+@mobile_api_bp.get("/staff/settings")
+@mobile_login_required("employee")
+def staff_settings():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    return jsonify({"settings": _staff_settings_payload(g.mobile_user)})
+
+
+@mobile_api_bp.put("/staff/settings/track")
+@mobile_login_required("employee")
+def staff_settings_track_update():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    city = (body.get("city") or "").strip()
+    state = (body.get("state") or "").strip()
+    if not name or not city or not state:
+        return _json_error("Track name, city, and state are required.", 400, "invalid_track")
+    track = db.session.get(Track, g.mobile_user.track_id)
+    duplicate = Track.query.filter(Track.name == name, Track.id != track.id).first()
+    if duplicate:
+        return _json_error("Another track already uses that name.", 409, "track_name_taken")
+    track.name = name[:200]
+    track.city = city[:100]
+    track.state = state[:100]
+    db.session.commit()
+    return jsonify({"settings": _staff_settings_payload(g.mobile_user)})
+
+
+@mobile_api_bp.put("/staff/settings/payments/<provider>")
+@mobile_login_required("employee")
+def staff_settings_payment_update(provider):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    if provider not in MOBILE_PAYMENT_PROVIDERS:
+        return _json_error("Unknown payment provider.", 404, "provider_not_found")
+    body = request.get_json(silent=True) or {}
+    record = TrackPaymentMethod.query.filter_by(
+        track_id=g.mobile_user.track_id, provider=provider
+    ).first()
+    if body.get("enabled") is False:
+        other_enabled = TrackPaymentMethod.query.filter(
+            TrackPaymentMethod.track_id == g.mobile_user.track_id,
+            TrackPaymentMethod.provider != provider,
+            TrackPaymentMethod.is_enabled.is_(True),
+        ).first()
+        if not other_enabled:
+            return _json_error(
+                "Keep at least one payment provider enabled.",
+                409,
+                "payment_provider_required",
+            )
+    if not record:
+        record = TrackPaymentMethod(track_id=g.mobile_user.track_id, provider=provider)
+        db.session.add(record)
+    if "enabled" in body:
+        record.is_enabled = bool(body["enabled"])
+    mode = (body.get("mode") or record.mode or "live").strip().lower()
+    if mode not in {"live", "test"}:
+        return _json_error("Payment mode must be live or test.", 400, "invalid_payment_mode")
+    record.mode = mode
+    for field in (
+        "public_key",
+        "secret_key",
+        "webhook_secret",
+        "merchant_id",
+        "test_public_key",
+        "test_secret_key",
+        "test_webhook_secret",
+        "test_merchant_id",
+    ):
+        if field in body:
+            value = (body.get(field) or "").strip()
+            setattr(record, field, value or None)
+    db.session.flush()
+    track = db.session.get(Track, g.mobile_user.track_id)
+    enabled = TrackPaymentMethod.query.filter_by(
+        track_id=g.mobile_user.track_id, is_enabled=True
+    ).order_by(TrackPaymentMethod.id.asc()).all()
+    enabled_names = {item.provider for item in enabled}
+    if track.spectator_payment_provider not in enabled_names and enabled:
+        track.spectator_payment_provider = enabled[0].provider
+    db.session.commit()
+    return jsonify({"settings": _staff_settings_payload(g.mobile_user)})
+
+
+@mobile_api_bp.post("/staff/settings/inspection-rules")
+@mobile_login_required("employee")
+def staff_settings_rule_create():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    text = ((request.get_json(silent=True) or {}).get("text") or "").strip()
+    if not text or len(text) > 255:
+        return _json_error("Enter a checklist item up to 255 characters.", 400, "invalid_rule")
+    max_order = db.session.query(func.max(InspectionRule.sort_order)).filter_by(
+        track_id=g.mobile_user.track_id
+    ).scalar() or 0
+    db.session.add(
+        InspectionRule(
+            track_id=g.mobile_user.track_id,
+            rule_text=text,
+            active=True,
+            sort_order=max_order + 1,
+        )
+    )
+    db.session.commit()
+    return jsonify({"settings": _staff_settings_payload(g.mobile_user)}), 201
+
+
+@mobile_api_bp.put("/staff/settings/inspection-rules/<int:rule_id>")
+@mobile_login_required("employee")
+def staff_settings_rule_update(rule_id):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    rule = InspectionRule.query.filter_by(
+        id=rule_id, track_id=g.mobile_user.track_id
+    ).first()
+    if not rule:
+        return _json_error("Inspection rule not found.", 404, "rule_not_found")
+    body = request.get_json(silent=True) or {}
+    if "active" in body:
+        rule.active = bool(body["active"])
+    db.session.commit()
+    return jsonify({"settings": _staff_settings_payload(g.mobile_user)})
+
+
+@mobile_api_bp.post("/staff/settings/staff")
+@mobile_login_required("employee")
+def staff_settings_staff_create():
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    email = (body.get("email") or "").strip().lower()
+    role = (body.get("role") or "track_staff").strip()
+    if not name or "@" not in email or role not in {"track_staff", "office_staff"}:
+        return _json_error("Enter a name, valid email, and staff role.", 400, "invalid_staff")
+    if Employee.query.filter(func.lower(Employee.email) == email).first():
+        return _json_error("An employee already uses that email.", 409, "email_exists")
+    password = generate_random_password()
+    track = db.session.get(Track, g.mobile_user.track_id)
+    employee = Employee(
+        track_id=track.id,
+        full_name=name[:150],
+        email=email[:255],
+        password_hash=generate_password_hash(password),
+        must_change_password=True,
+        role=role,
+    )
+    db.session.add(employee)
+    try:
+        db.session.flush()
+        sent = send_employee_login_email(
+            employee,
+            password,
+            track,
+            url_for("auth.user_login", _external=True),
+        )
+    except Exception:
+        current_app.logger.exception("Could not send mobile employee welcome email")
+        sent = False
+    if not sent:
+        db.session.rollback()
+        return _json_error(
+            "The account was not created because the welcome email could not be delivered.",
+            503,
+            "email_failed",
+        )
+    db.session.commit()
+    return jsonify({"settings": _staff_settings_payload(g.mobile_user)}), 201
+
+
+@mobile_api_bp.post("/staff/settings/staff/<int:employee_id>/reset-password")
+@mobile_login_required("employee")
+def staff_settings_staff_reset(employee_id):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    employee = Employee.query.filter_by(
+        id=employee_id, track_id=g.mobile_user.track_id
+    ).first()
+    if not employee or employee.id == g.mobile_user.id:
+        return _json_error("That staff account cannot be reset here.", 404, "staff_not_found")
+    password = generate_random_password()
+    employee.password_hash = generate_password_hash(password)
+    employee.must_change_password = True
+    try:
+        db.session.flush()
+        sent = send_employee_login_email(
+            employee,
+            password,
+            employee.track,
+            url_for("auth.user_login", _external=True),
+            is_reset=True,
+        )
+    except Exception:
+        current_app.logger.exception("Could not send mobile employee reset email")
+        sent = False
+    if not sent:
+        db.session.rollback()
+        return _json_error(
+            "The password was not changed because the reset email could not be delivered.",
+            503,
+            "email_failed",
+        )
+    db.session.commit()
+    return jsonify({"message": f"A new password was emailed to {employee.email}."})
+
+
+@mobile_api_bp.put("/staff/settings/staff/<int:employee_id>/role")
+@mobile_login_required("employee")
+def staff_settings_staff_role(employee_id):
+    guard = _mobile_office_guard()
+    if guard:
+        return guard
+    employee = Employee.query.filter_by(
+        id=employee_id, track_id=g.mobile_user.track_id
+    ).first()
+    if not employee:
+        return _json_error("Staff account not found.", 404, "staff_not_found")
+    role = ((request.get_json(silent=True) or {}).get("role") or "").strip()
+    if role not in {"track_staff", "office_staff"}:
+        return _json_error("Choose a valid staff role.", 400, "invalid_staff_role")
+    if employee.role == "office_staff" and role == "track_staff":
+        office_count = Employee.query.filter_by(
+            track_id=g.mobile_user.track_id, role="office_staff"
+        ).count()
+        if office_count <= 1:
+            return _json_error(
+                "Every track must keep at least one office staff account.",
+                409,
+                "office_staff_required",
+            )
+    employee.role = role
+    db.session.commit()
+    return jsonify({"settings": _staff_settings_payload(g.mobile_user)})
 
 
 def _spectator_state(item):

@@ -1,4 +1,5 @@
 import { SymbolView } from 'expo-symbols';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -9,7 +10,8 @@ import { useAuth } from '@/providers/AuthProvider';
 type Destination = {
   title: string;
   detail: string;
-  path: string;
+  path?: string;
+  route?: string;
   symbol: string;
 };
 
@@ -22,13 +24,13 @@ const driverTools: Destination[] = [
 ];
 
 const staffDaily: Destination[] = [
-  { title: 'People', detail: 'Driver history, notes, classes, and vendors', path: '/employee/drivers', symbol: 'person.2.fill' },
-  { title: 'Orders', detail: 'Track purchases, tickets, and resends', path: '/employee/orders', symbol: 'list.bullet.rectangle' },
-  { title: 'RFID scanners', detail: 'Zones, readers, cameras, and activity', path: '/employee/scanners', symbol: 'sensor.tag.radiowaves.forward.fill' },
+  { title: 'People', detail: 'Driver history, notes, classes, and vendors', route: '/staff/people', symbol: 'person.2.fill' },
+  { title: 'Orders', detail: 'Track purchases, tickets, and resends', route: '/staff/orders', symbol: 'list.bullet.rectangle' },
+  { title: 'RFID scanners', detail: 'Zones, readers, cameras, and activity', route: '/staff/hardware', symbol: 'sensor.tag.radiowaves.forward.fill' },
 ];
 
 const staffOffice: Destination[] = [
-  { title: 'Track settings', detail: 'Payments, staff, waivers, email, and inspections', path: '/employee/settings', symbol: 'gearshape.fill' },
+  { title: 'Track settings', detail: 'Payments, staff, waivers, email, and inspections', route: '/staff/settings', symbol: 'gearshape.fill' },
 ];
 
 const vendorTools: Destination[] = [
@@ -52,6 +54,11 @@ export default function MoreScreen() {
   if (!account) return null;
 
   const open = async (destination: Destination) => {
+    if (destination.route) {
+      router.push(destination.route as never);
+      return;
+    }
+    if (!destination.path) return;
     setOpening(destination.path);
     setError('');
     try {
@@ -73,19 +80,19 @@ export default function MoreScreen() {
   ];
 
   return <Screen>
-    <Hero eyebrow="TrackOps" title="More tools" subtitle="Open the complete toolset with your current account—no second sign-in." />
+    <Hero eyebrow="TrackOps" title="More tools" subtitle={account.type === 'employee' ? 'Track operations built for the app.' : 'Open the complete toolset with your current account—no second sign-in.'} />
     {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : null}
     {sections.map(section => <View key={section.title} style={styles.section}>
       <SectionTitle title={section.title} />
       <Card style={styles.list}>
-        {section.items.map((item, index) => <Pressable key={item.path} disabled={!!opening} onPress={() => open(item)} style={({ pressed }) => [styles.row, index > 0 && styles.divider, pressed && styles.pressed]}>
+        {section.items.map((item, index) => <Pressable key={item.route || item.path} disabled={!!opening} onPress={() => open(item)} style={({ pressed }) => [styles.row, index > 0 && styles.divider, pressed && styles.pressed]}>
           <View style={styles.icon}><SymbolView name={{ ios: item.symbol, android: item.symbol, web: item.symbol } as any} tintColor={palette.orange} size={22} /></View>
           <View style={styles.copy}><Text style={ui.title}>{item.title}</Text><Text style={ui.body}>{opening === item.path ? 'Opening securely…' : item.detail}</Text></View>
           <Text style={styles.arrow}>›</Text>
         </Pressable>)}
       </Card>
     </View>)}
-    <Text style={styles.note}>These tools open in a secure in-app window and use the same permissions as the TrackOps website.</Text>
+    <Text style={styles.note}>{account.type === 'employee' ? 'These tools stay inside the TrackOps app.' : 'Some advanced tools open in a secure in-app window with your current permissions.'}</Text>
   </Screen>;
 }
 

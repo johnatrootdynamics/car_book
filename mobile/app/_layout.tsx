@@ -17,6 +17,12 @@ export default function RootLayout() {
           <Stack.Screen name="event/[id]" options={{ title: 'Event details' }} />
           <Stack.Screen name="car/[id]" options={{ title: 'Garage' }} />
           <Stack.Screen name="inspection/[id]" options={{ title: 'Vehicle inspection' }} />
+          <Stack.Screen name="staff/people" options={{ title: 'People' }} />
+          <Stack.Screen name="staff/driver/[id]" options={{ title: 'Driver profile' }} />
+          <Stack.Screen name="staff/orders" options={{ title: 'Orders' }} />
+          <Stack.Screen name="staff/order/[kind]/[id]" options={{ title: 'Order details' }} />
+          <Stack.Screen name="staff/hardware" options={{ title: 'Scanners & cameras' }} />
+          <Stack.Screen name="staff/settings" options={{ title: 'Track settings' }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>
