@@ -4861,7 +4861,7 @@ details > summary { font-size: .92rem; }
 .staging-road-lanes { position: relative; z-index: 1; display: flex; min-width: min-content; padding: 24px 10px 8px; }
 .staging-road-lane { position: relative; display: flex; flex: 1 0 175px; flex-direction: column; align-items: center; justify-content: space-between; gap: 10px; min-height: 202px; padding: 10px 10px 8px; text-align: center; border-right: 3px dashed rgba(255,255,255,.8); }
 .staging-road-lane:last-child { border-right: 0; }
-.road-lane-arrow { color: rgba(255,255,255,.8); font-size: 1.5rem; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,.3); }
+.road-lane-arrow { color: rgba(255,255,255,.92); font-size: 1.9rem; font-weight: 900; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,.45); transform: scaleX(1.12); }
 .road-lane-sign { display: grid; align-content: center; width: 100%; min-height: 106px; padding: 12px 10px; color: #fff; background: #0f7045; border: 3px solid #fff; border-radius: 5px; box-shadow: 0 3px 8px rgba(0,0,0,.45); }
 .road-lane-sign small { justify-self: center; padding: 3px 7px; color: #17202a; background: #f7c948; border-radius: 3px; font-size: .75rem; font-weight: 950; letter-spacing: .15em; line-height: 1.2; }
 .road-lane-sign strong { margin-top: 8px; color: #fff; font-size: 1.32rem; font-weight: 900; line-height: 1.16; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
