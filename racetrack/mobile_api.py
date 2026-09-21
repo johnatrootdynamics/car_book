@@ -1,9 +1,10 @@
 """Versioned JSON API for the Track Ops iOS and Android applications."""
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 import hashlib
 import secrets
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Blueprint, current_app, g, jsonify, redirect, request, url_for
 from flask_login import login_user
@@ -184,6 +185,14 @@ def _money(cents):
     return round(int(cents or 0) / 100, 2)
 
 
+def _local_today():
+    try:
+        timezone = ZoneInfo(current_app.config.get("TRACK_TIMEZONE") or "America/New_York")
+    except ZoneInfoNotFoundError:
+        timezone = ZoneInfo("UTC")
+    return datetime.now(timezone).date()
+
+
 def _event_payload(event, include_availability=False):
     result = {
         "id": event.id,
@@ -235,7 +244,7 @@ def _car_values(body):
         return None, "Make and model are required."
     if len(make) > 100 or len(model) > 100 or (color and len(color) > 100):
         return None, "Vehicle details are too long."
-    if year < 1886 or year > date.today().year + 2:
+    if year < 1886 or year > _local_today().year + 2:
         return None, "Enter a valid four-digit model year."
     return {"make": make, "model": model, "color": color, "year": year}, None
 
@@ -382,7 +391,7 @@ def driver_dashboard():
         Event.query.join(EventRegistration, EventRegistration.event_id == Event.id)
         .filter(
             EventRegistration.user_id == user.id,
-            Event.event_date >= date.today(),
+            Event.event_date >= _local_today(),
             or_(Event.event_type == "private", paid_order_exists),
         )
         .order_by(Event.event_date.asc())
@@ -422,7 +431,7 @@ def driver_events():
     user = g.mobile_user
     events = (
         Event.query.filter(
-            Event.event_date >= date.today(),
+            Event.event_date >= _local_today(),
             or_(Event.event_type == "public", Event.private_owner_user_id == user.id),
         )
         .order_by(Event.event_date.asc(), Event.event_start_time.asc())
@@ -628,7 +637,7 @@ def vendor_dashboard():
     upcoming_events = []
     seen_event_ids = set()
     for item in paid_items:
-        if item.event.event_date >= date.today() and item.event_id not in seen_event_ids:
+        if item.event.event_date >= _local_today() and item.event_id not in seen_event_ids:
             seen_event_ids.add(item.event_id)
             upcoming_events.append(_event_payload(item.event))
     profile_fields = (
@@ -674,7 +683,7 @@ def staff_dashboard():
     events = (
         Event.query.filter(
             Event.track_id == employee.track_id,
-            Event.event_date >= date.today(),
+            Event.event_date >= _local_today(),
         )
         .order_by(Event.event_date.asc(), Event.event_start_time.asc())
         .all()
@@ -702,7 +711,7 @@ def staff_events():
     events = (
         Event.query.filter(
             Event.track_id == g.mobile_user.track_id,
-            Event.event_date >= date.today() - timedelta(days=1),
+            Event.event_date >= _local_today() - timedelta(days=1),
         )
         .order_by(Event.event_date.asc(), Event.event_start_time.asc())
         .all()
@@ -813,9 +822,9 @@ def staff_ticket_lookup():
     direct = _ticket_match(code, g.mobile_user.track_id)
     if not direct:
         registration = (
-            EventRegistration.query.join(User)
-            .join(Car)
-            .join(Event)
+            EventRegistration.query.join(User, User.id == EventRegistration.user_id)
+            .join(Car, Car.id == EventRegistration.car_id)
+            .join(Event, Event.id == EventRegistration.event_id)
             .filter(
                 Event.track_id == g.mobile_user.track_id,
                 or_(User.static_qr_code == code, Car.static_qr_code == code),
@@ -829,7 +838,8 @@ def staff_ticket_lookup():
         return jsonify({"results": [direct]})
     like = f"%{raw_lookup}%"
     registrations = (
-        EventRegistration.query.join(User).join(Event)
+        EventRegistration.query.join(User, User.id == EventRegistration.user_id)
+        .join(Event, Event.id == EventRegistration.event_id)
         .filter(
             Event.track_id == g.mobile_user.track_id,
             or_(
