@@ -1223,7 +1223,7 @@ def staff_hardware():
         ScannerObservation.query.join(ScannerDevice)
         .filter(ScannerDevice.track_id == track_id)
         .order_by(ScannerObservation.received_at.desc())
-        .limit(50)
+        .limit(20)
         .all()
     )
     return jsonify(

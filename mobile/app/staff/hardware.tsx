@@ -44,16 +44,16 @@ export default function StaffHardwareScreen() {
 
     <SectionTitle title="RFID scanners" />
     {data?.scanners.length ? data.scanners.map(scanner => <Card key={scanner.id}>
-      <View style={ui.between}><View style={styles.deviceTitle}><View style={[styles.dot, scanner.reader_connected ? styles.online : styles.offline]} /><View><Text style={ui.title}>{scanner.name}</Text><Text style={ui.body}>{scanner.reader_connected ? 'Reader connected' : 'Reader offline'}{scanner.software_version ? ` · v${scanner.software_version}` : ''}</Text></View></View><Text style={styles.lastSeen}>{lastSeen(scanner.last_seen_at)}</Text></View>
+      <View style={ui.between}><View style={styles.deviceTitle}><View style={[styles.dot, isOnline(scanner.reader_connected, scanner.last_seen_at) ? styles.online : styles.offline]} /><View><Text style={ui.title}>{scanner.name}</Text><Text style={ui.body}>{isOnline(scanner.reader_connected, scanner.last_seen_at) ? 'Reader connected' : 'Reader offline'}{scanner.software_version ? ` · v${scanner.software_version}` : ''}</Text></View></View><Text style={styles.lastSeen}>{lastSeen(scanner.last_seen_at)}</Text></View>
       <Text style={styles.label}>Zone</Text>
       <View style={styles.roles}>{roles.map(role => <Pressable key={role} disabled={busy === scanner.id || account?.role !== 'office_staff'} onPress={() => setRole(scanner, role)} style={[styles.role, scanner.role === role && styles.roleActive]}><Text style={[styles.roleText, scanner.role === role && styles.roleTextActive]}>{roleLabel(role)}</Text></Pressable>)}</View>
     </Card>) : <Empty title="No RFID scanners" detail="Pair a scanner to this track and it will appear here." />}
 
     <SectionTitle title="Track cameras" />
-    {data?.cameras.length ? data.cameras.map(camera => <Card key={camera.id} style={styles.camera}><View style={[styles.dot, camera.camera_connected ? styles.online : styles.offline]} /><View style={styles.cameraCopy}><Text style={ui.title}>{camera.name}</Text><Text style={ui.body}>{camera.camera_connected ? 'Camera connected' : 'Camera offline'}{camera.software_version ? ` · v${camera.software_version}` : ''}</Text></View><Text style={styles.lastSeen}>{lastSeen(camera.last_seen_at)}</Text></Card>) : <Empty title="No track cameras" detail="Paired cameras will appear here with their live connection status." />}
+    {data?.cameras.length ? data.cameras.map(camera => <Card key={camera.id} style={styles.camera}><View style={[styles.dot, isOnline(camera.camera_connected, camera.last_seen_at) ? styles.online : styles.offline]} /><View style={styles.cameraCopy}><Text style={ui.title}>{camera.name}</Text><Text style={ui.body}>{isOnline(camera.camera_connected, camera.last_seen_at) ? 'Camera connected' : 'Camera offline'}{camera.software_version ? ` · v${camera.software_version}` : ''}</Text></View><Text style={styles.lastSeen}>{lastSeen(camera.last_seen_at)}</Text></Card>) : <Empty title="No track cameras" detail="Paired cameras will appear here with their live connection status." />}
 
     <SectionTitle title="Recent reads" />
-    {data?.observations.length ? data.observations.map(item => <Card key={item.id} style={styles.read}><View style={ui.between}><Text style={styles.readTitle}>{item.driver || item.car?.label || 'Unknown tag'}</Text><Text style={[styles.result, item.result === 'allowed' ? styles.resultGood : styles.resultBad]}>{item.result}</Text></View><Text style={ui.body}>{item.scanner} · {roleLabel(item.role as Scanner['role'])}</Text>{item.car && item.driver ? <Text style={styles.meta}>{item.car.label}</Text> : null}<Text style={styles.meta}>{item.reason || item.epc} · {new Date(item.observed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text></Card>) : <Empty title="No recent reads" detail="Scanner activity will appear here as vehicles enter and exit." />}
+    {data?.observations.length ? data.observations.map(item => <Card key={item.id} style={styles.read}><View style={ui.between}><Text style={styles.readTitle}>{item.driver || item.car?.label || 'Unknown tag'}</Text><Text style={[styles.result, ['allowed', 'accepted'].includes(item.result.toLowerCase()) ? styles.resultGood : styles.resultBad]}>{item.result}</Text></View><Text style={ui.body}>{item.scanner} · {roleLabel(item.role as Scanner['role'])}</Text>{item.car && item.driver ? <Text style={styles.meta}>{item.car.label}</Text> : null}<Text style={styles.meta}>{item.reason || item.epc} · {new Date(item.observed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text></Card>) : <Empty title="No recent reads" detail="Scanner activity will appear here as vehicles enter and exit." />}
   </Screen>;
 }
 
@@ -67,6 +67,10 @@ function lastSeen(value?: string | null) {
   if (!value) return 'Never seen';
   const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
   return minutes < 2 ? 'Just now' : minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
+}
+
+function isOnline(connected: boolean, value?: string | null) {
+  return Boolean(connected && value && Date.now() - new Date(value).getTime() < 5 * 60 * 1000);
 }
 
 const styles = StyleSheet.create({
