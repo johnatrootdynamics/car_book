@@ -16,5 +16,6 @@ export default function TabLayout() {
     <Tabs.Screen name="garage" options={{ title: 'Garage', href: driver ? undefined : null, tabBarIcon: ({ color }) => <Icon name="car.fill" color={color} /> }} />
     <Tabs.Screen name="scanner" options={{ title: 'Scanner', href: staff ? undefined : null, tabBarIcon: ({ color }) => <Icon name="qrcode.viewfinder" color={color} /> }} />
     <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color }) => <Icon name="person.crop.circle.fill" color={color} /> }} />
+    <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <Icon name="square.grid.2x2.fill" color={color} /> }} />
   </Tabs>;
 }

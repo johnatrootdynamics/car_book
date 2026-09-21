@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -13,6 +14,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<Account>;
   signOut: () => Promise<void>;
   changePassword: (newPassword: string, currentPassword?: string) => Promise<void>;
+  openPortal: (target: string) => Promise<void>;
   api: <T>(path: string, init?: RequestInit) => Promise<T>;
 };
 
@@ -120,7 +122,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setAccount(body.account);
   }, [api]);
 
-  const value = useMemo(() => ({ account, loading, signIn, signOut, changePassword, api }), [account, loading, signIn, signOut, changePassword, api]);
+  const openPortal = useCallback(async (target: string) => {
+    const body = await api<{ url: string }>('/auth/web-link', {
+      method: 'POST',
+      body: JSON.stringify({ target }),
+    });
+    await WebBrowser.openBrowserAsync(body.url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
+      controlsColor: '#F97316',
+    });
+  }, [api]);
+
+  const value = useMemo(() => ({ account, loading, signIn, signOut, changePassword, openPortal, api }), [account, loading, signIn, signOut, changePassword, openPortal, api]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
