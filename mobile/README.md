@@ -16,13 +16,27 @@ Expo SDK 57 application for iOS and Android. It uses the existing Track Ops acco
 
 ```sh
 npm install
-npx expo start
+npx expo start --dev-client
 ```
 
 The production API defaults to `https://carbook.root-dynamics.com`. For a different environment:
 
 ```sh
 EXPO_PUBLIC_API_URL=https://example.com npx expo start
+```
+
+### iPhone Simulator
+
+Install Xcode from the Mac App Store and add an iOS Simulator runtime in Xcode. Then create and run the local development build:
+
+```sh
+npx expo run:ios
+```
+
+For an EAS-hosted simulator build, use:
+
+```sh
+npx eas-cli build --platform ios --profile development
 ```
 
 ## Build
