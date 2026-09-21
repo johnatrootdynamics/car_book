@@ -1,9 +1,9 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Card, Empty, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
+import { Button, Card, Empty, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
 import { eventDate, money } from '@/lib/format';
 import { palette } from '@/lib/theme';
 import type { TrackEvent } from '@/lib/types';
@@ -30,14 +30,14 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<Detail | null>(null);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!account || !['user', 'employee'].includes(account.type)) {
       setFailed(true);
       return;
     }
     const path = account.type === 'employee' ? `/staff/events/${id}` : `/driver/events/${id}`;
     api<{ event: Detail }>(path).then(body => setEvent(body.event)).catch(() => setFailed(true));
-  }, [account, api, id]);
+  }, [account, api, id]));
 
   if (!event && !failed) return <Loading />;
   if (!event) return <Screen><Empty title="Event unavailable" detail="This event is not available to your account." /></Screen>;
@@ -91,6 +91,11 @@ export default function EventDetailScreen() {
     </> : null}
 
     {account?.type === 'user' ? <>
+      {!event.registration && event.type === 'public' ? <Card style={styles.ticketCard}>
+        <View style={styles.ticketTop}><View style={{ flex: 1 }}><Text style={styles.ticketEyebrow}>DRIVER TICKET</Text><Text style={styles.ticketPrice}>{money(event.prices.driver)}</Text><Text style={ui.body}>{event.availability?.driver?.unlimited ? 'Driver capacity is open' : `${event.availability?.driver?.remaining ?? 0} spots remaining`}</Text></View><View style={styles.ticketIcon}><SymbolView name={{ ios: 'ticket.fill', android: 'ticket.fill', web: 'ticket.fill' } as any} tintColor={palette.orange} size={28} /></View></View>
+        <Button title={event.availability?.driver?.sold_out ? 'Driver tickets sold out' : 'Buy driver ticket'} disabled={!!event.availability?.driver?.sold_out} onPress={() => router.push({ pathname: '/event/[id]/checkout', params: { id: String(event.id) } })} />
+        <Text style={styles.ticketNote}>Choose your car and pay securely without leaving the app workflow.</Text>
+      </Card> : null}
       <SectionTitle title="Vendors onsite" />
       {event.vendors?.length ? <View style={styles.vendorGrid}>{event.vendors.map((vendor, index) => <Card key={`${vendor.id}-${index}`} style={styles.vendor}><View style={styles.vendorLogo}><Text style={styles.vendorInitial}>{vendor.business_name.slice(0, 2).toUpperCase()}</Text></View><Text numberOfLines={2} style={styles.vendorName}>{vendor.business_name}</Text></Card>)}</View> : <Empty title="No vendors announced" detail="Paid event vendors will appear here." />}
     </> : null}
@@ -116,4 +121,5 @@ const styles = StyleSheet.create({
   vendorLogo: { width: 76, height: 76, borderRadius: 20, backgroundColor: palette.navy, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   vendorInitial: { color: 'white', fontWeight: '900', fontSize: 21 },
   vendorName: { color: palette.ink, textAlign: 'center', fontWeight: '800' },
+  ticketCard: { gap: 14 }, ticketTop: { flexDirection: 'row', alignItems: 'center', gap: 12 }, ticketEyebrow: { color: palette.orange, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 }, ticketPrice: { color: palette.ink, fontSize: 28, fontWeight: '900', marginVertical: 2 }, ticketIcon: { width: 54, height: 54, borderRadius: 17, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' }, ticketNote: { color: palette.muted, textAlign: 'center', fontSize: 11, lineHeight: 16 },
 });
