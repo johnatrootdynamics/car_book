@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card, Empty, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
 import { eventDate } from '@/lib/format';
@@ -14,7 +14,7 @@ type AdminHome = { stats: { tracks: number; staff: number; drivers: number; vend
 
 export default function HomeScreen() {
   const { account, api } = useAuth(); const [data, setData] = useState<DriverHome | StaffHome | VendorHome | AdminHome | null>(null); const [error, setError] = useState('');
-  useEffect(() => { if (!account) return; setData(null); setError(''); const path = account.type === 'user' ? '/driver/dashboard' : account.type === 'employee' ? '/staff/dashboard' : account.type === 'vendor' ? '/vendor/dashboard' : '/admin/dashboard'; api<any>(path).then(setData).catch(e => setError(e.message)); }, [account, api]);
+  useFocusEffect(useCallback(() => { if (!account) return; setData(null); setError(''); const path = account.type === 'user' ? '/driver/dashboard' : account.type === 'employee' ? '/staff/dashboard' : account.type === 'vendor' ? '/vendor/dashboard' : '/admin/dashboard'; api<any>(path).then(setData).catch(e => setError(e.message)); }, [account, api]));
   if (!account || (!data && !error)) return <Loading />;
   if (account.type === 'user' && data && 'stats' in data) { const driver = data as DriverHome; return <Screen>
     <Hero eyebrow="Driver dashboard" title={`Welcome back, ${account.name.split(' ')[0]}`} subtitle="Everything you need for the next track day." />
