@@ -208,6 +208,7 @@ def create_app():
             "mobile_refresh_tokens",
             "social_posts",
             "social_comments",
+            "social_reactions",
             "community_groups",
             "community_group_members",
             "driver_connections",
@@ -520,6 +521,9 @@ def create_app():
                 "ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS track_run_id INT NULL"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS shared_from_post_id INT NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE track_run_videos ADD COLUMN IF NOT EXISTS source_key VARCHAR(80) NOT NULL DEFAULT 'camera-1'"
             )
             conn.exec_driver_sql(
@@ -595,6 +599,12 @@ def create_app():
             try:
                 conn.exec_driver_sql(
                     "CREATE UNIQUE INDEX idx_social_posts_user_run ON social_posts (user_id, track_run_id)"
+                )
+            except Exception:
+                pass
+            try:
+                conn.exec_driver_sql(
+                    "CREATE INDEX idx_social_posts_shared_from ON social_posts (shared_from_post_id)"
                 )
             except Exception:
                 pass
@@ -739,6 +749,7 @@ def create_app():
             "mobile_refresh_tokens",
             "social_posts",
             "social_comments",
+            "social_reactions",
             "community_groups",
             "community_group_members",
             "driver_connections",

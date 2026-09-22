@@ -39,6 +39,9 @@ class User(db.Model, UserMixin):
     social_comments = db.relationship(
         "SocialComment", backref="author", cascade="all, delete-orphan"
     )
+    social_reactions = db.relationship(
+        "SocialReaction", backref="user", cascade="all, delete-orphan"
+    )
     track_subscriptions = db.relationship(
         "TrackSubscription", backref="user", cascade="all, delete-orphan"
     )
@@ -535,6 +538,9 @@ class SocialPost(db.Model):
         db.Integer, db.ForeignKey("event_registrations.id"), nullable=True, unique=True
     )
     track_run_id = db.Column(db.Integer, db.ForeignKey("track_runs.id"), nullable=True)
+    shared_from_post_id = db.Column(
+        db.Integer, db.ForeignKey("social_posts.id"), nullable=True, index=True
+    )
     post_type = db.Column(db.String(30), nullable=False, default="event_signup")
     title = db.Column(db.String(200), nullable=False)
     body = db.Column(db.String(600), nullable=True)
@@ -545,6 +551,7 @@ class SocialPost(db.Model):
     registration = db.relationship("EventRegistration")
     track_run = db.relationship("TrackRun")
     comments = db.relationship("SocialComment", backref="post", cascade="all, delete-orphan")
+    reactions = db.relationship("SocialReaction", backref="post", cascade="all, delete-orphan")
 
     __table_args__ = (
         db.UniqueConstraint("user_id", "track_run_id", name="uniq_social_post_user_run"),
@@ -559,6 +566,20 @@ class SocialComment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     body = db.Column(db.String(400), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class SocialReaction(db.Model):
+    __tablename__ = "social_reactions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("social_posts.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    reaction = db.Column(db.String(20), nullable=False, default="like")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("post_id", "user_id", name="uniq_social_reaction"),
+    )
 
 
 class CommunityGroup(db.Model):

@@ -191,6 +191,7 @@ CREATE TABLE IF NOT EXISTS social_posts (
   event_id INT NULL,
   event_registration_id INT NULL UNIQUE,
   track_run_id INT NULL,
+  shared_from_post_id INT NULL,
   post_type VARCHAR(30) NOT NULL DEFAULT 'event_signup',
   title VARCHAR(200) NOT NULL,
   body VARCHAR(600) NULL,
@@ -201,7 +202,10 @@ CREATE TABLE IF NOT EXISTS social_posts (
   CONSTRAINT fk_social_posts_event FOREIGN KEY (event_id) REFERENCES events(id)
     ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT fk_social_posts_registration FOREIGN KEY (event_registration_id) REFERENCES event_registrations(id)
-    ON DELETE SET NULL ON UPDATE CASCADE
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_social_posts_shared_from FOREIGN KEY (shared_from_post_id) REFERENCES social_posts(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX idx_social_posts_shared_from (shared_from_post_id)
 );
 
 CREATE TABLE IF NOT EXISTS social_comments (
@@ -214,6 +218,19 @@ CREATE TABLE IF NOT EXISTS social_comments (
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_social_comments_user FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS social_reactions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  post_id INT NOT NULL,
+  user_id INT NOT NULL,
+  reaction VARCHAR(20) NOT NULL DEFAULT 'like',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_social_reactions_post FOREIGN KEY (post_id) REFERENCES social_posts(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_social_reactions_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT uniq_social_reaction UNIQUE (post_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS community_groups (
