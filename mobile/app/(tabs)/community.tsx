@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { DriverSpaceSwitch } from '@/components/DriverSpaceSwitch';
 import { Card, Empty, Field, Loading, Screen, SectionTitle, ui } from '@/components/ui';
 import { eventDate } from '@/lib/format';
 import { palette, shadow } from '@/lib/theme';
@@ -91,7 +92,7 @@ function Segmented({ value, onChange }: { value: MainView; onChange: (value: Mai
   </View>;
 }
 
-export default function CommunityScreen() {
+export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void }) {
   const { api } = useAuth();
   const [data, setData] = useState<CommunityPayload | null>(null);
   const [mode, setMode] = useState<MainView>('feed');
@@ -196,10 +197,11 @@ export default function CommunityScreen() {
     ],
   );
 
-  if (!data && !error) return <Loading />;
-  if (!data) return <Screen><Empty title="Community unavailable" detail={error} /></Screen>;
+  if (!data && !error) return onShowTrack ? <Screen><DriverSpaceSwitch active="social" onChange={space => space === 'track' && onShowTrack()} /><Loading /></Screen> : <Loading />;
+  if (!data) return <Screen>{onShowTrack ? <DriverSpaceSwitch active="social" onChange={space => space === 'track' && onShowTrack()} /> : null}<Empty title="Community unavailable" detail={error} /></Screen>;
 
   return <Screen>
+    {onShowTrack ? <DriverSpaceSwitch active="social" onChange={space => space === 'track' && onShowTrack()} /> : null}
     <View style={styles.hero}>
       <View style={styles.heroTop}>
         <View style={{ flex: 1 }}><Text style={styles.eyebrow}>DRIVER COMMUNITY</Text><Text style={styles.heroTitle}>Your circle</Text><Text style={styles.heroSubtitle}>Track life from the people you chose.</Text></View>
@@ -236,6 +238,10 @@ export default function CommunityScreen() {
       onRemove={removeConnection}
     />}
   </Screen>;
+}
+
+export default function CommunityScreen() {
+  return <CommunityExperience />;
 }
 
 function FeedViewContent({ data, view, busy, postBody, postImage, commentBodies, expandedComments, onSelectFeed, onPostBody, onChoosePhoto, onRemovePhoto, onPublish, onCommentBody, onSendComment, onToggleComments }: {

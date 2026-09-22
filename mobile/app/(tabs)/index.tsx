@@ -2,11 +2,13 @@ import { SymbolView } from 'expo-symbols';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { DriverSpaceSwitch, type DriverSpace } from '@/components/DriverSpaceSwitch';
 import { Card, Empty, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
 import { eventDate } from '@/lib/format';
 import { palette } from '@/lib/theme';
 import type { TrackEvent } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
+import { CommunityExperience } from './community';
 
 type DriverHome = { stats: { events_attended: number; upcoming_events: number; tracks_visited: number; vehicles: number }; upcoming_events: TrackEvent[] };
 type StaffHome = { stats: { upcoming_events: number; upcoming_drivers: number }; events: TrackEvent[] };
@@ -15,9 +17,13 @@ type AdminHome = { stats: { tracks: number; staff: number; drivers: number; vend
 
 export default function HomeScreen() {
   const { account, api } = useAuth(); const [data, setData] = useState<DriverHome | StaffHome | VendorHome | AdminHome | null>(null); const [error, setError] = useState('');
+  const [driverSpace, setDriverSpace] = useState<DriverSpace>('track');
   useFocusEffect(useCallback(() => { if (!account) return; setData(null); setError(''); const path = account.type === 'user' ? '/driver/dashboard' : account.type === 'employee' ? '/staff/dashboard' : account.type === 'vendor' ? '/vendor/dashboard' : '/admin/dashboard'; api<any>(path).then(setData).catch(e => setError(e.message)); }, [account, api]));
   if (!account || (!data && !error)) return <Loading />;
-  if (account.type === 'user' && data && 'stats' in data) return <DriverDashboard name={account.name} data={data as DriverHome} />;
+  if (account.type === 'user' && data && 'stats' in data) {
+    if (driverSpace === 'social') return <CommunityExperience onShowTrack={() => setDriverSpace('track')} />;
+    return <DriverDashboard name={account.name} data={data as DriverHome} onShowSocial={() => setDriverSpace('social')} />;
+  }
   if (account.type === 'employee' && data && 'events' in data) { const staff = data as StaffHome; const stats = staff.stats || { upcoming_events: staff.events.length, upcoming_drivers: 0 }; return <Screen>
     <Hero eyebrow={account.role === 'office_staff' ? 'Office staff' : 'Track staff'} title={account.track_name || 'Track operations'} subtitle="Fast access to the tools you use at the gate." />
     <View style={styles.stats}>{[['Events', stats.upcoming_events], ['Drivers', stats.upcoming_drivers]].map(([label, value]) => <Card key={String(label)} style={styles.stat}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></Card>)}</View>
@@ -43,11 +49,12 @@ const driverActions = [
   { title: 'My tickets', detail: 'Open your QR', symbol: 'qrcode', route: '/(tabs)/tickets' },
 ];
 
-function DriverDashboard({ name, data }: { name: string; data: DriverHome }) {
+function DriverDashboard({ name, data, onShowSocial }: { name: string; data: DriverHome; onShowSocial: () => void }) {
   const nextEvent = data.upcoming_events[0];
   const firstName = name.trim().split(/\s+/)[0] || 'Driver';
   const greetingName = `${firstName.charAt(0).toUpperCase()}${firstName.slice(1)}`;
   return <Screen>
+    <DriverSpaceSwitch active="track" onChange={space => space === 'social' && onShowSocial()} />
     <View style={styles.driverHero}>
       <Text style={styles.driverEyebrow}>DRIVER DASHBOARD</Text>
       <Text style={styles.driverWelcome}>Welcome back, {greetingName}</Text>
