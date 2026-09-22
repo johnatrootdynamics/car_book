@@ -41,8 +41,6 @@ export default function HomeScreen() {
 const driverActions = [
   { title: 'Find events', detail: 'Book a track day', symbol: 'calendar.badge.plus', route: '/(tabs)/events' },
   { title: 'My tickets', detail: 'Open your QR', symbol: 'qrcode', route: '/(tabs)/tickets' },
-  { title: 'Add a car', detail: 'Build your garage', symbol: 'car.fill', route: '/car/new' },
-  { title: 'RFID tags', detail: 'Order or activate', symbol: 'wave.3.right', route: '/rfid' },
 ];
 
 function DriverDashboard({ name, data }: { name: string; data: DriverHome }) {
