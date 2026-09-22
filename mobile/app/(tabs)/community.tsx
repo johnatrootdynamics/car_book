@@ -51,6 +51,8 @@ type CommunityPost = {
   share_count: number;
   is_owner: boolean;
   shared_post?: CommunityPost | null;
+  share_id?: number | null;
+  interaction_post_id: number;
 };
 
 type ActivityItem = {
@@ -200,12 +202,12 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
     }
   };
 
-  const sendComment = async (postId: number) => {
-    const body = (commentBodies[postId] || '').trim();
+  const sendComment = async (cardId: number, postId: number) => {
+    const body = (commentBodies[cardId] || '').trim();
     if (!body) return;
-    await mutate(`comment-${postId}`, `/driver/community/posts/${postId}/comments`, { method: 'POST', body: JSON.stringify({ body }) });
-    setCommentBodies(current => ({ ...current, [postId]: '' }));
-    setExpandedComments(current => ({ ...current, [postId]: true }));
+    await mutate(`comment-${cardId}`, `/driver/community/posts/${postId}/comments`, { method: 'POST', body: JSON.stringify({ body }) });
+    setCommentBodies(current => ({ ...current, [cardId]: '' }));
+    setExpandedComments(current => ({ ...current, [cardId]: true }));
   };
 
   const sharePost = (post: CommunityPost) => Alert.alert(
@@ -213,7 +215,7 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
     `Your connections will see ${post.author.name}’s post in your feed.`,
     [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Share', onPress: () => mutate(`share-${post.id}`, `/driver/community/posts/${post.id}/share`, { method: 'POST', body: '{}' }) },
+      { text: 'Share', onPress: () => mutate(`share-${post.id}`, `/driver/community/posts/${post.interaction_post_id}/share`, { method: 'POST', body: '{}' }) },
     ],
   );
 
@@ -222,7 +224,7 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
     'This also removes its reactions and comments. This cannot be undone.',
     [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => mutate(`delete-${post.id}`, `/driver/community/posts/${post.id}`, { method: 'DELETE' }) },
+      { text: 'Delete', style: 'destructive', onPress: () => mutate(`delete-${post.id}`, post.share_id ? `/driver/community/shares/${post.share_id}` : `/driver/community/posts/${post.id}`, { method: 'DELETE' }) },
     ],
   );
 
@@ -254,7 +256,7 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
       expandedComments={expandedComments}
       onOpenComposer={() => setComposerOpen(true)}
       onSelectFeed={selectFeed}
-      onReact={postId => mutate(`react-${postId}`, `/driver/community/posts/${postId}/react`, { method: 'POST' })}
+      onReact={post => mutate(`react-${post.id}`, `/driver/community/posts/${post.interaction_post_id}/react`, { method: 'POST' })}
       onShare={sharePost}
       onDelete={deletePost}
       onCommentBody={(postId, body) => setCommentBodies(current => ({ ...current, [postId]: body }))}
@@ -334,11 +336,11 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
   expandedComments: Record<number, boolean>;
   onOpenComposer: () => void;
   onSelectFeed: (view: FeedView) => void;
-  onReact: (postId: number) => void;
+  onReact: (post: CommunityPost) => void;
   onShare: (post: CommunityPost) => void;
   onDelete: (post: CommunityPost) => void;
   onCommentBody: (postId: number, body: string) => void;
-  onSendComment: (postId: number) => void;
+  onSendComment: (cardId: number, postId: number) => void;
   onToggleComments: (postId: number) => void;
 }) {
   return <>
@@ -359,11 +361,11 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
       busy={busy}
       commentBody={commentBodies[post.id] || ''}
       expanded={!!expandedComments[post.id]}
-      onReact={() => onReact(post.id)}
+      onReact={() => onReact(post)}
       onShare={() => onShare(post)}
       onDelete={() => onDelete(post)}
       onCommentBody={body => onCommentBody(post.id, body)}
-      onSendComment={() => onSendComment(post.id)}
+      onSendComment={() => onSendComment(post.id, post.interaction_post_id)}
       onToggleComments={() => onToggleComments(post.id)}
     />) : <Empty title={view === 'all' ? 'Your circle is quiet' : 'Nothing here yet'} detail={view === 'all' ? 'Connect with drivers in People. Their posts will appear here, while your posts stay in My feed.' : 'Updates for this view will appear here.'} />}
   </>;

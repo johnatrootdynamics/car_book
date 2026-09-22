@@ -42,6 +42,9 @@ class User(db.Model, UserMixin):
     social_reactions = db.relationship(
         "SocialReaction", backref="user", cascade="all, delete-orphan"
     )
+    social_shares = db.relationship(
+        "SocialShare", backref="user", cascade="all, delete-orphan"
+    )
     track_subscriptions = db.relationship(
         "TrackSubscription", backref="user", cascade="all, delete-orphan"
     )
@@ -538,9 +541,6 @@ class SocialPost(db.Model):
         db.Integer, db.ForeignKey("event_registrations.id"), nullable=True, unique=True
     )
     track_run_id = db.Column(db.Integer, db.ForeignKey("track_runs.id"), nullable=True)
-    shared_from_post_id = db.Column(
-        db.Integer, db.ForeignKey("social_posts.id"), nullable=True, index=True
-    )
     post_type = db.Column(db.String(30), nullable=False, default="event_signup")
     title = db.Column(db.String(200), nullable=False)
     body = db.Column(db.String(600), nullable=True)
@@ -552,6 +552,7 @@ class SocialPost(db.Model):
     track_run = db.relationship("TrackRun")
     comments = db.relationship("SocialComment", backref="post", cascade="all, delete-orphan")
     reactions = db.relationship("SocialReaction", backref="post", cascade="all, delete-orphan")
+    shares = db.relationship("SocialShare", backref="post", cascade="all, delete-orphan")
 
     __table_args__ = (
         db.UniqueConstraint("user_id", "track_run_id", name="uniq_social_post_user_run"),
@@ -579,6 +580,20 @@ class SocialReaction(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint("post_id", "user_id", name="uniq_social_reaction"),
+    )
+
+
+class SocialShare(db.Model):
+    __tablename__ = "social_shares"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("social_posts.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    body = db.Column(db.String(300), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("post_id", "user_id", name="uniq_social_share"),
     )
 
 

@@ -47,6 +47,7 @@ from .models import (
     SocialComment,
     SocialPost,
     SocialReaction,
+    SocialShare,
     SpectatorOrder,
     SpectatorOrderItem,
     SpectatorTicketType,
@@ -412,7 +413,7 @@ def _community_connection_payload(connection, user_id, users_by_id):
     }
 
 
-def _community_post_payload(post, visible_comment_user_ids, viewer_user_id=None, include_shared=True):
+def _community_post_payload(post, visible_comment_user_ids, viewer_user_id=None):
     event = post.event or (post.track_run.event if post.track_run else None)
     run = None
     if post.track_run:
@@ -451,20 +452,41 @@ def _community_post_payload(post, visible_comment_user_ids, viewer_user_id=None,
         "reacted_by_me": any(
             reaction.user_id == viewer_user_id for reaction in post.reactions
         ),
-        "share_count": SocialPost.query.filter_by(shared_from_post_id=post.id).count(),
+        "share_count": len(post.shares),
         "is_owner": post.user_id == viewer_user_id,
         "shared_post": None,
+        "share_id": None,
+        "interaction_post_id": post.id,
     }
-    if include_shared and post.shared_from_post_id:
-        shared_post = db.session.get(SocialPost, post.shared_from_post_id)
-        if shared_post and shared_post.user_id in visible_comment_user_ids:
-            payload["shared_post"] = _community_post_payload(
-                shared_post,
-                visible_comment_user_ids,
-                viewer_user_id,
-                include_shared=False,
-            )
     return payload
+
+
+def _community_share_payload(share, visible_comment_user_ids, viewer_user_id):
+    if share.post.user_id not in visible_comment_user_ids:
+        return None
+    source = _community_post_payload(
+        share.post, visible_comment_user_ids, viewer_user_id
+    )
+    return {
+        "id": -share.id,
+        "type": "shared_post",
+        "title": f"Shared @{share.post.author.username or f'driver{share.post.author.id}'}'s post",
+        "body": share.body,
+        "image_url": None,
+        "created_at": _iso(share.created_at),
+        "author": _community_user_payload(share.user),
+        "event": None,
+        "car": None,
+        "run": None,
+        "comments": [],
+        "reaction_count": source["reaction_count"],
+        "reacted_by_me": source["reacted_by_me"],
+        "share_count": source["share_count"],
+        "is_owner": share.user_id == viewer_user_id,
+        "shared_post": source,
+        "share_id": share.id,
+        "interaction_post_id": share.post_id,
+    }
 
 
 def _community_post_visible_to(post, user):
@@ -908,11 +930,19 @@ def driver_community():
 
     post_user_ids = {user.id} if community_view == "mine" else accepted_ids
     post_query = SocialPost.query.filter(SocialPost.user_id.in_(post_user_ids or {-1}))
+    share_query = SocialShare.query.filter(SocialShare.user_id.in_(post_user_ids or {-1}))
     if community_view == "track":
         post_query = post_query.filter(SocialPost.post_type == "event_signup")
+        share_query = share_query.join(SocialPost).filter(
+            SocialPost.post_type == "event_signup"
+        )
     elif community_view == "builds":
         post_query = post_query.filter(SocialPost.post_type == "car_spotlight")
+        share_query = share_query.join(SocialPost).filter(
+            SocialPost.post_type == "car_spotlight"
+        )
     posts = post_query.order_by(SocialPost.created_at.desc()).limit(50).all()
+    shares = share_query.order_by(SocialShare.created_at.desc()).limit(50).all()
 
     events = (
         Event.query.filter(
@@ -1062,11 +1092,11 @@ def driver_community():
             .all()
         )
         recent_shares = (
-            SocialPost.query.filter(
-                SocialPost.shared_from_post_id.in_(my_post_ids),
-                SocialPost.user_id.in_(accepted_ids),
+            SocialShare.query.filter(
+                SocialShare.post_id.in_(my_post_ids),
+                SocialShare.user_id.in_(accepted_ids),
             )
-            .order_by(SocialPost.created_at.desc())
+            .order_by(SocialShare.created_at.desc())
             .limit(12)
             .all()
         )
@@ -1099,22 +1129,30 @@ def driver_community():
                     "type": "share",
                     "created_at": _iso(share.created_at),
                     "actor": _community_user_payload(share.author),
-                    "post_id": share.shared_from_post_id,
+                    "post_id": share.post_id,
                     "detail": share.body,
                 }
             )
         activity.sort(key=lambda item: item["created_at"] or "", reverse=True)
         activity = activity[:20]
+    feed_items = [
+        _community_post_payload(post, visible_comment_user_ids, viewer_user_id=user.id)
+        for post in posts
+    ]
+    feed_items.extend(
+        payload
+        for payload in (
+            _community_share_payload(share, visible_comment_user_ids, user.id)
+            for share in shares
+        )
+        if payload
+    )
+    feed_items.sort(key=lambda item: item["created_at"] or "", reverse=True)
     return jsonify(
         {
             "me": _community_user_payload(user),
             "view": community_view,
-            "posts": [
-                _community_post_payload(
-                    post, visible_comment_user_ids, viewer_user_id=user.id
-                )
-                for post in posts
-            ],
+            "posts": feed_items[:50],
             "connections": accepted,
             "received_requests": received,
             "sent_requests": sent,
@@ -1214,37 +1252,28 @@ def driver_community_post_react(post_id):
 @mobile_login_required("user")
 def driver_community_post_share(post_id):
     user = g.mobile_user
-    requested_post = db.session.get(SocialPost, post_id)
-    if not requested_post or not _community_post_visible_to(requested_post, user):
-        return _json_error("Post not found.", 404, "post_not_found")
-    source_post = (
-        db.session.get(SocialPost, requested_post.shared_from_post_id)
-        if requested_post.shared_from_post_id
-        else requested_post
-    )
+    source_post = db.session.get(SocialPost, post_id)
     if not source_post or not _community_post_visible_to(source_post, user):
         return _json_error("Post not found.", 404, "post_not_found")
     if source_post.user_id == user.id:
         return _json_error("This post is already on your feed.", 400, "own_post")
-    existing = SocialPost.query.filter_by(
+    existing = SocialShare.query.filter_by(
         user_id=user.id,
-        shared_from_post_id=source_post.id,
+        post_id=source_post.id,
     ).first()
     if existing:
-        return jsonify({"message": "This post is already on your feed.", "post_id": existing.id})
+        return jsonify({"message": "This post is already on your feed.", "share_id": existing.id})
     share_body = ((request.get_json(silent=True) or {}).get("body") or "").strip()
     if len(share_body) > 300:
         return _json_error("Share notes must be 300 characters or fewer.", 400, "share_too_long")
-    shared_post = SocialPost(
+    shared_post = SocialShare(
         user_id=user.id,
-        shared_from_post_id=source_post.id,
-        post_type="shared_post",
-        title=f"Shared @{source_post.author.username or f'driver{source_post.author.id}'}'s post",
+        post_id=source_post.id,
         body=share_body or None,
     )
     db.session.add(shared_post)
     db.session.commit()
-    return jsonify({"message": "Shared to your feed.", "post_id": shared_post.id}), 201
+    return jsonify({"message": "Shared to your feed.", "share_id": shared_post.id}), 201
 
 
 @mobile_api_bp.delete("/driver/community/posts/<int:post_id>")
@@ -1254,11 +1283,21 @@ def driver_community_post_delete(post_id):
     post = db.session.get(SocialPost, post_id)
     if not post or post.user_id != user.id:
         return _json_error("Post not found.", 404, "post_not_found")
-    for shared_post in SocialPost.query.filter_by(shared_from_post_id=post.id).all():
-        db.session.delete(shared_post)
     db.session.delete(post)
     db.session.commit()
     return jsonify({"message": "Post deleted."})
+
+
+@mobile_api_bp.delete("/driver/community/shares/<int:share_id>")
+@mobile_login_required("user")
+def driver_community_share_delete(share_id):
+    user = g.mobile_user
+    share = db.session.get(SocialShare, share_id)
+    if not share or share.user_id != user.id:
+        return _json_error("Shared post not found.", 404, "share_not_found")
+    db.session.delete(share)
+    db.session.commit()
+    return jsonify({"message": "Shared post removed."})
 
 
 @mobile_api_bp.post("/driver/community/connections/<int:user_id>")
