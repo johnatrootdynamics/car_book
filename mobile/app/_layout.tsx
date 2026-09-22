@@ -22,6 +22,7 @@ export default function RootLayout() {
           <Stack.Screen name="event-planning/rentals" options={{ title: 'Rental availability' }} />
           <Stack.Screen name="car/[id]" options={{ title: 'Garage' }} />
           <Stack.Screen name="rfid" options={{ title: 'RFID tags' }} />
+          <Stack.Screen name="account" options={{ title: 'Account & security' }} />
           <Stack.Screen name="inspection/[id]" options={{ title: 'Vehicle inspection' }} />
           <Stack.Screen name="staff/people" options={{ title: 'People' }} />
           <Stack.Screen name="staff/driver/[id]" options={{ title: 'Driver profile' }} />

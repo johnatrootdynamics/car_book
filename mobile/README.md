@@ -7,6 +7,7 @@ Expo SDK 57 application for iOS and Android. It uses the existing Track Ops acco
 - Unified driver/staff/vendor/admin sign-in
 - Forced temporary-password replacement and secure refresh-token storage
 - Driver dashboard, upcoming events, tickets, Wallet links, and garage
+- Native driver community with connection-only feeds, photo posts, comments, requests, and live people search
 - Role-aware track employee home and event schedule
 - Continuous QR scanner with manual name/email/code lookup
 - Same-track and confirmed-payment enforcement before admission

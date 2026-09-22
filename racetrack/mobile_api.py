@@ -23,6 +23,7 @@ from .models import (
     Car,
     CameraDevice,
     DriverClassChange,
+    DriverConnection,
     DriverNote,
     DriverTicketOrder,
     Employee,
@@ -43,6 +44,7 @@ from .models import (
     RfidTagSettings,
     ScannerDevice,
     ScannerObservation,
+    SocialComment,
     SocialPost,
     SpectatorOrder,
     SpectatorOrderItem,
@@ -56,6 +58,7 @@ from .models import (
     TrackWaiverTemplate,
     TrackLayout,
     TrackRun,
+    TrackSubscription,
     User,
     VendorAccount,
     db,
@@ -372,6 +375,77 @@ def _car_payload(car):
         "color": car.color,
         "label": f"{car.car_year} {car.make} {car.model}",
         "image_url": car.image_url,
+    }
+
+
+def _community_user_payload(user):
+    display_name = f"{user.first_name} {user.last_name}".strip()
+    return {
+        "id": user.id,
+        "username": user.username or f"driver{user.id}",
+        "name": display_name,
+        "initials": f"{user.first_name[:1]}{user.last_name[:1]}".upper(),
+        "image_url": _mobile_asset_url(user.profile_image_url),
+    }
+
+
+def _community_connection_pair(first_user_id, second_user_id):
+    return min(first_user_id, second_user_id), max(first_user_id, second_user_id)
+
+
+def _community_counterpart_id(connection, user_id):
+    return (
+        connection.user_two_id
+        if connection.user_one_id == user_id
+        else connection.user_one_id
+    )
+
+
+def _community_connection_payload(connection, user_id, users_by_id):
+    other_id = _community_counterpart_id(connection, user_id)
+    return {
+        "id": connection.id,
+        "status": connection.status,
+        "requested_by_me": connection.requested_by_user_id == user_id,
+        "user": _community_user_payload(users_by_id[other_id]),
+    }
+
+
+def _community_post_payload(post, visible_comment_user_ids):
+    event = post.event or (post.track_run.event if post.track_run else None)
+    run = None
+    if post.track_run:
+        run = {
+            "id": post.track_run.id,
+            "started_at": _iso(post.track_run.started_at),
+            "ended_at": _iso(post.track_run.ended_at),
+            "drivers": [
+                _community_user_payload(participant.driver)
+                for participant in post.track_run.participants
+            ],
+        }
+    comments = sorted(post.comments, key=lambda comment: comment.created_at)
+    return {
+        "id": post.id,
+        "type": post.post_type,
+        "title": post.title,
+        "body": post.body,
+        "image_url": _mobile_asset_url(post.image_url),
+        "created_at": _iso(post.created_at),
+        "author": _community_user_payload(post.author),
+        "event": _event_payload(event) if event else None,
+        "car": _car_payload(post.registration.car) if post.registration else None,
+        "run": run,
+        "comments": [
+            {
+                "id": comment.id,
+                "body": comment.body,
+                "created_at": _iso(comment.created_at),
+                "author": _community_user_payload(comment.author),
+            }
+            for comment in comments
+            if comment.user_id in visible_comment_user_ids
+        ],
     }
 
 
@@ -766,6 +840,314 @@ def driver_dashboard():
             "upcoming_events": [_event_payload(event) for event in upcoming],
             "garage": [_car_payload(car) for car in cars],
         }
+    )
+
+
+@mobile_api_bp.get("/driver/community")
+@mobile_login_required("user")
+def driver_community():
+    user = g.mobile_user
+    community_view = (request.args.get("view") or "all").strip().lower()
+    if community_view not in {"all", "mine", "track", "builds"}:
+        community_view = "all"
+
+    connection_rows = (
+        DriverConnection.query.filter(
+            or_(
+                DriverConnection.user_one_id == user.id,
+                DriverConnection.user_two_id == user.id,
+            )
+        )
+        .order_by(DriverConnection.updated_at.desc())
+        .all()
+    )
+    counterpart_ids = {
+        _community_counterpart_id(connection, user.id) for connection in connection_rows
+    }
+    accepted_ids = {
+        _community_counterpart_id(connection, user.id)
+        for connection in connection_rows
+        if connection.status == "accepted"
+    }
+    users_by_id = {
+        row.id: row
+        for row in User.query.filter(User.id.in_(counterpart_ids or {-1})).all()
+    }
+
+    post_user_ids = {user.id} if community_view == "mine" else accepted_ids
+    post_query = SocialPost.query.filter(SocialPost.user_id.in_(post_user_ids or {-1}))
+    if community_view == "track":
+        post_query = post_query.filter(SocialPost.post_type == "event_signup")
+    elif community_view == "builds":
+        post_query = post_query.filter(SocialPost.post_type == "car_spotlight")
+    posts = post_query.order_by(SocialPost.created_at.desc()).limit(50).all()
+
+    events = (
+        Event.query.filter(
+            Event.event_type == "public",
+            Event.event_date >= _local_today(),
+        )
+        .order_by(Event.event_date.asc(), Event.event_start_time.asc())
+        .limit(8)
+        .all()
+    )
+    upcoming = []
+    for event in events:
+        registered_ids = {
+            registration.user_id
+            for registration in EventRegistration.query.filter_by(event_id=event.id).all()
+        }
+        circle_attendees = [
+            _community_user_payload(users_by_id[driver_id])
+            for driver_id in accepted_ids & registered_ids
+            if driver_id in users_by_id
+        ]
+        upcoming.append(
+            {
+                "event": _event_payload(event, include_availability=True),
+                "going_count": len(registered_ids),
+                "circle_attendees": circle_attendees[:4],
+            }
+        )
+
+    people_query = (request.args.get("people") or "").strip()[:50]
+    suggestion_reasons = {}
+    if people_query:
+        pattern = f"%{people_query}%"
+        suggestion_users = (
+            User.query.filter(
+                or_(
+                    User.username.ilike(pattern),
+                    User.first_name.ilike(pattern),
+                    User.last_name.ilike(pattern),
+                ),
+                User.id.notin_(counterpart_ids | {user.id}),
+            )
+            .order_by(User.username.asc(), User.first_name.asc())
+            .limit(8)
+            .all()
+        )
+        suggestions = [
+            {"user": _community_user_payload(row), "reason": "Username match"}
+            for row in suggestion_users
+        ]
+    else:
+        my_event_ids = {
+            event_id
+            for (event_id,) in db.session.query(EventRegistration.event_id)
+            .filter(EventRegistration.user_id == user.id)
+            .all()
+        }
+        if my_event_ids:
+            shared_event_rows = (
+                db.session.query(EventRegistration.user_id, Event.event_name)
+                .join(Event, Event.id == EventRegistration.event_id)
+                .filter(
+                    EventRegistration.event_id.in_(my_event_ids),
+                    EventRegistration.user_id != user.id,
+                )
+                .order_by(Event.event_date.desc())
+                .all()
+            )
+            for driver_id, event_name in shared_event_rows:
+                suggestion_reasons.setdefault(driver_id, f"Shared event: {event_name}")
+        my_track_ids = {
+            track_id
+            for (track_id,) in db.session.query(TrackSubscription.track_id)
+            .filter(TrackSubscription.user_id == user.id)
+            .all()
+        }
+        if my_track_ids:
+            shared_track_rows = (
+                db.session.query(TrackSubscription.user_id, Track.name)
+                .join(Track, Track.id == TrackSubscription.track_id)
+                .filter(
+                    TrackSubscription.track_id.in_(my_track_ids),
+                    TrackSubscription.user_id != user.id,
+                )
+                .order_by(Track.name.asc())
+                .all()
+            )
+            for driver_id, track_name in shared_track_rows:
+                suggestion_reasons.setdefault(driver_id, f"Also follows {track_name}")
+        suggestion_ids = set(suggestion_reasons) - counterpart_ids - {user.id}
+        suggestion_users = (
+            User.query.filter(User.id.in_(suggestion_ids))
+            .order_by(User.username.asc(), User.first_name.asc())
+            .limit(8)
+            .all()
+            if suggestion_ids
+            else []
+        )
+        suggestions = [
+            {
+                "user": _community_user_payload(row),
+                "reason": suggestion_reasons.get(row.id, "Shared track activity"),
+            }
+            for row in suggestion_users
+        ]
+
+    accepted = [
+        _community_connection_payload(connection, user.id, users_by_id)
+        for connection in connection_rows
+        if connection.status == "accepted"
+    ]
+    received = [
+        _community_connection_payload(connection, user.id, users_by_id)
+        for connection in connection_rows
+        if connection.status == "pending" and connection.requested_by_user_id != user.id
+    ]
+    sent = [
+        _community_connection_payload(connection, user.id, users_by_id)
+        for connection in connection_rows
+        if connection.status == "pending" and connection.requested_by_user_id == user.id
+    ]
+    visible_comment_user_ids = accepted_ids | {user.id}
+    return jsonify(
+        {
+            "me": _community_user_payload(user),
+            "view": community_view,
+            "posts": [
+                _community_post_payload(post, visible_comment_user_ids) for post in posts
+            ],
+            "connections": accepted,
+            "received_requests": received,
+            "sent_requests": sent,
+            "suggestions": suggestions,
+            "events": upcoming,
+        }
+    )
+
+
+@mobile_api_bp.post("/driver/community/posts")
+@mobile_login_required("user")
+def driver_community_post_create():
+    user = g.mobile_user
+    body = request.get_json(silent=True) or {}
+    post_body = (body.get("body") or "").strip()
+    image_data = body.get("image")
+    if not post_body and not image_data:
+        return _json_error(
+            "Write something or add a photo before posting.", 400, "empty_post"
+        )
+    if len(post_body) > 600:
+        return _json_error(
+            "Community posts must be 600 characters or fewer.", 400, "post_too_long"
+        )
+    image_url = None
+    if image_data:
+        image_file, error = _mobile_image_file(image_data, f"post-{user.id}")
+        if error:
+            return _json_error(error, 400, "invalid_image")
+        image_url = _mobile_upload_image(image_file, f"community/{user.id}")
+    post = SocialPost(
+        user_id=user.id,
+        post_type="driver_update",
+        title="Shared a photo" if image_url else "Shared an update",
+        body=post_body or None,
+        image_url=image_url,
+    )
+    db.session.add(post)
+    db.session.commit()
+    return jsonify(
+        {"post": _community_post_payload(post, {user.id}), "message": "Update posted."}
+    ), 201
+
+
+@mobile_api_bp.post("/driver/community/posts/<int:post_id>/comments")
+@mobile_login_required("user")
+def driver_community_comment_create(post_id):
+    user = g.mobile_user
+    post = db.session.get(SocialPost, post_id)
+    if not post:
+        return _json_error("Post not found.", 404, "post_not_found")
+    if post.user_id != user.id:
+        user_one_id, user_two_id = _community_connection_pair(user.id, post.user_id)
+        connection = DriverConnection.query.filter_by(
+            user_one_id=user_one_id,
+            user_two_id=user_two_id,
+            status="accepted",
+        ).first()
+        if not connection:
+            return _json_error("Post not found.", 404, "post_not_found")
+    comment_body = ((request.get_json(silent=True) or {}).get("body") or "").strip()
+    if not comment_body:
+        return _json_error("Write a comment before sending.", 400, "empty_comment")
+    if len(comment_body) > 400:
+        return _json_error(
+            "Comments must be 400 characters or fewer.", 400, "comment_too_long"
+        )
+    comment = SocialComment(post_id=post.id, user_id=user.id, body=comment_body)
+    db.session.add(comment)
+    db.session.commit()
+    return jsonify({"message": "Comment added."}), 201
+
+
+@mobile_api_bp.post("/driver/community/connections/<int:user_id>")
+@mobile_login_required("user")
+def driver_community_connection_request(user_id):
+    user = g.mobile_user
+    other_user = db.session.get(User, user_id)
+    if not other_user:
+        return _json_error("Driver not found.", 404, "driver_not_found")
+    if other_user.id == user.id:
+        return _json_error("You cannot connect with yourself.", 400, "self_connection")
+    user_one_id, user_two_id = _community_connection_pair(user.id, other_user.id)
+    existing = DriverConnection.query.filter_by(
+        user_one_id=user_one_id,
+        user_two_id=user_two_id,
+    ).first()
+    if existing:
+        if existing.status == "accepted":
+            return jsonify({"message": "You are already connected."})
+        if existing.requested_by_user_id == user.id:
+            return jsonify({"message": "Your request is already pending."})
+        existing.status = "accepted"
+        existing.updated_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"message": f"You are now connected with @{other_user.username}."})
+    db.session.add(
+        DriverConnection(
+            user_one_id=user_one_id,
+            user_two_id=user_two_id,
+            requested_by_user_id=user.id,
+            status="pending",
+        )
+    )
+    db.session.commit()
+    return jsonify({"message": "Connection request sent."}), 201
+
+
+@mobile_api_bp.post("/driver/community/connections/<int:connection_id>/accept")
+@mobile_login_required("user")
+def driver_community_connection_accept(connection_id):
+    user = g.mobile_user
+    connection = db.session.get(DriverConnection, connection_id)
+    if (
+        not connection
+        or user.id not in {connection.user_one_id, connection.user_two_id}
+        or connection.status != "pending"
+        or connection.requested_by_user_id == user.id
+    ):
+        return _json_error("Connection request not found.", 404, "request_not_found")
+    connection.status = "accepted"
+    connection.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"message": "Connection accepted."})
+
+
+@mobile_api_bp.delete("/driver/community/connections/<int:connection_id>")
+@mobile_login_required("user")
+def driver_community_connection_remove(connection_id):
+    user = g.mobile_user
+    connection = db.session.get(DriverConnection, connection_id)
+    if not connection or user.id not in {connection.user_one_id, connection.user_two_id}:
+        return _json_error("Connection not found.", 404, "connection_not_found")
+    was_connected = connection.status == "accepted"
+    db.session.delete(connection)
+    db.session.commit()
+    return jsonify(
+        {"message": "Connection removed." if was_connected else "Request removed."}
     )
 
 

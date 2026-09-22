@@ -39,7 +39,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Track Ops to choose event, thumbnail, and track layout images.",
+          "photosPermission": "Allow Track Ops to choose photos for community posts, events, and track layouts.",
           "cameraPermission": false,
           "microphonePermission": false
         }

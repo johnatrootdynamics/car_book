@@ -16,11 +16,11 @@ type Destination = {
 };
 
 const driverTools: Destination[] = [
-  { title: 'Community', detail: 'Friends, circles, posts, and shared runs', path: '/user/community', symbol: 'person.2.fill' },
   { title: 'Event tickets', detail: 'Shop driver and spectator admission', path: '/user/spectator/events', symbol: 'ticket.fill' },
   { title: 'Private rentals', detail: 'Find and manage private track days', path: '/user/private-rentals', symbol: 'calendar.badge.plus' },
   { title: 'RFID tags', detail: 'Order, activate, and manage vehicle tags', route: '/rfid', symbol: 'wave.3.right' },
   { title: 'Driver profile', detail: 'Public profile, follows, and account details', path: '/user/profile', symbol: 'person.crop.circle' },
+  { title: 'Account & security', detail: 'Account information, password, and sign out', route: '/account', symbol: 'lock.shield.fill' },
 ];
 
 const staffDaily: Destination[] = [
