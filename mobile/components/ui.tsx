@@ -1,12 +1,16 @@
 import { PropsWithChildren, ReactNode } from 'react';
+import { useSegments } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { palette, shadow } from '@/lib/theme';
 
 export function Screen({ children, scroll = true }: PropsWithChildren<{ scroll?: boolean }>) {
+  const segments = useSegments();
+  const firstSegment = String(segments[0] || '');
+  const ownsTopSafeArea = !firstSegment || firstSegment === '(tabs)' || firstSegment === 'login' || firstSegment === 'change-password';
   const content = scroll ? <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView> : <View style={styles.content}>{children}</View>;
-  return <SafeAreaView edges={['top']} style={styles.screen}>{content}</SafeAreaView>;
+  return <SafeAreaView edges={ownsTopSafeArea ? ['top'] : []} style={styles.screen}>{content}</SafeAreaView>;
 }
 
 export function Hero({ eyebrow, title, subtitle }: { eyebrow?: string; title: string; subtitle?: string }) {
