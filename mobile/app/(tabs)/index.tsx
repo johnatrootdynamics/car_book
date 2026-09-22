@@ -5,10 +5,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card, Empty, Hero, Loading, Screen, SectionTitle, ui } from '@/components/ui';
 import { eventDate } from '@/lib/format';
 import { palette } from '@/lib/theme';
-import type { Car, TrackEvent } from '@/lib/types';
+import type { TrackEvent } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
-type DriverHome = { stats: { events_attended: number; upcoming_events: number; tracks_visited: number; vehicles: number }; upcoming_events: TrackEvent[]; garage: Car[] };
+type DriverHome = { stats: { events_attended: number; upcoming_events: number; tracks_visited: number; vehicles: number }; upcoming_events: TrackEvent[] };
 type StaffHome = { stats: { upcoming_events: number; upcoming_drivers: number }; events: TrackEvent[] };
 type VendorHome = { stats: { tickets: number; upcoming_events: number; profile_percent: number }; upcoming_events: TrackEvent[] };
 type AdminHome = { stats: { tracks: number; staff: number; drivers: number; vendors: number } };
@@ -78,12 +78,6 @@ function DriverDashboard({ name, data }: { name: string; data: DriverHome }) {
       {data.upcoming_events.length > 1 ? <Text style={styles.moreEvents}>+{data.upcoming_events.length - 1} more booked event{data.upcoming_events.length === 2 ? '' : 's'}</Text> : null}
     </Pressable> : <CompactEmpty title="Nothing booked yet" detail="Find an event when you’re ready for the next track day." action="Browse events" onPress={() => router.push('/(tabs)/events')} />}
 
-    <SectionTitle title="Your garage" action={<Pressable onPress={() => router.push('/(tabs)/garage')}><Text style={styles.sectionAction}>Manage</Text></Pressable>} />
-    {data.garage.length ? <Card style={styles.garageList}>{data.garage.slice(0, 2).map((car, index) => <Pressable key={car.id} onPress={() => router.push(`/car/${car.id}`)} style={({ pressed }) => [styles.garageRow, index > 0 && styles.rowDivider, pressed && styles.pressed]}>
-      <View style={styles.carBadge}><Text style={styles.carLetters}>{car.make.slice(0, 1)}{car.model.slice(0, 1)}</Text></View>
-      <View style={{ flex: 1 }}><Text style={styles.carName}>{car.label}</Text><Text style={styles.carDetail}>{car.color || 'Color not listed'}</Text></View>
-      <Text style={styles.arrow}>›</Text>
-    </Pressable>)}</Card> : <CompactEmpty title="No cars yet" detail="Add a car once, then choose it during checkout." action="Add a car" onPress={() => router.push('/car/new')} />}
   </Screen>;
 }
 
@@ -107,7 +101,6 @@ const styles = StyleSheet.create({
   quickIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' }, quickCopy: { flex: 1 }, quickTitle: { color: palette.ink, fontSize: 13, fontWeight: '900' }, quickDetail: { color: palette.muted, fontSize: 10, lineHeight: 14, marginTop: 2 }, quickArrow: { color: palette.orange, fontSize: 22 }, pressed: { opacity: .62 },
   sectionAction: { color: palette.orange, fontSize: 12, fontWeight: '900' },
   nextEvent: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }, dateBadge: { width: 54, height: 58, borderRadius: 14, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' }, dateDay: { color: palette.orange, fontSize: 21, fontWeight: '900' }, dateMonth: { color: '#C2410C', fontSize: 9, fontWeight: '900' }, nextEventCopy: { flex: 1 }, nextLabel: { color: palette.orange, fontSize: 9, fontWeight: '900', letterSpacing: .8 }, nextEventName: { color: palette.ink, fontSize: 17, lineHeight: 21, fontWeight: '900', marginTop: 3 }, nextEventDetail: { color: palette.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, moreEvents: { color: palette.muted, fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 8 },
-  garageList: { paddingVertical: 2, paddingHorizontal: 14 }, garageRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 }, rowDivider: { borderTopWidth: 1, borderTopColor: palette.line }, carBadge: { width: 44, height: 44, borderRadius: 13, backgroundColor: palette.navy, alignItems: 'center', justifyContent: 'center' }, carLetters: { color: 'white', fontSize: 13, fontWeight: '900' }, carName: { color: palette.ink, fontSize: 14, fontWeight: '900' }, carDetail: { color: palette.muted, fontSize: 11, marginTop: 3 },
   compactEmpty: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }, compactEmptyTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' }, compactEmptyDetail: { color: palette.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, compactEmptyAction: { borderRadius: 10, backgroundColor: palette.orange, paddingHorizontal: 11, paddingVertical: 9 }, compactEmptyActionText: { color: 'white', fontSize: 11, fontWeight: '900' },
   stats: { flexDirection: 'row', gap: 9 }, stat: { flex: 1, alignItems: 'center', paddingHorizontal: 4 }, adminStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, adminStat: { width: '48%', alignItems: 'center' }, statValue: { color: palette.ink, fontSize: 23, fontWeight: '900' }, statLabel: { color: palette.muted, fontSize: 11, fontWeight: '700', marginTop: 2 }, event: { flexDirection: 'row', alignItems: 'center', gap: 12 }, arrow: { color: palette.orange, fontSize: 30, fontWeight: '400' }, scanAction: { backgroundColor: palette.orange, borderRadius: 19, padding: 17, flexDirection: 'row', alignItems: 'center', gap: 13 }, scanTitle: { color: 'white', fontSize: 17, fontWeight: '900' }, scanDetail: { color: '#FFEDD5', fontSize: 13, marginTop: 3 },
 });
