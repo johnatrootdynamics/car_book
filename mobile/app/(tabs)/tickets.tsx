@@ -46,7 +46,7 @@ export default function TicketsScreen() {
   }, [groups, params.eventId, selectedEventId]);
 
   if (!tickets) return <Loading />;
-  if (!groups.length) return <Screen><Hero eyebrow="Mobile passes" title="Your tickets" subtitle="Current and upcoming event passes will appear here." /><Empty title="No upcoming tickets" detail="Purchase driver or spectator admission from an upcoming event." /></Screen>;
+  if (!groups.length) return <Screen><Hero eyebrow="Mobile passes" title="Your tickets" subtitle="Current and upcoming event passes will appear here." /><Empty title="No upcoming tickets" detail="Purchase driver or spectator admission from an upcoming event." /><Button title="Find tickets" onPress={() => router.push('/(tabs)/events')} /></Screen>;
 
   const group = groups.find(item => item.event.id === selectedEventId) || groups[0];
   const safeIndex = Math.min(ticketIndex, group.tickets.length - 1);
@@ -69,6 +69,7 @@ export default function TicketsScreen() {
     </Card>
 
     <View style={styles.actions}><View style={{ flex: 1 }}><Button tone="secondary" title="Event details" onPress={() => router.push(`/event/${group.event.id}`)} /></View><View style={{ flex: 1 }}><Button tone="secondary" title="Buy spectators" onPress={() => router.push({ pathname: '/event/[id]/spectator-checkout', params: { id: String(group.event.id) } })} /></View></View>
+    <Button title="Find tickets" onPress={() => router.push('/(tabs)/events')} />
     <Text style={styles.historyNote}>Past-event QR codes are hidden from this screen.</Text>
   </Screen>;
 }

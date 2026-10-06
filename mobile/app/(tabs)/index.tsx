@@ -1,4 +1,3 @@
-import { SymbolView } from 'expo-symbols';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -44,11 +43,6 @@ export default function HomeScreen() {
   return <Screen><Hero eyebrow={account.type} title={`Welcome, ${account.name}`} />{error ? <Empty title="Unable to load dashboard" detail={error} /> : null}</Screen>;
 }
 
-const driverActions = [
-  { title: 'Find events', detail: 'Book a track day', symbol: 'calendar.badge.plus', route: '/(tabs)/events' },
-  { title: 'My tickets', detail: 'Open your QR', symbol: 'qrcode', route: '/(tabs)/tickets' },
-];
-
 function DriverDashboard({ name, data, onShowSocial }: { name: string; data: DriverHome; onShowSocial: () => void }) {
   const nextEvent = data.upcoming_events[0];
   const firstName = name.trim().split(/\s+/)[0] || 'Driver';
@@ -67,15 +61,7 @@ function DriverDashboard({ name, data, onShowSocial }: { name: string; data: Dri
       </View>
     </View>
 
-    <View style={styles.quickGrid}>
-      {driverActions.map(action => <Pressable key={action.title} onPress={() => router.push(action.route as never)} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
-        <View style={styles.quickIcon}><SymbolView name={{ ios: action.symbol, android: action.symbol, web: action.symbol } as any} tintColor={palette.orange} size={21} /></View>
-        <View style={styles.quickCopy}><Text style={styles.quickTitle}>{action.title}</Text><Text style={styles.quickDetail}>{action.detail}</Text></View>
-        <Text style={styles.quickArrow}>›</Text>
-      </Pressable>)}
-    </View>
-
-    <SectionTitle title="Next up" action={<Pressable onPress={() => router.push('/(tabs)/events')}><Text style={styles.sectionAction}>View all</Text></Pressable>} />
+    <SectionTitle title="Next up" />
     {nextEvent ? <Pressable onPress={() => router.push(`/event/${nextEvent.id}`)} style={({ pressed }) => pressed && styles.pressed}>
       <Card style={styles.nextEvent}>
         <View style={styles.dateBadge}><Text style={styles.dateDay}>{new Date(`${nextEvent.date}T12:00:00`).getDate()}</Text><Text style={styles.dateMonth}>{new Date(`${nextEvent.date}T12:00:00`).toLocaleString('en-US', { month: 'short' }).toUpperCase()}</Text></View>
@@ -83,17 +69,13 @@ function DriverDashboard({ name, data, onShowSocial }: { name: string; data: Dri
         <Text style={styles.arrow}>›</Text>
       </Card>
       {data.upcoming_events.length > 1 ? <Text style={styles.moreEvents}>+{data.upcoming_events.length - 1} more booked event{data.upcoming_events.length === 2 ? '' : 's'}</Text> : null}
-    </Pressable> : <CompactEmpty title="Nothing booked yet" detail="Find an event when you’re ready for the next track day." action="Browse events" onPress={() => router.push('/(tabs)/events')} />}
+    </Pressable> : <Card style={styles.compactEmpty}><Text style={styles.compactEmptyTitle}>Nothing booked yet</Text><Text style={styles.compactEmptyDetail}>Your next booked track day will appear here.</Text></Card>}
 
   </Screen>;
 }
 
 function DriverStat({ value, label }: { value: number; label: string }) {
   return <View style={styles.driverStat}><Text style={styles.driverStatValue}>{value}</Text><Text style={styles.driverStatLabel}>{label}</Text></View>;
-}
-
-function CompactEmpty({ title, detail, action, onPress }: { title: string; detail: string; action: string; onPress: () => void }) {
-  return <Card style={styles.compactEmpty}><View style={{ flex: 1 }}><Text style={styles.compactEmptyTitle}>{title}</Text><Text style={styles.compactEmptyDetail}>{detail}</Text></View><Pressable onPress={onPress} style={styles.compactEmptyAction}><Text style={styles.compactEmptyActionText}>{action}</Text></Pressable></Card>;
 }
 
 function EventRow({ event }: { event: TrackEvent }) { return <Pressable onPress={() => router.push(`/event/${event.id}`)}><Card style={styles.event}><View style={{ flex: 1 }}><Text style={ui.title}>{event.name}</Text><Text style={ui.body}>{eventDate(event.date)} · {event.track.name}</Text></View><Text style={styles.arrow}>›</Text></Card></Pressable>; }
@@ -103,11 +85,8 @@ const styles = StyleSheet.create({
   driverWelcome: { color: 'white', fontSize: 27, lineHeight: 32, fontWeight: '900' },
   driverStats: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.14)' },
   driverStat: { flex: 1, alignItems: 'center' }, driverStatValue: { color: 'white', fontSize: 19, fontWeight: '900' }, driverStatLabel: { color: '#D0D5DD', fontSize: 10, fontWeight: '700', marginTop: 2 }, statDivider: { width: 1, height: 27, backgroundColor: 'rgba(255,255,255,.16)' },
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  quickAction: { width: '48.6%', minHeight: 80, padding: 12, borderRadius: 17, borderWidth: 1, borderColor: palette.line, backgroundColor: 'white', flexDirection: 'row', alignItems: 'center', gap: 9 },
-  quickIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' }, quickCopy: { flex: 1 }, quickTitle: { color: palette.ink, fontSize: 13, fontWeight: '900' }, quickDetail: { color: palette.muted, fontSize: 10, lineHeight: 14, marginTop: 2 }, quickArrow: { color: palette.orange, fontSize: 22 }, pressed: { opacity: .62 },
-  sectionAction: { color: palette.orange, fontSize: 12, fontWeight: '900' },
+  pressed: { opacity: .62 },
   nextEvent: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }, dateBadge: { width: 54, height: 58, borderRadius: 14, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' }, dateDay: { color: palette.orange, fontSize: 21, fontWeight: '900' }, dateMonth: { color: '#C2410C', fontSize: 9, fontWeight: '900' }, nextEventCopy: { flex: 1 }, nextLabel: { color: palette.orange, fontSize: 9, fontWeight: '900', letterSpacing: .8 }, nextEventName: { color: palette.ink, fontSize: 17, lineHeight: 21, fontWeight: '900', marginTop: 3 }, nextEventDetail: { color: palette.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, moreEvents: { color: palette.muted, fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 8 },
-  compactEmpty: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }, compactEmptyTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' }, compactEmptyDetail: { color: palette.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, compactEmptyAction: { borderRadius: 10, backgroundColor: palette.orange, paddingHorizontal: 11, paddingVertical: 9 }, compactEmptyActionText: { color: 'white', fontSize: 11, fontWeight: '900' },
+  compactEmpty: { padding: 14 }, compactEmptyTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' }, compactEmptyDetail: { color: palette.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
   stats: { flexDirection: 'row', gap: 9 }, stat: { flex: 1, alignItems: 'center', paddingHorizontal: 4 }, adminStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, adminStat: { width: '48%', alignItems: 'center' }, statValue: { color: palette.ink, fontSize: 23, fontWeight: '900' }, statLabel: { color: palette.muted, fontSize: 11, fontWeight: '700', marginTop: 2 }, event: { flexDirection: 'row', alignItems: 'center', gap: 12 }, arrow: { color: palette.orange, fontSize: 30, fontWeight: '400' }, scanAction: { backgroundColor: palette.orange, borderRadius: 19, padding: 17, flexDirection: 'row', alignItems: 'center', gap: 13 }, scanTitle: { color: 'white', fontSize: 17, fontWeight: '900' }, scanDetail: { color: '#FFEDD5', fontSize: 13, marginTop: 3 },
 });
