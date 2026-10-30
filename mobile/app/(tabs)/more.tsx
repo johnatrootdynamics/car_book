@@ -33,6 +33,10 @@ const staffOffice: Destination[] = [
   { title: 'Track settings', detail: 'Payments, staff, waivers, email, and inspections', route: '/staff/settings', symbol: 'gearshape.fill' },
 ];
 
+const staffAccount: Destination[] = [
+  { title: 'Profile & security', detail: 'Account details, password, and sign out', route: '/(tabs)/profile', symbol: 'person.crop.circle.fill' },
+];
+
 const vendorTools: Destination[] = [
   { title: 'Vendor dashboard', detail: 'Your paid events and admission tickets', path: '/vendor/dashboard', symbol: 'storefront.fill' },
   { title: 'Find events', detail: 'Purchase vendor admission for upcoming events', path: '/user/spectator/events', symbol: 'calendar' },
@@ -77,6 +81,7 @@ export default function MoreScreen() {
   else sections = [
     { title: 'Track tools', items: staffDaily },
     ...(account.role === 'office_staff' ? [{ title: 'Office management', items: staffOffice }] : []),
+    { title: 'Account', items: staffAccount },
   ];
 
   return <Screen>
