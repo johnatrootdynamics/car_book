@@ -3409,10 +3409,40 @@ def staff_event(event_id):
         return _json_error("That event is not part of your track.", 404, "event_not_found")
     result = _event_payload(event, include_availability=True)
     result["registration_count"] = EventRegistration.query.filter_by(event_id=event.id).count()
-    result["checked_in_count"] = EventRegistration.query.filter(
-        EventRegistration.event_id == event.id,
+    driver_checked_in_count = _mobile_event_registrations(event).filter(
         EventRegistration.checked_in_at.isnot(None),
     ).count()
+    ticket_check_in_counts = {
+        category: count
+        for category, count in (
+            db.session.query(
+                SpectatorOrderItem.ticket_category,
+                func.count(SpectatorOrderItem.id),
+            )
+            .filter(
+                SpectatorOrderItem.event_id == event.id,
+                SpectatorOrderItem.ticket_category.in_(("spectator", "vendor")),
+                SpectatorOrderItem.checked_in_at.isnot(None),
+            )
+            .group_by(SpectatorOrderItem.ticket_category)
+            .all()
+        )
+    }
+    result["checked_in_count"] = driver_checked_in_count
+    result["ticket_summary"] = {
+        "spectator": {
+            "purchased": result["availability"]["spectator"]["sold"],
+            "checked_in": int(ticket_check_in_counts.get("spectator", 0)),
+        },
+        "driver": {
+            "purchased": result["availability"]["driver"]["sold"],
+            "checked_in": driver_checked_in_count,
+        },
+        "vendor": {
+            "purchased": result["availability"]["vendor"]["sold"],
+            "checked_in": int(ticket_check_in_counts.get("vendor", 0)),
+        },
+    }
     return jsonify({"event": result})
 
 

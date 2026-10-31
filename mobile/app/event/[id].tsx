@@ -14,6 +14,7 @@ type Detail = TrackEvent & {
   vendors?: { id: number | null; business_name: string; website?: string; logo_url?: string }[];
   registration_count?: number;
   checked_in_count?: number;
+  ticket_summary?: Record<'spectator' | 'driver' | 'vendor', { purchased: number; checked_in: number }>;
 };
 
 type EventTool = {
@@ -41,6 +42,12 @@ export default function EventDetailScreen() {
 
   if (!event && !failed) return <Loading />;
   if (!event) return <Screen><Empty title="Event unavailable" detail="This event is not available to your account." /></Screen>;
+
+  const ticketSummary = event.ticket_summary ?? {
+    spectator: { purchased: event.availability?.spectator?.sold ?? 0, checked_in: 0 },
+    driver: { purchased: event.availability?.driver?.sold ?? 0, checked_in: event.checked_in_count ?? 0 },
+    vendor: { purchased: event.availability?.vendor?.sold ?? 0, checked_in: 0 },
+  };
 
   const tools: EventTool[] = account?.type === 'employee' ? [
     ...(account.role === 'office_staff' ? [
@@ -72,13 +79,15 @@ export default function EventDetailScreen() {
       <Text style={ui.title}>Event details</Text>
       <View style={styles.line}><Text style={ui.body}>Driver admission</Text><Text style={styles.value}>{money(event.prices.driver)}</Text></View>
       <View style={styles.line}><Text style={ui.body}>Capacity</Text><Text style={styles.value}>{event.availability?.driver?.unlimited ? 'Open' : `${event.availability?.driver?.remaining ?? 0} left`}</Text></View>
-      {event.registration_count !== undefined ? <>
-        <View style={styles.line}><Text style={ui.body}>Spectator tickets purchased</Text><Text style={styles.value}>{event.availability?.spectator?.sold ?? 0}</Text></View>
-        <View style={styles.line}><Text style={ui.body}>Driver tickets purchased</Text><Text style={styles.value}>{event.availability?.driver?.sold ?? 0}</Text></View>
-        <View style={styles.line}><Text style={ui.body}>Vendor tickets purchased</Text><Text style={styles.value}>{event.availability?.vendor?.sold ?? 0}</Text></View>
-        <View style={styles.line}><Text style={ui.body}>Drivers registered</Text><Text style={styles.value}>{event.registration_count}</Text></View>
-        <View style={styles.line}><Text style={ui.body}>Checked in</Text><Text style={styles.value}>{event.checked_in_count}</Text></View>
-      </> : null}
+      {account?.type === 'employee' ? <View style={styles.ticketSummary}>
+        <View style={styles.ticketSummaryHeader}><Text style={styles.ticketSummaryTitle}>Ticket attendance</Text><Text style={styles.ticketSummaryMeta}>Purchased / checked in</Text></View>
+        <View style={styles.ticketStats}>
+          {(['spectator', 'driver', 'vendor'] as const).map((category, index) => <View key={category} style={[styles.ticketStat, index > 0 && styles.ticketStatDivider]}>
+            <Text style={styles.ticketStatValue}>{ticketSummary[category].purchased}/{ticketSummary[category].checked_in}</Text>
+            <Text style={styles.ticketStatLabel}>{category === 'spectator' ? 'Spectators' : category === 'driver' ? 'Drivers' : 'Vendors'}</Text>
+          </View>)}
+        </View>
+      </View> : null}
       {event.registration ? <View style={styles.booked}><Text style={styles.bookedTitle}>You’re registered</Text><Text style={styles.bookedText}>{event.registration.car.label}{event.registration.checked_in_at ? ' · Checked in' : ''}</Text></View> : null}
     </Card>
 
@@ -114,6 +123,15 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   line: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 12, marginTop: 12, borderTopWidth: 1, borderTopColor: palette.line },
   value: { color: palette.ink, fontWeight: '900' },
+  ticketSummary: { marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: palette.line },
+  ticketSummaryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
+  ticketSummaryTitle: { color: palette.ink, fontSize: 15, fontWeight: '900' },
+  ticketSummaryMeta: { color: palette.muted, fontSize: 11, fontWeight: '700' },
+  ticketStats: { flexDirection: 'row' },
+  ticketStat: { flex: 1, alignItems: 'center', gap: 4 },
+  ticketStatDivider: { borderLeftWidth: 1, borderLeftColor: palette.line },
+  ticketStatValue: { color: palette.ink, fontSize: 20, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  ticketStatLabel: { color: palette.muted, fontSize: 11, fontWeight: '700' },
   booked: { backgroundColor: palette.greenSoft, borderRadius: 13, padding: 13, marginTop: 16 },
   bookedTitle: { color: palette.green, fontWeight: '900' },
   bookedText: { color: palette.green, marginTop: 3 },
