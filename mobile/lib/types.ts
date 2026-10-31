@@ -20,7 +20,7 @@ export type TrackEvent = {
   track: { id: number; name: string; location: string };
   prices: { driver: number; spectator: number; vendor: number };
   has_driver_ticket?: boolean;
-  availability?: Record<string, { remaining: number | null; unlimited: boolean; sold_out: boolean }>;
+  availability?: Record<string, { sold: number; remaining: number | null; unlimited: boolean; sold_out: boolean }>;
 };
 
 export type Ticket = {

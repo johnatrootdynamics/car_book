@@ -73,6 +73,9 @@ export default function EventDetailScreen() {
       <View style={styles.line}><Text style={ui.body}>Driver admission</Text><Text style={styles.value}>{money(event.prices.driver)}</Text></View>
       <View style={styles.line}><Text style={ui.body}>Capacity</Text><Text style={styles.value}>{event.availability?.driver?.unlimited ? 'Open' : `${event.availability?.driver?.remaining ?? 0} left`}</Text></View>
       {event.registration_count !== undefined ? <>
+        <View style={styles.line}><Text style={ui.body}>Spectator tickets purchased</Text><Text style={styles.value}>{event.availability?.spectator?.sold ?? 0}</Text></View>
+        <View style={styles.line}><Text style={ui.body}>Driver tickets purchased</Text><Text style={styles.value}>{event.availability?.driver?.sold ?? 0}</Text></View>
+        <View style={styles.line}><Text style={ui.body}>Vendor tickets purchased</Text><Text style={styles.value}>{event.availability?.vendor?.sold ?? 0}</Text></View>
         <View style={styles.line}><Text style={ui.body}>Drivers registered</Text><Text style={styles.value}>{event.registration_count}</Text></View>
         <View style={styles.line}><Text style={ui.body}>Checked in</Text><Text style={styles.value}>{event.checked_in_count}</Text></View>
       </> : null}
