@@ -267,6 +267,51 @@ class MobileRefreshToken(db.Model):
     )
 
 
+class SocialLoginIdentity(db.Model):
+    """Verified social-provider identity linked to one Track Ops account."""
+
+    __tablename__ = "social_login_identities"
+
+    id = db.Column(db.Integer, primary_key=True)
+    provider = db.Column(db.String(20), nullable=False)
+    subject = db.Column(db.String(255), nullable=False)
+    account_type = db.Column(db.String(20), nullable=False)
+    account_id = db.Column(db.Integer, nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_login_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("provider", "subject", name="uniq_social_provider_subject"),
+        db.Index("idx_social_identity_account", "account_type", "account_id"),
+    )
+
+
+class MobileSocialAuthCode(db.Model):
+    """Short-lived, one-time code used to return browser OAuth to the app."""
+
+    __tablename__ = "mobile_social_auth_codes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True)
+    account_type = db.Column(db.String(20), nullable=False)
+    account_id = db.Column(db.Integer, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    redeemed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PasswordResetRequest(db.Model):
+    """Enumeration-safe password reset throttle keyed by normalized email hash."""
+
+    __tablename__ = "password_reset_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email_hash = db.Column(db.String(64), nullable=False, index=True)
+    requested_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    delivered = db.Column(db.Boolean, nullable=False, default=False)
+
+
 class SystemEmailSettings(db.Model):
     __tablename__ = "system_email_settings"
 

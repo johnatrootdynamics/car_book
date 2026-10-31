@@ -9,7 +9,8 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rootdynamics.trackops"
+      "bundleIdentifier": "com.rootdynamics.trackops",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.rootdynamics.trackops",
@@ -29,6 +30,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "expo-apple-authentication",
       [
         "expo-camera",
         {

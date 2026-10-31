@@ -7,11 +7,21 @@ import type { Account } from '@/lib/types';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://carbook.root-dynamics.com').replace(/\/$/, '');
 const REFRESH_KEY = 'trackops.refresh-token';
+const SOCIAL_REDIRECT_URI = 'trackops://auth/callback';
+
+WebBrowser.maybeCompleteAuthSession();
+
+type SocialProviders = { apple: boolean; google: boolean };
+type AppleIdentity = { identityToken: string; givenName?: string | null; familyName?: string | null };
 
 type AuthContextValue = {
   account: Account | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<Account>;
+  signInWithApple: (identity: AppleIdentity) => Promise<Account>;
+  signInWithGoogle: () => Promise<Account>;
+  socialProviders: () => Promise<SocialProviders>;
+  requestPasswordReset: (email: string) => Promise<string>;
   signOut: () => Promise<void>;
   changePassword: (newPassword: string, currentPassword?: string) => Promise<void>;
   openPortal: (target: string) => Promise<void>;
@@ -67,6 +77,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     refresh().catch(() => saveRefreshToken(null)).finally(() => setLoading(false));
   }, [refresh]);
 
+  const acceptSession = useCallback(async (body: any) => {
+    await saveRefreshToken(body.refresh_token);
+    setAccessToken(body.access_token);
+    setAccount(body.account);
+    return body.account as Account;
+  }, []);
+
   const signIn = useCallback(async (email: string, password: string) => {
     const response = await fetch(`${API_URL}/api/v1/mobile/auth/login`, {
       method: 'POST',
@@ -74,10 +91,54 @@ export function AuthProvider({ children }: PropsWithChildren) {
       body: JSON.stringify({ email, password, device_name: `${Platform.OS} app` }),
     });
     const body = await parseResponse(response);
-    await saveRefreshToken(body.refresh_token);
-    setAccessToken(body.access_token);
-    setAccount(body.account);
-    return body.account as Account;
+    return acceptSession(body);
+  }, [acceptSession]);
+
+  const socialProviders = useCallback(async () => {
+    const response = await fetch(`${API_URL}/api/v1/mobile/auth/social/providers`);
+    return parseResponse(response) as Promise<SocialProviders>;
+  }, []);
+
+  const signInWithApple = useCallback(async (identity: AppleIdentity) => {
+    const response = await fetch(`${API_URL}/api/v1/mobile/auth/social/apple`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identity_token: identity.identityToken,
+        given_name: identity.givenName,
+        family_name: identity.familyName,
+        device_name: `${Platform.OS} app`,
+      }),
+    });
+    return acceptSession(await parseResponse(response));
+  }, [acceptSession]);
+
+  const signInWithGoogle = useCallback(async () => {
+    const startResponse = await fetch(`${API_URL}/api/v1/mobile/auth/social/google/start?app_redirect=${encodeURIComponent(SOCIAL_REDIRECT_URI)}`);
+    const start = await parseResponse(startResponse);
+    const result = await WebBrowser.openAuthSessionAsync(start.url, SOCIAL_REDIRECT_URI);
+    if (result.type !== 'success' || !result.url) throw new Error('Google sign-in was canceled.');
+    const callback = new URL(result.url);
+    const callbackError = callback.searchParams.get('error');
+    if (callbackError) throw new Error(callbackError);
+    const code = callback.searchParams.get('code');
+    if (!code) throw new Error('Google did not return a sign-in code.');
+    const exchangeResponse = await fetch(`${API_URL}/api/v1/mobile/auth/social/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, device_name: `${Platform.OS} app` }),
+    });
+    return acceptSession(await parseResponse(exchangeResponse));
+  }, [acceptSession]);
+
+  const requestPasswordReset = useCallback(async (email: string) => {
+    const response = await fetch(`${API_URL}/api/v1/mobile/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const body = await parseResponse(response);
+    return body.message as string;
   }, []);
 
   const signOut = useCallback(async () => {
@@ -133,7 +194,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     });
   }, [api]);
 
-  const value = useMemo(() => ({ account, loading, signIn, signOut, changePassword, openPortal, api }), [account, loading, signIn, signOut, changePassword, openPortal, api]);
+  const value = useMemo(() => ({ account, loading, signIn, signInWithApple, signInWithGoogle, socialProviders, requestPasswordReset, signOut, changePassword, openPortal, api }), [account, loading, signIn, signInWithApple, signInWithGoogle, socialProviders, requestPasswordReset, signOut, changePassword, openPortal, api]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

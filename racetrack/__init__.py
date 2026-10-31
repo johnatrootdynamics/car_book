@@ -100,6 +100,11 @@ def create_app():
     app.config["APPLE_WALLET_CERTIFICATE_PASSWORD"] = os.getenv("APPLE_WALLET_CERTIFICATE_PASSWORD", "")
     app.config["GOOGLE_WALLET_ISSUER_ID"] = os.getenv("GOOGLE_WALLET_ISSUER_ID", "")
     app.config["GOOGLE_WALLET_SERVICE_ACCOUNT_JSON"] = os.getenv("GOOGLE_WALLET_SERVICE_ACCOUNT_JSON", "")
+    app.config["APPLE_SIGN_IN_CLIENT_ID"] = os.getenv(
+        "APPLE_SIGN_IN_CLIENT_ID", "com.rootdynamics.trackops"
+    )
+    app.config["GOOGLE_OAUTH_CLIENT_ID"] = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+    app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
     app.config["SQLALCHEMY_DATABASE_URI"] = normalize_database_url(
         os.getenv(
         "DATABASE_URL",
@@ -206,6 +211,9 @@ def create_app():
             "enterprise_admins",
             "vendor_accounts",
             "mobile_refresh_tokens",
+            "social_login_identities",
+            "mobile_social_auth_codes",
+            "password_reset_requests",
             "social_posts",
             "social_comments",
             "social_reactions",
@@ -739,6 +747,9 @@ def create_app():
             "enterprise_admins",
             "vendor_accounts",
             "mobile_refresh_tokens",
+            "social_login_identities",
+            "mobile_social_auth_codes",
+            "password_reset_requests",
             "social_posts",
             "social_comments",
             "social_reactions",

@@ -7,6 +7,8 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
 import hashlib
 from io import BytesIO
+import re
+import requests
 import secrets
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -36,6 +38,8 @@ from .models import (
     InspectionItem,
     InspectionRule,
     MobileRefreshToken,
+    MobileSocialAuthCode,
+    PasswordResetRequest,
     PrivateRentalBooking,
     PrivateRentalSlot,
     RfidTag,
@@ -48,6 +52,7 @@ from .models import (
     SocialPost,
     SocialReaction,
     SocialShare,
+    SocialLoginIdentity,
     SpectatorOrder,
     SpectatorOrderItem,
     SpectatorTicketType,
@@ -72,10 +77,13 @@ from .services.capacity_service import (
     ticket_availability,
 )
 from .services.email_service import (
+    send_admin_login_email,
     send_driver_purchase_receipt,
     send_employee_login_email,
     send_private_rental_confirmation,
     send_spectator_order_receipt,
+    send_user_login_email,
+    send_vendor_login_email,
 )
 from .services.order_service import load_order_rows, summarize_orders
 from .services.payment_service import (
@@ -104,6 +112,11 @@ from .services.rental_service import (
     slot_conflicts_with_slot,
 )
 from .services.storage_service import build_presigned_read_url, upload_public_image
+from .services.social_auth_service import (
+    SocialAuthError,
+    verify_apple_identity_token,
+    verify_google_identity_token,
+)
 from .security import generate_random_password
 
 try:
@@ -117,6 +130,8 @@ ACCESS_TOKEN_SECONDS = 60 * 60
 REFRESH_TOKEN_DAYS = 30
 WEB_HANDOFF_SECONDS = 90
 MOBILE_CHECKOUT_SECONDS = 60 * 60
+MOBILE_SOCIAL_CODE_SECONDS = 2 * 60
+PASSWORD_RESET_THROTTLE_MINUTES = 10
 ACCOUNT_MODELS = {
     "user": User,
     "employee": Employee,
@@ -149,6 +164,12 @@ def _web_serializer():
 def _checkout_serializer():
     return URLSafeTimedSerializer(
         current_app.config["SECRET_KEY"], salt="trackops-mobile-checkout-v1"
+    )
+
+
+def _social_serializer():
+    return URLSafeTimedSerializer(
+        current_app.config["SECRET_KEY"], salt="trackops-mobile-social-v1"
     )
 
 
@@ -228,6 +249,117 @@ def _new_session(account, device_name=None):
         "refresh_token": raw_token,
         "account": _account_payload(account),
     }
+
+
+def _accounts_for_email(email):
+    return [
+        account
+        for account in (
+            EnterpriseAdmin.query.filter_by(email=email).first(),
+            Employee.query.filter_by(email=email).first(),
+            VendorAccount.query.filter_by(email=email).first(),
+            User.query.filter_by(email=email).first(),
+        )
+        if account
+    ]
+
+
+def _social_username(email):
+    stem = re.sub(r"[^a-z0-9_]", "", email.split("@", 1)[0].lower()) or "driver"
+    candidate = stem[:40]
+    suffix = 1
+    while User.query.filter_by(username=candidate).first():
+        suffix += 1
+        candidate = f"{stem[: max(1, 39 - len(str(suffix)))]}{suffix}"
+    return candidate
+
+
+def _social_account(provider, identity, given_name="", family_name=""):
+    linked = SocialLoginIdentity.query.filter_by(
+        provider=provider, subject=identity["subject"]
+    ).first()
+    if linked:
+        account = _account(linked.account_type, linked.account_id)
+        if not account:
+            raise SocialAuthError("The linked Track Ops account no longer exists.")
+        linked.email = identity["email"]
+        linked.last_login_at = datetime.utcnow()
+        return account
+
+    candidates = _accounts_for_email(identity["email"])
+    if len(candidates) > 1:
+        raise SocialAuthError(
+            "This email matches multiple Track Ops accounts. Contact an administrator."
+        )
+    if candidates:
+        account = candidates[0]
+    else:
+        first_name = (given_name or identity["email"].split("@", 1)[0]).strip()[:100]
+        last_name = (family_name or "-").strip()[:100]
+        account = User(
+            first_name=first_name,
+            last_name=last_name,
+            username=_social_username(identity["email"]),
+            email=identity["email"],
+            phone="N/A",
+            driver_class="C",
+            static_qr_code=secrets.token_hex(24),
+            date_of_birth=date(1970, 1, 1),
+            street="N/A",
+            city="N/A",
+            state="N/A",
+            postal_code="N/A",
+            password_hash=generate_password_hash(generate_random_password()),
+            must_change_password=False,
+        )
+        db.session.add(account)
+        db.session.flush()
+
+    db.session.add(
+        SocialLoginIdentity(
+            provider=provider,
+            subject=identity["subject"],
+            account_type=account.account_type,
+            account_id=account.id,
+            email=identity["email"],
+            last_login_at=datetime.utcnow(),
+        )
+    )
+    db.session.flush()
+    return account
+
+
+def _mobile_social_code(account):
+    raw_code = secrets.token_urlsafe(40)
+    db.session.add(
+        MobileSocialAuthCode(
+            token_hash=hashlib.sha256(raw_code.encode()).hexdigest(),
+            account_type=account.account_type,
+            account_id=account.id,
+            expires_at=datetime.utcnow() + timedelta(seconds=MOBILE_SOCIAL_CODE_SECONDS),
+        )
+    )
+    db.session.commit()
+    return raw_code
+
+
+def _mobile_callback_url(endpoint):
+    path = url_for(endpoint)
+    configured_base = (current_app.config.get("APP_BASE_URL") or "").rstrip("/")
+    return f"{configured_base}{path}" if configured_base else url_for(endpoint, _external=True)
+
+
+def _reset_email(account, plaintext_password):
+    login_url = url_for("auth.user_login", _external=True)
+    if account.account_type == "user":
+        return send_user_login_email(account, plaintext_password, login_url, is_reset=True)
+    if account.account_type == "vendor":
+        return send_vendor_login_email(account, plaintext_password, login_url, is_reset=True)
+    if account.account_type == "employee":
+        return send_employee_login_email(
+            account, plaintext_password, account.track, login_url, is_reset=True
+        )
+    return send_admin_login_email(account, plaintext_password, login_url, is_reset=True)
 
 
 def _json_error(message, status=400, code=None):
@@ -747,6 +879,197 @@ def login():
     if not candidates:
         return _json_error("The email or password is incorrect.", 401, "invalid_credentials")
     return jsonify(_new_session(candidates[0], body.get("device_name")))
+
+
+@mobile_api_bp.get("/auth/social/providers")
+def social_providers():
+    return jsonify(
+        {
+            "apple": bool(current_app.config.get("APPLE_SIGN_IN_CLIENT_ID")),
+            "google": bool(
+                current_app.config.get("GOOGLE_OAUTH_CLIENT_ID")
+                and current_app.config.get("GOOGLE_OAUTH_CLIENT_SECRET")
+            ),
+        }
+    )
+
+
+@mobile_api_bp.post("/auth/forgot-password")
+def forgot_password():
+    body = request.get_json(silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    generic_message = (
+        "If that email belongs to a Track Ops account, a temporary password is on its way."
+    )
+    if not email or "@" not in email:
+        return _json_error("Enter a valid email address.", 400, "invalid_email")
+
+    email_hash = hashlib.sha256(email.encode()).hexdigest()
+    cutoff = datetime.utcnow() - timedelta(minutes=PASSWORD_RESET_THROTTLE_MINUTES)
+    recent = (
+        PasswordResetRequest.query.filter(
+            PasswordResetRequest.email_hash == email_hash,
+            PasswordResetRequest.requested_at >= cutoff,
+        )
+        .order_by(PasswordResetRequest.requested_at.desc())
+        .first()
+    )
+    if recent:
+        return jsonify({"message": generic_message})
+
+    reset_request = PasswordResetRequest(email_hash=email_hash)
+    db.session.add(reset_request)
+    db.session.commit()
+    candidates = _accounts_for_email(email)
+    if len(candidates) != 1:
+        return jsonify({"message": generic_message})
+
+    account = candidates[0]
+    plaintext_password = generate_random_password()
+    try:
+        sent = _reset_email(account, plaintext_password)
+    except Exception:
+        current_app.logger.exception("Could not deliver a mobile password reset email")
+        sent = False
+    if sent:
+        account.password_hash = generate_password_hash(plaintext_password)
+        account.must_change_password = True
+        MobileRefreshToken.query.filter_by(
+            account_type=account.account_type,
+            account_id=account.id,
+            revoked_at=None,
+        ).update({"revoked_at": datetime.utcnow()})
+        reset_request.delivered = True
+        db.session.commit()
+    return jsonify({"message": generic_message})
+
+
+@mobile_api_bp.post("/auth/social/apple")
+def social_apple():
+    body = request.get_json(silent=True) or {}
+    raw_token = (body.get("identity_token") or "").strip()
+    if not raw_token:
+        return _json_error("Apple did not return an identity token.", 400, "missing_identity_token")
+    try:
+        identity = verify_apple_identity_token(
+            raw_token, current_app.config["APPLE_SIGN_IN_CLIENT_ID"]
+        )
+        account = _social_account(
+            "apple",
+            identity,
+            body.get("given_name") or "",
+            body.get("family_name") or "",
+        )
+        return jsonify(_new_session(account, body.get("device_name")))
+    except SocialAuthError as exc:
+        db.session.rollback()
+        return _json_error(str(exc), 401, "social_sign_in_failed")
+    except IntegrityError:
+        db.session.rollback()
+        return _json_error(
+            "That social account could not be linked. Try again.", 409, "social_link_conflict"
+        )
+
+
+@mobile_api_bp.get("/auth/social/google/start")
+def social_google_start():
+    client_id = current_app.config.get("GOOGLE_OAUTH_CLIENT_ID") or ""
+    client_secret = current_app.config.get("GOOGLE_OAUTH_CLIENT_SECRET") or ""
+    app_redirect = (request.args.get("app_redirect") or "").strip()
+    if not client_id or not client_secret:
+        return _json_error("Google sign-in is not configured yet.", 503, "provider_unavailable")
+    if app_redirect != "trackops://auth/callback":
+        return _json_error("The app callback is invalid.", 400, "invalid_callback")
+    state = _social_serializer().dumps(
+        {"app_redirect": app_redirect, "nonce": secrets.token_urlsafe(24)}
+    )
+    callback_url = _mobile_callback_url("mobile_api.social_google_callback")
+    authorization_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(
+        {
+            "client_id": client_id,
+            "redirect_uri": callback_url,
+            "response_type": "code",
+            "scope": "openid email profile",
+            "state": state,
+            "prompt": "select_account",
+        }
+    )
+    return jsonify({"url": authorization_url, "redirect_uri": app_redirect})
+
+
+@mobile_api_bp.get("/auth/social/google/callback")
+def social_google_callback():
+    state = request.args.get("state") or ""
+    try:
+        state_payload = _social_serializer().loads(state, max_age=10 * 60)
+    except (SignatureExpired, BadSignature):
+        return _json_error("The Google sign-in request expired.", 400, "expired_social_login")
+    app_redirect = state_payload.get("app_redirect")
+    if app_redirect != "trackops://auth/callback":
+        return _json_error("The app callback is invalid.", 400, "invalid_callback")
+
+    def return_to_app(**values):
+        return redirect(f"{app_redirect}?{urlencode(values)}")
+
+    if request.args.get("error"):
+        return return_to_app(error="Google sign-in was canceled.")
+    code = request.args.get("code") or ""
+    if not code:
+        return return_to_app(error="Google did not return an authorization code.")
+    try:
+        token_response = requests.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": current_app.config["GOOGLE_OAUTH_CLIENT_ID"],
+                "client_secret": current_app.config["GOOGLE_OAUTH_CLIENT_SECRET"],
+                "redirect_uri": _mobile_callback_url("mobile_api.social_google_callback"),
+                "grant_type": "authorization_code",
+            },
+            timeout=10,
+        )
+        token_response.raise_for_status()
+        raw_identity_token = token_response.json().get("id_token") or ""
+        identity = verify_google_identity_token(
+            raw_identity_token, current_app.config["GOOGLE_OAUTH_CLIENT_ID"]
+        )
+        account = _social_account(
+            "google",
+            identity,
+            identity.get("given_name") or "",
+            identity.get("family_name") or "",
+        )
+        return return_to_app(code=_mobile_social_code(account))
+    except (requests.RequestException, ValueError, SocialAuthError):
+        db.session.rollback()
+        current_app.logger.exception("Google mobile sign-in failed")
+        return return_to_app(error="Google sign-in could not be completed.")
+    except IntegrityError:
+        db.session.rollback()
+        return return_to_app(error="That Google account could not be linked.")
+
+
+@mobile_api_bp.post("/auth/social/exchange")
+def social_exchange():
+    body = request.get_json(silent=True) or {}
+    raw_code = (body.get("code") or "").strip()
+    code_hash = hashlib.sha256(raw_code.encode()).hexdigest()
+    auth_code = MobileSocialAuthCode.query.filter_by(token_hash=code_hash).first()
+    now = datetime.utcnow()
+    if not auth_code or auth_code.redeemed_at or auth_code.expires_at <= now:
+        return _json_error("The social sign-in code expired.", 401, "invalid_social_code")
+    account = _account(auth_code.account_type, auth_code.account_id)
+    if not account:
+        return _json_error("The linked Track Ops account no longer exists.", 401, "invalid_account")
+    claimed = MobileSocialAuthCode.query.filter(
+        MobileSocialAuthCode.id == auth_code.id,
+        MobileSocialAuthCode.redeemed_at.is_(None),
+        MobileSocialAuthCode.expires_at > now,
+    ).update({"redeemed_at": now}, synchronize_session=False)
+    if claimed != 1:
+        db.session.rollback()
+        return _json_error("The social sign-in code expired.", 401, "invalid_social_code")
+    return jsonify(_new_session(account, body.get("device_name")))
 
 
 @mobile_api_bp.post("/auth/refresh")

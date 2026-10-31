@@ -12,6 +12,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShadowVisible: false, headerBackTitle: 'Back' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
           <Stack.Screen name="change-password" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="event/[id]" options={{ title: 'Event details' }} />
