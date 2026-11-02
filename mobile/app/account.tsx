@@ -12,6 +12,7 @@ export default function AccountScreen() {
   const [next, setNext] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const website = (process.env.EXPO_PUBLIC_API_URL || 'https://carbook.root-dynamics.com').replace(/\/$/, '');
 
@@ -29,6 +30,18 @@ export default function AccountScreen() {
       setMessage(caught instanceof Error ? caught.message : 'Unable to update password.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    setMessage('');
+    try {
+      await signOut();
+      router.replace('/login');
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : 'Unable to sign out.');
+      setSigningOut(false);
     }
   };
 
@@ -91,7 +104,7 @@ export default function AccountScreen() {
         ['Support', '/support'],
       ].map(([label, path]) => <Pressable key={path} accessibilityRole="link" onPress={() => Linking.openURL(`${website}${path}`)} style={styles.linkRow}><Text style={styles.linkText}>{label}</Text><Text style={styles.linkArrow}>›</Text></Pressable>)}
     </Card>
-    <Button tone="secondary" title="Sign out" onPress={signOut} />
+    <Button tone="secondary" title={signingOut ? 'Signing out…' : 'Sign out'} onPress={handleSignOut} disabled={signingOut} />
     <Card style={styles.dangerCard}>
       <View><Text style={styles.dangerTitle}>Delete account</Text><Text style={ui.body}>Permanently remove your account and Community data from Track Ops.</Text></View>
       <Button tone="danger" title={deleting ? 'Deleting account…' : 'Delete account'} onPress={confirmDeletion} disabled={deleting} />
