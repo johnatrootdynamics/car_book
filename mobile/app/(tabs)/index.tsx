@@ -47,7 +47,7 @@ function DriverDashboard({ name, data, onShowSocial }: { name: string; data: Dri
   const nextEvent = data.upcoming_events[0];
   const firstName = name.trim().split(/\s+/)[0] || 'Driver';
   const greetingName = `${firstName.charAt(0).toUpperCase()}${firstName.slice(1)}`;
-  return <Screen showBrand>
+  return <Screen>
     <DriverSpaceSwitch active="track" onChange={space => space === 'social' && onShowSocial()} />
     <View style={styles.driverHero}>
       <Text style={styles.driverEyebrow}>DRIVER DASHBOARD</Text>
