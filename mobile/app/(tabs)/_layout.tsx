@@ -13,7 +13,8 @@ export default function TabLayout() {
     <Tabs.Screen name="index" options={{ title: driver ? 'Track' : 'Home', tabBarIcon: ({ color }) => <Icon name={driver ? 'flag.checkered' : 'house.fill'} color={color} /> }} />
     <Tabs.Screen name="events" options={{ title: 'Events', href: driver || account.type === 'employee' ? undefined : null, tabBarIcon: ({ color }) => <Icon name="calendar" color={color} /> }} />
     <Tabs.Screen name="tickets" options={{ title: 'Tickets', href: driver ? undefined : null, tabBarIcon: ({ color }) => <Icon name="ticket.fill" color={color} /> }} />
-    <Tabs.Screen name="garage" options={{ title: 'Garage', href: driver ? undefined : null, tabBarIcon: ({ color }) => <Icon name="car.fill" color={color} /> }} />
+    <Tabs.Screen name="runs" options={{ title: 'Runs', href: driver ? undefined : null, tabBarIcon: ({ color }) => <Icon name="play.rectangle.fill" color={color} /> }} />
+    <Tabs.Screen name="garage" options={{ title: 'Garage', href: null, tabBarIcon: ({ color }) => <Icon name="car.fill" color={color} /> }} />
     <Tabs.Screen name="scanner" options={{ title: 'Scanner', href: null, tabBarIcon: ({ color }) => <Icon name="qrcode.viewfinder" color={color} /> }} />
     <Tabs.Screen name="community" options={{ title: 'Social', href: null, tabBarIcon: ({ color }) => <Icon name="person.2.fill" color={color} /> }} />
     <Tabs.Screen name="profile" options={{ title: 'Profile', href: driver || account.type === 'employee' ? null : undefined, tabBarIcon: ({ color }) => <Icon name="person.crop.circle.fill" color={color} /> }} />

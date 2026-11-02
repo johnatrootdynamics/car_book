@@ -17,6 +17,7 @@ from flask_login import login_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from urllib.parse import urlencode, urlsplit
 from werkzeug.datastructures import FileStorage
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -67,6 +68,7 @@ from .models import (
     TrackWaiverTemplate,
     TrackLayout,
     TrackRun,
+    TrackRunParticipant,
     TrackSubscription,
     User,
     UserBlock,
@@ -709,6 +711,57 @@ def _car_payload(car):
         "color": car.color,
         "label": f"{car.car_year} {car.make} {car.model}",
         "image_url": car.image_url,
+    }
+
+
+def _driver_run_payload(run, user_id, shared_run_ids=None):
+    """Serialize a completed run for one of its participating drivers."""
+    driver_participant = next(
+        (participant for participant in run.participants if participant.driver_id == user_id),
+        None,
+    )
+    duration_seconds = None
+    if run.ended_at and run.started_at:
+        duration_seconds = max(0, int((run.ended_at - run.started_at).total_seconds()))
+    return {
+        "id": run.id,
+        "status": run.status,
+        "started_at": _iso(run.started_at),
+        "ended_at": _iso(run.ended_at),
+        "duration_seconds": duration_seconds,
+        "event": _event_payload(run.event) if run.event else None,
+        "track": {
+            "id": run.track.id,
+            "name": run.track.name,
+            "location": ", ".join(
+                part for part in (run.track.city, run.track.state) if part
+            ),
+        },
+        "car": _car_payload(driver_participant.car) if driver_participant else None,
+        "entered_at": _iso(driver_participant.entered_at) if driver_participant else None,
+        "exited_at": _iso(driver_participant.exited_at) if driver_participant else None,
+        "participants": [
+            {
+                "driver": _community_user_payload(participant.driver),
+                "car": _car_payload(participant.car),
+                "entered_at": _iso(participant.entered_at),
+                "exited_at": _iso(participant.exited_at),
+            }
+            for participant in run.participants
+        ],
+        "videos": [
+            {
+                "id": video.id,
+                "name": video.source_name,
+                "status": video.status,
+                "url": _mobile_asset_url(video.object_key)
+                if video.status == "ready" and video.object_key
+                else None,
+                "uploaded_at": _iso(video.uploaded_at),
+            }
+            for video in run.videos
+        ],
+        "shared": run.id in (shared_run_ids or set()),
     }
 
 
@@ -1492,6 +1545,131 @@ def driver_dashboard():
             "garage": [_car_payload(car) for car in cars],
         }
     )
+
+
+@mobile_api_bp.get("/driver/runs")
+@mobile_login_required("user")
+def driver_runs():
+    user = g.mobile_user
+    runs = (
+        TrackRun.query.options(
+            selectinload(TrackRun.participants).selectinload(TrackRunParticipant.car),
+            selectinload(TrackRun.participants).selectinload(TrackRunParticipant.driver),
+            selectinload(TrackRun.videos),
+            selectinload(TrackRun.event),
+            selectinload(TrackRun.track),
+        )
+        .join(TrackRunParticipant, TrackRunParticipant.run_id == TrackRun.id)
+        .filter(
+            TrackRunParticipant.driver_id == user.id,
+            TrackRun.status == "completed",
+        )
+        .order_by(TrackRun.started_at.desc(), TrackRun.id.desc())
+        .limit(250)
+        .all()
+    )
+    run_ids = [run.id for run in runs]
+    shared_run_ids = {
+        run_id
+        for (run_id,) in db.session.query(SocialPost.track_run_id)
+        .filter(
+            SocialPost.user_id == user.id,
+            SocialPost.track_run_id.in_(run_ids or {-1}),
+        )
+        .all()
+    }
+    return jsonify(
+        {
+            "runs": [
+                _driver_run_payload(run, user.id, shared_run_ids) for run in runs
+            ]
+        }
+    )
+
+
+def _driver_run_for_user(run_id, user_id):
+    return (
+        TrackRun.query.options(
+            selectinload(TrackRun.participants).selectinload(TrackRunParticipant.car),
+            selectinload(TrackRun.participants).selectinload(TrackRunParticipant.driver),
+            selectinload(TrackRun.videos),
+            selectinload(TrackRun.event),
+            selectinload(TrackRun.track),
+        )
+        .join(TrackRunParticipant, TrackRunParticipant.run_id == TrackRun.id)
+        .filter(
+            TrackRun.id == run_id,
+            TrackRun.status == "completed",
+            TrackRunParticipant.driver_id == user_id,
+        )
+        .first()
+    )
+
+
+@mobile_api_bp.get("/driver/runs/<int:run_id>")
+@mobile_login_required("user")
+def driver_run_detail(run_id):
+    user = g.mobile_user
+    run = _driver_run_for_user(run_id, user.id)
+    if not run:
+        return _json_error("Run not found.", 404, "run_not_found")
+    shared = SocialPost.query.filter_by(user_id=user.id, track_run_id=run.id).first()
+    return jsonify(
+        {
+            "run": _driver_run_payload(
+                run, user.id, {run.id} if shared else set()
+            )
+        }
+    )
+
+
+@mobile_api_bp.post("/driver/runs/<int:run_id>/share")
+@mobile_login_required("user")
+def driver_run_share(run_id):
+    user = g.mobile_user
+    run = _driver_run_for_user(run_id, user.id)
+    if not run:
+        return _json_error("Run not found.", 404, "run_not_found")
+    existing = SocialPost.query.filter_by(user_id=user.id, track_run_id=run.id).first()
+    if existing:
+        return jsonify(
+            {
+                "message": "This run is already on your feed.",
+                "post_id": existing.id,
+                "shared": True,
+            }
+        )
+    event_name = run.event.event_name if run.event else "Track session"
+    post = SocialPost(
+        user_id=user.id,
+        event_id=run.event_id,
+        track_run_id=run.id,
+        post_type="run_share",
+        title="Shared a run",
+        body=f"{event_name} at {run.track.name}",
+    )
+    db.session.add(post)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        existing = SocialPost.query.filter_by(
+            user_id=user.id, track_run_id=run.id
+        ).first()
+        return jsonify(
+            {
+                "message": "This run is already on your feed.",
+                "post_id": existing.id if existing else None,
+                "shared": True,
+            }
+        )
+    return jsonify(
+        {
+            "message": "Run shared to your feed.",
+            "post_id": post.id,
+            "shared": True,
+        }
+    ), 201
 
 
 @mobile_api_bp.get("/driver/community")

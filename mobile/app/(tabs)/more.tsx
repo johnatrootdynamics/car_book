@@ -16,6 +16,7 @@ type Destination = {
 };
 
 const driverTools: Destination[] = [
+  { title: 'Your garage', detail: 'Add and manage the cars you bring to the track', route: '/(tabs)/garage', symbol: 'car.fill' },
   { title: 'Event tickets', detail: 'Shop driver and spectator admission', path: '/user/spectator/events', symbol: 'ticket.fill' },
   { title: 'Private rentals', detail: 'Find and manage private track days', path: '/user/private-rentals', symbol: 'calendar.badge.plus' },
   { title: 'RFID tags', detail: 'Order, activate, and manage vehicle tags', route: '/rfid', symbol: 'wave.3.right' },

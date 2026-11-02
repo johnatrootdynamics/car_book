@@ -42,3 +42,40 @@ export type Car = {
   label: string;
   image_url?: string | null;
 };
+
+export type RunParticipant = {
+  driver: {
+    id: number;
+    username: string;
+    name: string;
+    initials: string;
+    image_url?: string | null;
+  };
+  car: Car;
+  entered_at: string;
+  exited_at?: string | null;
+};
+
+export type RunVideo = {
+  id: number;
+  name: string;
+  status: string;
+  url?: string | null;
+  uploaded_at?: string | null;
+};
+
+export type DriverRun = {
+  id: number;
+  status: string;
+  started_at: string;
+  ended_at?: string | null;
+  duration_seconds?: number | null;
+  event?: TrackEvent | null;
+  track: { id: number; name: string; location: string };
+  car?: Car | null;
+  entered_at?: string | null;
+  exited_at?: string | null;
+  participants: RunParticipant[];
+  videos: RunVideo[];
+  shared: boolean;
+};

@@ -1,16 +1,23 @@
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
 from racetrack.mobile_api import mobile_api_bp
 from racetrack.models import (
+    CameraDevice,
+    Car,
     CommunityReport,
     DriverConnection,
     Employee,
     EnterpriseAdmin,
+    Event,
+    SocialPost,
     Track,
+    TrackRun,
+    TrackRunParticipant,
+    TrackRunVideo,
     User,
     UserBlock,
     VendorAccount,
@@ -142,6 +149,124 @@ class AppReviewSafetyTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json()["error"], "content_not_allowed")
+
+    def test_driver_run_history_is_private_and_can_be_shared_once(self):
+        with self.app.app_context():
+            track = Track(name="Run History Track", city="Austin", state="TX")
+            event = Event(
+                track=track,
+                event_name="Recorded Track Day",
+                event_date=date(2026, 8, 22),
+            )
+            alex_car = Car(
+                user_id=self.alex_id,
+                make="Mazda",
+                model="MX-5",
+                car_year=2024,
+                color="Red",
+            )
+            blair_car = Car(
+                user_id=self.blair_id,
+                make="Porsche",
+                model="Cayman",
+                car_year=2023,
+                color="Blue",
+            )
+            db.session.add_all((track, event, alex_car, blair_car))
+            db.session.flush()
+            started = datetime(2026, 8, 22, 14, 30)
+            alex_run = TrackRun(
+                track_id=track.id,
+                event_id=event.id,
+                status="completed",
+                started_at=started,
+                ended_at=started + timedelta(minutes=8, seconds=12),
+            )
+            blair_run = TrackRun(
+                track_id=track.id,
+                event_id=event.id,
+                status="completed",
+                started_at=started + timedelta(hours=1),
+                ended_at=started + timedelta(hours=1, minutes=7),
+            )
+            db.session.add_all((alex_run, blair_run))
+            db.session.flush()
+            camera = CameraDevice(
+                device_uuid="test-run-camera",
+                track_id=track.id,
+                name="Front straight",
+                status="active",
+            )
+            db.session.add(camera)
+            db.session.flush()
+            db.session.add_all(
+                (
+                    TrackRunParticipant(
+                        run_id=alex_run.id,
+                        car_id=alex_car.id,
+                        driver_id=self.alex_id,
+                        entered_at=started,
+                        exited_at=alex_run.ended_at,
+                    ),
+                    TrackRunParticipant(
+                        run_id=blair_run.id,
+                        car_id=blair_car.id,
+                        driver_id=self.blair_id,
+                        entered_at=blair_run.started_at,
+                        exited_at=blair_run.ended_at,
+                    ),
+                    TrackRunVideo(
+                        run_id=alex_run.id,
+                        camera_id=camera.id,
+                        source_key="front",
+                        source_name="Front straight",
+                        status="ready",
+                        object_key="https://cdn.example.test/runs/alex.mp4",
+                        uploaded_at=alex_run.ended_at,
+                    ),
+                )
+            )
+            db.session.commit()
+            alex_run_id = alex_run.id
+            blair_run_id = blair_run.id
+
+        token = self._token("alex@example.test")
+        headers = self._headers(token)
+        history = self.client.get("/api/v1/mobile/driver/runs", headers=headers)
+        self.assertEqual(history.status_code, 200)
+        runs = history.get_json()["runs"]
+        self.assertEqual([run["id"] for run in runs], [alex_run_id])
+        self.assertEqual(runs[0]["duration_seconds"], 492)
+        self.assertEqual(runs[0]["car"]["label"], "2024 Mazda MX-5")
+        self.assertEqual(
+            runs[0]["videos"][0]["url"],
+            "https://cdn.example.test/runs/alex.mp4",
+        )
+
+        detail = self.client.get(
+            f"/api/v1/mobile/driver/runs/{alex_run_id}", headers=headers
+        )
+        self.assertEqual(detail.status_code, 200)
+        forbidden = self.client.get(
+            f"/api/v1/mobile/driver/runs/{blair_run_id}", headers=headers
+        )
+        self.assertEqual(forbidden.status_code, 404)
+
+        shared = self.client.post(
+            f"/api/v1/mobile/driver/runs/{alex_run_id}/share", headers=headers
+        )
+        self.assertEqual(shared.status_code, 201)
+        shared_again = self.client.post(
+            f"/api/v1/mobile/driver/runs/{alex_run_id}/share", headers=headers
+        )
+        self.assertEqual(shared_again.status_code, 200)
+        with self.app.app_context():
+            self.assertEqual(
+                SocialPost.query.filter_by(
+                    user_id=self.alex_id, track_run_id=alex_run_id
+                ).count(),
+                1,
+            )
 
     def test_account_deletion_revokes_access_and_anonymizes_profile(self):
         token = self._token("alex@example.test")
