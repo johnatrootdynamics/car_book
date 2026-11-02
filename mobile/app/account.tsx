@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Field, Hero, Screen, ui } from '@/components/ui';
@@ -14,6 +14,8 @@ export default function AccountScreen() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const website = (process.env.EXPO_PUBLIC_API_URL || 'https://carbook.root-dynamics.com').replace(/\/$/, '');
+
+  const goBack = () => router.replace('/(tabs)/more');
 
   const save = async () => {
     setSaving(true);
@@ -54,6 +56,18 @@ export default function AccountScreen() {
   );
 
   return <Screen>
+    <Stack.Screen options={{
+      headerLeft: () => <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back to More"
+        hitSlop={10}
+        onPress={goBack}
+        style={({ pressed }) => [styles.headerBack, pressed && styles.headerBackPressed]}
+      >
+        <Text style={styles.headerBackArrow}>‹</Text>
+        <Text style={styles.headerBackText}>More</Text>
+      </Pressable>,
+    }} />
     <Hero eyebrow="Account" title={account?.name || 'Profile'} subtitle={account?.email} />
     <Card>
       <Text style={ui.title}>Account details</Text>
@@ -86,6 +100,10 @@ export default function AccountScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerBack: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 12 },
+  headerBackPressed: { opacity: 0.55 },
+  headerBackArrow: { color: palette.accent, fontSize: 31, lineHeight: 33, fontWeight: '500' },
+  headerBackText: { color: palette.accent, fontSize: 16, fontWeight: '800' },
   form: { gap: 13 },
   line: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: palette.line, paddingTop: 12, marginTop: 12 },
   value: { color: palette.ink, fontWeight: '800', textTransform: 'capitalize' },

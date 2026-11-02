@@ -34,7 +34,7 @@ const staffOffice: Destination[] = [
 ];
 
 const staffAccount: Destination[] = [
-  { title: 'Profile & security', detail: 'Account details, password, and sign out', route: '/(tabs)/profile', symbol: 'person.crop.circle.fill' },
+  { title: 'Profile & security', detail: 'Account details, password, and sign out', route: '/account', symbol: 'person.crop.circle.fill' },
 ];
 
 const vendorTools: Destination[] = [
