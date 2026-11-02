@@ -94,9 +94,9 @@ function initials(value: string) {
 }
 
 const styles = StyleSheet.create({
-  segment: { flexDirection: 'row', backgroundColor: '#EAECF0', borderRadius: 14, padding: 4 },
+  segment: { flexDirection: 'row', backgroundColor: palette.surfaceRaised, borderRadius: 14, padding: 4 },
   segmentButton: { flex: 1, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 11 },
-  segmentActive: { backgroundColor: 'white' },
+  segmentActive: { backgroundColor: palette.surface },
   segmentText: { color: palette.muted, fontWeight: '800' },
   segmentTextActive: { color: palette.ink },
   search: { position: 'relative' },
@@ -104,12 +104,12 @@ const styles = StyleSheet.create({
   searching: { position: 'absolute', right: 14, top: 18, color: palette.muted, fontSize: 12, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   avatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: palette.navy, alignItems: 'center', justifyContent: 'center' },
-  vendorAvatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: palette.orange, alignItems: 'center', justifyContent: 'center' },
+  vendorAvatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: palette.primary, alignItems: 'center', justifyContent: 'center' },
   initials: { color: 'white', fontWeight: '900', fontSize: 15 },
   copy: { flex: 1, gap: 3 },
   name: { color: palette.ink, fontSize: 16, fontWeight: '900', flexShrink: 1 },
-  classPill: { color: '#C2410C', fontSize: 11, fontWeight: '900', backgroundColor: palette.orangeSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  classPill: { color: palette.accent, fontSize: 11, fontWeight: '900', backgroundColor: palette.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
   meta: { color: palette.muted, fontSize: 12, lineHeight: 17 },
-  arrow: { color: palette.orange, fontSize: 28 },
+  arrow: { color: palette.accent, fontSize: 28 },
   error: { color: palette.red, fontWeight: '800' },
 });

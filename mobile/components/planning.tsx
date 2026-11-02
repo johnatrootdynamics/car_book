@@ -35,12 +35,12 @@ export function NativeDateTimeField({
       <Text style={styles.chevron}>›</Text>
     </Pressable>
     {optional && value ? <Pressable onPress={() => onChange(null)} style={styles.clearButton}><Text style={styles.clearText}>Clear time</Text></Pressable> : null}
-    {open && Platform.OS !== 'ios' ? <DateTimePicker value={selected} mode={mode} minuteInterval={mode === 'time' ? 30 : undefined} minimumDate={minimumDate} onValueChange={update} onDismiss={() => setOpen(false)} /> : null}
+    {open && Platform.OS !== 'ios' ? <DateTimePicker themeVariant="dark" value={selected} mode={mode} minuteInterval={mode === 'time' ? 30 : undefined} minimumDate={minimumDate} onValueChange={update} onDismiss={() => setOpen(false)} /> : null}
     {Platform.OS === 'ios' ? <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
       <Pressable style={styles.modalShade} onPress={() => setOpen(false)}>
         <Pressable style={styles.modalCard} onPress={event => event.stopPropagation()}>
           <View style={styles.modalHead}><Text style={styles.modalTitle}>{label}</Text><Pressable onPress={() => setOpen(false)}><Text style={styles.done}>Done</Text></Pressable></View>
-          <DateTimePicker value={selected} mode={mode} display={mode === 'date' ? 'inline' : 'spinner'} minuteInterval={mode === 'time' ? 30 : undefined} minimumDate={minimumDate} accentColor={palette.orange} onValueChange={update} onDismiss={() => setOpen(false)} />
+          <DateTimePicker themeVariant="dark" value={selected} mode={mode} display={mode === 'date' ? 'inline' : 'spinner'} minuteInterval={mode === 'time' ? 30 : undefined} minimumDate={minimumDate} accentColor={palette.accent} onValueChange={update} onDismiss={() => setOpen(false)} />
           <Button title="Use this selection" onPress={() => setOpen(false)} />
         </Pressable>
       </Pressable>
@@ -67,8 +67,8 @@ function displayValue(value: Date, mode: PickerMode) {
 
 const styles = StyleSheet.create({
   fieldGroup: { gap: 7 }, labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, label: { color: palette.ink, fontSize: 13, fontWeight: '800' }, optional: { color: palette.muted, fontSize: 11, fontWeight: '700' },
-  pickerButton: { minHeight: 52, borderRadius: 13, borderWidth: 1, borderColor: '#D0D5DD', backgroundColor: 'white', paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, pickerValue: { color: palette.ink, fontSize: 15, fontWeight: '700', flex: 1 }, placeholder: { color: '#98A2B3', fontWeight: '500' }, chevron: { color: palette.orange, fontSize: 25, marginLeft: 10 },
-  clearButton: { alignSelf: 'flex-start', paddingVertical: 2 }, clearText: { color: palette.orange, fontSize: 12, fontWeight: '800' }, pressed: { opacity: .65 },
-  modalShade: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15, 23, 42, .42)' }, modalCard: { backgroundColor: palette.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 34, gap: 12 }, modalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, modalTitle: { color: palette.ink, fontSize: 19, fontWeight: '900' }, done: { color: palette.orange, fontWeight: '900' },
-  chip: { minHeight: 40, borderRadius: 999, borderWidth: 1, borderColor: palette.line, backgroundColor: 'white', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' }, chipSelected: { borderColor: palette.orange, backgroundColor: palette.orangeSoft }, chipText: { color: palette.muted, fontSize: 13, fontWeight: '800' }, chipTextSelected: { color: '#C2410C' },
+  pickerButton: { minHeight: 52, borderRadius: 13, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, pickerValue: { color: palette.ink, fontSize: 15, fontWeight: '700', flex: 1 }, placeholder: { color: '#98A2B3', fontWeight: '500' }, chevron: { color: palette.accent, fontSize: 25, marginLeft: 10 },
+  clearButton: { alignSelf: 'flex-start', paddingVertical: 2 }, clearText: { color: palette.accent, fontSize: 12, fontWeight: '800' }, pressed: { opacity: .65 },
+  modalShade: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15, 23, 42, .42)' }, modalCard: { backgroundColor: palette.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 34, gap: 12 }, modalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, modalTitle: { color: palette.ink, fontSize: 19, fontWeight: '900' }, done: { color: palette.accent, fontWeight: '900' },
+  chip: { minHeight: 40, borderRadius: 999, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' }, chipSelected: { borderColor: palette.accent, backgroundColor: palette.accentSoft }, chipText: { color: palette.muted, fontSize: 13, fontWeight: '800' }, chipTextSelected: { color: palette.accent },
 });

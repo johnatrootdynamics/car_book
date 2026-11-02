@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   statValue: { color: palette.ink, fontSize: 23, fontWeight: '900' },
   statLabel: { color: palette.muted, fontSize: 11, fontWeight: '700' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minWidth: 48, minHeight: 42, paddingHorizontal: 14, borderRadius: 13, borderWidth: 1, borderColor: palette.line, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' },
+  chip: { minWidth: 48, minHeight: 42, paddingHorizontal: 14, borderRadius: 13, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, alignItems: 'center', justifyContent: 'center' },
   chipActive: { backgroundColor: palette.navy, borderColor: palette.navy },
   chipText: { color: palette.ink, fontWeight: '900' },
   chipTextActive: { color: 'white' },

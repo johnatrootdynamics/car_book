@@ -51,10 +51,12 @@ from .models import (
     TrackRunVote,
     TrackWaiverTemplate,
     User,
+    UserBlock,
     VendorAccount,
     db,
 )
 from .services.storage_service import upload_public_image
+from .services.community_moderation import community_text_error
 from .services.email_service import send_driver_purchase_receipt, send_private_rental_confirmation, send_spectator_order_receipt
 from .services.capacity_service import (
     driver_already_has_ticket,
@@ -2930,9 +2932,27 @@ def community():
     guard = require_user()
     if guard:
         return guard
+    if current_user.community_suspended_at:
+        flash(
+            "Community access has been restricted. Contact support if you believe this is a mistake.",
+            "error",
+        )
+        return redirect(url_for("user.dashboard"))
     community_view = (request.args.get("view") or "all").strip().lower()
     if community_view not in {"all", "mine", "track", "builds"}:
         community_view = "all"
+    block_rows = UserBlock.query.filter(
+        or_(
+            UserBlock.blocker_user_id == current_user.id,
+            UserBlock.blocked_user_id == current_user.id,
+        )
+    ).all()
+    blocked_user_ids = {
+        row.blocked_user_id
+        if row.blocker_user_id == current_user.id
+        else row.blocker_user_id
+        for row in block_rows
+    }
     connection_rows = (
         DriverConnection.query.filter(
             or_(
@@ -2943,6 +2963,13 @@ def community():
         .order_by(DriverConnection.updated_at.desc())
         .all()
     )
+    connection_rows = [
+        row
+        for row in connection_rows
+        if (
+            row.user_two_id if row.user_one_id == current_user.id else row.user_one_id
+        ) not in blocked_user_ids
+    ]
     connection_counterpart_ids = {
         row.user_two_id if row.user_one_id == current_user.id else row.user_one_id
         for row in connection_rows
@@ -2956,7 +2983,8 @@ def community():
     circle_users = {
         user.id: user
         for user in User.query.filter(
-            User.id.in_(circle_user_ids | connection_counterpart_ids)
+            User.id.in_(circle_user_ids | connection_counterpart_ids),
+            User.deleted_at.is_(None),
         ).all()
     }
     connections = [
@@ -3065,6 +3093,8 @@ def community():
             User.query.filter(
                 User.username.ilike(f"%{people_query}%"),
                 User.id.notin_(connected_or_pending_ids | {current_user.id}),
+                User.id.notin_(blocked_user_ids or {-1}),
+                User.deleted_at.is_(None),
             )
             .order_by(User.username.asc())
             .limit(6)
@@ -3074,7 +3104,12 @@ def community():
             {"user": user, "reason": "Username match"} for user in suggestion_users
         ]
     else:
-        suggestion_ids = set(suggestion_reasons) - connected_or_pending_ids - {current_user.id}
+        suggestion_ids = (
+            set(suggestion_reasons)
+            - connected_or_pending_ids
+            - blocked_user_ids
+            - {current_user.id}
+        )
         suggestion_users = (
             User.query.filter(User.id.in_(suggestion_ids))
             .order_by(User.username.asc(), User.first_name.asc())
@@ -3118,6 +3153,16 @@ def community_connection_request(user_id):
     other_user = User.query.get_or_404(user_id)
     if other_user.id == current_user.id:
         flash("You cannot connect with yourself.", "error")
+        return redirect(url_for("user.community"))
+    if UserBlock.query.filter(
+        or_(
+            (UserBlock.blocker_user_id == current_user.id)
+            & (UserBlock.blocked_user_id == other_user.id),
+            (UserBlock.blocker_user_id == other_user.id)
+            & (UserBlock.blocked_user_id == current_user.id),
+        )
+    ).first():
+        flash("This driver is not available for connections.", "error")
         return redirect(url_for("user.community"))
     user_one_id, user_two_id = _driver_connection_pair(current_user.id, other_user.id)
     existing = DriverConnection.query.filter_by(
@@ -3199,6 +3244,8 @@ def community_post_create():
         flash("Write something or add a photo before posting.", "error")
     elif len(body) > 600:
         flash("Community posts must be 600 characters or fewer.", "error")
+    elif community_text_error(body):
+        flash(community_text_error(body), "error")
     else:
         image_url = None
         if has_upload:
@@ -3576,6 +3623,10 @@ def add_comment(post_id):
             return "Post not found", 404
     form = SocialCommentForm()
     if form.validate_on_submit():
+        moderation_error = community_text_error(form.body.data)
+        if moderation_error:
+            flash(moderation_error, "error")
+            return redirect(url_for("user.community"))
         comment = SocialComment(
             post_id=post.id,
             user_id=current_user.id,

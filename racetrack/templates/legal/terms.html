@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body_class %}legal-public-page{% endblock %}
+{% block content %}
+<article class="legal-document card">
+  <header><span class="event-page-kicker">Track Ops</span><h1>Terms of Use</h1><p>Effective November 1, 2026</p></header>
+  <section><h2>Using the service</h2><p>You must provide accurate account and event information, protect your login credentials, and use Track Ops only for lawful track, event, ticketing, vendor, and community activity. You are responsible for activity performed through your account.</p></section>
+  <section><h2>Events, tickets, and payments</h2><p>Tracks control their event schedules, availability, pricing, admission, inspections, waivers, refund policies, and onsite rules. Ticket and RFID purchases cover real-world goods or services and are processed by the payment provider configured for that transaction. A ticket is valid only after payment is confirmed and may be used once unless the event states otherwise.</p></section>
+  <section><h2>Safety</h2><p>Motorsports involve risk. Track Ops does not replace track instructions, safety equipment, inspections, waivers, qualified supervision, or good judgment. Follow all venue, event, and official instructions.</p></section>
+  <section><h2>Community</h2><p>Community use is subject to the <a href="{{ url_for('auth.community_guidelines') }}">Community Guidelines</a>. We may remove content or restrict Community access when reasonably necessary to protect people or the service. Users can report content and block other accounts.</p></section>
+  <section><h2>Availability and accounts</h2><p>We work to keep Track Ops reliable but do not guarantee uninterrupted availability. We may limit access to protect security, investigate abuse, or comply with law. You may delete your account from the mobile app; records with a legitimate legal, accounting, payment, waiver, or safety retention need may be anonymized and retained.</p></section>
+  <section><h2>Contact</h2><p>For questions about these terms, contact <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p></section>
+</article>
+{% endblock %}

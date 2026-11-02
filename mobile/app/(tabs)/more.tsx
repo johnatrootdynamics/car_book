@@ -91,7 +91,7 @@ export default function MoreScreen() {
       <SectionTitle title={section.title} />
       <Card style={styles.list}>
         {section.items.map((item, index) => <Pressable key={item.route || item.path} disabled={!!opening} onPress={() => open(item)} style={({ pressed }) => [styles.row, index > 0 && styles.divider, pressed && styles.pressed]}>
-          <View style={styles.icon}><SymbolView name={{ ios: item.symbol, android: item.symbol, web: item.symbol } as any} tintColor={palette.orange} size={22} /></View>
+          <View style={styles.icon}><SymbolView name={{ ios: item.symbol, android: item.symbol, web: item.symbol } as any} tintColor={palette.accent} size={22} /></View>
           <View style={styles.copy}><Text style={ui.title}>{item.title}</Text><Text style={ui.body}>{opening === item.path ? 'Opening securely…' : item.detail}</Text></View>
           <Text style={styles.arrow}>›</Text>
         </Pressable>)}
@@ -107,9 +107,9 @@ const styles = StyleSheet.create({
   row: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   divider: { borderTopWidth: 1, borderTopColor: palette.line },
   pressed: { opacity: 0.6 },
-  icon: { width: 43, height: 43, borderRadius: 13, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 43, height: 43, borderRadius: 13, backgroundColor: palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, gap: 3 },
-  arrow: { color: palette.orange, fontSize: 28 },
+  arrow: { color: palette.accent, fontSize: 28 },
   error: { padding: 14, borderRadius: 14, backgroundColor: palette.redSoft },
   errorText: { color: palette.red, fontWeight: '800' },
   note: { color: palette.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', paddingHorizontal: 16 },

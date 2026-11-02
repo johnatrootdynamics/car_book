@@ -26,6 +26,8 @@ class User(db.Model, UserMixin):
     postal_code = db.Column(db.String(20), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     must_change_password = db.Column(db.Boolean, nullable=False, default=False)
+    community_suspended_at = db.Column(db.DateTime, nullable=True, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -187,6 +189,7 @@ class Employee(db.Model, UserMixin):
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     must_change_password = db.Column(db.Boolean, nullable=False, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
     role = db.Column(db.String(20), nullable=False, default="track_staff")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -210,6 +213,7 @@ class EnterpriseAdmin(db.Model, UserMixin):
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     must_change_password = db.Column(db.Boolean, nullable=False, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     @property
@@ -234,6 +238,7 @@ class VendorAccount(db.Model, UserMixin):
     description = db.Column(db.Text, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     must_change_password = db.Column(db.Boolean, nullable=False, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -278,6 +283,7 @@ class SocialLoginIdentity(db.Model):
     account_type = db.Column(db.String(20), nullable=False)
     account_id = db.Column(db.Integer, nullable=False)
     email = db.Column(db.String(255), nullable=False)
+    refresh_token_encrypted = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_login_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -680,6 +686,57 @@ class DriverConnection(db.Model):
     __table_args__ = (
         db.UniqueConstraint("user_one_id", "user_two_id", name="uniq_driver_connection"),
     )
+
+
+class UserBlock(db.Model):
+    """A driver-level safety boundary enforced across every community surface."""
+
+    __tablename__ = "user_blocks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    blocker_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    blocked_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    blocker = db.relationship("User", foreign_keys=[blocker_user_id])
+    blocked_user = db.relationship("User", foreign_keys=[blocked_user_id])
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "blocker_user_id", "blocked_user_id", name="uniq_user_block"
+        ),
+        db.Index("idx_user_blocks_blocked", "blocked_user_id"),
+    )
+
+
+class CommunityReport(db.Model):
+    """Moderation report retained until an enterprise admin resolves it."""
+
+    __tablename__ = "community_reports"
+
+    id = db.Column(db.Integer, primary_key=True)
+    reporter_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    reported_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("social_posts.id"), nullable=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey("social_comments.id"), nullable=True)
+    share_id = db.Column(db.Integer, db.ForeignKey("social_shares.id"), nullable=True)
+    content_type = db.Column(db.String(20), nullable=False)
+    reason = db.Column(db.String(40), nullable=False)
+    details = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="open", index=True)
+    resolution_note = db.Column(db.String(500), nullable=True)
+    reviewed_by_admin_id = db.Column(
+        db.Integer, db.ForeignKey("enterprise_admins.id"), nullable=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+
+    reporter = db.relationship("User", foreign_keys=[reporter_user_id])
+    reported_user = db.relationship("User", foreign_keys=[reported_user_id])
+    post = db.relationship("SocialPost")
+    comment = db.relationship("SocialComment")
+    share = db.relationship("SocialShare")
+    reviewed_by = db.relationship("EnterpriseAdmin")
 
 
 class TrackSubscription(db.Model):

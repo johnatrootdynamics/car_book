@@ -54,7 +54,7 @@ export function DriverSpaceSwitch({ active, onChange, compact = false }: { activ
 const styles = StyleSheet.create({
   wrap: { gap: 6 },
   compactWrap: { flex: 1, gap: 0 },
-  switch: { flexDirection: 'row', minHeight: 46, padding: 4, borderRadius: 15, borderWidth: 1, borderColor: palette.line, backgroundColor: 'white' },
+  switch: { flexDirection: 'row', minHeight: 46, padding: 4, borderRadius: 15, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface },
   compactSwitch: { minHeight: 42, borderRadius: 14 },
   option: { flex: 1, minHeight: 38, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   compactOption: { minHeight: 34, borderRadius: 10 },

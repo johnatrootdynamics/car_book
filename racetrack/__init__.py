@@ -38,15 +38,14 @@ def load_user(user_id):
     if not raw_id.isdigit():
         return None
     object_id = int(raw_id)
-    if user_type == "user":
-        return User.query.get(object_id)
-    if user_type == "employee":
-        return Employee.query.get(object_id)
-    if user_type == "admin":
-        return EnterpriseAdmin.query.get(object_id)
-    if user_type == "vendor":
-        return VendorAccount.query.get(object_id)
-    return None
+    model = {
+        "user": User,
+        "employee": Employee,
+        "admin": EnterpriseAdmin,
+        "vendor": VendorAccount,
+    }.get(user_type)
+    account = model.query.get(object_id) if model else None
+    return account if account and not account.deleted_at else None
 
 
 def create_app():
@@ -78,6 +77,9 @@ def create_app():
 
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
     app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "")
+    app.config["SUPPORT_EMAIL"] = os.getenv(
+        "SUPPORT_EMAIL", "support@root-dynamics.com"
+    )
     app.config["TRACK_TIMEZONE"] = os.getenv("TRACK_TIMEZONE", "America/New_York")
     app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "")
     app.config["STRIPE_WEBHOOK_SECRET"] = os.getenv("STRIPE_WEBHOOK_SECRET", "")
@@ -102,6 +104,11 @@ def create_app():
     app.config["GOOGLE_WALLET_SERVICE_ACCOUNT_JSON"] = os.getenv("GOOGLE_WALLET_SERVICE_ACCOUNT_JSON", "")
     app.config["APPLE_SIGN_IN_CLIENT_ID"] = os.getenv(
         "APPLE_SIGN_IN_CLIENT_ID", "com.rootdynamics.trackops"
+    )
+    app.config["APPLE_SIGN_IN_TEAM_ID"] = os.getenv("APPLE_SIGN_IN_TEAM_ID", "")
+    app.config["APPLE_SIGN_IN_KEY_ID"] = os.getenv("APPLE_SIGN_IN_KEY_ID", "")
+    app.config["APPLE_SIGN_IN_PRIVATE_KEY"] = os.getenv(
+        "APPLE_SIGN_IN_PRIVATE_KEY", ""
     )
     app.config["GOOGLE_OAUTH_CLIENT_ID"] = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
     app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
@@ -221,6 +228,8 @@ def create_app():
             "community_groups",
             "community_group_members",
             "driver_connections",
+            "user_blocks",
+            "community_reports",
             "track_subscriptions",
             "track_driver_classes",
             "driver_class_changes",
@@ -310,6 +319,9 @@ def create_app():
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0"
             )
             conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS community_suspended_at DATETIME NULL"
+            )
+            conn.exec_driver_sql(
                 "ALTER TABLE employees ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0"
             )
             conn.exec_driver_sql(
@@ -318,6 +330,10 @@ def create_app():
             conn.exec_driver_sql(
                 "ALTER TABLE vendor_accounts ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0"
             )
+            for account_table in ("users", "employees", "enterprise_admins", "vendor_accounts"):
+                conn.exec_driver_sql(
+                    f"ALTER TABLE {account_table} ADD COLUMN IF NOT EXISTS deleted_at DATETIME NULL"
+                )
             conn.exec_driver_sql(
                 "ALTER TABLE employees ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'office_staff'"
             )
@@ -522,6 +538,12 @@ def create_app():
             )
             conn.exec_driver_sql(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR(500) NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE social_login_identities ADD COLUMN IF NOT EXISTS refresh_token_encrypted TEXT NULL"
+            )
+            conn.exec_driver_sql(
+                "ALTER TABLE community_reports ADD COLUMN IF NOT EXISTS share_id INT NULL"
             )
             conn.exec_driver_sql(
                 "ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL"
@@ -757,6 +779,8 @@ def create_app():
             "community_groups",
             "community_group_members",
             "driver_connections",
+            "user_blocks",
+            "community_reports",
             "track_subscriptions",
             "track_driver_classes",
             "driver_class_changes",

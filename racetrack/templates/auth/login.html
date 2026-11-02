@@ -12,8 +12,7 @@
   <aside class="login-showcase">
     <div class="login-track-mark" aria-hidden="true"><span></span><span></span></div>
     <a class="login-brand" href="{{ url_for('auth.home') }}" aria-label="Track Ops home">
-      <span class="login-brand-icon"><i class="bi bi-flag-fill" aria-hidden="true"></i></span>
-      <span><strong>Track Ops</strong><small>Race day, organized.</small></span>
+      {% include "shared/brand_logo.html" %}
     </a>
 
     <div class="login-showcase-content">

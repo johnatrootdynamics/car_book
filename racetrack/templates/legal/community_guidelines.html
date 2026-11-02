@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body_class %}legal-public-page{% endblock %}
+{% block content %}
+<article class="legal-document card">
+  <header><span class="event-page-kicker">Community safety</span><h1>Community Guidelines</h1><p>Build the paddock you want to be part of.</p></header>
+  <section><h2>Be respectful</h2><p>Do not harass, threaten, bully, shame, stalk, or target another person. Hate speech, discriminatory slurs, sexual exploitation, graphic violence, and encouragement of self-harm are prohibited.</p></section>
+  <section><h2>Keep it genuine</h2><p>Do not impersonate people or businesses, misrepresent an event or safety result, manipulate engagement, or post repetitive promotions, scams, malware, or deceptive links.</p></section>
+  <section><h2>Protect privacy and safety</h2><p>Do not share another person’s private information, credentials, precise private location, or intimate content without consent. Never use Community to coordinate unsafe track activity or evade event and venue rules.</p></section>
+  <section><h2>Own what you post</h2><p>Only upload content you have permission to share. You remain responsible for your posts, comments, and images. Content may be screened automatically and reviewed after a report.</p></section>
+  <section><h2>Report and block</h2><p>Use the menu on a post or comment to report inappropriate content or block an account. Reports are sent to authorized Track Ops administrators. Blocking removes the connection and hides both accounts from one another in Community.</p></section>
+  <section><h2>Enforcement</h2><p>Track Ops may remove content, restrict Community access, or preserve information needed to investigate abuse. If you believe a decision was made in error, contact <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p></section>
+</article>
+{% endblock %}

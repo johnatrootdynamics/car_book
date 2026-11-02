@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   lastSeen: { color: palette.muted, fontSize: 11 },
   label: { color: palette.ink, fontSize: 12, fontWeight: '800', marginTop: 15, marginBottom: 8 },
   roles: { flexDirection: 'row', gap: 7 },
-  role: { flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: palette.line, borderRadius: 11, backgroundColor: 'white' },
+  role: { flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: palette.line, borderRadius: 11, backgroundColor: palette.surface },
   roleActive: { backgroundColor: palette.navy, borderColor: palette.navy },
   roleText: { color: palette.muted, fontSize: 11, fontWeight: '800' },
   roleTextActive: { color: 'white' },

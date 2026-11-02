@@ -43,6 +43,7 @@
       <section class="card enterprise-quick-card">
         <div class="enterprise-section-head"><div><span>Management</span><h3>Quick access</h3></div></div>
         <nav>
+          <a href="{{ url_for('admin.community_reports') }}"><i class="bi bi-shield-check" aria-hidden="true"></i><span><strong>Community safety</strong><small>{{ open_report_count }} open report{{ '' if open_report_count == 1 else 's' }}</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
           <a href="{{ url_for('admin.accounts') }}"><i class="bi bi-people" aria-hidden="true"></i><span><strong>Account security</strong><small>Passwords and access</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
           <a href="{{ url_for('admin.settings') }}"><i class="bi bi-envelope-gear" aria-hidden="true"></i><span><strong>Email delivery</strong><small>SMTP configuration</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
           <a href="{{ url_for('admin.waivers') }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span><strong>Waiver support</strong><small>Templates and records</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></a>

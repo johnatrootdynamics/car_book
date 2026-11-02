@@ -70,7 +70,7 @@ export default function CarFormScreen() {
 
 const styles = StyleSheet.create({
   heading: { gap: 5, paddingVertical: 4 },
-  eyebrow: { color: palette.orange, fontWeight: '900', letterSpacing: 1.2, fontSize: 11 },
+  eyebrow: { color: palette.accent, fontWeight: '900', letterSpacing: 1.2, fontSize: 11 },
   title: { color: palette.ink, fontSize: 29, fontWeight: '900' },
   form: { gap: 15 },
   error: { color: palette.red, fontWeight: '800', lineHeight: 20 },

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body_class %}legal-public-page{% endblock %}
+{% block content %}
+<article class="legal-document support-document card">
+  <header><span class="event-page-kicker">We can help</span><h1>Track Ops Support</h1><p>Questions about your account, tickets, payments, or Community are welcome.</p></header>
+  <section class="support-contact-card"><i class="bi bi-envelope"></i><div><h2>Email support</h2><p>Include the event, track, order number, and the email on your account when relevant. Never email your password or payment credentials.</p><a class="btn" href="mailto:{{ support_email }}?subject=Track%20Ops%20Support">Email {{ support_email }}</a></div></section>
+  <section><h2>Safety or abusive content</h2><p>For Community content, use the in-app report control so the exact post or comment is attached. If someone may be in immediate danger, contact local emergency services before contacting Track Ops.</p></section>
+  <section><h2>Account deletion</h2><p>In the mobile app, open <strong>More → Account &amp; security</strong>, then choose <strong>Delete account</strong>. The app shows exactly what is removed and asks for confirmation before deletion.</p></section>
+</article>
+{% endblock %}

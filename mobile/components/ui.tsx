@@ -4,12 +4,14 @@ import { ActivityIndicator, Pressable, ScrollView, StyleProp, StyleSheet, Text, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { palette, shadow } from '@/lib/theme';
+import { BrandLogo } from '@/components/BrandLogo';
 
 export function Screen({ children, scroll = true }: PropsWithChildren<{ scroll?: boolean }>) {
   const segments = useSegments();
   const firstSegment = String(segments[0] || '');
   const ownsTopSafeArea = !firstSegment || firstSegment === '(tabs)' || firstSegment === 'login' || firstSegment === 'change-password';
-  const content = scroll ? <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView> : <View style={styles.content}>{children}</View>;
+  const brand = firstSegment === '(tabs)' ? <View style={styles.brandBar}><BrandLogo width={190} /></View> : null;
+  const content = scroll ? <ScrollView contentContainerStyle={styles.content}>{brand}{children}</ScrollView> : <View style={styles.content}>{brand}{children}</View>;
   return <SafeAreaView edges={ownsTopSafeArea ? ['top'] : []} style={styles.screen}>{content}</SafeAreaView>;
 }
 
@@ -26,7 +28,7 @@ export function Card({ children, style }: PropsWithChildren<{ style?: StyleProp<
 }
 
 export function Field(props: TextInputProps) {
-  return <TextInput placeholderTextColor="#98A2B3" {...props} style={[styles.field, props.style]} />;
+  return <TextInput placeholderTextColor={palette.muted} selectionColor={palette.accent} keyboardAppearance="dark" {...props} style={[styles.field, props.style]} />;
 }
 
 export function Button({ title, onPress, tone = 'primary', disabled = false }: { title: string; onPress: () => void; tone?: 'primary' | 'secondary' | 'danger'; disabled?: boolean }) {
@@ -44,7 +46,7 @@ export function Empty({ title, detail }: { title: string; detail: string }) {
 }
 
 export function Loading() {
-  return <View style={styles.loading}><ActivityIndicator color={palette.orange} size="large" /></View>;
+  return <View style={styles.loading}><BrandLogo /><ActivityIndicator color={palette.accent} size="large" /></View>;
 }
 
 export const ui = StyleSheet.create({
@@ -53,29 +55,30 @@ export const ui = StyleSheet.create({
   title: { color: palette.ink, fontSize: 18, fontWeight: '800' },
   body: { color: palette.muted, fontSize: 14, lineHeight: 20 },
   label: { color: palette.ink, fontSize: 13, fontWeight: '700', marginBottom: 7 },
-  pill: { backgroundColor: palette.orangeSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  pillText: { color: '#C2410C', fontSize: 12, fontWeight: '800' },
+  pill: { backgroundColor: palette.accentSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  pillText: { color: palette.accent, fontSize: 12, fontWeight: '800' },
   gap: { gap: 12 },
 });
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.canvas },
+  brandBar: { paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: palette.line },
   content: { flexGrow: 1, padding: 18, paddingBottom: 36, gap: 16 },
-  hero: { backgroundColor: palette.navy, borderRadius: 24, padding: 22, minHeight: 142, justifyContent: 'flex-end', ...shadow },
-  eyebrow: { color: '#FDBA74', fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginBottom: 8, textTransform: 'uppercase' },
+  hero: { backgroundColor: palette.navy, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: palette.primary, padding: 22, minHeight: 142, justifyContent: 'flex-end', ...shadow },
+  eyebrow: { color: palette.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1.3, marginBottom: 8, textTransform: 'uppercase' },
   heroTitle: { color: 'white', fontSize: 28, lineHeight: 32, fontWeight: '900' },
-  heroSubtitle: { color: '#D0D5DD', fontSize: 14, lineHeight: 20, marginTop: 8 },
-  card: { backgroundColor: palette.surface, borderRadius: 18, borderWidth: 1, borderColor: palette.line, padding: 16, ...shadow },
-  field: { height: 52, borderWidth: 1, borderColor: '#D0D5DD', borderRadius: 13, backgroundColor: 'white', paddingHorizontal: 15, color: palette.ink, fontSize: 16 },
-  button: { minHeight: 50, borderRadius: 13, backgroundColor: palette.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  heroSubtitle: { color: palette.muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  card: { backgroundColor: palette.surface, borderRadius: 8, borderWidth: 1, borderColor: palette.line, padding: 16, ...shadow },
+  field: { height: 52, borderWidth: 1, borderColor: palette.line, borderRadius: 6, backgroundColor: palette.canvas, paddingHorizontal: 15, color: palette.ink, fontSize: 16 },
+  button: { minHeight: 50, borderRadius: 6, backgroundColor: palette.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   buttonText: { color: 'white', fontWeight: '800', fontSize: 15 },
-  secondaryButton: { backgroundColor: 'white', borderWidth: 1, borderColor: palette.line },
+  secondaryButton: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line },
   secondaryButtonText: { color: palette.ink },
-  dangerButton: { backgroundColor: palette.red },
+  dangerButton: { backgroundColor: palette.dangerFill },
   sectionTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   sectionTitleText: { color: palette.ink, fontSize: 19, fontWeight: '900' },
   empty: { alignItems: 'center', paddingVertical: 28 },
   emptyTitle: { color: palette.ink, fontSize: 16, fontWeight: '800', marginBottom: 5 },
   body: { color: palette.muted, textAlign: 'center', lineHeight: 20 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.canvas },
+  loading: { flex: 1, gap: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.canvas },
 });

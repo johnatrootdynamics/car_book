@@ -4,9 +4,9 @@
     "slug": "track-ops",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/brand/track-ops-icon.png",
     "scheme": "trackops",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rootdynamics.trackops",
@@ -15,17 +15,15 @@
     "android": {
       "package": "com.rootdynamics.trackops",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#111827",
+        "foregroundImage": "./assets/brand/track-ops-adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/brand/track-ops-icon.png"
     },
     "plugins": [
       "expo-router",
@@ -49,9 +47,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/brand/track-ops-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#111827",
+          "imageWidth": 200
         }
       ],
       [

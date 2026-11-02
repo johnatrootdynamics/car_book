@@ -538,7 +538,8 @@ def _track_driver_query(track_id):
         TrackDriverClass.track_id == track_id
     )
     return User.query.filter(
-        (User.id.in_(registered_driver_ids)) | (User.id.in_(classified_driver_ids))
+        (User.id.in_(registered_driver_ids)) | (User.id.in_(classified_driver_ids)),
+        User.deleted_at.is_(None),
     )
 
 
@@ -1700,7 +1701,7 @@ def staff_accounts():
         return guard
     can_manage_staff = has_office_access()
     form = EmployeeCreateForm() if can_manage_staff else None
-    staff = Employee.query.filter_by(track_id=active_track_id()).order_by(Employee.created_at.desc()).all()
+    staff = Employee.query.filter_by(track_id=active_track_id(), deleted_at=None).order_by(Employee.created_at.desc()).all()
     if current_user.account_type == "admin" or can_manage_staff:
         resettable_employee_ids = {member.id for member in staff}
     else:
@@ -1843,7 +1844,9 @@ def create_employee():
         return guard
     form = EmployeeCreateForm()
     if form.validate_on_submit():
-        existing = Employee.query.filter_by(email=form.email.data.lower().strip()).first()
+        existing = Employee.query.filter_by(
+            email=form.email.data.lower().strip(), deleted_at=None
+        ).first()
         if existing:
             flash("Employee email already exists.", "error")
         else:
@@ -1892,6 +1895,7 @@ def update_employee_role(employee_id):
     employee = Employee.query.filter_by(
         id=employee_id,
         track_id=active_track_id(),
+        deleted_at=None,
     ).first_or_404()
     role = (request.form.get("role") or "").strip()
     if role not in STAFF_ROLE_LABELS:
@@ -1901,6 +1905,7 @@ def update_employee_role(employee_id):
         office_count = Employee.query.filter_by(
             track_id=active_track_id(),
             role="office_staff",
+            deleted_at=None,
         ).count()
         if office_count <= 1:
             flash("Every track must keep at least one office staff account.", "error")
@@ -1920,6 +1925,7 @@ def reset_employee_password(employee_id):
     employee = Employee.query.filter_by(
         id=employee_id,
         track_id=active_track_id(),
+        deleted_at=None,
     ).first_or_404()
 
     is_enterprise_admin = current_user.account_type == "admin"
@@ -2844,7 +2850,7 @@ def drivers():
         directory_view = "drivers"
     query_text = (request.args.get("q") or "").strip()
     if directory_view == "vendors":
-        vendor_query = VendorAccount.query
+        vendor_query = VendorAccount.query.filter(VendorAccount.deleted_at.is_(None))
         if query_text:
             pattern = f"%{query_text}%"
             public_filters = [

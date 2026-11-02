@@ -59,7 +59,7 @@ def _account_home(account):
 
 def _account_email_exists(email):
     return any(
-        model.query.filter_by(email=email).first()
+        model.query.filter_by(email=email, deleted_at=None).first()
         for model in (User, Employee, EnterpriseAdmin, VendorAccount)
     )
 
@@ -81,6 +81,35 @@ def _generate_user_qr_code():
 @auth_bp.route("/")
 def home():
     return render_template("home.html")
+
+
+@auth_bp.route("/privacy")
+def privacy():
+    return render_template(
+        "legal/privacy.html", support_email=current_app.config["SUPPORT_EMAIL"]
+    )
+
+
+@auth_bp.route("/terms")
+def terms():
+    return render_template(
+        "legal/terms.html", support_email=current_app.config["SUPPORT_EMAIL"]
+    )
+
+
+@auth_bp.route("/community-guidelines")
+def community_guidelines():
+    return render_template(
+        "legal/community_guidelines.html",
+        support_email=current_app.config["SUPPORT_EMAIL"],
+    )
+
+
+@auth_bp.route("/support")
+def support():
+    return render_template(
+        "legal/support.html", support_email=current_app.config["SUPPORT_EMAIL"]
+    )
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
@@ -200,10 +229,10 @@ def user_login():
             candidates = [
                 account
                 for account in (
-                    EnterpriseAdmin.query.filter_by(email=email).first(),
-                    Employee.query.filter_by(email=email).first(),
-                    VendorAccount.query.filter_by(email=email).first(),
-                    User.query.filter_by(email=email).first(),
+                    EnterpriseAdmin.query.filter_by(email=email, deleted_at=None).first(),
+                    Employee.query.filter_by(email=email, deleted_at=None).first(),
+                    VendorAccount.query.filter_by(email=email, deleted_at=None).first(),
+                    User.query.filter_by(email=email, deleted_at=None).first(),
                 )
                 if account and check_password_hash(account.password_hash, form.password.data)
             ]

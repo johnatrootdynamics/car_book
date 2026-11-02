@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
   postal_code VARCHAR(20) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+  community_suspended_at DATETIME NULL,
+  deleted_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -36,6 +38,7 @@ CREATE TABLE IF NOT EXISTS employees (
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+  deleted_at DATETIME NULL,
   role VARCHAR(20) NOT NULL DEFAULT 'track_staff',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_employees_track FOREIGN KEY (track_id) REFERENCES tracks(id)
@@ -48,6 +51,7 @@ CREATE TABLE IF NOT EXISTS enterprise_admins (
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+  deleted_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -63,6 +67,7 @@ CREATE TABLE IF NOT EXISTS vendor_accounts (
   description TEXT NULL,
   password_hash VARCHAR(255) NOT NULL,
   must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+  deleted_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -277,6 +282,50 @@ CREATE TABLE IF NOT EXISTS driver_connections (
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT uniq_driver_connection UNIQUE (user_one_id, user_two_id),
   INDEX idx_driver_connections_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS user_blocks (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  blocker_user_id INT NOT NULL,
+  blocked_user_id INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_blocks_blocker FOREIGN KEY (blocker_user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_user_blocks_blocked FOREIGN KEY (blocked_user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT uniq_user_block UNIQUE (blocker_user_id, blocked_user_id),
+  INDEX idx_user_blocks_blocked (blocked_user_id)
+);
+
+CREATE TABLE IF NOT EXISTS community_reports (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  reporter_user_id INT NULL,
+  reported_user_id INT NULL,
+  post_id INT NULL,
+  comment_id INT NULL,
+  share_id INT NULL,
+  content_type VARCHAR(20) NOT NULL,
+  reason VARCHAR(40) NOT NULL,
+  details VARCHAR(500) NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  resolution_note VARCHAR(500) NULL,
+  reviewed_by_admin_id INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at DATETIME NULL,
+  CONSTRAINT fk_community_reports_reporter FOREIGN KEY (reporter_user_id) REFERENCES users(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_community_reports_reported_user FOREIGN KEY (reported_user_id) REFERENCES users(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_community_reports_post FOREIGN KEY (post_id) REFERENCES social_posts(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_community_reports_comment FOREIGN KEY (comment_id) REFERENCES social_comments(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_community_reports_share FOREIGN KEY (share_id) REFERENCES social_shares(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_community_reports_admin FOREIGN KEY (reviewed_by_admin_id) REFERENCES enterprise_admins(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX idx_community_reports_status (status),
+  INDEX idx_community_reports_created (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS track_subscriptions (

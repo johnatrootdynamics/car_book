@@ -12,7 +12,7 @@ const SOCIAL_REDIRECT_URI = 'trackops://auth/callback';
 WebBrowser.maybeCompleteAuthSession();
 
 type SocialProviders = { apple: boolean; google: boolean };
-type AppleIdentity = { identityToken: string; givenName?: string | null; familyName?: string | null };
+type AppleIdentity = { identityToken: string; authorizationCode?: string | null; givenName?: string | null; familyName?: string | null };
 
 type AuthContextValue = {
   account: Account | null;
@@ -24,6 +24,7 @@ type AuthContextValue = {
   requestPasswordReset: (email: string) => Promise<string>;
   signOut: () => Promise<void>;
   changePassword: (newPassword: string, currentPassword?: string) => Promise<void>;
+  deleteAccount: () => Promise<string>;
   openPortal: (target: string) => Promise<void>;
   api: <T>(path: string, init?: RequestInit) => Promise<T>;
 };
@@ -105,6 +106,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         identity_token: identity.identityToken,
+        authorization_code: identity.authorizationCode,
         given_name: identity.givenName,
         family_name: identity.familyName,
         device_name: `${Platform.OS} app`,
@@ -183,6 +185,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setAccount(body.account);
   }, [api]);
 
+  const deleteAccount = useCallback(async () => {
+    const body = await api<{ message: string }>('/account', {
+      method: 'DELETE',
+      body: JSON.stringify({ confirmation: 'DELETE' }),
+    });
+    await saveRefreshToken(null);
+    setAccessToken(null);
+    setAccount(null);
+    return body.message;
+  }, [api]);
+
   const openPortal = useCallback(async (target: string) => {
     const body = await api<{ url: string }>('/auth/web-link', {
       method: 'POST',
@@ -194,7 +207,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     });
   }, [api]);
 
-  const value = useMemo(() => ({ account, loading, signIn, signInWithApple, signInWithGoogle, socialProviders, requestPasswordReset, signOut, changePassword, openPortal, api }), [account, loading, signIn, signInWithApple, signInWithGoogle, socialProviders, requestPasswordReset, signOut, changePassword, openPortal, api]);
+  const value = useMemo(() => ({ account, loading, signIn, signInWithApple, signInWithGoogle, socialProviders, requestPasswordReset, signOut, changePassword, deleteAccount, openPortal, api }), [account, loading, signIn, signInWithApple, signInWithGoogle, socialProviders, requestPasswordReset, signOut, changePassword, deleteAccount, openPortal, api]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

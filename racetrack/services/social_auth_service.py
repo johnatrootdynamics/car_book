@@ -5,7 +5,9 @@ import time
 import requests
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
 
 APPLE_ISSUER = "https://appleid.apple.com"
@@ -20,6 +22,86 @@ class SocialAuthError(RuntimeError):
 def _decode_segment(value):
     padded = value + "=" * (-len(value) % 4)
     return base64.urlsafe_b64decode(padded.encode("ascii"))
+
+
+def _encode_segment(value):
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+
+def _apple_client_secret(client_id, team_id, key_id, private_key):
+    now = int(time.time())
+    header = _encode_segment(
+        json.dumps({"alg": "ES256", "kid": key_id}, separators=(",", ":")).encode()
+    )
+    claims = _encode_segment(
+        json.dumps(
+            {
+                "iss": team_id,
+                "iat": now,
+                "exp": now + 10 * 60,
+                "aud": APPLE_ISSUER,
+                "sub": client_id,
+            },
+            separators=(",", ":"),
+        ).encode()
+    )
+    signed_value = f"{header}.{claims}".encode("ascii")
+    try:
+        key = serialization.load_pem_private_key(
+            private_key.replace("\\n", "\n").encode(), password=None
+        )
+        der_signature = key.sign(signed_value, ec.ECDSA(hashes.SHA256()))
+        r_value, s_value = decode_dss_signature(der_signature)
+    except (TypeError, ValueError) as exc:
+        raise SocialAuthError("Apple sign-in credentials are invalid.") from exc
+    raw_signature = r_value.to_bytes(32, "big") + s_value.to_bytes(32, "big")
+    return f"{header}.{claims}.{_encode_segment(raw_signature)}"
+
+
+def exchange_apple_authorization_code(code, client_id, team_id, key_id, private_key):
+    if not all((code, client_id, team_id, key_id, private_key)):
+        return None
+    try:
+        response = requests.post(
+            "https://appleid.apple.com/auth/token",
+            data={
+                "client_id": client_id,
+                "client_secret": _apple_client_secret(
+                    client_id, team_id, key_id, private_key
+                ),
+                "code": code,
+                "grant_type": "authorization_code",
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json().get("refresh_token")
+    except (requests.RequestException, ValueError) as exc:
+        raise SocialAuthError("Apple sign-in authorization could not be completed.") from exc
+
+
+def revoke_apple_refresh_token(
+    refresh_token, client_id, team_id, key_id, private_key
+):
+    if not all((refresh_token, client_id, team_id, key_id, private_key)):
+        return False
+    try:
+        response = requests.post(
+            "https://appleid.apple.com/auth/revoke",
+            data={
+                "client_id": client_id,
+                "client_secret": _apple_client_secret(
+                    client_id, team_id, key_id, private_key
+                ),
+                "token": refresh_token,
+                "token_type_hint": "refresh_token",
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+        return True
+    except requests.RequestException as exc:
+        raise SocialAuthError("Apple sign-in authorization could not be revoked.") from exc
 
 
 def _jwt_parts(raw_token):

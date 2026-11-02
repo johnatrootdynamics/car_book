@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { SymbolView } from 'expo-symbols';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DriverSpaceSwitch } from '@/components/DriverSpaceSwitch';
@@ -74,6 +74,7 @@ type CommunityPayload = {
   suggestions: { user: CommunityUser; reason: string }[];
   events: { event: TrackEvent; going_count: number; circle_attendees: CommunityUser[] }[];
   activity: ActivityItem[];
+  blocked_users: CommunityUser[];
 };
 
 type FeedView = 'all' | 'mine' | 'track' | 'builds';
@@ -237,6 +238,61 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
     ],
   );
 
+  const report = (kind: 'posts' | 'shares' | 'comments' | 'users', id: number, label: string) => {
+    const submit = async (reason: string) => {
+      setBusy(`report-${kind}-${id}`);
+      setError('');
+      try {
+        const result = await api<{ message: string }>(`/driver/community/${kind}/${id}/report`, {
+          method: 'POST',
+          body: JSON.stringify({ reason }),
+        });
+        Alert.alert('Report received', result.message);
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'The report could not be sent.');
+      } finally {
+        setBusy('');
+      }
+    };
+    Alert.alert(`Report ${label}?`, 'Reports are private and reviewed by the Track Ops safety team.', [
+      { text: 'Spam or misleading', onPress: () => submit('spam') },
+      { text: 'Harassment or unsafe', onPress: () => submit('harassment') },
+      { text: 'Hate, violence, or sexual content', onPress: () => submit('violence') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const blockUser = (user: CommunityUser) => Alert.alert(
+    `Block @${user.username}?`,
+    'You will be disconnected and neither of you will see the other in Community. You can unblock them later.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Block', style: 'destructive', onPress: () => mutate(`block-${user.id}`, `/driver/community/users/${user.id}/block`, { method: 'POST', body: '{}' }) },
+    ],
+  );
+
+  const postOptions = (post: CommunityPost) => {
+    if (post.is_owner) {
+      deletePost(post);
+      return;
+    }
+    Alert.alert('Post options', `Manage content from @${post.author.username}.`, [
+      { text: 'Report post', onPress: () => report(post.share_id ? 'shares' : 'posts', post.share_id || post.interaction_post_id, 'post') },
+      { text: `Block @${post.author.username}`, style: 'destructive', onPress: () => blockUser(post.author) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const commentOptions = (comment: Comment) => Alert.alert(
+    'Comment options',
+    `Manage this comment from @${comment.author.username}.`,
+    [
+      { text: 'Report comment', onPress: () => report('comments', comment.id, 'comment') },
+      { text: `Block @${comment.author.username}`, style: 'destructive', onPress: () => blockUser(comment.author) },
+      { text: 'Cancel', style: 'cancel' },
+    ],
+  );
+
   const spaceSwitch = onShowTrack ? <DriverSpaceSwitch compact active="social" onChange={space => space === 'track' && onShowTrack()} /> : null;
   if (!data && !error) return spaceSwitch ? <Screen>{spaceSwitch}<Loading /></Screen> : <Loading />;
   if (!data) return <Screen>{spaceSwitch}<Empty title="Community unavailable" detail={error} /></Screen>;
@@ -258,7 +314,8 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
       onSelectFeed={selectFeed}
       onReact={post => mutate(`react-${post.id}`, `/driver/community/posts/${post.interaction_post_id}/react`, { method: 'POST' })}
       onShare={sharePost}
-      onDelete={deletePost}
+      onOptions={postOptions}
+      onCommentOptions={commentOptions}
       onCommentBody={(postId, body) => setCommentBodies(current => ({ ...current, [postId]: body }))}
       onSendComment={sendComment}
       onToggleComments={postId => setExpandedComments(current => ({ ...current, [postId]: !current[postId] }))}
@@ -274,6 +331,8 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
       onConnect={userId => mutate(`user-${userId}`, `/driver/community/connections/${userId}`, { method: 'POST' })}
       onAccept={connectionId => mutate(`connection-${connectionId}`, `/driver/community/connections/${connectionId}/accept`, { method: 'POST' })}
       onRemove={removeConnection}
+      onBlock={blockUser}
+      onUnblock={user => mutate(`unblock-${user.id}`, `/driver/community/users/${user.id}/block`, { method: 'DELETE' })}
     /> : null}
 
     {mode === 'activity' ? <ActivityViewContent
@@ -321,14 +380,14 @@ function SocialTabs({ mode, onMode }: { mode: MainView; onMode: (mode: MainView)
     {mainTabs.map(tab => {
       const active = mode === tab.value;
       return <Pressable key={tab.value} onPress={() => onMode(tab.value)} style={[styles.socialTab, active && styles.socialTabActive]}>
-        <SymbolView name={{ ios: tab.symbol, android: tab.symbol, web: tab.symbol } as any} tintColor={active ? palette.orange : palette.muted} size={18} />
+        <SymbolView name={{ ios: tab.symbol, android: tab.symbol, web: tab.symbol } as any} tintColor={active ? palette.accent : palette.muted} size={18} />
         <Text style={[styles.socialTabText, active && styles.socialTabTextActive]}>{tab.label}</Text>
       </Pressable>;
     })}
   </View>;
 }
 
-function FeedViewContent({ data, view, busy, commentBodies, expandedComments, onOpenComposer, onSelectFeed, onReact, onShare, onDelete, onCommentBody, onSendComment, onToggleComments }: {
+function FeedViewContent({ data, view, busy, commentBodies, expandedComments, onOpenComposer, onSelectFeed, onReact, onShare, onOptions, onCommentOptions, onCommentBody, onSendComment, onToggleComments }: {
   data: CommunityPayload;
   view: FeedView;
   busy: string;
@@ -338,7 +397,8 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
   onSelectFeed: (view: FeedView) => void;
   onReact: (post: CommunityPost) => void;
   onShare: (post: CommunityPost) => void;
-  onDelete: (post: CommunityPost) => void;
+  onOptions: (post: CommunityPost) => void;
+  onCommentOptions: (comment: Comment) => void;
   onCommentBody: (postId: number, body: string) => void;
   onSendComment: (cardId: number, postId: number) => void;
   onToggleComments: (postId: number) => void;
@@ -347,7 +407,7 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
     <Card style={styles.composerPrompt}>
       <Avatar user={data.me} size={42} />
       <Pressable onPress={onOpenComposer} style={styles.promptButton}><Text style={styles.promptText}>Share something with your circle…</Text></Pressable>
-      <Pressable accessibilityLabel="Add a photo" onPress={onOpenComposer} style={styles.promptPhoto}><SymbolView name={{ ios: 'photo.fill', android: 'photo.fill', web: 'photo.fill' } as any} tintColor={palette.orange} size={20} /></Pressable>
+      <Pressable accessibilityLabel="Add a photo" onPress={onOpenComposer} style={styles.promptPhoto}><SymbolView name={{ ios: 'photo.fill', android: 'photo.fill', web: 'photo.fill' } as any} tintColor={palette.accent} size={20} /></Pressable>
     </Card>
 
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
@@ -363,7 +423,9 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
       expanded={!!expandedComments[post.id]}
       onReact={() => onReact(post)}
       onShare={() => onShare(post)}
-      onDelete={() => onDelete(post)}
+      viewerId={data.me.id}
+      onOptions={() => onOptions(post)}
+      onCommentOptions={onCommentOptions}
       onCommentBody={body => onCommentBody(post.id, body)}
       onSendComment={() => onSendComment(post.id, post.interaction_post_id)}
       onToggleComments={() => onToggleComments(post.id)}
@@ -371,13 +433,13 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
   </>;
 }
 
-function PostCard({ post, busy, commentBody, expanded, onReact, onShare, onDelete, onCommentBody, onSendComment, onToggleComments }: { post: CommunityPost; busy: string; commentBody: string; expanded: boolean; onReact: () => void; onShare: () => void; onDelete: () => void; onCommentBody: (body: string) => void; onSendComment: () => void; onToggleComments: () => void }) {
+function PostCard({ post, viewerId, busy, commentBody, expanded, onReact, onShare, onOptions, onCommentOptions, onCommentBody, onSendComment, onToggleComments }: { post: CommunityPost; viewerId: number; busy: string; commentBody: string; expanded: boolean; onReact: () => void; onShare: () => void; onOptions: () => void; onCommentOptions: (comment: Comment) => void; onCommentBody: (body: string) => void; onSendComment: () => void; onToggleComments: () => void }) {
   const comments = expanded ? post.comments : post.comments.slice(-1);
   return <Card style={styles.post}>
     <View style={styles.postHead}>
       <Avatar user={post.author} />
       <View style={{ flex: 1 }}><Text style={styles.author}>{post.author.name}</Text><Text style={styles.meta}>@{post.author.username} · {relativeTime(post.created_at)}</Text></View>
-      {post.is_owner ? <Pressable accessibilityLabel="Post options" onPress={onDelete} style={styles.moreButton}><SymbolView name={{ ios: 'ellipsis', android: 'ellipsis', web: 'ellipsis' } as any} tintColor={palette.muted} size={20} /></Pressable> : null}
+      <Pressable accessibilityLabel="Post options" onPress={onOptions} style={styles.moreButton}><SymbolView name={{ ios: 'ellipsis', android: 'ellipsis', web: 'ellipsis' } as any} tintColor={palette.muted} size={20} /></Pressable>
     </View>
 
     {post.body ? <Text style={styles.postBody}>{post.body}</Text> : null}
@@ -394,7 +456,7 @@ function PostCard({ post, busy, commentBody, expanded, onReact, onShare, onDelet
       <PostAction symbol="arrowshape.turn.up.right" label={busy === `share-${post.id}` ? 'Sharing…' : 'Share'} disabled={post.is_owner || busy === `share-${post.id}`} onPress={onShare} />
     </View>
 
-    {comments.map(comment => <View key={comment.id} style={styles.comment}><Avatar user={comment.author} size={30} /><View style={styles.commentBubble}><Text style={styles.commentAuthor}>{comment.author.name} <Text style={styles.commentTime}>@{comment.author.username} · {relativeTime(comment.created_at)}</Text></Text><Text style={styles.commentBody}>{comment.body}</Text></View></View>)}
+    {comments.map(comment => <View key={comment.id} style={styles.comment}><Avatar user={comment.author} size={30} /><View style={styles.commentBubble}><View style={styles.commentHead}><Text style={styles.commentAuthor}>{comment.author.name} <Text style={styles.commentTime}>@{comment.author.username} · {relativeTime(comment.created_at)}</Text></Text>{comment.author.id !== viewerId ? <Pressable accessibilityLabel="Comment options" onPress={() => onCommentOptions(comment)} style={styles.commentOptions}><SymbolView name={{ ios: 'ellipsis', android: 'ellipsis', web: 'ellipsis' } as any} tintColor={palette.muted} size={15} /></Pressable> : null}</View><Text style={styles.commentBody}>{comment.body}</Text></View></View>)}
     {post.comments.length > 1 ? <Pressable onPress={onToggleComments}><Text style={styles.commentToggle}>{expanded ? 'Show less' : `View all ${post.comments.length} comments`}</Text></Pressable> : null}
     {expanded ? <View style={styles.commentForm}><Field value={commentBody} maxLength={400} onChangeText={onCommentBody} placeholder="Write a comment…" style={styles.commentField} onSubmitEditing={onSendComment} /><Pressable disabled={!commentBody.trim() || busy === `comment-${post.id}`} onPress={onSendComment} style={[styles.sendButton, (!commentBody.trim() || busy === `comment-${post.id}`) && styles.disabled]}><SymbolView name={{ ios: 'arrow.up', android: 'arrow.up', web: 'arrow.up' } as any} tintColor="white" size={16} /></Pressable></View> : null}
   </Card>;
@@ -402,7 +464,7 @@ function PostCard({ post, busy, commentBody, expanded, onReact, onShare, onDelet
 
 function PostAction({ symbol, label, active = false, busy = false, disabled = false, onPress }: { symbol: string; label: string; active?: boolean; busy?: boolean; disabled?: boolean; onPress: () => void }) {
   return <Pressable disabled={disabled || busy} onPress={onPress} style={({ pressed }) => [styles.postAction, (disabled || busy) && styles.disabled, pressed && styles.pressed]}>
-    <SymbolView name={{ ios: symbol, android: symbol, web: symbol } as any} tintColor={active ? palette.orange : palette.muted} size={18} />
+    <SymbolView name={{ ios: symbol, android: symbol, web: symbol } as any} tintColor={active ? palette.accent : palette.muted} size={18} />
     <Text style={[styles.postActionText, active && styles.postActionTextActive]}>{busy ? '…' : label}</Text>
   </Pressable>;
 }
@@ -418,9 +480,9 @@ function SharedPost({ post }: { post: CommunityPost }) {
 function PostContent({ post, nested = false }: { post: CommunityPost; nested?: boolean }) {
   return <>
     {post.image_url ? <Image source={{ uri: post.image_url }} style={[styles.postImage, nested && styles.nestedImage]} /> : null}
-    {post.event ? <Pressable onPress={() => router.push(`/event/${post.event!.id}`)} style={styles.attachment}><View style={styles.attachmentIcon}><SymbolView name={{ ios: 'flag.checkered', android: 'flag.checkered', web: 'flag.checkered' } as any} tintColor={palette.orange} size={19} /></View><View style={{ flex: 1 }}><Text style={styles.attachmentLabel}>{post.run ? 'SHARED RUN' : 'EVENT'}</Text><Text style={styles.attachmentTitle}>{post.event.name}</Text><Text style={styles.attachmentDetail}>{eventDate(post.event.date)} · {post.event.track.name}</Text></View><Text style={styles.arrow}>›</Text></Pressable> : null}
+    {post.event ? <Pressable onPress={() => router.push(`/event/${post.event!.id}`)} style={styles.attachment}><View style={styles.attachmentIcon}><SymbolView name={{ ios: 'flag.checkered', android: 'flag.checkered', web: 'flag.checkered' } as any} tintColor={palette.accent} size={19} /></View><View style={{ flex: 1 }}><Text style={styles.attachmentLabel}>{post.run ? 'SHARED RUN' : 'EVENT'}</Text><Text style={styles.attachmentTitle}>{post.event.name}</Text><Text style={styles.attachmentDetail}>{eventDate(post.event.date)} · {post.event.track.name}</Text></View><Text style={styles.arrow}>›</Text></Pressable> : null}
     {post.run?.drivers.length ? <View style={styles.runDrivers}><Text style={styles.runLabel}>Drivers in this run</Text><Text style={styles.runNames} numberOfLines={2}>{post.run.drivers.map(driver => driver.name).join(' · ')}</Text></View> : null}
-    {post.car ? <View style={styles.attachment}><View style={[styles.attachmentIcon, styles.carIcon]}><SymbolView name={{ ios: 'car.fill', android: 'car.fill', web: 'car.fill' } as any} tintColor={palette.navy} size={19} /></View><View style={{ flex: 1 }}><Text style={styles.attachmentLabel}>GARAGE</Text><Text style={styles.attachmentTitle}>{post.car.label}</Text>{post.car.color ? <Text style={styles.attachmentDetail}>{post.car.color}</Text> : null}</View></View> : null}
+    {post.car ? <View style={styles.attachment}><View style={[styles.attachmentIcon, styles.carIcon]}><SymbolView name={{ ios: 'car.fill', android: 'car.fill', web: 'car.fill' } as any} tintColor={palette.accent} size={19} /></View><View style={{ flex: 1 }}><Text style={styles.attachmentLabel}>GARAGE</Text><Text style={styles.attachmentTitle}>{post.car.label}</Text>{post.car.color ? <Text style={styles.attachmentDetail}>{post.car.color}</Text> : null}</View></View> : null}
   </>;
 }
 
@@ -435,15 +497,16 @@ function EventsViewContent({ data }: { data: CommunityPayload }) {
   </View>;
 }
 
-function PeopleViewContent({ data, query, busy, onQuery, onConnect, onAccept, onRemove }: { data: CommunityPayload; query: string; busy: string; onQuery: (query: string) => void; onConnect: (userId: number) => void; onAccept: (connectionId: number) => void; onRemove: (connection: Connection) => void }) {
+function PeopleViewContent({ data, query, busy, onQuery, onConnect, onAccept, onRemove, onBlock, onUnblock }: { data: CommunityPayload; query: string; busy: string; onQuery: (query: string) => void; onConnect: (userId: number) => void; onAccept: (connectionId: number) => void; onRemove: (connection: Connection) => void; onBlock: (user: CommunityUser) => void; onUnblock: (user: CommunityUser) => void }) {
   const sections = useMemo(() => [{ title: query.trim() ? 'Search results' : 'People you may know', rows: data.suggestions }], [data.suggestions, query]);
   return <View style={styles.pageSection}>
     <View><Text style={styles.pageTitle}>Find your people</Text><Text style={styles.pageSubtitle}>Only accepted connections appear in your Circle feed.</Text></View>
     <Field value={query} onChangeText={onQuery} autoCapitalize="none" autoCorrect={false} placeholder="Search drivers as you type" />
-    {data.received_requests.length ? <View style={styles.peopleSection}><SectionTitle title={`Requests (${data.received_requests.length})`} />{data.received_requests.map(connection => <PersonRow key={connection.id} user={connection.user} detail="Wants to connect" primary="Accept" secondary="Decline" busy={busy === `connection-${connection.id}`} onPrimary={() => onAccept(connection.id)} onSecondary={() => onRemove(connection)} />)}</View> : null}
-    {sections.map(section => <View key={section.title} style={styles.peopleSection}><SectionTitle title={section.title} />{section.rows.length ? section.rows.map(item => <PersonRow key={item.user.id} user={item.user} detail={item.reason} primary="Connect" busy={busy === `user-${item.user.id}`} onPrimary={() => onConnect(item.user.id)} />) : <Empty title={query.trim() ? 'No drivers found' : 'No suggestions yet'} detail={query.trim() ? 'Try another username or name.' : 'Shared events and followed tracks will help find familiar drivers.'} />}</View>)}
-    <View style={styles.peopleSection}><SectionTitle title={`Your circle (${data.connections.length})`} />{data.connections.length ? data.connections.map(connection => <PersonRow key={connection.id} user={connection.user} detail="Connected" secondary="Remove" busy={busy === `connection-${connection.id}`} onSecondary={() => onRemove(connection)} />) : <Empty title="No connections yet" detail="Find a driver above and send your first request." />}</View>
-    {data.sent_requests.length ? <View style={styles.peopleSection}><SectionTitle title="Pending" />{data.sent_requests.map(connection => <PersonRow key={connection.id} user={connection.user} detail="Request sent" secondary="Cancel" busy={busy === `connection-${connection.id}`} onSecondary={() => onRemove(connection)} />)}</View> : null}
+    {data.received_requests.length ? <View style={styles.peopleSection}><SectionTitle title={`Requests (${data.received_requests.length})`} />{data.received_requests.map(connection => <PersonRow key={connection.id} user={connection.user} detail="Wants to connect" primary="Accept" secondary="Decline" tertiary="Block" busy={busy === `connection-${connection.id}`} onPrimary={() => onAccept(connection.id)} onSecondary={() => onRemove(connection)} onTertiary={() => onBlock(connection.user)} />)}</View> : null}
+    {sections.map(section => <View key={section.title} style={styles.peopleSection}><SectionTitle title={section.title} />{section.rows.length ? section.rows.map(item => <PersonRow key={item.user.id} user={item.user} detail={item.reason} primary="Connect" secondary="Block" busy={busy === `user-${item.user.id}` || busy === `block-${item.user.id}`} onPrimary={() => onConnect(item.user.id)} onSecondary={() => onBlock(item.user)} dangerSecondary />) : <Empty title={query.trim() ? 'No drivers found' : 'No suggestions yet'} detail={query.trim() ? 'Try another username or name.' : 'Shared events and followed tracks will help find familiar drivers.'} />}</View>)}
+    <View style={styles.peopleSection}><SectionTitle title={`Your circle (${data.connections.length})`} />{data.connections.length ? data.connections.map(connection => <PersonRow key={connection.id} user={connection.user} detail="Connected" secondary="Remove" tertiary="Block" busy={busy === `connection-${connection.id}` || busy === `block-${connection.user.id}`} onSecondary={() => onRemove(connection)} onTertiary={() => onBlock(connection.user)} />) : <Empty title="No connections yet" detail="Find a driver above and send your first request." />}</View>
+    {data.sent_requests.length ? <View style={styles.peopleSection}><SectionTitle title="Pending" />{data.sent_requests.map(connection => <PersonRow key={connection.id} user={connection.user} detail="Request sent" secondary="Cancel" tertiary="Block" busy={busy === `connection-${connection.id}` || busy === `block-${connection.user.id}`} onSecondary={() => onRemove(connection)} onTertiary={() => onBlock(connection.user)} />)}</View> : null}
+    {(data.blocked_users || []).length ? <View style={styles.peopleSection}><SectionTitle title="Blocked accounts" />{data.blocked_users.map(user => <PersonRow key={user.id} user={user} detail="Hidden from your Community" secondary="Unblock" busy={busy === `unblock-${user.id}`} onSecondary={() => onUnblock(user)} />)}</View> : null}
   </View>;
 }
 
@@ -461,8 +524,8 @@ function ActivityViewContent({ data, busy, onAccept, onRemove, onOpenPost }: { d
   </View>;
 }
 
-function PersonRow({ user, detail, primary, secondary, busy, onPrimary, onSecondary }: { user: CommunityUser; detail: string; primary?: string; secondary?: string; busy: boolean; onPrimary?: () => void; onSecondary?: () => void }) {
-  return <Card style={styles.personRow}><Avatar user={user} /><View style={{ flex: 1 }}><Text style={styles.personName}>{user.name}</Text><Text style={styles.personHandle}>@{user.username} · {detail}</Text></View><View style={styles.personActions}>{primary ? <Pressable disabled={busy} onPress={onPrimary} style={[styles.smallPrimary, busy && styles.disabled]}><Text style={styles.smallPrimaryText}>{busy ? '…' : primary}</Text></Pressable> : null}{secondary ? <Pressable disabled={busy} onPress={onSecondary}><Text style={styles.secondaryAction}>{secondary}</Text></Pressable> : null}</View></Card>;
+function PersonRow({ user, detail, primary, secondary, tertiary, dangerSecondary = false, busy, onPrimary, onSecondary, onTertiary }: { user: CommunityUser; detail: string; primary?: string; secondary?: string; tertiary?: string; dangerSecondary?: boolean; busy: boolean; onPrimary?: () => void; onSecondary?: () => void; onTertiary?: () => void }) {
+  return <Card style={styles.personRow}><Avatar user={user} /><View style={{ flex: 1 }}><Text style={styles.personName}>{user.name}</Text><Text style={styles.personHandle}>@{user.username} · {detail}</Text></View><View style={styles.personActions}>{primary ? <Pressable disabled={busy} onPress={onPrimary} style={[styles.smallPrimary, busy && styles.disabled]}><Text style={styles.smallPrimaryText}>{busy ? '…' : primary}</Text></Pressable> : null}<View style={styles.personMinorActions}>{secondary ? <Pressable disabled={busy} onPress={onSecondary}><Text style={[styles.secondaryAction, dangerSecondary && styles.dangerAction]}>{secondary}</Text></Pressable> : null}{tertiary ? <Pressable disabled={busy} onPress={onTertiary}><Text style={styles.dangerAction}>{tertiary}</Text></Pressable> : null}</View></View></Card>;
 }
 
 function ComposerModal({ visible, me, body, image, busy, onBody, onPhoto, onRemovePhoto, onClose, onPublish }: { visible: boolean; me: CommunityUser; body: string; image: { uri: string; dataUrl: string } | null; busy: boolean; onBody: (body: string) => void; onPhoto: () => void; onRemovePhoto: () => void; onClose: () => void; onPublish: () => void }) {
@@ -474,7 +537,8 @@ function ComposerModal({ visible, me, body, image, busy, onBody, onPhoto, onRemo
         <View style={styles.composerIdentity}><Avatar user={me} /><View><Text style={styles.author}>{me.name}</Text><Text style={styles.meta}>Sharing with your circle</Text></View></View>
         <Field autoFocus multiline maxLength={600} value={body} onChangeText={onBody} placeholder="What’s happening at the track?" style={styles.modalField} />
         {image ? <View><Image source={{ uri: image.uri }} style={styles.preview} /><Pressable onPress={onRemovePhoto} style={styles.removePhoto}><Text style={styles.removePhotoText}>Remove photo</Text></Pressable></View> : null}
-        <Pressable onPress={onPhoto} style={styles.addPhotoRow}><View style={styles.addPhotoIcon}><SymbolView name={{ ios: 'photo.fill', android: 'photo.fill', web: 'photo.fill' } as any} tintColor={palette.orange} size={20} /></View><View style={{ flex: 1 }}><Text style={styles.addPhotoTitle}>Add a photo</Text><Text style={styles.addPhotoDetail}>Show the car, paddock, or moment.</Text></View><Text style={styles.arrow}>›</Text></Pressable>
+        <Pressable onPress={onPhoto} style={styles.addPhotoRow}><View style={styles.addPhotoIcon}><SymbolView name={{ ios: 'photo.fill', android: 'photo.fill', web: 'photo.fill' } as any} tintColor={palette.accent} size={20} /></View><View style={{ flex: 1 }}><Text style={styles.addPhotoTitle}>Add a photo</Text><Text style={styles.addPhotoDetail}>Show the car, paddock, or moment.</Text></View><Text style={styles.arrow}>›</Text></Pressable>
+        <Text style={styles.guidelineText}>By posting, you agree to the <Text accessibilityRole="link" onPress={() => Linking.openURL(`${(process.env.EXPO_PUBLIC_API_URL || 'https://carbook.root-dynamics.com').replace(/\/$/, '')}/community-guidelines`)} style={styles.guidelineLink}>Community Guidelines</Text>.</Text>
       </ScrollView>
     </SafeAreaView>
   </Modal>;
@@ -487,15 +551,15 @@ export default function CommunityScreen() {
 const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brand: { flex: 1, color: palette.ink, fontSize: 25, fontWeight: '900' },
-  iconButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: palette.line, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' },
+  iconButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, alignItems: 'center', justifyContent: 'center' },
   iconButtonActive: { borderColor: palette.navy, backgroundColor: palette.navy },
-  badge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: palette.orange, borderWidth: 2, borderColor: palette.canvas, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: palette.primary, borderWidth: 2, borderColor: palette.canvas, alignItems: 'center', justifyContent: 'center' },
   badgeText: { color: 'white', fontSize: 9, fontWeight: '900' },
-  socialTabs: { minHeight: 50, padding: 4, borderRadius: 16, flexDirection: 'row', backgroundColor: 'white', borderWidth: 1, borderColor: palette.line },
+  socialTabs: { minHeight: 50, padding: 4, borderRadius: 16, flexDirection: 'row', backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line },
   socialTab: { flex: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  socialTabActive: { backgroundColor: palette.orangeSoft },
+  socialTabActive: { backgroundColor: palette.accentSoft },
   socialTabText: { color: palette.muted, fontSize: 12, fontWeight: '800' },
-  socialTabTextActive: { color: '#C2410C' },
+  socialTabTextActive: { color: palette.accent },
   error: { padding: 13, borderRadius: 13, backgroundColor: palette.redSoft },
   errorText: { color: palette.red, fontWeight: '800', lineHeight: 19 },
   composerPrompt: { padding: 11, flexDirection: 'row', alignItems: 'center', gap: 9 },
@@ -503,7 +567,7 @@ const styles = StyleSheet.create({
   promptText: { color: palette.muted, fontSize: 13 },
   promptPhoto: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   filters: { gap: 8 },
-  filter: { borderWidth: 1, borderColor: palette.line, backgroundColor: 'white', borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9 },
+  filter: { borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9 },
   filterActive: { borderColor: palette.navy, backgroundColor: palette.navy },
   filterText: { color: palette.muted, fontSize: 12, fontWeight: '800' },
   filterTextActive: { color: 'white' },
@@ -515,7 +579,7 @@ const styles = StyleSheet.create({
   postBody: { color: palette.ink, fontSize: 15, lineHeight: 22 },
   postImage: { width: '100%', height: 265, borderRadius: 14, backgroundColor: palette.canvas },
   nestedImage: { height: 200, borderRadius: 10 },
-  sharedPost: { borderWidth: 1, borderColor: palette.line, borderRadius: 14, padding: 11, gap: 10, backgroundColor: '#FCFCFD' },
+  sharedPost: { borderWidth: 1, borderColor: palette.line, borderRadius: 14, padding: 11, gap: 10, backgroundColor: palette.surfaceRaised },
   sharedHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sharedAuthor: { color: palette.ink, fontSize: 12, fontWeight: '900' },
   sharedBody: { color: palette.ink, fontSize: 13, lineHeight: 19 },
@@ -524,32 +588,34 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', alignItems: 'center', minHeight: 38, borderBottomWidth: 1, borderBottomColor: palette.line },
   postAction: { flex: 1, minHeight: 38, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
   postActionText: { color: palette.muted, fontSize: 12, fontWeight: '800' },
-  postActionTextActive: { color: palette.orange },
-  attachment: { borderWidth: 1, borderColor: palette.line, backgroundColor: '#FCFCFD', borderRadius: 14, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  attachmentIcon: { width: 39, height: 39, borderRadius: 12, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' },
-  carIcon: { backgroundColor: '#E9EEF7' },
-  attachmentLabel: { color: palette.orange, fontSize: 9, letterSpacing: 1, fontWeight: '900' },
+  postActionTextActive: { color: palette.accent },
+  attachment: { borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surfaceRaised, borderRadius: 14, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  attachmentIcon: { width: 39, height: 39, borderRadius: 12, backgroundColor: palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  carIcon: { backgroundColor: palette.surfaceRaised },
+  attachmentLabel: { color: palette.accent, fontSize: 9, letterSpacing: 1, fontWeight: '900' },
   attachmentTitle: { color: palette.ink, fontSize: 14, fontWeight: '900', marginTop: 2 },
   attachmentDetail: { color: palette.muted, fontSize: 11, marginTop: 2 },
-  runDrivers: { backgroundColor: palette.orangeSoft, borderRadius: 12, padding: 11 },
-  runLabel: { color: '#C2410C', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  runDrivers: { backgroundColor: palette.accentSoft, borderRadius: 12, padding: 11 },
+  runLabel: { color: palette.accent, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   runNames: { color: palette.ink, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
   comment: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   commentBubble: { flex: 1, backgroundColor: palette.canvas, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 8 },
+  commentHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
+  commentOptions: { width: 28, height: 24, alignItems: 'center', justifyContent: 'center' },
   commentAuthor: { color: palette.ink, fontSize: 11, fontWeight: '900' },
   commentTime: { color: palette.muted, fontWeight: '600' },
   commentBody: { color: palette.ink, fontSize: 13, lineHeight: 18, marginTop: 2 },
-  commentToggle: { color: palette.orange, fontSize: 12, fontWeight: '800' },
+  commentToggle: { color: palette.accent, fontSize: 12, fontWeight: '800' },
   commentForm: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   commentField: { flex: 1, height: 44, fontSize: 14 },
-  sendButton: { width: 42, height: 42, borderRadius: 13, backgroundColor: palette.orange, alignItems: 'center', justifyContent: 'center' },
+  sendButton: { width: 42, height: 42, borderRadius: 13, backgroundColor: palette.primary, alignItems: 'center', justifyContent: 'center' },
   pageSection: { gap: 12 },
   pageTitle: { color: palette.ink, fontSize: 22, fontWeight: '900' },
   pageSubtitle: { color: palette.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
-  eventCard: { minHeight: 100, borderRadius: 17, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'white', borderWidth: 1, borderColor: palette.line, ...shadow },
-  eventDateBadge: { width: 55, height: 61, borderRadius: 14, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' },
-  eventDay: { color: palette.orange, fontSize: 22, fontWeight: '900' },
-  eventMonth: { color: '#C2410C', fontSize: 9, fontWeight: '900' },
+  eventCard: { minHeight: 100, borderRadius: 17, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, ...shadow },
+  eventDateBadge: { width: 55, height: 61, borderRadius: 14, backgroundColor: palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  eventDay: { color: palette.accent, fontSize: 22, fontWeight: '900' },
+  eventMonth: { color: palette.accent, fontSize: 9, fontWeight: '900' },
   eventName: { color: palette.ink, fontSize: 16, fontWeight: '900' },
   eventTrack: { color: palette.muted, fontSize: 11, marginTop: 3 },
   goingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 9 },
@@ -560,19 +626,21 @@ const styles = StyleSheet.create({
   personName: { color: palette.ink, fontWeight: '900', fontSize: 13 },
   personHandle: { color: palette.muted, fontSize: 10, marginTop: 3 },
   personActions: { alignItems: 'flex-end', gap: 5 },
-  smallPrimary: { minWidth: 70, minHeight: 34, borderRadius: 10, backgroundColor: palette.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9 },
+  personMinorActions: { flexDirection: 'row', gap: 9 },
+  smallPrimary: { minWidth: 70, minHeight: 34, borderRadius: 10, backgroundColor: palette.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9 },
   smallPrimaryText: { color: 'white', fontWeight: '900', fontSize: 11 },
   secondaryAction: { color: palette.muted, fontSize: 10, fontWeight: '800', paddingHorizontal: 5, paddingVertical: 3 },
-  activityRow: { borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'white', borderWidth: 1, borderColor: palette.line },
+  dangerAction: { color: palette.red, fontSize: 10, fontWeight: '800', paddingHorizontal: 5, paddingVertical: 3 },
+  activityRow: { borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line },
   activityText: { color: palette.ink, fontSize: 13, lineHeight: 18 },
   activityName: { fontWeight: '900' },
   activityDetail: { color: palette.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
-  activityTime: { color: palette.orange, fontSize: 10, fontWeight: '800', marginTop: 4 },
+  activityTime: { color: palette.accent, fontSize: 10, fontWeight: '800', marginTop: 4 },
   modalScreen: { flex: 1, backgroundColor: palette.canvas },
-  modalHeader: { minHeight: 62, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: palette.line, backgroundColor: 'white' },
+  modalHeader: { minHeight: 62, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: palette.line, backgroundColor: palette.surface },
   modalCancel: { color: palette.muted, fontSize: 14, fontWeight: '800' },
   modalTitle: { color: palette.ink, fontSize: 17, fontWeight: '900' },
-  modalPost: { minWidth: 70, height: 38, borderRadius: 11, backgroundColor: palette.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  modalPost: { minWidth: 70, height: 38, borderRadius: 11, backgroundColor: palette.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
   modalPostText: { color: 'white', fontSize: 12, fontWeight: '900' },
   modalContent: { padding: 18, gap: 16 },
   composerIdentity: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -580,14 +648,16 @@ const styles = StyleSheet.create({
   preview: { width: '100%', height: 245, borderRadius: 15, backgroundColor: palette.canvas },
   removePhoto: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(16,24,40,.82)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
   removePhotoText: { color: 'white', fontWeight: '800', fontSize: 11 },
-  addPhotoRow: { borderRadius: 16, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: 'white', borderWidth: 1, borderColor: palette.line },
-  addPhotoIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: palette.orangeSoft, alignItems: 'center', justifyContent: 'center' },
+  addPhotoRow: { borderRadius: 16, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line },
+  addPhotoIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
   addPhotoTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' },
   addPhotoDetail: { color: palette.muted, fontSize: 11, marginTop: 2 },
-  avatar: { backgroundColor: palette.orangeSoft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
+  guidelineText: { color: palette.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', paddingHorizontal: 18 },
+  guidelineLink: { color: palette.accent, fontWeight: '800' },
+  avatar: { backgroundColor: palette.accentSoft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
   avatarImage: { width: '100%', height: '100%' },
-  avatarText: { color: '#C2410C', fontWeight: '900' },
-  arrow: { color: palette.orange, fontSize: 25 },
+  avatarText: { color: palette.accent, fontWeight: '900' },
+  arrow: { color: palette.accent, fontSize: 25 },
   pressed: { opacity: .65 },
   disabled: { opacity: .42 },
 });

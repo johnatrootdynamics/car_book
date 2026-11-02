@@ -9,7 +9,7 @@ const Icon = ({ name, color }: { name: string; color: ColorValue }) => <SymbolVi
 export default function TabLayout() {
   const { account, loading } = useAuth(); if (loading) return <Loading />; if (!account) return <Redirect href="/login" />; if (account.must_change_password) return <Redirect href="/change-password" />;
   const driver = account.type === 'user';
-  return <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: palette.orange, tabBarInactiveTintColor: '#667085', tabBarStyle: { height: 84, paddingTop: 9, backgroundColor: 'white', borderTopColor: palette.line }, tabBarLabelStyle: { fontSize: 11, fontWeight: '700', paddingBottom: 7 } }}>
+  return <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: palette.accent, tabBarInactiveTintColor: palette.muted, tabBarStyle: { height: 84, paddingTop: 9, backgroundColor: palette.surface, borderTopColor: palette.line }, tabBarLabelStyle: { fontSize: 11, fontWeight: '700', paddingBottom: 7 } }}>
     <Tabs.Screen name="index" options={{ title: driver ? 'Track' : 'Home', tabBarIcon: ({ color }) => <Icon name={driver ? 'flag.checkered' : 'house.fill'} color={color} /> }} />
     <Tabs.Screen name="events" options={{ title: 'Events', href: driver || account.type === 'employee' ? undefined : null, tabBarIcon: ({ color }) => <Icon name="calendar" color={color} /> }} />
     <Tabs.Screen name="tickets" options={{ title: 'Tickets', href: driver ? undefined : null, tabBarIcon: ({ color }) => <Icon name="ticket.fill" color={color} /> }} />

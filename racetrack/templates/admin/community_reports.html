@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="moderation-page">
+  <header class="enterprise-dashboard-header moderation-hero">
+    <div>
+      <span class="event-page-kicker">Trust &amp; safety</span>
+      <h2>Community reports</h2>
+      <p>Review driver reports, remove unsafe content, and restrict repeat offenders from Community.</p>
+    </div>
+    <span class="moderation-open-count"><strong>{{ counts.open }}</strong><small>Open</small></span>
+  </header>
+
+  <nav class="moderation-filters" aria-label="Report status">
+    {% for status, label in [('open','Open'),('actioned','Actioned'),('resolved','Resolved'),('dismissed','Dismissed'),('all','All')] %}
+      <a class="{% if selected_status == status %}active{% endif %}" href="{{ url_for('admin.community_reports', status=status) }}">{{ label }}{% if status != 'all' %}<span>{{ counts[status] }}</span>{% endif %}</a>
+    {% endfor %}
+  </nav>
+
+  {% if reports %}
+    <section class="moderation-list">
+      {% for report in reports %}
+        <article class="card moderation-card">
+          <div class="moderation-card-head">
+            <span class="moderation-kind"><i class="bi bi-{{ 'chat-square-text' if report.content_type == 'comment' else ('file-post' if report.content_type in ['post','share'] else 'person') }}" aria-hidden="true"></i>{{ report.content_type|title }}</span>
+            <span class="moderation-status status-{{ report.status }}">{{ report.status|title }}</span>
+          </div>
+          <div class="moderation-meta">
+            <div><small>Reported account</small><strong>{{ report.reported_user.first_name ~ ' ' ~ report.reported_user.last_name if report.reported_user else 'Unavailable account' }}</strong></div>
+            <div><small>Reason</small><strong>{{ report.reason|replace('_',' ')|title }}</strong></div>
+            <div><small>Received</small><strong>{{ report.created_at.strftime('%b %-d, %Y · %-I:%M %p') }}</strong></div>
+          </div>
+          {% if report.post or report.comment or report.share or report.details %}
+            <div class="moderation-evidence">
+              {% if report.share %}<small>Reported share</small><p>{{ report.share.body or 'Shared a post without a note.' }}</p>
+              {% elif report.comment %}<small>Reported comment</small><p>{{ report.comment.body }}</p>
+              {% elif report.post %}<small>Reported post</small><p>{{ report.post.body or report.post.title }}</p>
+              {% endif %}
+              {% if report.details %}<small>Reporter details</small><p>{{ report.details }}</p>{% endif %}
+            </div>
+          {% endif %}
+          {% if report.status == 'open' %}
+            <form method="post" action="{{ url_for('admin.review_community_report', report_id=report.id) }}" class="moderation-actions">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label>Internal note<input name="resolution_note" maxlength="500" placeholder="Optional context for the audit trail"></label>
+              <div>
+                {% if report.post or report.comment or report.share %}<button class="btn btn-danger" name="action" value="remove_content" type="submit"><i class="bi bi-trash3"></i> Remove content</button>{% endif %}
+                {% if report.reported_user and not report.reported_user.community_suspended_at %}<button class="btn btn-secondary" name="action" value="suspend_user" type="submit"><i class="bi bi-person-slash"></i> Suspend user</button>{% endif %}
+                {% if report.reported_user and report.reported_user.community_suspended_at %}<button class="btn btn-secondary" name="action" value="restore_user" type="submit">Restore access</button>{% endif %}
+                <button class="btn btn-secondary" name="action" value="dismiss" type="submit">Dismiss</button>
+                <button class="btn" name="action" value="resolve" type="submit">Resolve</button>
+              </div>
+            </form>
+          {% elif report.resolution_note %}
+            <div class="moderation-resolution"><i class="bi bi-check-circle-fill"></i><span><strong>{{ report.resolution_note }}</strong><small>{{ report.reviewed_at.strftime('%b %-d, %Y · %-I:%M %p') if report.reviewed_at else '' }}</small></span></div>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </section>
+  {% else %}
+    <section class="card moderation-empty"><i class="bi bi-shield-check"></i><h3>No {{ selected_status }} reports</h3><p>New community safety reports will appear here.</p></section>
+  {% endif %}
+</div>
+{% endblock %}

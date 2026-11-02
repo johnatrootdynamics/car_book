@@ -19,6 +19,7 @@ from decimal import Decimal, InvalidOperation
 
 from .forms import TrackCreateForm, WaiverTemplateForm
 from .models import (
+    CommunityReport,
     DriverTicketOrder,
     DriverWaiver,
     Employee,
@@ -224,10 +225,89 @@ def dashboard():
         impersonating_track_id=impersonating_track_id,
         create_form=create_form,
         track_count=len(tracks),
-        staff_count=Employee.query.count(),
-        driver_count=User.query.count(),
-        vendor_count=VendorAccount.query.count(),
+        staff_count=Employee.query.filter(Employee.deleted_at.is_(None)).count(),
+        driver_count=User.query.filter(User.deleted_at.is_(None)).count(),
+        vendor_count=VendorAccount.query.filter(VendorAccount.deleted_at.is_(None)).count(),
+        open_report_count=CommunityReport.query.filter_by(status="open").count(),
     )
+
+
+@admin_bp.route("/community-reports")
+@login_required
+def community_reports():
+    guard = require_admin()
+    if guard:
+        return guard
+    selected_status = (request.args.get("status") or "open").strip().lower()
+    if selected_status not in {"open", "actioned", "resolved", "dismissed", "all"}:
+        selected_status = "open"
+    query = CommunityReport.query.order_by(CommunityReport.created_at.desc())
+    if selected_status != "all":
+        query = query.filter(CommunityReport.status == selected_status)
+    reports = query.limit(250).all()
+    counts = {
+        status: CommunityReport.query.filter_by(status=status).count()
+        for status in ("open", "actioned", "resolved", "dismissed")
+    }
+    return render_template(
+        "admin/community_reports.html",
+        reports=reports,
+        selected_status=selected_status,
+        counts=counts,
+    )
+
+
+@admin_bp.route("/community-reports/<int:report_id>", methods=["POST"])
+@login_required
+def review_community_report(report_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    report = CommunityReport.query.get_or_404(report_id)
+    action = (request.form.get("action") or "").strip().lower()
+    resolution_note = (request.form.get("resolution_note") or "").strip()[:500]
+    if action == "remove_content":
+        if report.share:
+            CommunityReport.query.filter_by(share_id=report.share.id).update(
+                {"share_id": None, "post_id": None}, synchronize_session=False
+            )
+            db.session.delete(report.share)
+        elif report.comment:
+            CommunityReport.query.filter_by(comment_id=report.comment.id).update(
+                {"comment_id": None}, synchronize_session=False
+            )
+            db.session.delete(report.comment)
+        elif report.post:
+            CommunityReport.query.filter_by(post_id=report.post.id).update(
+                {"post_id": None, "comment_id": None, "share_id": None},
+                synchronize_session=False,
+            )
+            db.session.delete(report.post)
+        report.status = "actioned"
+        default_note = "Reported content removed."
+    elif action == "suspend_user" and report.reported_user:
+        report.reported_user.community_suspended_at = datetime.utcnow()
+        report.status = "actioned"
+        default_note = "Reported user suspended from Community."
+    elif action == "restore_user" and report.reported_user:
+        report.reported_user.community_suspended_at = None
+        report.status = "resolved"
+        default_note = "Community access restored after review."
+    elif action == "dismiss":
+        report.status = "dismissed"
+        default_note = "Report reviewed; no violation found."
+    elif action == "resolve":
+        report.status = "resolved"
+        default_note = "Report resolved."
+    else:
+        flash("Choose a valid moderation action.", "error")
+        return redirect(url_for("admin.community_reports"))
+    report.resolution_note = resolution_note or default_note
+    report.reviewed_by_admin_id = current_user.id
+    report.reviewed_at = datetime.utcnow()
+    db.session.commit()
+    flash("Community report updated.", "success")
+    return redirect(url_for("admin.community_reports", status="open"))
 
 
 @admin_bp.route("/settings")
@@ -691,10 +771,10 @@ def accounts():
     if guard:
         return guard
     query = (request.args.get("q") or "").strip()
-    employees_query = Employee.query.join(Track)
-    users_query = User.query
-    admins_query = EnterpriseAdmin.query
-    vendors_query = VendorAccount.query
+    employees_query = Employee.query.join(Track).filter(Employee.deleted_at.is_(None))
+    users_query = User.query.filter(User.deleted_at.is_(None))
+    admins_query = EnterpriseAdmin.query.filter(EnterpriseAdmin.deleted_at.is_(None))
+    vendors_query = VendorAccount.query.filter(VendorAccount.deleted_at.is_(None))
     if query:
         pattern = f"%{query}%"
         employees_query = employees_query.filter(
@@ -758,7 +838,7 @@ def reset_account_password(account_type, account_id):
     if not model:
         flash("Unknown account type.", "error")
         return redirect(url_for("admin.accounts"))
-    account = model.query.get_or_404(account_id)
+    account = model.query.filter_by(id=account_id, deleted_at=None).first_or_404()
     plaintext_password = generate_random_password()
     account.password_hash = generate_password_hash(plaintext_password)
     account.must_change_password = True
@@ -819,7 +899,7 @@ def create_track():
         else:
             owner_email = form.owner_email.data.lower().strip()
             email_in_use = any(
-                model.query.filter_by(email=owner_email).first()
+                model.query.filter_by(email=owner_email, deleted_at=None).first()
                 for model in (User, Employee, EnterpriseAdmin, VendorAccount)
             )
             if email_in_use:

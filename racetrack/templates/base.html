@@ -5,14 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Track Ops</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260916a') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261010-brand') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='brand.css', v='20261010a') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='brand/favicon.png') }}">
+  <meta name="theme-color" content="#111827">
+  <meta name="color-scheme" content="dark">
 </head>
 <body class="ui-system {% block body_class %}{% endblock %}{% if not current_user.is_authenticated %} public-shell{% elif is_user %} account-driver{% elif is_vendor %} account-vendor{% elif is_employee %} account-employee{% elif is_admin %} account-admin{% endif %}">
   {% if not current_user.is_authenticated %}
     <header class="mk-topbar public-topbar">
       <div class="mk-wrap mk-nav">
         <a class="mk-brand-wrap" href="{{ url_for('auth.home') }}">
-          <span class="mk-brand"><i class="bi bi-speedometer2" aria-hidden="true"></i> Track Ops</span>
+          {% include "shared/brand_logo.html" %}
           <span class="mk-subbrand">A Root Dynamics product</span>
         </a>
         <nav class="mk-links" aria-label="Public navigation">
@@ -30,6 +34,7 @@
     </button>
     <button class="sidebar-overlay" type="button" aria-label="Close navigation" data-sidebar-overlay></button>
     <aside class="sidebar">
+      <a class="sidebar-logo" href="{{ url_for('auth.home') }}" aria-label="Track Ops home">{% include "shared/brand_logo.html" %}</a>
       {% if is_user %}
         <a class="sidebar-profile sidebar-profile-card {% if (request.endpoint or '') in ['user.profile_settings','user.rfid_tags','auth.security'] or (request.endpoint or '').startswith('waiver.driver_') %}active{% endif %}" href="{{ url_for('user.profile_settings') }}" aria-label="Open profile settings">
           {% if current_user.profile_image_url %}{% set profile_img = asset_url(current_user.profile_image_url) %}{% if profile_img %}<img class="profile-photo" src="{{ profile_img }}" alt="Profile photo">{% else %}<span class="profile-photo-fallback">{{ (current_user.first_name or 'D')[0] }}</span>{% endif %}{% else %}<span class="profile-photo-fallback">{{ (current_user.first_name or 'D')[0] }}</span>{% endif %}
@@ -45,10 +50,6 @@
         <a href="{{ url_for('employee.track_profile') if is_office_staff else url_for('employee.dashboard') }}" class="brand-wrap">
           <span class="brand">{{ current_user.track.name }}</span>
           <span class="subbrand">{{ 'Office staff' if is_office_staff else 'Track staff' }}</span>
-        </a>
-      {% else %}
-        <a href="{{ url_for('auth.home') }}" class="brand-wrap">
-          <span class="brand">Track Ops</span>
         </a>
       {% endif %}
       <nav class="side-nav">
@@ -78,6 +79,7 @@
           <a class="side-link {% if ep == 'admin.dashboard' %}active{% endif %}" href="{{ url_for('admin.dashboard') }}"><span class="sidebar-icon"><i class="bi bi-grid"></i></span><span class="sidebar-label">Dashboard</span></a>
           <a class="side-link {% if ep in ['admin.orders','admin.order_detail'] %}active{% endif %}" href="{{ url_for('admin.orders') }}"><span class="sidebar-icon"><i class="bi bi-receipt"></i></span><span class="sidebar-label">Orders</span></a>
           <a class="side-link {% if ep in ['admin.accounts','admin.reset_account_password'] %}active{% endif %}" href="{{ url_for('admin.accounts') }}"><span class="sidebar-icon"><i class="bi bi-people"></i></span><span class="sidebar-label">Accounts</span></a>
+          <a class="side-link {% if ep in ['admin.community_reports','admin.review_community_report'] %}active{% endif %}" href="{{ url_for('admin.community_reports') }}"><span class="sidebar-icon"><i class="bi bi-shield-check"></i></span><span class="sidebar-label">Community Safety</span></a>
           <a class="side-link {% if ep in ['admin.rfid_tags','admin.rfid_tag_orders','admin.rfid_tag_order_detail'] %}active{% endif %}" href="{{ url_for('admin.rfid_tags') }}"><span class="sidebar-icon"><i class="bi bi-broadcast-pin"></i></span><span class="sidebar-label">RFID Inventory</span></a>
           <a class="side-link {% if ep in ['admin.settings','admin.update_smtp_settings','admin.test_smtp_settings','admin.update_wallet_settings','admin.update_enterprise_payment_settings'] %}active{% endif %}" href="{{ url_for('admin.settings') }}"><span class="sidebar-icon"><i class="bi bi-gear"></i></span><span class="sidebar-label">Settings</span></a>
           <a class="side-link {% if ep == 'admin.waivers' %}active{% endif %}" href="{{ url_for('admin.waivers') }}"><span class="sidebar-icon"><i class="bi bi-file-earmark-text"></i></span><span class="sidebar-label">Waivers</span></a>
@@ -103,6 +105,10 @@
         {% endwith %}
 
         {% block content %}{% endblock %}
+        <footer class="legal-footer">
+          <span>&copy; 2026 Track Ops</span>
+          <nav aria-label="Legal and support"><a href="{{ url_for('auth.privacy') }}">Privacy</a><a href="{{ url_for('auth.terms') }}">Terms</a><a href="{{ url_for('auth.community_guidelines') }}">Community Guidelines</a><a href="{{ url_for('auth.support') }}">Support</a></nav>
+        </footer>
       </div>
     </main>
   </div>

@@ -1,0 +1,164 @@
+/* The approved Track ops identity. Keep these colors aligned with mobile/lib/theme.ts. */
+:root,
+body.ui-system {
+  color-scheme: dark;
+  --ui-canvas: #111827;
+  --ui-surface: #192436;
+  --ui-surface-soft: #223149;
+  --ui-surface-blue: #1c3556;
+  --ui-border: #34445d;
+  --ui-border-strong: #526580;
+  --ui-text: #f1f5f9;
+  --ui-text-secondary: #c7d2e3;
+  --ui-muted: #a7b4c8;
+  --ui-primary: #2563eb;
+  --ui-primary-hover: #1d4ed8;
+  --brand-accent: #7dbbff;
+  --brand-success: #6ee7b7;
+  --brand-success-soft: #123a30;
+  --brand-success-border: #26624e;
+  --brand-warning: #fcd34d;
+  --brand-warning-soft: #3d321d;
+  --brand-warning-border: #75602c;
+  --brand-danger: #fda29b;
+  --brand-danger-soft: #42252d;
+  --brand-danger-border: #78404c;
+  --brand-purple: #c4b5fd;
+  --brand-purple-soft: #2d2547;
+  --brand-purple-border: #58427e;
+  --ui-success: var(--brand-success);
+  --ui-warning: var(--brand-warning);
+  --ui-danger: var(--brand-danger);
+  --ui-radius-sm: 6px;
+  --ui-radius: 8px;
+  --ui-shadow: 0 4px 18px rgb(0 0 0 / 16%);
+  --bg1: var(--ui-canvas);
+  --bg2: var(--ui-surface);
+  --text: var(--ui-text);
+  --muted: var(--ui-muted);
+  --card: var(--ui-surface);
+  --border: var(--ui-border);
+  --accent: var(--ui-primary);
+  --accent2: var(--ui-primary-hover);
+  --login-accent: var(--ui-primary);
+  --login-accent-dark: var(--ui-primary-hover);
+  --login-accent-soft: var(--ui-surface-blue);
+  --login-highlight: var(--brand-accent);
+  --error: #fda29b;
+  --ok: #6ee7b7;
+}
+
+html { color-scheme: dark; }
+body.ui-system { background: var(--ui-canvas); overflow-x: clip; }
+.ui-system .ui-content > *,
+.ui-system .events-page > * { min-width: 0; }
+.ui-system .table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; }
+::selection { color: var(--ui-text); background: var(--ui-primary); }
+
+/* Crop the presentation margins in CSS so the approved artwork stays intact. */
+.track-ops-logo {
+  position: relative;
+  display: block;
+  width: 218px;
+  max-width: 100%;
+  aspect-ratio: 1900 / 350;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.track-ops-logo img {
+  position: absolute;
+  width: 114.3158%;
+  max-width: none;
+  height: auto;
+  left: -7.3684%;
+  top: -54.2857%;
+}
+.sidebar-logo { display: block; margin: 5px 4px 22px; text-decoration: none; }
+.sidebar-logo .track-ops-logo { width: 190px; }
+.login-brand .track-ops-logo { width: 310px; }
+.ui-system .mk-brand-wrap { gap: 8px; }
+.ui-system .mk-subbrand { color: var(--ui-muted); padding-left: 0; }
+
+.ui-system .sidebar,
+.ui-system .mk-topbar,
+.ui-system .login-showcase { background: var(--ui-canvas); border-color: var(--ui-border); }
+.ui-system .sidebar::after { background: var(--ui-primary); }
+.ui-system .side-link { color: var(--ui-muted); border-radius: 6px; }
+.ui-system .side-link:hover { color: var(--ui-text); background: var(--ui-surface); }
+.ui-system .side-link.active { color: #fff; background: var(--ui-primary); }
+.ui-system .side-link.active .sidebar-icon { color: #fff; }
+.ui-system .sidebar-icon { color: var(--brand-accent); }
+.ui-system .mk-links a { color: var(--ui-text-secondary); }
+.ui-system .mk-links a:hover,
+.ui-system .mk-links a.active { color: var(--brand-accent); }
+.ui-system .mk-links .mk-login-link { color: #fff; background: var(--ui-primary); border-color: var(--ui-primary); }
+.ui-system :is(.sidebar-profile, .sidebar-profile-card) { background: var(--ui-surface); border-color: var(--ui-border); }
+
+.ui-system :is(.mk-panel, .mk-card, .mk-dashboard, .mk-chip) {
+  color: var(--ui-text);
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+  border-radius: 8px;
+}
+.ui-system .mk-hero { border-top: 3px solid var(--ui-primary); }
+.ui-system :is(.mk-panel, .mk-card, .mk-dashboard, .mk-chip) :is(h1, h2, h3, h4, strong) { color: var(--ui-text); }
+.ui-system :is(.mk-panel, .mk-card) p { color: var(--ui-muted); }
+.ui-system .mk-card-icon { color: var(--brand-accent); }
+
+.ui-system :is(.btn, button, input[type="submit"]) { border-radius: 6px; }
+.ui-system :is(.btn, input[type="submit"]):not(.btn-secondary):not(.btn-danger):not(.danger-btn):not(.btn-outline):not(.btn-muted) { color: #fff; background: var(--ui-primary); border-color: var(--ui-primary); }
+.ui-system :is(.btn, input[type="submit"]):not(.btn-secondary):not(.btn-danger):not(.danger-btn):not(.btn-outline):not(.btn-muted):hover { background: var(--ui-primary-hover); }
+.ui-system .btn-secondary { color: var(--brand-accent); background: var(--ui-surface-blue); border-color: var(--ui-border); }
+.ui-system .btn-secondary:hover { color: var(--ui-text); background: var(--ui-surface-soft); }
+.ui-system :is(.btn-danger, .danger-btn) { color: #fff; background: #b42318; }
+.ui-system :is(.btn-danger, .danger-btn):hover { background: #912018; }
+.ui-system :is(input:not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) {
+  color: var(--ui-text);
+  background: var(--ui-canvas);
+  border-color: var(--ui-border);
+  border-radius: 6px;
+}
+.ui-system :is(input, textarea)::placeholder { color: var(--ui-muted); opacity: 1; }
+.ui-system :is(input, select, textarea):focus { border-color: var(--brand-accent); box-shadow: 0 0 0 3px rgb(125 187 255 / 18%); }
+.ui-system :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 3px; }
+.ui-system :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--ui-primary); }
+
+.ui-system.auth-login .main-content-wrap,
+.ui-system .login-shell,
+.ui-system .login-panel { background: var(--ui-canvas); }
+.ui-system .login-card { padding: 28px; background: var(--ui-surface); border: 1px solid var(--ui-border); border-top: 3px solid var(--ui-primary); border-radius: 8px; }
+.ui-system .login-card :is(h2, label) { color: var(--ui-text); }
+.ui-system .login-card :is(p, .login-card-intro) { color: var(--ui-muted); }
+.ui-system .login-card-icon { color: var(--brand-accent); background: var(--ui-surface-blue); border-radius: 6px; }
+.ui-system .login-track-mark span { border-radius: 8px; transform: rotate(-35deg); border-color: var(--ui-border); }
+.ui-system .login-showcase::after { border-radius: 0; transform: rotate(-35deg); }
+.ui-system .login-role-label { color: var(--brand-accent); border-radius: 4px; letter-spacing: .08em; }
+
+.ui-system.account-driver :is(.community-hero, .profile-settings-hero, .driver-dashboard-header, .audience-live-hero),
+.ui-system .driver-qr-card {
+  background: #14243d;
+  border-color: var(--ui-border);
+  border-left: 3px solid var(--ui-primary);
+  border-radius: 8px;
+}
+
+/* QR quiet zones must remain light regardless of the app theme. */
+.ui-system :is(.driver-qr-image, .driver-hero-qr-image, .driver-inspection-qr) { background: #fff; }
+
+/* Status dots need a bright fill; tinted fills are reserved for status cards. */
+.ui-system .unified-events-calendar .rental-calendar-legend .is-available,
+.ui-system .track-live-dot { background: var(--brand-success); }
+.ui-system .unified-events-calendar .rental-calendar-legend .is-booked { background: var(--brand-purple); }
+.ui-system .unified-events-calendar .rental-calendar-legend .is-held { background: var(--brand-warning); }
+.ui-system .track-live-car.ineligible .track-live-dot { background: var(--brand-danger); }
+
+@media (max-width: 640px) {
+  .ui-system .sidebar-logo { margin-top: 50px; }
+  .ui-system .events-page-header { align-items: flex-start; flex-direction: column; }
+  .ui-system .mk-nav { gap: 14px; flex-wrap: wrap; }
+  .ui-system .mk-links { gap: 14px; flex-wrap: wrap; }
+  .ui-system .mk-brand-wrap .track-ops-logo { width: 190px; }
+  .ui-system .login-panel { padding: 24px 16px; }
+  .ui-system .login-card { padding: 22px; }
+  .login-brand .track-ops-logo { width: min(280px, 100%); }
+}

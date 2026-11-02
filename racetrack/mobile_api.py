@@ -24,6 +24,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from .models import (
     Car,
     CameraDevice,
+    CommunityGroupMember,
+    CommunityReport,
     DriverClassChange,
     DriverConnection,
     DriverNote,
@@ -67,6 +69,7 @@ from .models import (
     TrackRun,
     TrackSubscription,
     User,
+    UserBlock,
     VendorAccount,
     db,
 )
@@ -77,10 +80,13 @@ from .services.capacity_service import (
     ticket_availability,
 )
 from .services.email_service import (
+    decrypt_secret,
+    encrypt_secret,
     send_admin_login_email,
     send_driver_purchase_receipt,
     send_employee_login_email,
     send_private_rental_confirmation,
+    send_email,
     send_spectator_order_receipt,
     send_user_login_email,
     send_vendor_login_email,
@@ -114,9 +120,12 @@ from .services.rental_service import (
 from .services.storage_service import build_presigned_read_url, upload_public_image
 from .services.social_auth_service import (
     SocialAuthError,
+    exchange_apple_authorization_code,
+    revoke_apple_refresh_token,
     verify_apple_identity_token,
     verify_google_identity_token,
 )
+from .services.community_moderation import community_text_error
 from .security import generate_random_password
 
 try:
@@ -148,6 +157,15 @@ MOBILE_PAYMENT_PROVIDERS = {
 MOBILE_EMAIL_TEMPLATES = {
     "spectator_purchase_receipt": "Event ticket purchase receipt",
     "driver_purchase_receipt": "Driver purchase receipt",
+}
+COMMUNITY_REPORT_REASONS = {
+    "spam",
+    "harassment",
+    "hate_speech",
+    "sexual_content",
+    "violence",
+    "privacy",
+    "other",
 }
 
 
@@ -199,7 +217,8 @@ def _safe_web_target(account_type, raw_target):
 
 def _account(account_type, account_id):
     model = ACCOUNT_MODELS.get(account_type)
-    return db.session.get(model, account_id) if model else None
+    account = db.session.get(model, account_id) if model else None
+    return account if account and not account.deleted_at else None
 
 
 def _account_payload(account):
@@ -255,10 +274,10 @@ def _accounts_for_email(email):
     return [
         account
         for account in (
-            EnterpriseAdmin.query.filter_by(email=email).first(),
-            Employee.query.filter_by(email=email).first(),
-            VendorAccount.query.filter_by(email=email).first(),
-            User.query.filter_by(email=email).first(),
+            EnterpriseAdmin.query.filter_by(email=email, deleted_at=None).first(),
+            Employee.query.filter_by(email=email, deleted_at=None).first(),
+            VendorAccount.query.filter_by(email=email, deleted_at=None).first(),
+            User.query.filter_by(email=email, deleted_at=None).first(),
         )
         if account
     ]
@@ -362,6 +381,177 @@ def _reset_email(account, plaintext_password):
     return send_admin_login_email(account, plaintext_password, login_url, is_reset=True)
 
 
+def _delete_mobile_account(account):
+    """Remove personal/community data and irreversibly disable the account.
+
+    Commerce, waiver, inspection, and safety audit rows remain attached to an
+    anonymized record where the business has a legitimate retention need.
+    """
+
+    now = datetime.utcnow()
+    old_email = account.email
+    account_type = account.account_type
+    account_id = account.id
+
+    MobileRefreshToken.query.filter_by(
+        account_type=account_type, account_id=account_id
+    ).delete(synchronize_session=False)
+    MobileSocialAuthCode.query.filter_by(
+        account_type=account_type, account_id=account_id
+    ).delete(synchronize_session=False)
+    social_identities = SocialLoginIdentity.query.filter_by(
+        account_type=account_type, account_id=account_id
+    ).all()
+    for identity in social_identities:
+        if identity.provider == "apple" and identity.refresh_token_encrypted:
+            try:
+                revoke_apple_refresh_token(
+                    decrypt_secret(identity.refresh_token_encrypted),
+                    current_app.config.get("APPLE_SIGN_IN_CLIENT_ID"),
+                    current_app.config.get("APPLE_SIGN_IN_TEAM_ID"),
+                    current_app.config.get("APPLE_SIGN_IN_KEY_ID"),
+                    current_app.config.get("APPLE_SIGN_IN_PRIVATE_KEY"),
+                )
+            except (RuntimeError, SocialAuthError):
+                current_app.logger.exception(
+                    "Could not revoke Sign in with Apple during account deletion"
+                )
+        db.session.delete(identity)
+    PasswordResetRequest.query.filter_by(
+        email_hash=hashlib.sha256(old_email.lower().encode()).hexdigest()
+    ).delete(synchronize_session=False)
+
+    if account_type == "user":
+        post_ids = {
+            post_id
+            for (post_id,) in db.session.query(SocialPost.id)
+            .filter(SocialPost.user_id == account.id)
+            .all()
+        }
+        comment_ids = {
+            comment_id
+            for (comment_id,) in db.session.query(SocialComment.id)
+            .filter(
+                or_(
+                    SocialComment.user_id == account.id,
+                    SocialComment.post_id.in_(post_ids or {-1}),
+                )
+            )
+            .all()
+        }
+        share_ids = {
+            share_id
+            for (share_id,) in db.session.query(SocialShare.id)
+            .filter(
+                or_(
+                    SocialShare.user_id == account.id,
+                    SocialShare.post_id.in_(post_ids or {-1}),
+                )
+            )
+            .all()
+        }
+        CommunityReport.query.filter(
+            CommunityReport.reporter_user_id == account.id
+        ).update({"reporter_user_id": None}, synchronize_session=False)
+        CommunityReport.query.filter(
+            CommunityReport.post_id.in_(post_ids or {-1})
+        ).update({"post_id": None}, synchronize_session=False)
+        CommunityReport.query.filter(
+            CommunityReport.comment_id.in_(comment_ids or {-1})
+        ).update({"comment_id": None}, synchronize_session=False)
+        CommunityReport.query.filter(
+            CommunityReport.share_id.in_(share_ids or {-1})
+        ).update({"share_id": None, "post_id": None}, synchronize_session=False)
+        SocialShare.query.filter(
+            or_(
+                SocialShare.user_id == account.id,
+                SocialShare.post_id.in_(post_ids or {-1}),
+            )
+        ).delete(synchronize_session=False)
+        SocialReaction.query.filter(
+            or_(
+                SocialReaction.user_id == account.id,
+                SocialReaction.post_id.in_(post_ids or {-1}),
+            )
+        ).delete(synchronize_session=False)
+        SocialComment.query.filter(
+            or_(
+                SocialComment.user_id == account.id,
+                SocialComment.post_id.in_(post_ids or {-1}),
+            )
+        ).delete(synchronize_session=False)
+        SocialPost.query.filter_by(user_id=account.id).delete(synchronize_session=False)
+        DriverConnection.query.filter(
+            or_(
+                DriverConnection.user_one_id == account.id,
+                DriverConnection.user_two_id == account.id,
+            )
+        ).delete(synchronize_session=False)
+        UserBlock.query.filter(
+            or_(
+                UserBlock.blocker_user_id == account.id,
+                UserBlock.blocked_user_id == account.id,
+            )
+        ).delete(synchronize_session=False)
+        CommunityGroupMember.query.filter_by(user_id=account.id).delete(
+            synchronize_session=False
+        )
+        TrackSubscription.query.filter_by(user_id=account.id).delete(
+            synchronize_session=False
+        )
+        TrackDriverClass.query.filter_by(user_id=account.id).delete(
+            synchronize_session=False
+        )
+        DriverClassChange.query.filter_by(user_id=account.id).delete(
+            synchronize_session=False
+        )
+        DriverNote.query.filter_by(user_id=account.id).delete(
+            synchronize_session=False
+        )
+        for car in account.cars:
+            car.make = "Deleted"
+            car.model = "Vehicle"
+            car.color = None
+            car.image_url = None
+            car.static_qr_code = f"DEL-CAR-{car.id}-{secrets.token_hex(8)}"
+            for registration in EventRegistration.query.filter_by(car_id=car.id).all():
+                registration.checkin_code = f"DEL-REG-{registration.id}-{secrets.token_hex(8)}"
+        account.first_name = "Deleted"
+        account.last_name = "Driver"
+        account.username = f"deleted-{account.id}-{secrets.token_hex(6)}"
+        account.phone = "N/A"
+        account.profile_image_url = None
+        account.community_suspended_at = None
+        account.static_qr_code = f"DEL-DRV-{account.id}-{secrets.token_hex(8)}"
+        account.date_of_birth = date(1970, 1, 1)
+        account.street = "N/A"
+        account.city = "N/A"
+        account.state = "N/A"
+        account.postal_code = "N/A"
+    elif account_type == "vendor":
+        account.full_name = "Deleted Vendor"
+        account.business_name = "Deleted Vendor"
+        account.phone = "N/A"
+        account.business_address = "N/A"
+        account.website = None
+        account.logo_image_path = None
+        account.description = None
+    else:
+        account.full_name = "Deleted Staff Account"
+        DriverClassChange.query.filter_by(
+            changed_by_type=account_type, changed_by_id=account.id
+        ).update({"changed_by_name": "Deleted staff"}, synchronize_session=False)
+        DriverNote.query.filter_by(
+            author_type=account_type, author_id=account.id
+        ).update({"author_name": "Deleted staff"}, synchronize_session=False)
+
+    account.email = f"deleted+{account_type}+{account.id}+{secrets.token_hex(8)}@deleted.invalid"
+    account.password_hash = generate_password_hash(secrets.token_urlsafe(64))
+    account.must_change_password = False
+    account.deleted_at = now
+    db.session.commit()
+
+
 def _json_error(message, status=400, code=None):
     return jsonify({"error": code or "request_failed", "message": message}), status
 
@@ -386,6 +576,16 @@ def mobile_login_required(*allowed_types, allow_password_change=False):
                 return _json_error("The account no longer exists.", 401, "invalid_account")
             if allowed_types and account.account_type not in allowed_types:
                 return _json_error("This account cannot use that feature.", 403, "forbidden")
+            if (
+                account.account_type == "user"
+                and account.community_suspended_at
+                and request.path.startswith("/api/v1/mobile/driver/community")
+            ):
+                return _json_error(
+                    "Community access has been restricted. Contact support if you believe this is a mistake.",
+                    403,
+                    "community_restricted",
+                )
             if account.must_change_password and not allow_password_change:
                 return _json_error(
                     "Change your temporary password before continuing.",
@@ -527,6 +727,35 @@ def _community_connection_pair(first_user_id, second_user_id):
     return min(first_user_id, second_user_id), max(first_user_id, second_user_id)
 
 
+def _community_blocked_user_ids(user_id):
+    rows = UserBlock.query.filter(
+        or_(
+            UserBlock.blocker_user_id == user_id,
+            UserBlock.blocked_user_id == user_id,
+        )
+    ).all()
+    return {
+        row.blocked_user_id
+        if row.blocker_user_id == user_id
+        else row.blocker_user_id
+        for row in rows
+    }
+
+
+def _community_users_blocked(first_user_id, second_user_id):
+    return (
+        UserBlock.query.filter(
+            or_(
+                (UserBlock.blocker_user_id == first_user_id)
+                & (UserBlock.blocked_user_id == second_user_id),
+                (UserBlock.blocker_user_id == second_user_id)
+                & (UserBlock.blocked_user_id == first_user_id),
+            )
+        ).first()
+        is not None
+    )
+
+
 def _community_counterpart_id(connection, user_id):
     return (
         connection.user_two_id
@@ -622,6 +851,8 @@ def _community_share_payload(share, visible_comment_user_ids, viewer_user_id):
 
 
 def _community_post_visible_to(post, user):
+    if post.author.deleted_at or _community_users_blocked(user.id, post.user_id):
+        return False
     if post.user_id == user.id:
         return True
     user_one_id, user_two_id = _community_connection_pair(user.id, post.user_id)
@@ -863,10 +1094,10 @@ def login():
     candidates = [
         account
         for account in (
-            EnterpriseAdmin.query.filter_by(email=email).first(),
-            Employee.query.filter_by(email=email).first(),
-            VendorAccount.query.filter_by(email=email).first(),
-            User.query.filter_by(email=email).first(),
+            EnterpriseAdmin.query.filter_by(email=email, deleted_at=None).first(),
+            Employee.query.filter_by(email=email, deleted_at=None).first(),
+            VendorAccount.query.filter_by(email=email, deleted_at=None).first(),
+            User.query.filter_by(email=email, deleted_at=None).first(),
         )
         if account and check_password_hash(account.password_hash, password)
     ]
@@ -960,6 +1191,29 @@ def social_apple():
             body.get("given_name") or "",
             body.get("family_name") or "",
         )
+        authorization_code = (body.get("authorization_code") or "").strip()
+        if authorization_code and all(
+            current_app.config.get(key)
+            for key in (
+                "APPLE_SIGN_IN_CLIENT_ID",
+                "APPLE_SIGN_IN_TEAM_ID",
+                "APPLE_SIGN_IN_KEY_ID",
+                "APPLE_SIGN_IN_PRIVATE_KEY",
+            )
+        ):
+            refresh_token = exchange_apple_authorization_code(
+                authorization_code,
+                current_app.config["APPLE_SIGN_IN_CLIENT_ID"],
+                current_app.config["APPLE_SIGN_IN_TEAM_ID"],
+                current_app.config["APPLE_SIGN_IN_KEY_ID"],
+                current_app.config["APPLE_SIGN_IN_PRIVATE_KEY"],
+            )
+            if refresh_token:
+                linked_identity = SocialLoginIdentity.query.filter_by(
+                    provider="apple", subject=identity["subject"]
+                ).first()
+                if linked_identity:
+                    linked_identity.refresh_token_encrypted = encrypt_secret(refresh_token)
         return jsonify(_new_session(account, body.get("device_name")))
     except SocialAuthError as exc:
         db.session.rollback()
@@ -1134,6 +1388,26 @@ def change_password():
     return jsonify(_new_session(account, body.get("device_name")))
 
 
+@mobile_api_bp.delete("/account")
+@mobile_login_required("user", "employee", "admin", "vendor", allow_password_change=True)
+def delete_account():
+    confirmation = ((request.get_json(silent=True) or {}).get("confirmation") or "").strip()
+    if confirmation != "DELETE":
+        return _json_error(
+            "Type DELETE to confirm permanent account deletion.",
+            400,
+            "confirmation_required",
+        )
+    account = g.mobile_user
+    _delete_mobile_account(account)
+    return jsonify(
+        {
+            "message": "Your Track Ops account and community data have been deleted.",
+            "deleted": True,
+        }
+    )
+
+
 @mobile_api_bp.post("/auth/web-link")
 @mobile_login_required("user", "employee", "admin", "vendor")
 def web_link():
@@ -1224,6 +1498,7 @@ def driver_dashboard():
 @mobile_login_required("user")
 def driver_community():
     user = g.mobile_user
+    blocked_ids = _community_blocked_user_ids(user.id)
     community_view = (request.args.get("view") or "all").strip().lower()
     if community_view not in {"all", "mine", "track", "builds"}:
         community_view = "all"
@@ -1238,6 +1513,11 @@ def driver_community():
         .order_by(DriverConnection.updated_at.desc())
         .all()
     )
+    connection_rows = [
+        connection
+        for connection in connection_rows
+        if _community_counterpart_id(connection, user.id) not in blocked_ids
+    ]
     counterpart_ids = {
         _community_counterpart_id(connection, user.id) for connection in connection_rows
     }
@@ -1248,7 +1528,9 @@ def driver_community():
     }
     users_by_id = {
         row.id: row
-        for row in User.query.filter(User.id.in_(counterpart_ids or {-1})).all()
+        for row in User.query.filter(
+            User.id.in_(counterpart_ids or {-1}), User.deleted_at.is_(None)
+        ).all()
     }
 
     post_user_ids = {user.id} if community_view == "mine" else accepted_ids
@@ -1307,6 +1589,8 @@ def driver_community():
                     User.last_name.ilike(pattern),
                 ),
                 User.id.notin_(counterpart_ids | {user.id}),
+                User.id.notin_(blocked_ids or {-1}),
+                User.deleted_at.is_(None),
             )
             .order_by(User.username.asc(), User.first_name.asc())
             .limit(8)
@@ -1355,7 +1639,7 @@ def driver_community():
             )
             for driver_id, track_name in shared_track_rows:
                 suggestion_reasons.setdefault(driver_id, f"Also follows {track_name}")
-        suggestion_ids = set(suggestion_reasons) - counterpart_ids - {user.id}
+        suggestion_ids = set(suggestion_reasons) - counterpart_ids - blocked_ids - {user.id}
         suggestion_users = (
             User.query.filter(User.id.in_(suggestion_ids))
             .order_by(User.username.asc(), User.first_name.asc())
@@ -1471,6 +1755,14 @@ def driver_community():
         if payload
     )
     feed_items.sort(key=lambda item: item["created_at"] or "", reverse=True)
+    my_blocks = UserBlock.query.filter_by(blocker_user_id=user.id).all()
+    blocked_users_by_id = {
+        row.id: row
+        for row in User.query.filter(
+            User.id.in_({block.blocked_user_id for block in my_blocks} or {-1}),
+            User.deleted_at.is_(None),
+        ).all()
+    }
     return jsonify(
         {
             "me": _community_user_payload(user),
@@ -1482,6 +1774,11 @@ def driver_community():
             "suggestions": suggestions,
             "events": upcoming,
             "activity": activity,
+            "blocked_users": [
+                _community_user_payload(blocked_users_by_id[block.blocked_user_id])
+                for block in my_blocks
+                if block.blocked_user_id in blocked_users_by_id
+            ],
         }
     )
 
@@ -1501,6 +1798,9 @@ def driver_community_post_create():
         return _json_error(
             "Community posts must be 600 characters or fewer.", 400, "post_too_long"
         )
+    moderation_error = community_text_error(post_body)
+    if moderation_error:
+        return _json_error(moderation_error, 400, "content_not_allowed")
     image_url = None
     if image_data:
         image_file, error = _mobile_image_file(image_data, f"post-{user.id}")
@@ -1542,6 +1842,9 @@ def driver_community_comment_create(post_id):
         return _json_error(
             "Comments must be 400 characters or fewer.", 400, "comment_too_long"
         )
+    moderation_error = community_text_error(comment_body)
+    if moderation_error:
+        return _json_error(moderation_error, 400, "content_not_allowed")
     comment = SocialComment(post_id=post.id, user_id=user.id, body=comment_body)
     db.session.add(comment)
     db.session.commit()
@@ -1589,6 +1892,9 @@ def driver_community_post_share(post_id):
     share_body = ((request.get_json(silent=True) or {}).get("body") or "").strip()
     if len(share_body) > 300:
         return _json_error("Share notes must be 300 characters or fewer.", 400, "share_too_long")
+    moderation_error = community_text_error(share_body)
+    if moderation_error:
+        return _json_error(moderation_error, 400, "content_not_allowed")
     shared_post = SocialShare(
         user_id=user.id,
         post_id=source_post.id,
@@ -1623,6 +1929,197 @@ def driver_community_share_delete(share_id):
     return jsonify({"message": "Shared post removed."})
 
 
+def _community_report_values(body):
+    reason = (body.get("reason") or "").strip().lower()
+    details = (body.get("details") or "").strip()
+    if reason not in COMMUNITY_REPORT_REASONS:
+        return None, None, "Choose a valid reason for the report."
+    if len(details) > 500:
+        return None, None, "Report details must be 500 characters or fewer."
+    return reason, details or None, None
+
+
+def _notify_community_report(report):
+    support_email = current_app.config.get("SUPPORT_EMAIL") or ""
+    if not support_email:
+        return
+    review_url = url_for("admin.community_reports", _external=True)
+    message = (
+        f"A new {report.content_type} report is waiting in Track Ops.\n\n"
+        f"Reason: {report.reason.replace('_', ' ').title()}\n"
+        f"Report ID: {report.id}\n"
+        f"Review queue: {review_url}"
+    )
+    try:
+        send_email(support_email, "New Track Ops community report", message)
+    except Exception:
+        current_app.logger.exception("Could not email the community report notification")
+
+
+@mobile_api_bp.post("/driver/community/posts/<int:post_id>/report")
+@mobile_login_required("user")
+def driver_community_post_report(post_id):
+    user = g.mobile_user
+    post = db.session.get(SocialPost, post_id)
+    if not post or not _community_post_visible_to(post, user) or post.user_id == user.id:
+        return _json_error("Post not found.", 404, "post_not_found")
+    reason, details, error = _community_report_values(request.get_json(silent=True) or {})
+    if error:
+        return _json_error(error, 400, "invalid_report")
+    existing = CommunityReport.query.filter_by(
+        reporter_user_id=user.id,
+        post_id=post.id,
+        status="open",
+    ).first()
+    if not existing:
+        report = CommunityReport(
+                reporter_user_id=user.id,
+                reported_user_id=post.user_id,
+                post_id=post.id,
+                content_type="post",
+                reason=reason,
+                details=details,
+            )
+        db.session.add(report)
+        db.session.commit()
+        _notify_community_report(report)
+    return jsonify({"message": "Report received. Our safety team will review it."})
+
+
+@mobile_api_bp.post("/driver/community/shares/<int:share_id>/report")
+@mobile_login_required("user")
+def driver_community_share_report(share_id):
+    user = g.mobile_user
+    share = db.session.get(SocialShare, share_id)
+    if (
+        not share
+        or not _community_post_visible_to(share.post, user)
+        or share.user_id == user.id
+        or _community_users_blocked(user.id, share.user_id)
+    ):
+        return _json_error("Shared post not found.", 404, "share_not_found")
+    reason, details, error = _community_report_values(request.get_json(silent=True) or {})
+    if error:
+        return _json_error(error, 400, "invalid_report")
+    existing = CommunityReport.query.filter_by(
+        reporter_user_id=user.id,
+        share_id=share.id,
+        status="open",
+    ).first()
+    if not existing:
+        report = CommunityReport(
+                reporter_user_id=user.id,
+                reported_user_id=share.user_id,
+                post_id=share.post_id,
+                share_id=share.id,
+                content_type="share",
+                reason=reason,
+                details=details,
+            )
+        db.session.add(report)
+        db.session.commit()
+        _notify_community_report(report)
+    return jsonify({"message": "Report received. Our safety team will review it."})
+
+
+@mobile_api_bp.post("/driver/community/comments/<int:comment_id>/report")
+@mobile_login_required("user")
+def driver_community_comment_report(comment_id):
+    user = g.mobile_user
+    comment = db.session.get(SocialComment, comment_id)
+    if (
+        not comment
+        or not _community_post_visible_to(comment.post, user)
+        or comment.user_id == user.id
+    ):
+        return _json_error("Comment not found.", 404, "comment_not_found")
+    reason, details, error = _community_report_values(request.get_json(silent=True) or {})
+    if error:
+        return _json_error(error, 400, "invalid_report")
+    existing = CommunityReport.query.filter_by(
+        reporter_user_id=user.id,
+        comment_id=comment.id,
+        status="open",
+    ).first()
+    if not existing:
+        report = CommunityReport(
+                reporter_user_id=user.id,
+                reported_user_id=comment.user_id,
+                post_id=comment.post_id,
+                comment_id=comment.id,
+                content_type="comment",
+                reason=reason,
+                details=details,
+            )
+        db.session.add(report)
+        db.session.commit()
+        _notify_community_report(report)
+    return jsonify({"message": "Report received. Our safety team will review it."})
+
+
+@mobile_api_bp.post("/driver/community/users/<int:user_id>/report")
+@mobile_login_required("user")
+def driver_community_user_report(user_id):
+    user = g.mobile_user
+    reported_user = User.query.filter_by(id=user_id, deleted_at=None).first()
+    if not reported_user or reported_user.id == user.id:
+        return _json_error("Driver not found.", 404, "driver_not_found")
+    reason, details, error = _community_report_values(request.get_json(silent=True) or {})
+    if error:
+        return _json_error(error, 400, "invalid_report")
+    existing = CommunityReport.query.filter_by(
+        reporter_user_id=user.id,
+        reported_user_id=reported_user.id,
+        content_type="user",
+        status="open",
+    ).first()
+    if not existing:
+        report = CommunityReport(
+                reporter_user_id=user.id,
+                reported_user_id=reported_user.id,
+                content_type="user",
+                reason=reason,
+                details=details,
+            )
+        db.session.add(report)
+        db.session.commit()
+        _notify_community_report(report)
+    return jsonify({"message": "Report received. Our safety team will review it."})
+
+
+@mobile_api_bp.post("/driver/community/users/<int:user_id>/block")
+@mobile_login_required("user")
+def driver_community_user_block(user_id):
+    user = g.mobile_user
+    blocked_user = User.query.filter_by(id=user_id, deleted_at=None).first()
+    if not blocked_user or blocked_user.id == user.id:
+        return _json_error("Driver not found.", 404, "driver_not_found")
+    existing = UserBlock.query.filter_by(
+        blocker_user_id=user.id, blocked_user_id=blocked_user.id
+    ).first()
+    if not existing:
+        db.session.add(
+            UserBlock(blocker_user_id=user.id, blocked_user_id=blocked_user.id)
+        )
+    user_one_id, user_two_id = _community_connection_pair(user.id, blocked_user.id)
+    DriverConnection.query.filter_by(
+        user_one_id=user_one_id, user_two_id=user_two_id
+    ).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({"message": f"@{blocked_user.username} is blocked."})
+
+
+@mobile_api_bp.delete("/driver/community/users/<int:user_id>/block")
+@mobile_login_required("user")
+def driver_community_user_unblock(user_id):
+    user = g.mobile_user
+    UserBlock.query.filter_by(
+        blocker_user_id=user.id, blocked_user_id=user_id
+    ).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({"message": "Driver unblocked."})
+
+
 @mobile_api_bp.post("/driver/community/connections/<int:user_id>")
 @mobile_login_required("user")
 def driver_community_connection_request(user_id):
@@ -1632,6 +2129,10 @@ def driver_community_connection_request(user_id):
         return _json_error("Driver not found.", 404, "driver_not_found")
     if other_user.id == user.id:
         return _json_error("You cannot connect with yourself.", 400, "self_connection")
+    if _community_users_blocked(user.id, other_user.id):
+        return _json_error(
+            "This driver is not available for connections.", 409, "connection_blocked"
+        )
     user_one_id, user_two_id = _community_connection_pair(user.id, other_user.id)
     existing = DriverConnection.query.filter_by(
         user_one_id=user_one_id,
@@ -4273,7 +4774,7 @@ def _staff_driver_query(track_id):
     return (
         User.query.join(EventRegistration, EventRegistration.user_id == User.id)
         .join(Event, Event.id == EventRegistration.event_id)
-        .filter(Event.track_id == track_id)
+        .filter(Event.track_id == track_id, User.deleted_at.is_(None))
         .distinct()
     )
 
@@ -4326,7 +4827,7 @@ def staff_people():
     directory_view = (request.args.get("view") or "drivers").strip().lower()
     query_text = (request.args.get("q") or "").strip()
     if directory_view == "vendors":
-        query = VendorAccount.query
+        query = VendorAccount.query.filter(VendorAccount.deleted_at.is_(None))
         if query_text:
             like = f"%{query_text}%"
             filters = [
@@ -4839,7 +5340,7 @@ def _staff_settings_payload(employee):
         item.provider: item
         for item in TrackPaymentMethod.query.filter_by(track_id=track.id).all()
     }
-    staff = Employee.query.filter_by(track_id=track.id).order_by(Employee.full_name).all()
+    staff = Employee.query.filter_by(track_id=track.id, deleted_at=None).order_by(Employee.full_name).all()
     rules = InspectionRule.query.filter_by(track_id=track.id).order_by(
         InspectionRule.sort_order.asc(), InspectionRule.id.asc()
     ).all()
@@ -5064,7 +5565,9 @@ def staff_settings_staff_create():
     role = (body.get("role") or "track_staff").strip()
     if not name or "@" not in email or role not in {"track_staff", "office_staff"}:
         return _json_error("Enter a name, valid email, and staff role.", 400, "invalid_staff")
-    if Employee.query.filter(func.lower(Employee.email) == email).first():
+    if Employee.query.filter(
+        func.lower(Employee.email) == email, Employee.deleted_at.is_(None)
+    ).first():
         return _json_error("An employee already uses that email.", 409, "email_exists")
     password = generate_random_password()
     track = db.session.get(Track, g.mobile_user.track_id)
@@ -5106,7 +5609,7 @@ def staff_settings_staff_reset(employee_id):
     if guard:
         return guard
     employee = Employee.query.filter_by(
-        id=employee_id, track_id=g.mobile_user.track_id
+        id=employee_id, track_id=g.mobile_user.track_id, deleted_at=None
     ).first()
     if not employee or employee.id == g.mobile_user.id:
         return _json_error("That staff account cannot be reset here.", 404, "staff_not_found")
@@ -5143,7 +5646,7 @@ def staff_settings_staff_role(employee_id):
     if guard:
         return guard
     employee = Employee.query.filter_by(
-        id=employee_id, track_id=g.mobile_user.track_id
+        id=employee_id, track_id=g.mobile_user.track_id, deleted_at=None
     ).first()
     if not employee:
         return _json_error("Staff account not found.", 404, "staff_not_found")
@@ -5152,7 +5655,7 @@ def staff_settings_staff_role(employee_id):
         return _json_error("Choose a valid staff role.", 400, "invalid_staff_role")
     if employee.role == "office_staff" and role == "track_staff":
         office_count = Employee.query.filter_by(
-            track_id=g.mobile_user.track_id, role="office_staff"
+            track_id=g.mobile_user.track_id, role="office_staff", deleted_at=None
         ).count()
         if office_count <= 1:
             return _json_error(
