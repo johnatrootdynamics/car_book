@@ -59,13 +59,13 @@ export default function AccountScreen() {
     <Stack.Screen options={{
       headerLeft: () => <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Back to More"
+        accessibilityLabel="Back"
         hitSlop={10}
         onPress={goBack}
         style={({ pressed }) => [styles.headerBack, pressed && styles.headerBackPressed]}
       >
         <Text style={styles.headerBackArrow}>‹</Text>
-        <Text style={styles.headerBackText}>More</Text>
+        <Text style={styles.headerBackText}>Back</Text>
       </Pressable>,
     }} />
     <Hero eyebrow="Account" title={account?.name || 'Profile'} subtitle={account?.email} />
