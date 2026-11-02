@@ -6,11 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { palette, shadow } from '@/lib/theme';
 import { BrandLogo } from '@/components/BrandLogo';
 
-export function Screen({ children, scroll = true }: PropsWithChildren<{ scroll?: boolean }>) {
+export function Screen({ children, scroll = true, showBrand = false }: PropsWithChildren<{ scroll?: boolean; showBrand?: boolean }>) {
   const segments = useSegments();
   const firstSegment = String(segments[0] || '');
   const ownsTopSafeArea = !firstSegment || firstSegment === '(tabs)' || firstSegment === 'login' || firstSegment === 'change-password';
-  const brand = firstSegment === '(tabs)' ? <View style={styles.brandBar}><BrandLogo width={190} /></View> : null;
+  const brand = showBrand ? <View style={styles.brandBar}><BrandLogo width={190} /></View> : null;
   const content = scroll ? <ScrollView contentContainerStyle={styles.content}>{brand}{children}</ScrollView> : <View style={styles.content}>{brand}{children}</View>;
   return <SafeAreaView edges={ownsTopSafeArea ? ['top'] : []} style={styles.screen}>{content}</SafeAreaView>;
 }
