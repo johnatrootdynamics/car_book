@@ -80,17 +80,18 @@ type CommunityPayload = {
 type FeedView = 'all' | 'mine' | 'track' | 'builds';
 type MainView = 'feed' | 'events' | 'people' | 'activity';
 
-const feedFilters: { value: FeedView; label: string }[] = [
-  { value: 'all', label: 'Circle' },
-  { value: 'mine', label: 'My feed' },
-  { value: 'track', label: 'Track plans' },
-  { value: 'builds', label: 'Builds' },
+const feedFilters: { value: FeedView; label: string; detail: string }[] = [
+  { value: 'all', label: 'Circle', detail: 'Posts from your connections' },
+  { value: 'mine', label: 'My posts', detail: 'Updates you have shared' },
+  { value: 'track', label: 'Track plans', detail: 'Upcoming plans and events' },
+  { value: 'builds', label: 'Builds', detail: 'Cars and garage updates' },
 ];
 
-const mainTabs: { value: Exclude<MainView, 'activity'>; label: string; symbol: string }[] = [
+const mainTabs: { value: MainView; label: string; symbol: string }[] = [
   { value: 'feed', label: 'Feed', symbol: 'rectangle.stack.fill' },
   { value: 'events', label: 'Events', symbol: 'calendar' },
   { value: 'people', label: 'People', symbol: 'person.2.fill' },
+  { value: 'activity', label: 'Activity', symbol: 'bell.fill' },
 ];
 
 function relativeTime(value: string) {
@@ -299,8 +300,8 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
 
   const requestCount = data.received_requests.length;
   return <Screen>
-    <SocialHeader mode={mode} requestCount={requestCount} onMode={setMode} onShowTrack={onShowTrack} />
-    <SocialTabs mode={mode} onMode={setMode} />
+    <SocialHeader onShowTrack={onShowTrack} />
+    <SocialTabs mode={mode} requestCount={requestCount} onMode={setMode} />
 
     {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text></View> : null}
 
@@ -358,30 +359,20 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
   </Screen>;
 }
 
-function SocialHeader({ mode, requestCount, onMode, onShowTrack }: { mode: MainView; requestCount: number; onMode: (mode: MainView) => void; onShowTrack?: () => void }) {
-  return <View style={styles.topBar}>
-    {onShowTrack ? <DriverSpaceSwitch compact active="social" onChange={space => space === 'track' && onShowTrack()} /> : <Text style={styles.brand}>Social</Text>}
-    <IconButton symbol="magnifyingglass" label="Find people" active={mode === 'people'} onPress={() => onMode('people')} />
-    <View>
-      <IconButton symbol="bell.fill" label="Activity" active={mode === 'activity'} onPress={() => onMode('activity')} />
-      {requestCount ? <View style={styles.badge}><Text style={styles.badgeText}>{requestCount > 9 ? '9+' : requestCount}</Text></View> : null}
-    </View>
-  </View>;
+function SocialHeader({ onShowTrack }: { onShowTrack?: () => void }) {
+  return onShowTrack
+    ? <DriverSpaceSwitch compact active="social" onChange={space => space === 'track' && onShowTrack()} />
+    : <Text style={styles.brand}>Social</Text>;
 }
 
-function IconButton({ symbol, label, active, onPress }: { symbol: string; label: string; active: boolean; onPress: () => void }) {
-  return <Pressable accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.iconButton, active && styles.iconButtonActive, pressed && styles.pressed]}>
-    <SymbolView name={{ ios: symbol, android: symbol, web: symbol } as any} tintColor={active ? 'white' : palette.ink} size={19} />
-  </Pressable>;
-}
-
-function SocialTabs({ mode, onMode }: { mode: MainView; onMode: (mode: MainView) => void }) {
+function SocialTabs({ mode, requestCount, onMode }: { mode: MainView; requestCount: number; onMode: (mode: MainView) => void }) {
   return <View style={styles.socialTabs}>
     {mainTabs.map(tab => {
       const active = mode === tab.value;
       return <Pressable key={tab.value} onPress={() => onMode(tab.value)} style={[styles.socialTab, active && styles.socialTabActive]}>
         <SymbolView name={{ ios: tab.symbol, android: tab.symbol, web: tab.symbol } as any} tintColor={active ? palette.accent : palette.muted} size={18} />
         <Text style={[styles.socialTabText, active && styles.socialTabTextActive]}>{tab.label}</Text>
+        {tab.value === 'activity' && requestCount ? <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{requestCount > 9 ? '9+' : requestCount}</Text></View> : null}
       </Pressable>;
     })}
   </View>;
@@ -403,18 +394,24 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
   onSendComment: (cardId: number, postId: number) => void;
   onToggleComments: (postId: number) => void;
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const selectedFilter = feedFilters.find(filter => filter.value === view) || feedFilters[0];
+
   return <>
     <Card style={styles.composerPrompt}>
-      <Avatar user={data.me} size={42} />
-      <Pressable onPress={onOpenComposer} style={styles.promptButton}><Text style={styles.promptText}>Share something with your circle…</Text></Pressable>
+      <Avatar user={data.me} size={36} />
+      <Pressable onPress={onOpenComposer} style={styles.promptButton}><Text style={styles.promptText}>Share an update…</Text></Pressable>
       <Pressable accessibilityLabel="Add a photo" onPress={onOpenComposer} style={styles.promptPhoto}><SymbolView name={{ ios: 'photo.fill', android: 'photo.fill', web: 'photo.fill' } as any} tintColor={palette.accent} size={20} /></Pressable>
     </Card>
 
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-      {feedFilters.map(filter => <Pressable key={filter.value} onPress={() => onSelectFeed(filter.value)} style={[styles.filter, view === filter.value && styles.filterActive]}><Text style={[styles.filterText, view === filter.value && styles.filterTextActive]}>{busy === `feed-${filter.value}` ? 'Loading…' : filter.label}</Text></Pressable>)}
-    </ScrollView>
-
-    <SectionTitle title={view === 'all' ? 'From your circle' : feedFilters.find(filter => filter.value === view)?.label || 'Feed'} />
+    <View style={styles.feedToolbar}>
+      <Text style={styles.feedTitle}>Feed</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Feed filter: ${selectedFilter.label}`} onPress={() => setPickerOpen(true)} style={({ pressed }) => [styles.feedPickerButton, pressed && styles.pressed]}>
+        <SymbolView name={{ ios: 'line.3.horizontal.decrease', android: 'line.3.horizontal.decrease', web: 'line.3.horizontal.decrease' } as any} tintColor={palette.accent} size={15} />
+        <Text style={styles.feedPickerText}>{busy.startsWith('feed-') ? 'Loading…' : selectedFilter.label}</Text>
+        <SymbolView name={{ ios: 'chevron.down', android: 'chevron.down', web: 'chevron.down' } as any} tintColor={palette.muted} size={11} />
+      </Pressable>
+    </View>
     {data.posts.length ? data.posts.map(post => <PostCard
       key={post.id}
       post={post}
@@ -429,7 +426,23 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
       onCommentBody={body => onCommentBody(post.id, body)}
       onSendComment={() => onSendComment(post.id, post.interaction_post_id)}
       onToggleComments={() => onToggleComments(post.id)}
-    />) : <Empty title={view === 'all' ? 'Your circle is quiet' : 'Nothing here yet'} detail={view === 'all' ? 'Connect with drivers in People. Their posts will appear here, while your posts stay in My feed.' : 'Updates for this view will appear here.'} />}
+    />) : <Empty title={view === 'all' ? 'Your circle is quiet' : 'Nothing here yet'} detail={view === 'all' ? 'Connect with drivers in People. Their posts will appear here, while your posts stay in My posts.' : 'Updates for this view will appear here.'} />}
+
+    <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+      <View style={styles.feedPickerBackdrop}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close feed filters" onPress={() => setPickerOpen(false)} style={styles.feedPickerDismiss} />
+        <View accessibilityViewIsModal style={styles.feedPickerCard}>
+          <View style={styles.feedPickerHeader}><Text style={styles.feedPickerTitle}>Choose your feed</Text><Pressable accessibilityLabel="Close feed filters" onPress={() => setPickerOpen(false)} style={styles.feedPickerClose}><SymbolView name={{ ios: 'xmark', android: 'xmark', web: 'xmark' } as any} tintColor={palette.muted} size={16} /></Pressable></View>
+          {feedFilters.map(filter => {
+            const selected = filter.value === view;
+            return <Pressable key={filter.value} onPress={() => { setPickerOpen(false); onSelectFeed(filter.value); }} style={({ pressed }) => [styles.feedPickerRow, pressed && styles.pressed]}>
+              <View style={{ flex: 1 }}><Text style={[styles.feedPickerRowTitle, selected && styles.feedPickerRowTitleActive]}>{filter.label}</Text><Text style={styles.feedPickerRowDetail}>{filter.detail}</Text></View>
+              {selected ? <SymbolView name={{ ios: 'checkmark.circle.fill', android: 'checkmark.circle.fill', web: 'checkmark.circle.fill' } as any} tintColor={palette.accent} size={21} /> : null}
+            </Pressable>;
+          })}
+        </View>
+      </View>
+    </Modal>
   </>;
 }
 
@@ -549,28 +562,34 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brand: { flex: 1, color: palette.ink, fontSize: 25, fontWeight: '900' },
-  iconButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, alignItems: 'center', justifyContent: 'center' },
-  iconButtonActive: { borderColor: palette.navy, backgroundColor: palette.navy },
-  badge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: palette.primary, borderWidth: 2, borderColor: palette.canvas, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { color: 'white', fontSize: 9, fontWeight: '900' },
-  socialTabs: { minHeight: 50, padding: 4, borderRadius: 16, flexDirection: 'row', backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line },
-  socialTab: { flex: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  socialTabs: { minHeight: 46, padding: 3, borderRadius: 14, flexDirection: 'row', backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line },
+  socialTab: { position: 'relative', flex: 1, minHeight: 38, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   socialTabActive: { backgroundColor: palette.accentSoft },
-  socialTabText: { color: palette.muted, fontSize: 12, fontWeight: '800' },
+  socialTabText: { color: palette.muted, fontSize: 11, fontWeight: '800' },
   socialTabTextActive: { color: palette.accent },
+  tabBadge: { position: 'absolute', top: 1, right: 2, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: palette.primary, alignItems: 'center', justifyContent: 'center' },
+  tabBadgeText: { color: 'white', fontSize: 8, fontWeight: '900' },
   error: { padding: 13, borderRadius: 13, backgroundColor: palette.redSoft },
   errorText: { color: palette.red, fontWeight: '800', lineHeight: 19 },
-  composerPrompt: { padding: 11, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  promptButton: { flex: 1, height: 42, borderWidth: 1, borderColor: palette.line, borderRadius: 21, paddingHorizontal: 14, justifyContent: 'center', backgroundColor: palette.canvas },
+  composerPrompt: { padding: 9, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  promptButton: { flex: 1, height: 38, borderWidth: 1, borderColor: palette.line, borderRadius: 19, paddingHorizontal: 13, justifyContent: 'center', backgroundColor: palette.canvas },
   promptText: { color: palette.muted, fontSize: 13 },
-  promptPhoto: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
-  filters: { gap: 8 },
-  filter: { borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9 },
-  filterActive: { borderColor: palette.navy, backgroundColor: palette.navy },
-  filterText: { color: palette.muted, fontSize: 12, fontWeight: '800' },
-  filterTextActive: { color: 'white' },
+  promptPhoto: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  feedToolbar: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  feedTitle: { color: palette.ink, fontSize: 20, fontWeight: '900' },
+  feedPickerButton: { height: 34, maxWidth: '68%', borderRadius: 17, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface },
+  feedPickerText: { color: palette.ink, fontSize: 11, fontWeight: '800' },
+  feedPickerBackdrop: { flex: 1, justifyContent: 'flex-end', padding: 16, backgroundColor: 'rgba(3,7,18,.72)' },
+  feedPickerDismiss: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  feedPickerCard: { borderRadius: 20, paddingHorizontal: 16, paddingBottom: 10, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.line, ...shadow },
+  feedPickerHeader: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: palette.line },
+  feedPickerTitle: { color: palette.ink, fontSize: 18, fontWeight: '900' },
+  feedPickerClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.canvas },
+  feedPickerRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: palette.line },
+  feedPickerRowTitle: { color: palette.ink, fontSize: 14, fontWeight: '800' },
+  feedPickerRowTitleActive: { color: palette.accent },
+  feedPickerRowDetail: { color: palette.muted, fontSize: 11, marginTop: 3 },
   post: { gap: 12, padding: 14, borderRadius: 16 },
   postHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   author: { color: palette.ink, fontWeight: '900', fontSize: 14 },
