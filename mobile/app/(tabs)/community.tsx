@@ -65,7 +65,7 @@ type ActivityItem = {
 
 type CommunityPayload = {
   me: CommunityUser;
-  view: FeedView;
+  view: string;
   posts: CommunityPost[];
   connections: Connection[];
   received_requests: Connection[];
@@ -76,15 +76,7 @@ type CommunityPayload = {
   blocked_users: CommunityUser[];
 };
 
-type FeedView = 'all' | 'mine' | 'track' | 'builds';
 type MainView = 'feed' | 'events' | 'people' | 'activity';
-
-const feedFilters: { value: FeedView; label: string; detail: string }[] = [
-  { value: 'all', label: 'Circle', detail: 'Posts from your connections' },
-  { value: 'mine', label: 'My posts', detail: 'Updates you have shared' },
-  { value: 'track', label: 'Track plans', detail: 'Upcoming plans and events' },
-  { value: 'builds', label: 'Builds', detail: 'Cars and garage updates' },
-];
 
 function relativeTime(value: string) {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
@@ -105,7 +97,6 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
   const { api } = useAuth();
   const [data, setData] = useState<CommunityPayload | null>(null);
   const [mode, setMode] = useState<MainView>('feed');
-  const [view, setView] = useState<FeedView>('all');
   const [peopleQuery, setPeopleQuery] = useState('');
   const [postBody, setPostBody] = useState('');
   const [postImage, setPostImage] = useState<{ uri: string; dataUrl: string } | null>(null);
@@ -115,33 +106,32 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
 
-  const load = useCallback(async (selectedView: FeedView, search: string) => {
+  const load = useCallback(async (search: string) => {
     setError('');
     try {
       const people = search.trim() ? `&people=${encodeURIComponent(search.trim())}` : '';
-      setData(await api<CommunityPayload>(`/driver/community?view=${selectedView}${people}`));
+      setData(await api<CommunityPayload>(`/driver/community?view=all${people}`));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load your community.');
     }
   }, [api]);
 
   useFocusEffect(useCallback(() => {
-    setView('all');
-    load('all', '');
+    load('');
   }, [load]));
 
   useEffect(() => {
     if (mode !== 'people') return;
-    const timer = setTimeout(() => load(view, peopleQuery), 300);
+    const timer = setTimeout(() => load(peopleQuery), 300);
     return () => clearTimeout(timer);
-  }, [peopleQuery, mode, view, load]);
+  }, [peopleQuery, mode, load]);
 
   const mutate = async (key: string, path: string, init: RequestInit) => {
     setBusy(key);
     setError('');
     try {
       await api(path, init);
-      await load(view, peopleQuery);
+      await load(peopleQuery);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'That action could not be completed.');
     } finally {
@@ -149,11 +139,10 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
     }
   };
 
-  const selectFeed = (next: FeedView) => {
+  const selectFeed = () => {
     setMode('feed');
-    setView(next);
-    setBusy(`feed-${next}`);
-    load(next, peopleQuery).finally(() => setBusy(''));
+    setBusy('feed');
+    load(peopleQuery).finally(() => setBusy(''));
   };
 
   const choosePhoto = async () => {
@@ -186,9 +175,8 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
       setPostBody('');
       setPostImage(null);
       setComposerOpen(false);
-      setView('mine');
       setMode('feed');
-      await load('mine', peopleQuery);
+      await load(peopleQuery);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Your update could not be posted.');
     } finally {
@@ -293,9 +281,7 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
   return <Screen>
     <SocialHeader mode={mode} requestCount={requestCount} onShowTrack={onShowTrack} onActivity={() => setMode('activity')} onCompose={() => setComposerOpen(true)} />
     <SocialShortcuts
-      me={data.me}
       mode={mode}
-      view={view}
       requestCount={requestCount}
       onMode={setMode}
       onFeed={selectFeed}
@@ -305,7 +291,6 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
 
     {mode === 'feed' ? <FeedViewContent
       data={data}
-      view={view}
       busy={busy}
       commentBodies={commentBodies}
       expandedComments={expandedComments}
@@ -337,7 +322,7 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
       busy={busy}
       onAccept={connectionId => mutate(`connection-${connectionId}`, `/driver/community/connections/${connectionId}/accept`, { method: 'POST' })}
       onRemove={removeConnection}
-      onOpenPost={() => selectFeed('mine')}
+      onOpenPost={selectFeed}
     /> : null}
 
     <ComposerModal
@@ -371,19 +356,16 @@ function SocialHeader({ mode, requestCount, onShowTrack, onActivity, onCompose }
   </View>;
 }
 
-function SocialShortcuts({ me, mode, view, requestCount, onMode, onFeed }: { me: CommunityUser; mode: MainView; view: FeedView; requestCount: number; onMode: (mode: MainView) => void; onFeed: (view: FeedView) => void }) {
-  const shortcuts: { key: string; label: string; symbol?: string; active: boolean; badge?: number; avatar?: boolean; onPress: () => void }[] = [
-    { key: 'circle', label: 'Circle', symbol: 'house.fill', active: mode === 'feed' && view === 'all', onPress: () => onFeed('all') },
+function SocialShortcuts({ mode, requestCount, onMode, onFeed }: { mode: MainView; requestCount: number; onMode: (mode: MainView) => void; onFeed: () => void }) {
+  const shortcuts: { key: string; label: string; symbol: string; active: boolean; badge?: number; onPress: () => void }[] = [
+    { key: 'feed', label: 'Feed', symbol: 'house.fill', active: mode === 'feed', onPress: onFeed },
     { key: 'people', label: 'People', symbol: 'person.2.fill', active: mode === 'people', badge: requestCount, onPress: () => onMode('people') },
     { key: 'events', label: 'Events', symbol: 'calendar', active: mode === 'events', onPress: () => onMode('events') },
-    { key: 'mine', label: 'My posts', active: mode === 'feed' && view === 'mine', avatar: true, onPress: () => onFeed('mine') },
-    { key: 'track', label: 'Plans', symbol: 'flag.checkered', active: mode === 'feed' && view === 'track', onPress: () => onFeed('track') },
-    { key: 'builds', label: 'Builds', symbol: 'car.fill', active: mode === 'feed' && view === 'builds', onPress: () => onFeed('builds') },
   ];
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shortcutScroller} contentContainerStyle={styles.shortcuts}>
     {shortcuts.map(shortcut => <Pressable key={shortcut.key} accessibilityRole="button" accessibilityLabel={shortcut.label} accessibilityState={{ selected: shortcut.active }} onPress={shortcut.onPress} style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
       <View style={[styles.shortcutRing, shortcut.active && styles.shortcutRingActive]}>
-        {shortcut.avatar ? <Avatar user={me} size={52} /> : <View style={[styles.shortcutIcon, shortcut.active && styles.shortcutIconActive]}><SymbolView name={{ ios: shortcut.symbol!, android: shortcut.symbol!, web: shortcut.symbol! } as any} tintColor={shortcut.active ? 'white' : palette.ink} size={22} /></View>}
+        <View style={[styles.shortcutIcon, shortcut.active && styles.shortcutIconActive]}><SymbolView name={{ ios: shortcut.symbol, android: shortcut.symbol, web: shortcut.symbol } as any} tintColor={shortcut.active ? 'white' : palette.ink} size={22} /></View>
         {shortcut.badge ? <View style={styles.shortcutBadge}><Text style={styles.shortcutBadgeText}>{shortcut.badge > 9 ? '9+' : shortcut.badge}</Text></View> : null}
       </View>
       <Text numberOfLines={1} style={[styles.shortcutLabel, shortcut.active && styles.shortcutLabelActive]}>{shortcut.label}</Text>
@@ -391,9 +373,8 @@ function SocialShortcuts({ me, mode, view, requestCount, onMode, onFeed }: { me:
   </ScrollView>;
 }
 
-function FeedViewContent({ data, view, busy, commentBodies, expandedComments, onReact, onShare, onOptions, onCommentOptions, onCommentBody, onSendComment, onToggleComments }: {
+function FeedViewContent({ data, busy, commentBodies, expandedComments, onReact, onShare, onOptions, onCommentOptions, onCommentBody, onSendComment, onToggleComments }: {
   data: CommunityPayload;
-  view: FeedView;
   busy: string;
   commentBodies: Record<number, string>;
   expandedComments: Record<number, boolean>;
@@ -405,10 +386,8 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
   onSendComment: (cardId: number, postId: number) => void;
   onToggleComments: (postId: number) => void;
 }) {
-  const selectedFilter = feedFilters.find(filter => filter.value === view) || feedFilters[0];
-
   return <>
-    <View style={styles.feedLabelRow}><Text style={styles.feedLabel}>{busy.startsWith('feed-') ? 'Loading…' : selectedFilter.label}</Text><Text style={styles.feedLabelDetail}>{selectedFilter.detail}</Text></View>
+    <View style={styles.feedLabelRow}><Text style={styles.feedLabel}>{busy === 'feed' ? 'Loading…' : 'Feed'}</Text><Text style={styles.feedLabelDetail}>The latest from people you follow</Text></View>
     {data.posts.length ? data.posts.map(post => <PostCard
       key={post.id}
       post={post}
@@ -423,7 +402,7 @@ function FeedViewContent({ data, view, busy, commentBodies, expandedComments, on
       onCommentBody={body => onCommentBody(post.id, body)}
       onSendComment={() => onSendComment(post.id, post.interaction_post_id)}
       onToggleComments={() => onToggleComments(post.id)}
-    />) : <Empty title={view === 'all' ? 'Your circle is quiet' : 'Nothing here yet'} detail={view === 'all' ? 'Connect with drivers in People. Their posts will appear here, while your posts stay in My posts.' : 'Updates for this view will appear here.'} />}
+    />) : <Empty title="Your feed is quiet" detail="Connect with drivers in People. Their posts and your new updates will appear here." />}
   </>;
 }
 
