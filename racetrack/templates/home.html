@@ -41,12 +41,12 @@
         <video id="home-video" width="1920" height="1080" controls muted loop playsinline preload="metadata"
                poster="{{ url_for('static', filename='brand/track-ops-home-poster.jpg') }}"
                aria-label="Track Ops in action" aria-describedby="home-video-description">
-          <source src="{{ url_for('static', filename='brand/track-ops-home.mp4') }}" type="video/mp4">
-          <a href="{{ url_for('static', filename='brand/track-ops-home.mp4') }}">Watch the Track Ops overview video.</a>
+          <source src="{{ url_for('static', filename='brand/track-ops-home.mp4', v='20261113-25s') }}" type="video/mp4">
+          <a href="{{ url_for('static', filename='brand/track-ops-home.mp4', v='20261113-25s') }}">Watch the Track Ops overview video.</a>
         </video>
         <figcaption>
           <strong>Track Ops in action</strong>
-          <span>10-second overview</span>
+          <span>25-second overview</span>
         </figcaption>
         <p id="home-video-description" class="sr-only">A silent animated overview: account for driver, spectator, and vendor entries; view events in one place; let spectators rate runs; and see whether vehicles are on or off track. Your track. Under control.</p>
       </figure>
