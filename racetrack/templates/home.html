@@ -6,7 +6,8 @@
   <title>Track Ops</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261010-brand') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='brand.css', v='20261010a') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='brand.css', v='20261113-video') }}">
+  <script src="{{ url_for('static', filename='home-video.js', v='20261113') }}" defer></script>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='brand/favicon.png') }}">
   <meta name="theme-color" content="#111827">
   <meta name="color-scheme" content="dark">
@@ -27,25 +28,28 @@
   </header>
 
   <main class="mk-wrap mk-main">
-    <section class="mk-hero mk-panel">
+    <section class="mk-hero mk-panel mk-hero-with-video">
       <div>
         <h1>Run better track days.</h1>
-        <p>Track Ops helps motorsport venues manage drivers, events, waivers, check-ins, inspections, incidents, and live operations from one simple platform.</p>
+        <p>Bring ticketing, events, spectator engagement, and vehicle status together, so your team can stay focused on event day.</p>
         <div class="mk-cta-row">
           <a class="btn" href="{{ url_for('auth.user_register') }}">Create Driver Account</a>
           <a class="btn btn-secondary" href="{{ url_for('user.spectator_events') }}">Buy Event Tickets</a>
         </div>
       </div>
-      <aside class="mk-dashboard">
-        <h3>Live Operations Snapshot</h3>
-        <ul>
-          <li><span>Today's Drivers</span><strong>84</strong></li>
-          <li><span>Checked In</span><strong>62</strong></li>
-          <li><span>Cars Inspected</span><strong>49</strong></li>
-          <li><span>Incidents Logged</span><strong>3</strong></li>
-          <li><span>Next Run Group</span><strong>B Group</strong></li>
-        </ul>
-      </aside>
+      <figure class="mk-hero-video">
+        <video id="home-video" width="1920" height="1080" controls muted loop playsinline preload="metadata"
+               poster="{{ url_for('static', filename='brand/track-ops-home-poster.jpg') }}"
+               aria-label="Track Ops in action" aria-describedby="home-video-description">
+          <source src="{{ url_for('static', filename='brand/track-ops-home.mp4') }}" type="video/mp4">
+          <a href="{{ url_for('static', filename='brand/track-ops-home.mp4') }}">Watch the Track Ops overview video.</a>
+        </video>
+        <figcaption>
+          <strong>Track Ops in action</strong>
+          <span>10-second overview</span>
+        </figcaption>
+        <p id="home-video-description" class="sr-only">A silent animated overview: account for driver, spectator, and vendor entries; view events in one place; let spectators rate runs; and see whether vehicles are on or off track. Your track. Under control.</p>
+      </figure>
     </section>
 
     <section class="mk-panel">

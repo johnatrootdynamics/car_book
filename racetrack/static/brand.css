@@ -105,6 +105,42 @@ body.ui-system { background: var(--ui-canvas); overflow-x: clip; }
 .ui-system :is(.mk-panel, .mk-card) p { color: var(--ui-muted); }
 .ui-system .mk-card-icon { color: var(--brand-accent); }
 
+.ui-system .mk-hero-with-video {
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr);
+  padding: clamp(20px, 3vw, 40px);
+}
+.mk-hero-with-video > * { min-width: 0; }
+.mk-hero-with-video h1 { font-size: clamp(2.6rem, 4vw, 4rem); }
+.mk-hero-video {
+  margin: 0;
+  overflow: hidden;
+  background: var(--ui-canvas);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+}
+.mk-hero-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: var(--ui-canvas);
+}
+.mk-hero-video video:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: -3px; }
+.mk-hero-video figcaption {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--ui-border);
+  color: var(--ui-muted);
+  font-size: .85rem;
+}
+@media (max-width: 960px) {
+  .ui-system .mk-hero-with-video { grid-template-columns: minmax(0, 1fr); }
+}
+
 .ui-system :is(.btn, button, input[type="submit"]) { border-radius: 6px; }
 .ui-system :is(.btn, input[type="submit"]):not(.btn-secondary):not(.btn-danger):not(.danger-btn):not(.btn-outline):not(.btn-muted) { color: #fff; background: var(--ui-primary); border-color: var(--ui-primary); }
 .ui-system :is(.btn, input[type="submit"]):not(.btn-secondary):not(.btn-danger):not(.danger-btn):not(.btn-outline):not(.btn-muted):hover { background: var(--ui-primary-hover); }
