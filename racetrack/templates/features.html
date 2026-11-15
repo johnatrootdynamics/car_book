@@ -34,8 +34,7 @@
     {% for feature in features %}
     <section id="{{ feature.id }}" class="feature-detail{% if not feature.summary %} feature-detail-blank{% endif %}" aria-labelledby="{{ feature.id }}-title">
       <div class="feature-detail-intro">
-        <p class="home-eyebrow">{{ '%02d'|format(loop.index) }} / {{ feature.name }}</p>
-        <h2 id="{{ feature.id }}-title">{{ feature.headline or feature.name }}</h2>
+        <h2 id="{{ feature.id }}-title" class="feature-title"><span>{{ '%02d'|format(loop.index) }} /</span><span>{{ feature.name }}</span></h2>
         {% if feature.summary %}<p>{{ feature.summary }}</p>{% endif %}
         <a class="feature-back" href="#feature-index">All features <span aria-hidden="true">↑</span></a>
       </div>
