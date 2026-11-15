@@ -1,0 +1,20 @@
+Homepage photography
+File: track-day.jpg
+Photographer: Irham Setyaki
+Photo: A blue race car speeding along a track with motion blur
+Source: https://unsplash.com/photos/blue-race-car-on-track-uWJtdSaiZmM
+License: https://unsplash.com/license
+Retrieved: 2026-11-14
+Downloaded at 2000px wide. The source file is unaltered; the homepage uses CSS
+cropping, saturation, and a dark overlay for readable text.
+
+Homepage heading font
+Barlow Condensed Bold, by the Barlow Project Authors.
+Source: https://github.com/google/fonts/tree/main/ofl/barlowcondensed
+License: SIL Open Font License 1.1, included in ../fonts/BarlowCondensed-OFL.txt.
+
+Design research (inspiration only; no artwork or copy reproduced)
+https://www.grid.life/home
+https://www.roadamerica.com/
+https://virnow.com/
+https://www.motorsportreg.com/event-management
