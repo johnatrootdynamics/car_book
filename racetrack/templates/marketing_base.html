@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}Track Ops — From the gate to the last lap{% endblock %}</title>
+  <meta name="description" content="{% block description %}Ticketing, digital tech inspections, waivers and live event tools. Track Ops brings the work of running a racetrack together.{% endblock %}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='brand.css', v='20261113-video') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='home.css', v='20261114-features') }}">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/BarlowCondensed-Bold.ttf') }}" as="font" type="font/ttf" crossorigin>
+  {% block head %}{% endblock %}
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='brand/favicon.png') }}">
+  <meta name="theme-color" content="#111827">
+  <meta name="color-scheme" content="dark">
+</head>
+<body class="ui-system home-page">
+  <a class="home-skip" href="#main">Skip to content</a>
+  <header class="home-header">
+    <div class="home-wrap home-header-inner">
+      <a class="home-brand" href="{{ url_for('auth.home') }}" aria-label="Track Ops home">
+        {% include "shared/brand_logo.html" %}
+        <span>A Root Dynamics product</span>
+      </a>
+      <nav class="home-nav" aria-label="Main navigation">
+        <a href="{{ url_for('auth.features') }}"{% if request.endpoint == 'auth.features' %} aria-current="page"{% endif %}>Features</a>
+        <a href="{{ url_for('user.spectator_events') }}">Event tickets</a>
+        <a href="{{ url_for('auth.user_register') }}">Driver registration</a>
+        <a class="home-login" href="{{ url_for('auth.user_login') }}">Log in <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="home-footer">
+    <div class="home-wrap">
+      <div class="home-footer-main">
+        <a href="{{ url_for('auth.home') }}" aria-label="Track Ops home">{% include "shared/brand_logo.html" %}</a>
+        <nav aria-label="Footer navigation">
+          <a href="{{ url_for('auth.features') }}">Features</a>
+          <a href="{{ url_for('auth.support') }}">Support</a>
+          <a href="{{ url_for('auth.privacy') }}">Privacy</a>
+          <a href="{{ url_for('auth.terms') }}">Terms</a>
+        </nav>
+      </div>
+      <div class="home-footer-meta"><span>A Root Dynamics product</span>{% block photo_credit %}<span>Track photography: <a href="https://unsplash.com/photos/blue-race-car-on-track-uWJtdSaiZmM" target="_blank" rel="noopener noreferrer">Irham Setyaki / Unsplash</a></span>{% endblock %}</div>
+    </div>
+  </footer>
+</body>
+</html>

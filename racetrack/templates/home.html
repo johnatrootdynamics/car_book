@@ -1,42 +1,12 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Track Ops — From the gate to the last lap</title>
-  <meta name="description" content="Ticketing, event organization, spectator voting and on-track vehicle status. Track Ops brings the work of running a racetrack together.">
-  <link rel="stylesheet" href="{{ url_for('static', filename='brand.css', v='20261113-video') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='home.css', v='20261114') }}">
-  <link rel="preload" href="{{ url_for('static', filename='fonts/BarlowCondensed-Bold.ttf') }}" as="font" type="font/ttf" crossorigin>
-  <script src="{{ url_for('static', filename='home-video.js', v='20261113') }}" defer></script>
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='brand/favicon.png') }}">
-  <meta name="theme-color" content="#111827">
-  <meta name="color-scheme" content="dark">
-</head>
-<body class="ui-system home-page">
-  <a class="home-skip" href="#main">Skip to content</a>
-  <header class="home-header">
-    <div class="home-wrap home-header-inner">
-      <a class="home-brand" href="{{ url_for('auth.home') }}" aria-label="Track Ops home">
-        {% include "shared/brand_logo.html" %}
-        <span>A Root Dynamics product</span>
-      </a>
-      <nav class="home-nav" aria-label="Main navigation">
-        <a href="#platform">For tracks</a>
-        <a href="{{ url_for('user.spectator_events') }}">Event tickets</a>
-        <a href="{{ url_for('auth.user_register') }}">Driver registration</a>
-        <a class="home-login" href="{{ url_for('auth.user_login') }}">Log in <span aria-hidden="true">↗</span></a>
-      </nav>
-    </div>
-  </header>
-
-  <main id="main">
+{% extends "marketing_base.html" %}
+{% block head %}<script src="{{ url_for('static', filename='home-video.js', v='20261113') }}" defer></script>{% endblock %}
+{% block content %}
     <section class="home-hero" aria-labelledby="home-title">
       <img class="home-hero-photo" src="{{ url_for('static', filename='brand/track-day.jpg') }}" alt="A blue race car passing the barriers on a circuit" width="2000" height="1146" fetchpriority="high">
       <div class="home-wrap home-hero-content">
         <p class="home-eyebrow">Software for racetracks</p>
         <h1 id="home-title">From the gate<br>to the <span>last lap.</span></h1>
-        <p class="home-intro">A lot goes into a good track day. Keep tickets, events, spectators and vehicle status in one place, so your crew can get on with running it.</p>
+        <p class="home-intro">A lot goes into a good track day. Keep tickets, tech inspections, waivers and live event activity in one place, so your crew can get on with running it.</p>
         <div class="home-actions">
           <a class="home-button" href="#contact">Talk about your track <span aria-hidden="true">↗</span></a>
           <a class="home-watch" href="#overview"><span class="home-play" aria-hidden="true">▶</span> Watch the overview</a>
@@ -70,26 +40,35 @@
           <div class="home-feature-name"><span>04 / Vehicle tracking</span><h3>Know who’s<br>on track.</h3></div>
           <div class="home-feature-copy"><p>Scanner-based entry and exit updates show which vehicles are on track and which are off. Your crew can check status as the day unfolds.</p><span>Vehicle tags · Entry and exit scans · Live status</span></div>
         </article>
+        <article class="home-feature">
+          <div class="home-feature-name"><span>05 / Tech inspections</span><h3>Leave the<br>clipboard behind.</h3></div>
+          <div class="home-feature-copy"><p>Build your track’s checklist, record inspector notes and save each vehicle’s pass/fail result with its event registration.</p><span>Custom checklists · Inspector notes · Inspection records</span></div>
+        </article>
+        <article class="home-feature">
+          <div class="home-feature-name"><span>06 / Digital waivers</span><h3>Get it signed<br>before the gate.</h3></div>
+          <div class="home-feature-copy"><p>Let drivers sign required waivers digitally. Keep signing status tied to their entry, with required waivers checked before driver check-in.</p><span>Digital signatures · Event waivers · Check-in status</span></div>
+        </article>
       </div>
+      <a class="home-text-link home-all-features" href="{{ url_for('auth.features') }}">Explore all features <span aria-hidden="true">↗</span></a>
     </section>
 
     <section id="overview" class="home-overview" aria-labelledby="overview-title">
       <div class="home-wrap home-overview-inner">
         <div class="home-overview-copy">
-          <p class="home-eyebrow">See it in action / 00:25</p>
+          <p class="home-eyebrow">See it in action / 00:35</p>
           <h2 id="overview-title">Take a look<br>around.</h2>
           <p>A quick introduction to the tools your staff and customers can use on event day.</p>
           <a class="home-text-link" href="#contact">Let’s talk about your setup <span aria-hidden="true">↗</span></a>
         </div>
         <figure class="home-video">
           <video id="home-video" width="1920" height="1080" controls muted loop playsinline preload="metadata"
-                 poster="{{ url_for('static', filename='brand/track-ops-home-poster.jpg') }}"
+                 poster="{{ url_for('static', filename='brand/track-ops-home-poster.jpg', v='20261114-35s') }}"
                  aria-label="Track Ops in action" aria-describedby="home-video-description">
-            <source src="{{ url_for('static', filename='brand/track-ops-home.mp4', v='20261113-25s') }}" type="video/mp4">
-            <a href="{{ url_for('static', filename='brand/track-ops-home.mp4', v='20261113-25s') }}">Watch the Track Ops overview video.</a>
+            <source src="{{ url_for('static', filename='brand/track-ops-home.mp4', v='20261114-35s') }}" type="video/mp4">
+            <a href="{{ url_for('static', filename='brand/track-ops-home.mp4', v='20261114-35s') }}">Watch the Track Ops overview video.</a>
           </video>
-          <figcaption><span>Track Ops overview</span><span>25 seconds · Silent video</span></figcaption>
-          <p id="home-video-description" class="sr-only">An animated overview: account for driver, spectator, and vendor entries; view events in one place; let spectators rate runs; and see whether vehicles are on or off track. Your track. Under control.</p>
+          <figcaption><span>Track Ops overview</span><span>35 seconds · Silent video</span></figcaption>
+          <p id="home-video-description" class="sr-only">An animated overview: account for driver, spectator, and vendor entries; view events in one place; let spectators rate runs; see whether vehicles are on or off track; complete digital tech inspections; and sign required waivers before check-in. Your track. Under control.</p>
         </figure>
       </div>
     </section>
@@ -108,20 +87,4 @@
         <a href="{{ url_for('auth.vendor_register') }}"><span>Register as a vendor</span><span aria-hidden="true">↗</span></a>
       </aside>
     </section>
-  </main>
-
-  <footer class="home-footer">
-    <div class="home-wrap">
-      <div class="home-footer-main">
-        <a href="{{ url_for('auth.home') }}" aria-label="Track Ops home">{% include "shared/brand_logo.html" %}</a>
-        <nav aria-label="Footer navigation">
-          <a href="{{ url_for('auth.support') }}">Support</a>
-          <a href="{{ url_for('auth.privacy') }}">Privacy</a>
-          <a href="{{ url_for('auth.terms') }}">Terms</a>
-        </nav>
-      </div>
-      <div class="home-footer-meta"><span>A Root Dynamics product</span><span>Track photography: <a href="https://unsplash.com/photos/blue-race-car-on-track-uWJtdSaiZmM" target="_blank" rel="noopener noreferrer">Irham Setyaki / Unsplash</a></span></div>
-    </div>
-  </footer>
-</body>
-</html>
+{% endblock %}

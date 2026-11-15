@@ -1,0 +1,63 @@
+{% extends "marketing_base.html" %}
+{% block title %}Features — Track Ops{% endblock %}
+{% block description %}Explore Track Ops: ticketing, digital tech inspections and waivers, event scheduling, vehicle tracking, spectator interaction and the tools behind a good track day.{% endblock %}
+{% block photo_credit %}{% endblock %}
+{% block content %}
+  <section class="home-wrap features-intro" aria-labelledby="features-title">
+    <div>
+      <p class="home-eyebrow">Features / Built around event day</p>
+      <h1 id="features-title">A lot goes into<br>a good <span>track day.</span></h1>
+      <p class="features-lead">Give your people one place to get it done. From the first registration to the last run, here’s how Track Ops helps you run the day.</p>
+      <a class="home-text-link" href="{{ url_for('auth.home', _anchor='overview') }}">Watch the 35-second overview <span aria-hidden="true">↗</span></a>
+    </div>
+    <div class="features-day" aria-label="The event day workflow">
+      <p class="home-eyebrow">Before, during &amp; after</p>
+      <a href="#ticketing"><span>01</span><strong>Book &amp; register</strong><span aria-hidden="true">↗</span></a>
+      <a href="#tech-inspections"><span>02</span><strong>Inspect &amp; sign</strong><span aria-hidden="true">↗</span></a>
+      <a href="#vehicle-tracking"><span>03</span><strong>Stage &amp; run</strong><span aria-hidden="true">↗</span></a>
+      <a href="#run-history"><span>04</span><strong>Review &amp; reconnect</strong><span aria-hidden="true">↗</span></a>
+    </div>
+  </section>
+
+  <nav id="feature-index" class="features-index" aria-label="Explore features">
+    <div class="home-wrap">
+      <p class="home-eyebrow">Explore the platform</p>
+      <ol>
+        {% for feature in features %}
+        <li><a href="#{{ feature.id }}"><span>{{ '%02d'|format(loop.index) }}</span>{{ feature.name }}<span aria-hidden="true">↘</span></a></li>
+        {% endfor %}
+      </ol>
+    </div>
+  </nav>
+
+  <div class="home-wrap features-detail-list">
+    {% for feature in features %}
+    <section id="{{ feature.id }}" class="feature-detail{% if not feature.summary %} feature-detail-blank{% endif %}" aria-labelledby="{{ feature.id }}-title">
+      <div class="feature-detail-intro">
+        <p class="home-eyebrow">{{ '%02d'|format(loop.index) }} / {{ feature.name }}</p>
+        <h2 id="{{ feature.id }}-title">{{ feature.headline or feature.name }}</h2>
+        {% if feature.summary %}<p>{{ feature.summary }}</p>{% endif %}
+        <a class="feature-back" href="#feature-index">All features <span aria-hidden="true">↑</span></a>
+      </div>
+      <div class="feature-detail-body">
+        {% if feature.details %}
+        <dl>
+          {% for title, description in feature.details %}
+          <div><dt>{{ title }}</dt><dd>{{ description }}</dd></div>
+          {% endfor %}
+        </dl>
+        {% else %}
+        {# Details intentionally left blank for owner review. #}
+        {% endif %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+
+  <section class="features-contact" aria-labelledby="features-contact-title">
+    <div class="home-wrap">
+      <div><p class="home-eyebrow">Your track. Your event day.</p><h2 id="features-contact-title">Let’s talk about your setup.</h2><p>Tell us how your track runs. We’ll walk through the tools with your team.</p></div>
+      <a class="home-button" href="mailto:{{ config['SUPPORT_EMAIL'] }}?subject=Track%20Ops%20features">Get in touch <span aria-hidden="true">↗</span></a>
+    </div>
+  </section>
+{% endblock %}

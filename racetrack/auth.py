@@ -83,6 +83,13 @@ def home():
     return render_template("home.html")
 
 
+@auth_bp.route("/features")
+def features():
+    from .feature_catalog import FEATURES
+
+    return render_template("features.html", features=FEATURES)
+
+
 @auth_bp.route("/privacy")
 def privacy():
     return render_template(
