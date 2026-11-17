@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Field } from '@/components/ui';
 import { BrandLogo } from '@/components/BrandLogo';
+import { WEBSITE_URL } from '@/lib/config';
 import { palette, shadow } from '@/lib/theme';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -16,7 +17,7 @@ export default function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [providers, setProviders] = useState({ apple: Platform.OS === 'ios', google: false });
-  const website = (process.env.EXPO_PUBLIC_API_URL || 'https://carbook.root-dynamics.com').replace(/\/$/, '');
+  const website = WEBSITE_URL;
   useEffect(() => { socialProviders().then(setProviders).catch(() => undefined); }, [socialProviders]);
   if (!loading && account) return <Redirect href={account.must_change_password ? '/change-password' : '/(tabs)'} />;
 

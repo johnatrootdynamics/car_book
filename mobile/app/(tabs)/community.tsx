@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Empty, Field, Loading, Screen, SectionTitle, ui } from '@/components/ui';
 import { eventDate } from '@/lib/format';
 import { palette, shadow } from '@/lib/theme';
+import { WEBSITE_URL } from '@/lib/config';
 import type { Car, TrackEvent } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -511,7 +512,7 @@ function ComposerModal({ visible, me, body, image, busy, onBody, onPhoto, onRemo
         <Field autoFocus multiline maxLength={600} value={body} onChangeText={onBody} placeholder="What’s happening at the track?" style={styles.modalField} />
         {image ? <View><Image source={{ uri: image.uri }} style={styles.preview} /><Pressable onPress={onRemovePhoto} style={styles.removePhoto}><Text style={styles.removePhotoText}>Remove photo</Text></Pressable></View> : null}
         <Pressable onPress={onPhoto} style={styles.addPhotoRow}><View style={styles.addPhotoIcon}><SymbolView name={{ ios: 'photo.fill', android: 'photo.fill', web: 'photo.fill' } as any} tintColor={palette.accent} size={20} /></View><View style={{ flex: 1 }}><Text style={styles.addPhotoTitle}>Add a photo</Text><Text style={styles.addPhotoDetail}>Show the car, paddock, or moment.</Text></View><Text style={styles.arrow}>›</Text></Pressable>
-        <Text style={styles.guidelineText}>By posting, you agree to the <Text accessibilityRole="link" onPress={() => Linking.openURL(`${(process.env.EXPO_PUBLIC_API_URL || 'https://carbook.root-dynamics.com').replace(/\/$/, '')}/community-guidelines`)} style={styles.guidelineLink}>Community Guidelines</Text>.</Text>
+        <Text style={styles.guidelineText}>By posting, you agree to the <Text accessibilityRole="link" onPress={() => Linking.openURL(`${WEBSITE_URL}/community-guidelines`)} style={styles.guidelineLink}>Community Guidelines</Text>.</Text>
       </ScrollView>
     </SafeAreaView>
   </Modal>;

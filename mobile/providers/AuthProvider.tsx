@@ -3,9 +3,9 @@ import * as WebBrowser from 'expo-web-browser';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { API_URL } from '@/lib/config';
 import type { Account } from '@/lib/types';
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://carbook.root-dynamics.com').replace(/\/$/, '');
 const REFRESH_KEY = 'trackops.refresh-token';
 const SOCIAL_REDIRECT_URI = 'trackops://auth/callback';
 

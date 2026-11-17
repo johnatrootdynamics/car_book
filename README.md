@@ -40,6 +40,24 @@ export SESSION_COOKIE_SECURE=false # Local HTTP development only
 python app.py
 ```
 
+## Production origin
+
+The canonical website and API origin is `https://www.trackops.tech`. Production
+must set `APP_BASE_URL=https://www.trackops.tech` so payment webhooks, OAuth
+callbacks, waiver links, email links, and mobile web handoffs all use the same
+host.
+
+Native builds default to this origin through `mobile/lib/config.ts`. RFID
+scanners and track cameras must also use `https://www.trackops.tech` as their
+API base; their endpoints remain `/api/v1/scanners/*` and
+`/api/v1/cameras/*` respectively. Do not point appliances at the retired
+CarBook hostname because a redirect can drop POST bodies or authorization
+headers.
+
+The `com.rootdynamics.trackops` Apple/Android application identifier is kept
+intentionally. It identifies the existing store app and Sign in with Apple
+registration; it is not a website URL.
+
 ## Browser privacy
 
 - The website uses essential session cookies for accounts, carts and protected forms. No analytics or advertising trackers are included.

@@ -77,14 +77,16 @@ def create_app():
         return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
-    app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "")
+    app.config["APP_BASE_URL"] = os.getenv(
+        "APP_BASE_URL", "https://www.trackops.tech"
+    ).rstrip("/")
     configure_browser_privacy(
         app,
         secure_cookies=os.getenv("SESSION_COOKIE_SECURE", "true").lower()
         not in {"0", "false", "no", "off"},
     )
     app.config["SUPPORT_EMAIL"] = os.getenv(
-        "SUPPORT_EMAIL", "support@root-dynamics.com"
+        "SUPPORT_EMAIL", "support@trackops.tech"
     )
     app.config["TRACK_TIMEZONE"] = os.getenv("TRACK_TIMEZONE", "America/New_York")
     app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "")

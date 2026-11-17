@@ -3,6 +3,7 @@ import { router, Stack } from 'expo-router';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Field, Hero, Screen, ui } from '@/components/ui';
+import { WEBSITE_URL } from '@/lib/config';
 import { palette } from '@/lib/theme';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -14,7 +15,7 @@ export default function AccountScreen() {
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const website = (process.env.EXPO_PUBLIC_API_URL || 'https://carbook.root-dynamics.com').replace(/\/$/, '');
+  const website = WEBSITE_URL;
 
   const goBack = () => router.replace('/(tabs)/more');
 

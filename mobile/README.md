@@ -24,7 +24,7 @@ npm install
 npx expo start --dev-client
 ```
 
-The production API defaults to `https://carbook.root-dynamics.com`. For a different environment:
+The production API defaults to `https://www.trackops.tech`. For a different environment:
 
 ```sh
 EXPO_PUBLIC_API_URL=https://example.com npx expo start
