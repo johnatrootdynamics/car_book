@@ -12,6 +12,8 @@
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='brand/favicon.png') }}">
   <meta name="theme-color" content="#111827">
   <meta name="color-scheme" content="dark">
+  <link rel="stylesheet" href="{{ url_for('static', filename='cookie-notice.css', v='20261115') }}">
+  <script src="{{ url_for('static', filename='cookie-notice.js', v='20261115') }}" defer></script>
 </head>
 <body class="ui-system home-page">
   <a class="home-skip" href="#main">Skip to content</a>
@@ -42,11 +44,13 @@
           <a href="{{ url_for('auth.features') }}">Features</a>
           <a href="{{ url_for('auth.support') }}">Support</a>
           <a href="{{ url_for('auth.privacy') }}">Privacy</a>
+          <a href="{{ url_for('auth.cookies') }}" data-cookie-settings>Cookie settings</a>
           <a href="{{ url_for('auth.terms') }}">Terms</a>
         </nav>
       </div>
       <div class="home-footer-meta"><span>A Root Dynamics product</span>{% block photo_credit %}<span>Track photography: <a href="https://unsplash.com/photos/blue-race-car-on-track-uWJtdSaiZmM" target="_blank" rel="noopener noreferrer">Irham Setyaki / Unsplash</a></span>{% endblock %}</div>
     </div>
   </footer>
+  {% include "shared/cookie_notice.html" %}
 </body>
 </html>

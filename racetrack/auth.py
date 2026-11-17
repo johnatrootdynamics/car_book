@@ -36,7 +36,10 @@ auth_bp = Blueprint("auth", __name__)
 def enforce_automated_password_change():
     if not current_user.is_authenticated or not getattr(current_user, "must_change_password", False):
         return None
-    if request.endpoint in {"auth.change_password", "auth.logout", "static"}:
+    if request.endpoint in {
+        "auth.change_password", "auth.logout", "auth.cookies", "auth.privacy",
+        "auth.terms", "auth.support", "auth.community_guidelines", "static",
+    }:
         return None
     return redirect(url_for("auth.change_password"))
 
@@ -94,6 +97,13 @@ def features():
 def privacy():
     return render_template(
         "legal/privacy.html", support_email=current_app.config["SUPPORT_EMAIL"]
+    )
+
+
+@auth_bp.route("/cookies")
+def cookies():
+    return render_template(
+        "legal/cookies.html", support_email=current_app.config["SUPPORT_EMAIL"]
     )
 
 
@@ -316,5 +326,9 @@ def security():
 @login_required
 def logout():
     logout_user()
-    flash("Signed out.", "success")
+    clear_remember_cookie = session.get("_remember") == "clear"
+    session.clear()
+    if clear_remember_cookie:
+        # Flask-Login consumes this flag and expires any legacy remember cookie.
+        session["_remember"] = "clear"
     return redirect(url_for("auth.home"))

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block body_class %}legal-public-page{% endblock %}
+{% block content %}
+<article class="legal-document card">
+  <header><span class="event-page-kicker">Browser privacy</span><h1>Cookies &amp; browser storage</h1><p>Updated November 15, 2026</p></header>
+  <section><h2>Essential only</h2><p>Track Ops does not use analytics or advertising cookies. Reading the homepage, Features page or these policy pages does not require a new Track Ops session cookie. Features such as sign-in, shopping carts and protected forms use essential storage to work.</p><p>The cookie notice is informational. Dismissing it does not authorize advertising, analytics or any additional tracking.</p></section>
+  <section><h2>What is stored in your browser</h2>
+    <div class="cookie-table-wrap"><table class="cookie-table">
+      <caption class="sr-only">Track Ops browser storage, purpose and duration</caption>
+      <thead><tr><th scope="col">Name / type</th><th scope="col">Purpose</th><th scope="col">When / duration</th></tr></thead>
+      <tbody>
+        <tr><th scope="row"><code>{{ config['SESSION_COOKIE_NAME'] }}</code><br>First-party cookie</th><td>Keeps you signed in, links a guest shopping cart, protects forms from forged submissions and carries messages about requested actions.</td><td>Created when a feature needs a session. No persistent expiry is assigned by the website. Browsers normally remove session cookies at the end of a browser session, but session-restoration settings may retain them. Signing out clears the Track Ops session.</td></tr>
+        <tr><th scope="row"><code>trackops.cookie-notice.v1</code><br>Session storage</th><td>Remembers that you dismissed the cookie notice. Contains only the word “dismissed,” with no personal identifier.</td><td>Written only after you dismiss the notice. Kept for this tab’s page session; browser restoration settings may restore it.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <section><h2>Your controls</h2><p>There are no optional tracking cookies to enable or reject. You can reopen the notice using <a href="{{ url_for('auth.cookies') }}" data-cookie-settings>Cookie settings</a> in the footer. To remove website cookies or prevent all storage, use your browser’s privacy controls. Blocking essential storage can prevent sign-in, checkout and protected forms from working.</p><p>Track Ops does not enable optional tracking when a browser sends a Global Privacy Control signal; the same essential-only behavior applies to every visitor.</p></section>
+  <section><h2>Services you choose to open</h2><p>Payments, digital waiver signing and social sign-in may open a separate provider’s page or an embedded service when you use those features. That provider may use its own cookies or storage. Track Ops cannot remove another provider’s cookies; review its privacy information and your browser controls.</p><p>The public overview video, fonts, icons and scanner library are served with the Track Ops website. Watching the overview does not load a third-party video player.</p></section>
+  <section><h2>Cookies are only part of privacy</h2><p>Account information, purchases, waiver records and server records are separate from browser cookies. Clearing cookies does not delete those records. See our <a href="{{ url_for('auth.privacy') }}">Privacy Policy</a> for how information is used and how to request help.</p></section>
+  <section><h2>Contact</h2><p>Send cookie or privacy questions to <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p></section>
+</article>
+{% endblock %}

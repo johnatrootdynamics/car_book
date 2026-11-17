@@ -23,6 +23,7 @@ from .models import (
     VendorAccount,
 )
 from .services.storage_service import build_presigned_read_url
+from .browser_privacy import configure_browser_privacy
 
 
 login_manager = LoginManager()
@@ -77,6 +78,11 @@ def create_app():
 
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
     app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "")
+    configure_browser_privacy(
+        app,
+        secure_cookies=os.getenv("SESSION_COOKIE_SECURE", "true").lower()
+        not in {"0", "false", "no", "off"},
+    )
     app.config["SUPPORT_EMAIL"] = os.getenv(
         "SUPPORT_EMAIL", "support@root-dynamics.com"
     )
