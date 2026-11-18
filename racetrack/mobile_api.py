@@ -128,7 +128,7 @@ from .services.social_auth_service import (
     verify_google_identity_token,
 )
 from .services.community_moderation import community_text_error
-from .security import generate_random_password
+from .security import credential_fingerprint, credentials_match, generate_random_password
 
 try:
     import stripe
@@ -250,7 +250,10 @@ def _account_payload(account):
 
 
 def _access_token(account):
-    return _serializer().dumps({"type": account.account_type, "id": account.id})
+    return _serializer().dumps({
+        "type": account.account_type, "id": account.id,
+        "version": credential_fingerprint(account),
+    })
 
 
 def _new_session(account, device_name=None):
@@ -576,6 +579,8 @@ def mobile_login_required(*allowed_types, allow_password_change=False):
             account = _account(payload.get("type"), payload.get("id"))
             if not account:
                 return _json_error("The account no longer exists.", 401, "invalid_account")
+            if not credentials_match(account, payload.get("version")):
+                return _json_error("Sign in again to continue.", 401, "token_expired")
             if allowed_types and account.account_type not in allowed_types:
                 return _json_error("This account cannot use that feature.", 403, "forbidden")
             if (
@@ -1475,6 +1480,7 @@ def web_link():
             "id": account.id,
             "target": target,
             "nonce": secrets.token_urlsafe(12),
+            "version": credential_fingerprint(account),
         }
     )
     path = url_for("mobile_api.web_session", token=token)
@@ -1493,7 +1499,7 @@ def web_session():
         return _json_error("This secure link expired. Return to the app and try again.", 401, "expired_link")
     account = _account(payload.get("type"), payload.get("id"))
     target = _safe_web_target(payload.get("type"), payload.get("target"))
-    if not account or not target or account.must_change_password:
+    if not account or not target or account.must_change_password or not credentials_match(account, payload.get("version")):
         return _json_error("This secure link is no longer valid.", 401, "invalid_link")
     login_user(account, remember=False, fresh=True)
     return redirect(target)

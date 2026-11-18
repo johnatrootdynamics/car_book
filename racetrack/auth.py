@@ -17,6 +17,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .forms import (
+    ForgotPasswordForm,
     LoginForm,
     PasswordChangeForm,
     PasswordUpdateForm,
@@ -24,8 +25,11 @@ from .forms import (
     VendorRegistrationForm,
 )
 from .models import Employee, EnterpriseAdmin, User, VendorAccount, db
-from .security import generate_random_password
+from .security import credential_fingerprint, generate_random_password
 from .services.email_service import send_user_login_email, send_vendor_login_email
+from .services.password_reset_service import (
+    account_for_reset_token, complete_password_reset, request_password_reset,
+)
 from .services.storage_service import upload_public_image
 
 
@@ -39,6 +43,7 @@ def enforce_automated_password_change():
     if request.endpoint in {
         "auth.change_password", "auth.logout", "auth.cookies", "auth.privacy",
         "auth.terms", "auth.support", "auth.community_guidelines", "static",
+        "auth.forgot_password", "auth.reset_password", "auth.password_reset_sent",
     }:
         return None
     return redirect(url_for("auth.change_password"))
@@ -275,6 +280,44 @@ def user_login():
     )
 
 
+@auth_bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        try:
+            request_password_reset(form.email.data)
+        except Exception:
+            db.session.rollback()
+            current_app.logger.error("Could not process website password recovery")
+        return redirect(url_for("auth.password_reset_sent"))
+    return render_template("auth/forgot_password.html", form=form)
+
+
+@auth_bp.get("/forgot-password/sent")
+def password_reset_sent():
+    return render_template("auth/password_reset_sent.html")
+
+
+@auth_bp.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    token = request.args.get("token", "")
+    account = account_for_reset_token(token)
+    if not account:
+        return render_template("auth/reset_password.html", form=None), 400
+    form = PasswordChangeForm()
+    if form.validate_on_submit():
+        if check_password_hash(account.password_hash, form.new_password.data):
+            form.new_password.errors.append("Choose a password different from your current password.")
+        elif complete_password_reset(token, form.new_password.data):
+            logout_user()
+            session.clear()
+            flash("Password updated. Sign in with your new password.", "success")
+            return redirect(url_for("auth.user_login"))
+        else:
+            return render_template("auth/reset_password.html", form=None), 400
+    return render_template("auth/reset_password.html", form=form)
+
+
 @auth_bp.route("/employee/login", methods=["GET", "POST"])
 def employee_login():
     return redirect(url_for("auth.user_login", next=request.args.get("next")))
@@ -298,6 +341,7 @@ def change_password():
             current_user.password_hash = generate_password_hash(form.new_password.data)
             current_user.must_change_password = False
             db.session.commit()
+            session["credential_version"] = credential_fingerprint(current_user)
             flash("Password updated. Welcome to Track Ops.", "success")
             return redirect(url_for(_account_home(current_user)))
     return render_template("auth/change_password.html", form=form)
@@ -317,6 +361,7 @@ def security():
         else:
             current_user.password_hash = generate_password_hash(form.new_password.data)
             db.session.commit()
+            session["credential_version"] = credential_fingerprint(current_user)
             flash("Your password has been updated.", "success")
             return redirect(url_for("auth.security"))
     return render_template("auth/security.html", form=form)

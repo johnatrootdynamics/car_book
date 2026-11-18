@@ -70,6 +70,34 @@ registration; it is not a website URL.
 
 Privacy regression checks: `python -m unittest discover -s tests -p test_browser_privacy.py` and `node --test tests/test_cookie_notice.cjs`. The Python checks use an isolated SQLite database.
 
+## Website password recovery
+
+The login page links to `/forgot-password`. It sends a single-use link valid for
+30 minutes using the existing Admin email settings (or `MAIL_*` environment
+configuration). Keep `APP_BASE_URL` set to the trusted HTTPS website origin and
+use a strong `SECRET_KEY`. Reset links never use the incoming Host header.
+
+Requests share the existing ten-minute per-email throttle with mobile recovery,
+including unknown accounts, and always show the same confirmation. Requesting a
+link does not change the password. Email delivery runs in a bounded background
+pool to keep SMTP timing out of public responses. The queue is in-process; a
+restart or delivery failure can require a new request after the cooldown.
+
+Completing recovery invalidates other reset links, browser sessions, mobile
+access/refresh tokens, and pending app-to-browser sign-in links. Users receive a
+password-change notification and sign in normally. Browser sessions now bind to
+the current password; users signed in before this release must sign in once
+after deployment. Existing mobile clients can refresh legacy access tokens.
+No additional database migration is required.
+
+Reset pages use `no-store` and `no-referrer`. Configure production proxy/access
+logs to redact query strings on `/reset-password`, since they contain bearer
+links. Add proxy rate limits if wider abuse controls are needed; never trust
+arbitrary `X-Forwarded-For` headers. Check email delivery from production after
+deploying. Local tests mock SMTP and do not deliver email.
+
+Recovery checks: `python -m unittest discover -s tests -p test_password_reset.py`.
+
 ## Docker deployment
 
 ### Start services

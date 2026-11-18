@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
-from flask import Flask
-from flask_login import LoginManager
+from flask import Flask, session
+from flask_login import LoginManager, user_logged_in
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -24,11 +24,17 @@ from .models import (
 )
 from .services.storage_service import build_presigned_read_url
 from .browser_privacy import configure_browser_privacy
+from .security import credential_fingerprint, credentials_match
 
 
 login_manager = LoginManager()
 login_manager.login_view = "auth.user_login"
 csrf = CSRFProtect()
+
+
+@user_logged_in.connect
+def bind_browser_credentials(sender, user, **extra):
+    session["credential_version"] = credential_fingerprint(user)
 
 
 @login_manager.user_loader
@@ -46,7 +52,9 @@ def load_user(user_id):
         "vendor": VendorAccount,
     }.get(user_type)
     account = model.query.get(object_id) if model else None
-    return account if account and not account.deleted_at else None
+    if not account or account.deleted_at:
+        return None
+    return account if credentials_match(account, session.get("credential_version")) else None
 
 
 def create_app():

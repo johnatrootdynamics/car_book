@@ -29,6 +29,24 @@
   line-height: 1.2;
 }
 .auth-login .login-form { margin-top: 24px; }
+.auth-login .login-forgot-link {
+  justify-self: end;
+  padding-block: 4px;
+  font-size: .8rem;
+  color: var(--brand-accent);
+}
+.auth-login .login-recovery-copy { margin: 14px 0 0; font-size: .9rem; line-height: 1.65; }
+.auth-login .login-recovery-copy a { color: var(--brand-accent); text-decoration: underline; }
+.auth-login .login-recovery-action {
+  display: block;
+  margin-top: 24px;
+  padding: 15px;
+  text-align: center;
+  color: var(--ui-text);
+  background: var(--ui-primary);
+  border-radius: 6px;
+  font-weight: 700;
+}
 .ui-system.auth-login .login-form .login-field .login-input-wrap input { font-size: 1rem; }
 .auth-login .legal-footer {
   width: min(1120px, calc(100% - 80px));

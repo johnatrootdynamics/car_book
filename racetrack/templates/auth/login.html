@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block body_class %}auth-login auth-login-{{ login_role }}{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='login.css', v='20261117') }}">{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='login.css', v='20261117-reset') }}">{% endblock %}
 {% block content %}
 <section class="login-shell" aria-labelledby="login-title">
   <a class="login-brand" href="{{ url_for('auth.home') }}" aria-label="Track Ops home">
@@ -28,6 +28,7 @@
           {{ form.password(placeholder='Enter your password', autocomplete='current-password') }}
         </div>
         {% for error in form.password.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        <a class="login-forgot-link" href="{{ url_for('auth.forgot_password') }}">Forgot password?</a>
       </div>
 
       {{ form.submit(class_='login-submit') }}

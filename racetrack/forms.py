@@ -59,6 +59,15 @@ class LoginForm(FlaskForm):
     submit = SubmitField("Sign In")
 
 
+class ForgotPasswordForm(FlaskForm):
+    email = StringField(
+        "Email address",
+        filters=[lambda value: value.strip().lower() if value else value],
+        validators=[DataRequired(), Length(max=255), Email()],
+    )
+    submit = SubmitField("Send reset link")
+
+
 class PasswordChangeForm(FlaskForm):
     new_password = PasswordField(
         "New Password",

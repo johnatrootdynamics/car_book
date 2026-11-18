@@ -27,6 +27,12 @@ def configure_browser_privacy(app, *, secure_cookies=True):
     def browser_privacy_headers(response):
         response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        if request.endpoint in {
+            "auth.forgot_password", "auth.password_reset_sent", "auth.reset_password",
+        }:
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         if request.endpoint in PUBLIC_INFORMATION_ENDPOINTS and (
             request.endpoint in {"auth.home", "auth.features"}
             or not current_user.is_authenticated

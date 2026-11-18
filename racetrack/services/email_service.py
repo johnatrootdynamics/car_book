@@ -160,6 +160,40 @@ def send_email(to_email, subject, body, html_body=None, inline_images=None):
     return True
 
 
+def send_password_reset_email(email, reset_url, expires_minutes):
+    body = (
+        "Reset your Track Ops password\n\n"
+        f"Choose a new password using this link:\n{reset_url}\n\n"
+        f"This link expires in {expires_minutes} minutes and can be used once.\n"
+        "If you didn't request this, you can ignore this email. Your password has not changed."
+    )
+    safe_url = html.escape(reset_url, quote=True)
+    return send_email(
+        email, "Reset your Track Ops password", body,
+        html_body=(
+            "<div style='max-width:520px;margin:0 auto;padding:28px;font-family:Arial,sans-serif;"
+            "background:#1c2636;color:#f4f6fa;border-top:3px solid #365fe6'>"
+            "<h1 style='font-size:24px'>Reset your password</h1>"
+            "<p>Choose a new password for your Track Ops account.</p>"
+            f"<p><a href='{safe_url}' style='display:inline-block;padding:14px 22px;"
+            "background:#365fe6;color:#fff;text-decoration:none;border-radius:6px'>Reset password</a></p>"
+            f"<p>This link expires in {expires_minutes} minutes and can be used once.</p>"
+            "<p>If you didn't request this, you can ignore this email. Your password has not changed.</p>"
+            "</div>"
+        ),
+    )
+
+
+def send_password_changed_email(email, login_url):
+    return send_email(
+        email, "Your Track Ops password was changed",
+        "Your Track Ops password has been reset. Sign in again with your new password.\n\n"
+        f"Sign in: {login_url}\n\n"
+        "If you didn't make this change, request a new reset link and contact "
+        f"{current_app.config['SUPPORT_EMAIL']} for help.",
+    )
+
+
 def send_user_login_email(user, plaintext_password, login_url, is_reset=False):
     intro = (
         "Your CarBook password has been reset."
