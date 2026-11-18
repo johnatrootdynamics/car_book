@@ -2938,9 +2938,6 @@ def community():
             "error",
         )
         return redirect(url_for("user.dashboard"))
-    community_view = (request.args.get("view") or "all").strip().lower()
-    if community_view not in {"all", "mine", "track", "builds"}:
-        community_view = "all"
     block_rows = UserBlock.query.filter(
         or_(
             UserBlock.blocker_user_id == current_user.id,
@@ -2985,6 +2982,7 @@ def community():
         for user in User.query.filter(
             User.id.in_(circle_user_ids | connection_counterpart_ids),
             User.deleted_at.is_(None),
+            User.community_suspended_at.is_(None),
         ).all()
     }
     connections = [
@@ -3016,20 +3014,26 @@ def community():
         if row.status == "pending" and row.requested_by_user_id == current_user.id
     ]
 
-    circle_post_query = SocialPost.query.filter(
-        SocialPost.user_id.in_(connection_user_ids)
-    )
-    if community_view == "mine":
-        post_query = SocialPost.query.filter(SocialPost.user_id == current_user.id)
-    else:
-        post_query = circle_post_query
-    if community_view == "track":
-        post_query = post_query.filter(SocialPost.post_type == "event_signup")
-    elif community_view == "builds":
-        post_query = post_query.filter(SocialPost.post_type == "car_spotlight")
-    posts = post_query.order_by(SocialPost.created_at.desc()).limit(50).all()
+    visible_author_ids = circle_user_ids & circle_users.keys()
+    post_query = SocialPost.query.filter(SocialPost.user_id.in_(visible_author_ids))
+    before_id = request.args.get("before", type=int)
+    if before_id is not None:
+        boundary = post_query.filter(SocialPost.id == before_id).first()
+        if boundary is None:
+            return redirect(url_for("user.community"))
+        # A stable boundary keeps new arrivals from duplicating older-page posts.
+        post_query = post_query.filter(or_(
+            SocialPost.created_at < boundary.created_at,
+            (SocialPost.created_at == boundary.created_at) & (SocialPost.id < boundary.id),
+        ))
+    page_posts = post_query.order_by(SocialPost.created_at.desc(), SocialPost.id.desc()).limit(21).all()
+    posts = page_posts[:20]
+    older_before_id = posts[-1].id if len(page_posts) > 20 else None
     visible_comments_by_post = {
-        post.id: [comment for comment in post.comments if comment.user_id in circle_user_ids]
+        post.id: sorted(
+            (comment for comment in post.comments if comment.user_id in visible_author_ids),
+            key=lambda comment: (comment.created_at, comment.id),
+        )
         for post in posts
     }
     events = (
@@ -3126,7 +3130,8 @@ def community():
     return render_template(
         "user/community.html",
         posts=posts,
-        community_view=community_view,
+        older_before_id=older_before_id,
+        viewing_older=before_id is not None,
         connections=connections,
         received_requests=received_requests,
         sent_requests=sent_requests,
@@ -3237,6 +3242,8 @@ def community_post_create():
     guard = require_user()
     if guard:
         return guard
+    if current_user.community_suspended_at:
+        return "Community access is restricted", 403
     body = (request.form.get("body") or "").strip()
     upload = request.files.get("image")
     has_upload = bool(upload and getattr(upload, "filename", ""))
@@ -3262,17 +3269,17 @@ def community_post_create():
                 secret_key=current_app.config["S3_SECRET_KEY"],
                 key_prefix=f"community/{current_user.id}",
             )
-        db.session.add(
-            SocialPost(
-                user_id=current_user.id,
-                post_type="driver_update",
-                title="Shared a photo" if image_url else "Shared an update",
-                body=body or None,
-                image_url=image_url,
-            )
+        post = SocialPost(
+            user_id=current_user.id,
+            post_type="driver_update",
+            title="Shared a photo" if image_url else "Shared an update",
+            body=body or None,
+            image_url=image_url,
         )
+        db.session.add(post)
         db.session.commit()
         flash("Your update is live.", "success")
+        return redirect(url_for("user.community", _anchor=f"post-{post.id}"))
     return redirect(url_for("user.community"))
 
 
@@ -3611,8 +3618,17 @@ def add_comment(post_id):
     guard = require_user()
     if guard:
         return guard
+    if current_user.community_suspended_at:
+        return "Community access is restricted", 403
     post = SocialPost.query.get_or_404(post_id)
+    if post.author.deleted_at or post.author.community_suspended_at:
+        return "Post not found", 404
     if post.user_id != current_user.id:
+        if UserBlock.query.filter(or_(
+            (UserBlock.blocker_user_id == current_user.id) & (UserBlock.blocked_user_id == post.user_id),
+            (UserBlock.blocker_user_id == post.user_id) & (UserBlock.blocked_user_id == current_user.id),
+        )).first():
+            return "Post not found", 404
         user_one_id, user_two_id = _driver_connection_pair(current_user.id, post.user_id)
         connection = DriverConnection.query.filter_by(
             user_one_id=user_one_id,

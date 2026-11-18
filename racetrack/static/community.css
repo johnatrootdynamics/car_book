@@ -1,0 +1,45 @@
+/* One chronological timeline for the website community. */
+.community-single-feed .community-hero { margin-bottom: 20px; }
+.community-single-feed .community-composer-tools input[type="file"].sr-only {
+  width: 1px;
+  min-width: 0;
+  max-width: 1px;
+  padding: 0;
+}
+.community-single-feed .community-section-heading { align-items: center; gap: 12px; }
+.community-single-feed .community-sort-label {
+  color: var(--ui-muted);
+  font-size: .75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.community-single-feed .community-sort-label i { margin-right: 4px; }
+.community-single-feed .community-post,
+.community-single-feed #feed { scroll-margin-top: 80px; }
+.community-single-feed .community-post:target {
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 1px var(--brand-accent);
+}
+.community-single-feed .community-latest-link {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 16px;
+  color: var(--brand-accent);
+  font-size: .85rem;
+}
+.community-single-feed .community-feed-footer { padding: 12px 0; text-align: center; }
+.community-single-feed .community-feed-footer .btn { min-height: 44px; }
+.community-single-feed .community-feed-end {
+  margin: 24px 0;
+  color: var(--ui-muted);
+  font-size: .8rem;
+  text-align: center;
+}
+
+@media (max-width: 420px) {
+  .community-single-feed .composer-actions { flex-direction: column; align-items: stretch; gap: 12px; }
+  .community-single-feed .composer-submit { justify-content: space-between; }
+  .community-single-feed .composer-submit .btn { white-space: nowrap; }
+}

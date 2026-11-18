@@ -29,6 +29,11 @@
   line-height: 1.2;
 }
 .auth-login .login-form { margin-top: 24px; }
+.auth-login .login-card .login-account-prompt {
+  color: var(--ui-text);
+  font-size: .875rem;
+  line-height: 1.6;
+}
 .auth-login .login-forgot-link {
   justify-self: end;
   padding-block: 4px;
