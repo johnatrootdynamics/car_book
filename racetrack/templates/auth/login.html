@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block body_class %}auth-login auth-login-{{ login_role }}{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='login.css', v='20261116') }}">{% endblock %}
 {% block content %}
 {% set role_label = 'One account access' %}
 {% set role_icon = 'bi-person-check' %}
@@ -30,7 +31,6 @@
 
   <div class="login-panel">
     <div class="login-card">
-      <div class="login-card-icon"><i class="bi {{ role_icon }}" aria-hidden="true"></i></div>
       <span class="login-card-kicker">Welcome back</span>
       <h2>{{ title }}</h2>
       <p class="login-card-intro">Enter your account details to continue.</p>
@@ -41,7 +41,7 @@
           <label for="{{ form.email.id }}">Email address</label>
           <div class="login-input-wrap">
             <i class="bi bi-envelope" aria-hidden="true"></i>
-            {{ form.email(placeholder='you@example.com', autocomplete='email', autofocus=true) }}
+            {{ form.email(placeholder='you@example.com', autocomplete='email') }}
           </div>
           {% for error in form.email.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
         </div>

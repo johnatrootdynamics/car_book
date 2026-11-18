@@ -1,0 +1,58 @@
+/* Keep the login layout independent of the shared dashboard content grid. */
+.ui-system.auth-login .main-content.ui-content {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.auth-login .login-shell {
+  width: min(1120px, calc(100% - 80px));
+  margin-inline: auto;
+  padding-block: 40px 28px;
+  min-height: calc(100svh - 88px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 64px;
+}
+
+.auth-login .login-showcase,
+.auth-login .login-panel { min-height: 0; padding: 0; }
+.auth-login .login-showcase { justify-content: flex-start; }
+.auth-login .login-brand { width: min(420px, 100%); }
+.auth-login .login-brand .track-ops-logo { display: block; width: 100%; }
+.auth-login .login-showcase-content { margin: 36px 0 0; }
+.auth-login .login-showcase-content h1 { font-size: clamp(1.8rem, 3vw, 2.6rem); line-height: 1.1; letter-spacing: -.035em; }
+.auth-login .login-showcase-footer { margin-top: 32px; }
+.auth-login .login-panel { justify-content: flex-end; align-items: flex-start; }
+.auth-login .login-card { box-sizing: border-box; }
+.auth-login .login-card h2 { font-size: clamp(1.6rem, 2.5vw, 2rem); }
+.auth-login .legal-footer { width: min(1120px, calc(100% - 80px)); margin: 0 auto; padding: 20px 0 24px; }
+
+@media (max-width: 1000px) {
+  .auth-login .login-shell { width: calc(100% - 48px); gap: 32px; }
+  .auth-login .legal-footer { width: calc(100% - 48px); }
+}
+
+@media (max-width: 800px) {
+  .auth-login .login-shell {
+    width: min(520px, calc(100% - 40px));
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding-block: 24px;
+  }
+  .auth-login .login-brand { width: min(320px, 100%); }
+  .auth-login .login-showcase-content { width: 100%; margin-top: 20px; }
+  .auth-login .login-role-label { margin-bottom: 12px; }
+  .auth-login .login-showcase-content h1 { font-size: 1.65rem; }
+  .auth-login .login-showcase-content > p { margin-top: 12px; font-size: .9rem; line-height: 1.6; }
+  .auth-login .login-showcase-points { margin-top: 16px; gap: 8px; }
+  .auth-login .login-showcase-footer { display: none; }
+  .auth-login .login-panel { justify-content: stretch; }
+  .auth-login .login-card { width: 100%; }
+  .auth-login .login-form { gap: 18px; margin-top: 24px; }
+  .ui-system.auth-login .login-form .login-field .login-input-wrap input { font-size: 1rem; }
+  .auth-login .legal-footer { width: min(520px, calc(100% - 40px)); flex-direction: column; align-items: flex-start; gap: 12px; }
+}

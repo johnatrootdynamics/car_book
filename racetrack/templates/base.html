@@ -12,6 +12,7 @@
   <meta name="color-scheme" content="dark">
   <link rel="stylesheet" href="{{ url_for('static', filename='cookie-notice.css', v='20261115') }}">
   <script src="{{ url_for('static', filename='cookie-notice.js', v='20261115') }}" defer></script>
+  {% block page_styles %}{% endblock %}
 </head>
 <body class="ui-system {% block body_class %}{% endblock %}{% if not current_user.is_authenticated %} public-shell{% elif is_user %} account-driver{% elif is_vendor %} account-vendor{% elif is_employee %} account-employee{% elif is_admin %} account-admin{% endif %}">
   {% if not current_user.is_authenticated %}
