@@ -1,65 +1,39 @@
 {% extends "base.html" %}
 {% block body_class %}auth-login auth-login-{{ login_role }}{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='login.css', v='20261116') }}">{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='login.css', v='20261117') }}">{% endblock %}
 {% block content %}
-{% set role_label = 'One account access' %}
-{% set role_icon = 'bi-person-check' %}
-{% set showcase_title = 'One login. Every Track Ops account.' %}
-{% set showcase_copy = 'Drivers, vendors, track teams, and enterprise administrators all enter through the same secure door.' %}
-{% set point_one = 'No portal hunting' %}
-{% set point_two = 'Your account opens the right workspace' %}
+<section class="login-shell" aria-labelledby="login-title">
+  <a class="login-brand" href="{{ url_for('auth.home') }}" aria-label="Track Ops home">
+    {% include "shared/brand_logo.html" %}
+  </a>
 
-<section class="login-shell">
-  <aside class="login-showcase">
-    <div class="login-track-mark" aria-hidden="true"><span></span><span></span></div>
-    <a class="login-brand" href="{{ url_for('auth.home') }}" aria-label="Track Ops home">
-      {% include "shared/brand_logo.html" %}
-    </a>
+  <div class="login-card">
+    <h1 id="login-title">Sign in</h1>
 
-    <div class="login-showcase-content">
-      <span class="login-role-label"><i class="bi {{ role_icon }}" aria-hidden="true"></i>{{ role_label }}</span>
-      <h1>{{ showcase_title }}</h1>
-      <p>{{ showcase_copy }}</p>
-      <div class="login-showcase-points" aria-label="Portal features">
-        <span><i class="bi bi-check2" aria-hidden="true"></i>{{ point_one }}</span>
-        <span><i class="bi bi-check2" aria-hidden="true"></i>{{ point_two }}</span>
+    <form method="post" class="login-form" data-enhanced>
+      {{ form.hidden_tag() }}
+      <div class="login-field{% if form.email.errors %} has-error{% endif %}">
+        <label for="{{ form.email.id }}">Email address</label>
+        <div class="login-input-wrap">
+          <i class="bi bi-envelope" aria-hidden="true"></i>
+          {{ form.email(placeholder='you@example.com', autocomplete='email') }}
+        </div>
+        {% for error in form.email.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
       </div>
-    </div>
 
-    <p class="login-showcase-footer"><i class="bi bi-lock" aria-hidden="true"></i> Secure access to your Track Ops workspace</p>
-  </aside>
-
-  <div class="login-panel">
-    <div class="login-card">
-      <span class="login-card-kicker">Welcome back</span>
-      <h2>{{ title }}</h2>
-      <p class="login-card-intro">Enter your account details to continue.</p>
-
-      <form method="post" class="login-form" data-enhanced>
-        {{ form.hidden_tag() }}
-        <div class="login-field{% if form.email.errors %} has-error{% endif %}">
-          <label for="{{ form.email.id }}">Email address</label>
-          <div class="login-input-wrap">
-            <i class="bi bi-envelope" aria-hidden="true"></i>
-            {{ form.email(placeholder='you@example.com', autocomplete='email') }}
-          </div>
-          {% for error in form.email.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      <div class="login-field{% if form.password.errors %} has-error{% endif %}">
+        <label for="{{ form.password.id }}">Password</label>
+        <div class="login-input-wrap">
+          <i class="bi bi-key" aria-hidden="true"></i>
+          {{ form.password(placeholder='Enter your password', autocomplete='current-password') }}
         </div>
+        {% for error in form.password.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </div>
 
-        <div class="login-field{% if form.password.errors %} has-error{% endif %}">
-          <label for="{{ form.password.id }}">Password</label>
-          <div class="login-input-wrap">
-            <i class="bi bi-key" aria-hidden="true"></i>
-            {{ form.password(placeholder='Enter your password', autocomplete='current-password') }}
-          </div>
-          {% for error in form.password.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
-        </div>
+      {{ form.submit(class_='login-submit') }}
+    </form>
 
-        {{ form.submit(class_='login-submit') }}
-      </form>
-
-      <p class="login-account-prompt">Need an account? <a href="{{ url_for('auth.user_register') }}">Register as a driver</a> or <a href="{{ url_for('auth.vendor_register') }}">register a business</a>.</p>
-    </div>
+    <p class="login-account-prompt">Need an account? <a href="{{ url_for('auth.user_register') }}">Register as a driver</a> or <a href="{{ url_for('auth.vendor_register') }}">register a business</a>.</p>
   </div>
 </section>
 {% endblock %}
