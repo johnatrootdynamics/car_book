@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='community.css', v='20261117') }}">{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='community.css', v='20261117b') }}">{% endblock %}
 {% block content %}
 {% set me_image = asset_url(current_user.profile_image_url) if current_user.profile_image_url else None %}
 <div class="community-shell community-single-feed">
@@ -13,16 +13,20 @@
 
   <div class="community-layout">
     <section class="community-feed" aria-labelledby="feed-title">
-      <section class="community-composer" id="share-update">
-        {% if me_image %}<img class="community-avatar community-avatar-lg" src="{{ me_image }}" alt="Your profile photo">{% else %}<span class="community-avatar community-avatar-lg community-avatar-fallback">{{ (current_user.username or current_user.first_name or 'D')[0]|upper }}</span>{% endif %}
-        <form method="post" action="{{ url_for('user.community_post_create') }}" enctype="multipart/form-data" data-enhanced>
+      <details class="community-composer" id="share-update">
+        <summary class="community-composer-trigger" aria-controls="community-composer-form">
+          {% if me_image %}<img class="community-avatar community-avatar-sm" src="{{ me_image }}" alt="">{% else %}<span class="community-avatar community-avatar-sm community-avatar-fallback" aria-hidden="true">{{ (current_user.username or current_user.first_name or 'D')[0]|upper }}</span>{% endif %}
+          <strong>Post an update</strong>
+          <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        </summary>
+        <form id="community-composer-form" method="post" action="{{ url_for('user.community_post_create') }}" enctype="multipart/form-data" data-enhanced>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="community-composer-title"><strong>Post an update</strong><small>{% if connections %}Visible to your connections{% else %}Visible only to you until you connect{% endif %}</small></div>
+          <p class="community-composer-audience">{% if connections %}Visible to your connections{% else %}Visible only to you until you connect{% endif %}</p>
           <label class="sr-only" for="community-post-body">Share an update</label>
           <textarea id="community-post-body" name="body" maxlength="600" rows="2" placeholder="What’s happening in your garage, @{{ current_user.username or ('driver' ~ current_user.id) }}?" data-autoresize="1" data-counter="community-post-counter"></textarea>
           <div class="composer-actions"><div class="community-composer-tools"><input class="sr-only" id="community-post-image" type="file" name="image" accept="image/jpeg,image/png,image/webp"><label for="community-post-image"><i class="bi bi-image" aria-hidden="true"></i><span>Add photo</span></label><small>JPG, PNG, or WebP</small></div><div class="composer-submit"><small id="community-post-counter"></small><button class="btn" type="submit">Post update</button></div></div>
         </form>
-      </section>
+      </details>
 
       <div class="community-section-heading" id="feed">
         <h2 id="feed-title">{{ 'Earlier posts' if viewing_older else 'Latest posts' }}</h2>
@@ -167,6 +171,15 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  const composer = document.getElementById('share-update')
+  const postBody = document.getElementById('community-post-body')
+  composer?.addEventListener('toggle', () => {
+    if (!composer.open || !postBody) return
+    // Recalculate a hidden textarea's height when the native disclosure opens.
+    postBody.dispatchEvent(new Event('input'))
+    postBody.focus({ preventScroll: true })
+  })
+
   const imageInput = document.getElementById('community-post-image')
   const imageLabel = document.querySelector('label[for="community-post-image"] span')
   if (imageInput && imageLabel) imageInput.addEventListener('change', () => {
