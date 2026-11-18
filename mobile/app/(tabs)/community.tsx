@@ -68,6 +68,7 @@ type CommunityPayload = {
   me: CommunityUser;
   view: string;
   posts: CommunityPost[];
+  next_cursor?: string | null;
   connections: Connection[];
   received_requests: Connection[];
   sent_requests: Connection[];
@@ -107,11 +108,22 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
 
-  const load = useCallback(async (search: string) => {
+  const load = useCallback(async (search: string, cursor?: string | null, append = false) => {
     setError('');
     try {
       const people = search.trim() ? `&people=${encodeURIComponent(search.trim())}` : '';
-      setData(await api<CommunityPayload>(`/driver/community?view=all${people}`));
+      const page = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
+      const result = await api<CommunityPayload>(`/driver/community?view=all${people}${page}`);
+      setData(current => {
+        if (!append || !current) return result;
+        const seen = new Set<number>();
+        const posts = [...current.posts, ...result.posts].filter(post => {
+          if (seen.has(post.id)) return false;
+          seen.add(post.id);
+          return true;
+        });
+        return { ...result, posts };
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load your community.');
     }
@@ -146,6 +158,13 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
     load(peopleQuery).finally(() => setBusy(''));
   };
 
+  const loadOlder = async () => {
+    if (!data?.next_cursor || busy) return;
+    setBusy('older');
+    await load(peopleQuery, data.next_cursor, true);
+    setBusy('');
+  };
+
   const choosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -169,7 +188,7 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
     setBusy('post');
     setError('');
     try {
-      await api('/driver/community/posts', {
+      const created = await api<{ post: CommunityPost }>('/driver/community/posts', {
         method: 'POST',
         body: JSON.stringify({ body: postBody, image: postImage?.dataUrl || null }),
       });
@@ -177,7 +196,10 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
       setPostImage(null);
       setComposerOpen(false);
       setMode('feed');
-      await load(peopleQuery);
+      setData(current => current ? {
+        ...current,
+        posts: [created.post, ...current.posts.filter(post => post.id !== created.post.id)],
+      } : current);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Your update could not be posted.');
     } finally {
@@ -293,6 +315,7 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
     {mode === 'feed' ? <FeedViewContent
       data={data}
       busy={busy}
+      hasDraft={Boolean(postBody.trim() || postImage)}
       commentBodies={commentBodies}
       expandedComments={expandedComments}
       onReact={post => mutate(`react-${post.id}`, `/driver/community/posts/${post.interaction_post_id}/react`, { method: 'POST' })}
@@ -302,6 +325,8 @@ export function CommunityExperience({ onShowTrack }: { onShowTrack?: () => void 
       onCommentBody={(postId, body) => setCommentBodies(current => ({ ...current, [postId]: body }))}
       onSendComment={sendComment}
       onToggleComments={postId => setExpandedComments(current => ({ ...current, [postId]: !current[postId] }))}
+      onCompose={() => setComposerOpen(true)}
+      onLoadOlder={loadOlder}
     /> : null}
 
     {mode === 'events' ? <EventsViewContent data={data} /> : null}
@@ -374,9 +399,10 @@ function SocialShortcuts({ mode, requestCount, onMode, onFeed }: { mode: MainVie
   </ScrollView>;
 }
 
-function FeedViewContent({ data, busy, commentBodies, expandedComments, onReact, onShare, onOptions, onCommentOptions, onCommentBody, onSendComment, onToggleComments }: {
+function FeedViewContent({ data, busy, hasDraft, commentBodies, expandedComments, onReact, onShare, onOptions, onCommentOptions, onCommentBody, onSendComment, onToggleComments, onCompose, onLoadOlder }: {
   data: CommunityPayload;
   busy: string;
+  hasDraft: boolean;
   commentBodies: Record<number, string>;
   expandedComments: Record<number, boolean>;
   onReact: (post: CommunityPost) => void;
@@ -386,9 +412,16 @@ function FeedViewContent({ data, busy, commentBodies, expandedComments, onReact,
   onCommentBody: (postId: number, body: string) => void;
   onSendComment: (cardId: number, postId: number) => void;
   onToggleComments: (postId: number) => void;
+  onCompose: () => void;
+  onLoadOlder: () => void;
 }) {
   return <>
-    <View style={styles.feedLabelRow}><Text style={styles.feedLabel}>{busy === 'feed' ? 'Loading…' : 'Feed'}</Text><Text style={styles.feedLabelDetail}>The latest from people you follow</Text></View>
+    <Pressable accessibilityRole="button" accessibilityLabel={hasDraft ? 'Continue editing post draft' : 'Post an update'} onPress={onCompose} style={({ pressed }) => [styles.composerPrompt, pressed && styles.pressed]}>
+      <Avatar user={data.me} size={40} />
+      <View style={styles.composerPromptCopy}><Text style={styles.composerPromptTitle}>{hasDraft ? 'Continue your draft' : 'Post an update'}</Text><Text style={styles.composerPromptDetail}>{hasDraft ? 'Your text and photo are saved.' : 'Share a track update, photo, build, or run.'}</Text></View>
+      <SymbolView name={{ ios: hasDraft ? 'doc.text.fill' : 'plus.circle.fill', android: hasDraft ? 'draft' : 'add_circle', web: hasDraft ? 'draft' : 'add_circle' } as any} tintColor={palette.accent} size={24} />
+    </Pressable>
+    <View style={styles.feedLabelRow}><Text style={styles.feedLabel}>{busy === 'feed' ? 'Loading…' : 'Feed'}</Text><Text style={styles.feedLabelDetail}>Your updates and posts from connected drivers, newest first</Text></View>
     {data.posts.length ? data.posts.map(post => <PostCard
       key={post.id}
       post={post}
@@ -403,7 +436,8 @@ function FeedViewContent({ data, busy, commentBodies, expandedComments, onReact,
       onCommentBody={body => onCommentBody(post.id, body)}
       onSendComment={() => onSendComment(post.id, post.interaction_post_id)}
       onToggleComments={() => onToggleComments(post.id)}
-    />) : <Empty title="Your feed is quiet" detail="Connect with drivers in People. Their posts and your new updates will appear here." />}
+    />) : <Empty title="Start the conversation" detail="Your updates appear here even before you connect with other drivers." />}
+    {data.next_cursor ? <Pressable disabled={busy === 'older'} onPress={onLoadOlder} style={({ pressed }) => [styles.olderButton, (pressed || busy === 'older') && styles.pressed]}><Text style={styles.olderButtonText}>{busy === 'older' ? 'Loading older posts…' : 'See older posts'}</Text><SymbolView name={{ ios: 'arrow.down', android: 'arrow_downward', web: 'arrow_downward' } as any} tintColor={palette.accent} size={16} /></Pressable> : data.posts.length ? <Text style={styles.feedEnd}>You’ve reached the beginning of your feed.</Text> : null}
   </>;
 }
 
@@ -546,9 +580,16 @@ const styles = StyleSheet.create({
   shortcutBadgeText: { color: 'white', fontSize: 8, fontWeight: '900' },
   error: { padding: 13, borderRadius: 13, backgroundColor: palette.redSoft },
   errorText: { color: palette.red, fontWeight: '800', lineHeight: 19 },
+  composerPrompt: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: palette.line, borderRadius: 16, padding: 12, backgroundColor: palette.surface, ...shadow },
+  composerPromptCopy: { flex: 1 },
+  composerPromptTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' },
+  composerPromptDetail: { color: palette.muted, fontSize: 11, lineHeight: 16, marginTop: 2 },
   feedLabelRow: { gap: 2, paddingTop: 1 },
   feedLabel: { color: palette.ink, fontSize: 17, fontWeight: '900' },
   feedLabelDetail: { color: palette.muted, fontSize: 11 },
+  olderButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: palette.line, borderRadius: 14, backgroundColor: palette.surface },
+  olderButtonText: { color: palette.accent, fontSize: 13, fontWeight: '900' },
+  feedEnd: { color: palette.muted, fontSize: 11, textAlign: 'center', paddingVertical: 8 },
   post: { gap: 12, padding: 14, borderRadius: 16 },
   postHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   author: { color: palette.ink, fontWeight: '900', fontSize: 14 },

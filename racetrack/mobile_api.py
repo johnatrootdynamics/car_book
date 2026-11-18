@@ -143,6 +143,8 @@ WEB_HANDOFF_SECONDS = 90
 MOBILE_CHECKOUT_SECONDS = 60 * 60
 MOBILE_SOCIAL_CODE_SECONDS = 2 * 60
 PASSWORD_RESET_THROTTLE_MINUTES = 10
+COMMUNITY_PAGE_SIZE = 20
+COMMUNITY_FEED_KIND_ORDER = {"share": 0, "post": 1}
 ACCOUNT_MODELS = {
     "user": User,
     "employee": Employee,
@@ -190,6 +192,12 @@ def _checkout_serializer():
 def _social_serializer():
     return URLSafeTimedSerializer(
         current_app.config["SECRET_KEY"], salt="trackops-mobile-social-v1"
+    )
+
+
+def _community_cursor_serializer():
+    return URLSafeTimedSerializer(
+        current_app.config["SECRET_KEY"], salt="trackops-mobile-community-cursor-v1"
     )
 
 
@@ -845,7 +853,7 @@ def _community_post_payload(post, visible_comment_user_ids, viewer_user_id=None)
                 for participant in post.track_run.participants
             ],
         }
-    comments = sorted(post.comments, key=lambda comment: comment.created_at)
+    comments = sorted(post.comments, key=lambda comment: (comment.created_at, comment.id))
     payload = {
         "id": post.id,
         "type": post.post_type,
@@ -908,8 +916,51 @@ def _community_share_payload(share, visible_comment_user_ids, viewer_user_id):
     }
 
 
+def _community_feed_cursor(kind, item):
+    return _community_cursor_serializer().dumps(
+        {
+            "created_at": item.created_at.isoformat(),
+            "kind": kind,
+            "id": item.id,
+        }
+    )
+
+
+def _community_feed_boundary(raw_cursor):
+    if not raw_cursor:
+        return None
+    try:
+        payload = _community_cursor_serializer().loads(raw_cursor)
+        created_at = datetime.fromisoformat(payload["created_at"])
+        kind = payload["kind"]
+        item_id = int(payload["id"])
+    except (BadSignature, KeyError, TypeError, ValueError):
+        return False
+    if kind not in COMMUNITY_FEED_KIND_ORDER or item_id < 1:
+        return False
+    return created_at, kind, item_id
+
+
+def _community_before_boundary(created_column, id_column, kind, boundary):
+    created_at, cursor_kind, cursor_id = boundary
+    kind_order = COMMUNITY_FEED_KIND_ORDER[kind]
+    cursor_kind_order = COMMUNITY_FEED_KIND_ORDER[cursor_kind]
+    if kind_order < cursor_kind_order:
+        return created_column <= created_at
+    if kind_order > cursor_kind_order:
+        return created_column < created_at
+    return or_(
+        created_column < created_at,
+        (created_column == created_at) & (id_column < cursor_id),
+    )
+
+
 def _community_post_visible_to(post, user):
-    if post.author.deleted_at or _community_users_blocked(user.id, post.user_id):
+    if (
+        post.author.deleted_at
+        or post.author.community_suspended_at
+        or _community_users_blocked(user.id, post.user_id)
+    ):
         return False
     if post.user_id == user.id:
         return True
@@ -1683,6 +1734,9 @@ def driver_run_share(run_id):
 def driver_community():
     user = g.mobile_user
     blocked_ids = _community_blocked_user_ids(user.id)
+    boundary = _community_feed_boundary(request.args.get("cursor"))
+    if boundary is False:
+        return _json_error("That feed cursor is invalid.", 400, "invalid_cursor")
     community_view = (request.args.get("view") or "all").strip().lower()
     if community_view not in {"all", "mine", "track", "builds"}:
         community_view = "all"
@@ -1713,25 +1767,61 @@ def driver_community():
     users_by_id = {
         row.id: row
         for row in User.query.filter(
-            User.id.in_(counterpart_ids or {-1}), User.deleted_at.is_(None)
+            User.id.in_(counterpart_ids or {-1}),
+            User.deleted_at.is_(None),
+            User.community_suspended_at.is_(None),
         ).all()
     }
+    connection_rows = [
+        connection
+        for connection in connection_rows
+        if _community_counterpart_id(connection, user.id) in users_by_id
+    ]
+    counterpart_ids = {
+        _community_counterpart_id(connection, user.id) for connection in connection_rows
+    }
+    accepted_ids = {
+        _community_counterpart_id(connection, user.id)
+        for connection in connection_rows
+        if connection.status == "accepted"
+    }
 
-    post_user_ids = {user.id} if community_view == "mine" else accepted_ids
+    post_user_ids = {user.id} if community_view == "mine" else accepted_ids | {user.id}
     post_query = SocialPost.query.filter(SocialPost.user_id.in_(post_user_ids or {-1}))
-    share_query = SocialShare.query.filter(SocialShare.user_id.in_(post_user_ids or {-1}))
+    share_query = SocialShare.query.join(
+        SocialPost, SocialPost.id == SocialShare.post_id
+    ).filter(
+        SocialShare.user_id.in_(post_user_ids or {-1}),
+        SocialPost.user_id.in_(post_user_ids or {-1}),
+    )
     if community_view == "track":
         post_query = post_query.filter(SocialPost.post_type == "event_signup")
-        share_query = share_query.join(SocialPost).filter(
-            SocialPost.post_type == "event_signup"
-        )
+        share_query = share_query.filter(SocialPost.post_type == "event_signup")
     elif community_view == "builds":
         post_query = post_query.filter(SocialPost.post_type == "car_spotlight")
-        share_query = share_query.join(SocialPost).filter(
-            SocialPost.post_type == "car_spotlight"
+        share_query = share_query.filter(SocialPost.post_type == "car_spotlight")
+    if boundary:
+        post_query = post_query.filter(
+            _community_before_boundary(
+                SocialPost.created_at, SocialPost.id, "post", boundary
+            )
         )
-    posts = post_query.order_by(SocialPost.created_at.desc()).limit(50).all()
-    shares = share_query.order_by(SocialShare.created_at.desc()).limit(50).all()
+        share_query = share_query.filter(
+            _community_before_boundary(
+                SocialShare.created_at, SocialShare.id, "share", boundary
+            )
+        )
+    candidate_limit = COMMUNITY_PAGE_SIZE + 1
+    posts = (
+        post_query.order_by(SocialPost.created_at.desc(), SocialPost.id.desc())
+        .limit(candidate_limit)
+        .all()
+    )
+    shares = (
+        share_query.order_by(SocialShare.created_at.desc(), SocialShare.id.desc())
+        .limit(candidate_limit)
+        .all()
+    )
 
     events = (
         Event.query.filter(
@@ -1775,6 +1865,7 @@ def driver_community():
                 User.id.notin_(counterpart_ids | {user.id}),
                 User.id.notin_(blocked_ids or {-1}),
                 User.deleted_at.is_(None),
+                User.community_suspended_at.is_(None),
             )
             .order_by(User.username.asc(), User.first_name.asc())
             .limit(8)
@@ -1825,7 +1916,11 @@ def driver_community():
                 suggestion_reasons.setdefault(driver_id, f"Also follows {track_name}")
         suggestion_ids = set(suggestion_reasons) - counterpart_ids - blocked_ids - {user.id}
         suggestion_users = (
-            User.query.filter(User.id.in_(suggestion_ids))
+            User.query.filter(
+                User.id.in_(suggestion_ids),
+                User.deleted_at.is_(None),
+                User.community_suspended_at.is_(None),
+            )
             .order_by(User.username.asc(), User.first_name.asc())
             .limit(8)
             .all()
@@ -1919,26 +2014,41 @@ def driver_community():
                     "id": f"share-{share.id}",
                     "type": "share",
                     "created_at": _iso(share.created_at),
-                    "actor": _community_user_payload(share.author),
+                    "actor": _community_user_payload(share.user),
                     "post_id": share.post_id,
                     "detail": share.body,
                 }
             )
         activity.sort(key=lambda item: item["created_at"] or "", reverse=True)
         activity = activity[:20]
-    feed_items = [
-        _community_post_payload(post, visible_comment_user_ids, viewer_user_id=user.id)
+    feed_rows = [
+        (post.created_at, COMMUNITY_FEED_KIND_ORDER["post"], post.id, "post", post)
         for post in posts
     ]
-    feed_items.extend(
-        payload
-        for payload in (
-            _community_share_payload(share, visible_comment_user_ids, user.id)
-            for share in shares
+    feed_rows.extend(
+        (
+            share.created_at,
+            COMMUNITY_FEED_KIND_ORDER["share"],
+            share.id,
+            "share",
+            share,
         )
-        if payload
+        for share in shares
     )
-    feed_items.sort(key=lambda item: item["created_at"] or "", reverse=True)
+    feed_rows.sort(key=lambda item: item[:3], reverse=True)
+    page_rows = feed_rows[:COMMUNITY_PAGE_SIZE]
+    feed_items = [
+        _community_post_payload(item, visible_comment_user_ids, viewer_user_id=user.id)
+        if kind == "post"
+        else _community_share_payload(item, visible_comment_user_ids, user.id)
+        for _, _, _, kind, item in page_rows
+    ]
+    has_more = len(feed_rows) > COMMUNITY_PAGE_SIZE
+    next_cursor = (
+        _community_feed_cursor(page_rows[-1][3], page_rows[-1][4])
+        if has_more and page_rows
+        else None
+    )
     my_blocks = UserBlock.query.filter_by(blocker_user_id=user.id).all()
     blocked_users_by_id = {
         row.id: row
@@ -1951,7 +2061,8 @@ def driver_community():
         {
             "me": _community_user_payload(user),
             "view": community_view,
-            "posts": feed_items[:50],
+            "posts": feed_items,
+            "next_cursor": next_cursor,
             "connections": accepted,
             "received_requests": received,
             "sent_requests": sent,
