@@ -1,15 +1,9 @@
 {% extends "base.html" %}
-{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='community.css', v='20261117b') }}">{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='community.css', v='20261121') }}">{% endblock %}
 {% block content %}
 {% set me_image = asset_url(current_user.profile_image_url) if current_user.profile_image_url else None %}
 <div class="community-shell community-single-feed">
-  <header class="community-hero">
-    <div class="community-hero-copy">
-      <span class="community-kicker"><i class="bi bi-people-fill" aria-hidden="true"></i> Driver community</span>
-      <h1>The feed.</h1>
-      <p>Your updates and your circle’s track days, builds, and runs. All in one place.</p>
-    </div>
-  </header>
+  <h1 class="sr-only">Community feed</h1>
 
   <div class="community-layout">
     <section class="community-feed" aria-labelledby="feed-title">

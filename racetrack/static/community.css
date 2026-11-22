@@ -1,5 +1,4 @@
 /* One chronological timeline for the website community. */
-.community-single-feed .community-hero { margin-bottom: 20px; }
 .community-single-feed details.community-composer { display: block; padding: 12px 16px; }
 .community-single-feed .community-composer-trigger {
   display: flex;
@@ -51,6 +50,10 @@
   color: var(--ui-muted);
   font-size: .8rem;
   text-align: center;
+}
+
+@media (min-width: 961px) {
+  .community-single-feed .community-rail { top: 28px; }
 }
 
 @media (max-width: 420px) {
