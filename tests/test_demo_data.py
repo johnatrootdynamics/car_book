@@ -1,4 +1,4 @@
-"""Demo generation is additive, repeat-safe, private, and administrator-only."""
+"""Demo generation is additive, repeat-safe, public, and administrator-only."""
 from datetime import date
 import unittest
 from unittest.mock import patch
@@ -7,7 +7,7 @@ from racetrack.admin_routes import admin_bp
 from racetrack.employee_routes import employee_bp
 from racetrack.models import (db, Track, User, Car, Event, EventRegistration, Employee,
                               EnterpriseAdmin, DriverTicketOrder, DriverWaiver, Inspection)
-from racetrack.services.demo_data_service import create_demo_track, create_test_event
+from racetrack.services.demo_data_service import create_demo_track, create_test_event, publish_demo_events
 from test_browser_privacy import make_privacy_test_app, PageMarkup
 
 class DemoDataTest(unittest.TestCase):
@@ -43,9 +43,10 @@ class DemoDataTest(unittest.TestCase):
             self.assertEqual(Employee.query.count(), 1)
             self.assertEqual(Event.query.count(), 3)
             self.assertEqual(EventRegistration.query.count(), 24)
-            self.assertTrue(all(e.event_type == 'private' and e.driver_price_cents == 0 for e in Event.query.all()))
+            self.assertTrue(all(e.event_type == 'public' and e.driver_price_cents == 0 for e in Event.query.all()))
             self.assertTrue(all(u.email.endswith('@trackops-demo.invalid') and u.first_name.startswith('DEMO ') for u in User.query.all()))
-            self.assertEqual(DriverTicketOrder.query.count(), 0)
+            self.assertEqual(DriverTicketOrder.query.count(), 24)
+            self.assertTrue(all(o.amount_cents == 0 and o.payment_mode == "test" for o in DriverTicketOrder.query.all()))
             self.assertEqual(DriverWaiver.query.count(), 0)
             self.assertGreater(Inspection.query.count(), 0)
             email.assert_not_called()
@@ -88,6 +89,39 @@ class DemoDataTest(unittest.TestCase):
                 create_test_event(Track.query.filter_by(name='Real track').one(), 'Test', date.today(), 2, 'registered')
             with self.assertRaises(ValueError):
                 create_test_event(track, 'Test', date.today(), 9, 'registered')
+
+    def test_existing_private_demo_events_can_be_published_once(self):
+        with self.app.app_context():
+            result = create_demo_track()
+            track = result['track']
+            for event in Event.query.filter_by(track_id=track.id).all():
+                event.event_type = 'private'
+            DriverTicketOrder.query.delete()
+            other = Event(track_id=track.id, event_name='Private real rental',
+                          event_type='private', event_date=date.today())
+            db.session.add(other)
+            db.session.commit()
+            self.assertEqual(publish_demo_events(track), 3)
+            db.session.commit()
+            self.assertEqual(publish_demo_events(track), 0)
+            self.assertEqual(DriverTicketOrder.query.count(), 24)
+            self.assertEqual(other.event_type, 'private')
+            self.assertEqual(EventRegistration.query.count(), 24)
+
+    def test_public_test_event_shows_in_discover_and_driver_dashboard(self):
+        with self.app.app_context():
+            result = create_demo_track()
+            event = create_test_event(result['track'], 'Visible test today', date.today(), 2, 'registered')
+            db.session.commit()
+        page = self.client.get('/login', base_url='https://localhost')
+        token = PageMarkup(page.get_data(as_text=True)).csrf_token
+        self.client.post('/login', base_url='https://localhost',
+                         data={'email':result['driver_email'], 'password':result['password'], 'csrf_token':token},
+                         headers={'Referer':'https://localhost/login'})
+        for path in ('/user/discover', '/user/dashboard'):
+            response = self.client.get(path, base_url='https://localhost')
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'Visible test today', response.data)
 
     def test_seed_transaction_can_be_rolled_back(self):
         with self.app.app_context():

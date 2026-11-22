@@ -19,8 +19,15 @@
         <label>Number of drivers<input type="number" name="drivers" value="4" min="1" max="8" required></label>
         <label>Starting workflow stage<select name="workflow"><option value="registered">Registered — needs check-in</option><option value="checked_in">Checked in — needs inspection</option><option value="inspection_passed">Inspection passed — ready to drive</option><option value="inspection_failed">Inspection failed — needs attention</option></select></label>
       </div>
-      <p>Uses the demo drivers and their vehicles. Events run 9 AM–5 PM, stay private, and have no payment or waiver requirements. Each submission creates a new event.</p>
+      <p>Uses the demo drivers and their vehicles. Events run 9 AM–5 PM, are public, and have no payment or waiver requirements. Each submission creates a new event.</p>
       <button class="btn" type="submit">Create test event</button>
+    </form>
+    <hr>
+    <form method="post" data-enhanced>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="publish">
+      <p>Already created private test events? Make the existing free DEMO events public without recreating their registrations.</p>
+      <button class="btn btn-secondary" type="submit">Make existing demo events public</button>
     </form>
     <hr>
     <form method="post" action="{{ url_for('admin.impersonate_track', track_id=track.id) }}">
@@ -29,8 +36,8 @@
     </form>
   {% else %}
     <h2>Create sample data</h2>
-    <p>Creates one clearly labeled demo track, 8 fictional drivers and vehicles, 3 private events, 24 registrations, sample inspection results, and an office-staff account.</p>
-    <p>Demo events stay out of public ticket listings. No emails, charges, payment records, or signed waivers are generated. Demo accounts and activity will count toward enterprise-wide totals.</p>
+    <p>Creates one clearly labeled demo track, 8 fictional drivers and vehicles, 3 public events, 24 registrations, sample inspection results, and an office-staff account.</p>
+    <p>DEMO-labeled events appear in Discover and public ticket listings. Registered demo drivers receive zero-dollar test tickets. No emails, charges, or signed waivers are generated. Demo accounts and activity will count toward enterprise-wide totals.</p>
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn" type="submit">Generate demo track</button>

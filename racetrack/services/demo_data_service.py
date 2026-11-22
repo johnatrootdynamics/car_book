@@ -4,7 +4,7 @@ import secrets
 
 from werkzeug.security import generate_password_hash
 
-from ..models import (Car, Employee, Event, EventRegistration, Inspection,
+from ..models import (Car, DriverTicketOrder, Employee, Event, EventRegistration, Inspection,
                       Track, TrackDriverClass, TrackSubscription, User, db)
 
 DEMO_TRACK_NAME = "DEMO — Track Ops Sample Raceway"
@@ -18,6 +18,30 @@ DRIVERS = (
     ("Jamie", "Reed", "Chevrolet", "Corvette", 2017, "Yellow"),
     ("Drew", "Hayes", "Porsche", "Cayman", 2016, "Gray"),
 )
+
+
+def _ensure_free_demo_ticket(event, registration):
+    # Public rosters and dashboards require a fulfilled order, even for free tickets.
+    existing = DriverTicketOrder.query.filter_by(event_id=event.id, user_id=registration.user_id,
+                                                 payment_status="paid").first()
+    if not existing:
+        db.session.add(DriverTicketOrder(event_id=event.id, user_id=registration.user_id,
+                                        car_id=registration.car_id, amount_cents=0,
+                                        payment_method="demo_free", payment_mode="test",
+                                        payment_status="paid", status="recorded", paid_at=datetime.utcnow()))
+
+
+def publish_demo_events(track):
+    if track.name != DEMO_TRACK_NAME:
+        raise ValueError("Only demo track events can be published by this tool.")
+    events = Event.query.filter(Event.track_id == track.id, Event.event_type == "private",
+                               Event.event_name.startswith("DEMO — "), Event.driver_price_cents == 0).all()
+    for event in events:
+        event.event_type = "public"
+        event.private_owner_user_id = None
+        for registration in event.registrations:
+            _ensure_free_demo_ticket(event, registration)
+    return len(events)
 
 
 def create_test_event(track, name, event_date, driver_count, workflow):
@@ -39,7 +63,7 @@ def create_test_event(track, name, event_date, driver_count, workflow):
     if len(drivers) != driver_count or not office or any(not d.cars for d in drivers):
         raise ValueError("The demo track needs its sample drivers, vehicles, and office account restored.")
     event = Event(track_id=track.id, event_name=f"DEMO — {name.strip()}",
-                  event_date=event_date, event_type="private", private_owner_user_id=drivers[0].id,
+                  event_date=event_date, event_type="public",
                   event_start_time=time(9), event_end_time=time(17), driver_capacity=12,
                   driver_price_cents=0, spectator_price_cents=0, vendor_price_cents=0)
     db.session.add(event)
@@ -51,6 +75,7 @@ def create_test_event(track, name, event_date, driver_count, workflow):
                                 checked_in_by_employee_id=office.id if workflow != "registered" else None)
         db.session.add(reg)
         db.session.flush()
+        _ensure_free_demo_ticket(event, reg)
         if workflow.startswith("inspection_"):
             db.session.add(Inspection(event_registration_id=reg.id, inspected_by_employee_id=office.id,
                                       passed=workflow == "inspection_passed",
@@ -99,8 +124,7 @@ def create_demo_track(today=None):
         ("Practice Day", -7), ("Open Lapping", 7), ("Driver Development", 14),
     )):
         event = Event(track_id=track.id, event_name=f"DEMO — {title}",
-                      event_date=today + timedelta(days=offset), event_type="private",
-                      private_owner_user_id=drivers[0][0].id,
+                      event_date=today + timedelta(days=offset), event_type="public",
                       event_start_time=time(9), event_end_time=time(17),
                       driver_capacity=12, spectator_capacity=0, vendor_capacity=0,
                       driver_price_cents=0, spectator_price_cents=0, vendor_price_cents=0)
@@ -116,6 +140,7 @@ def create_demo_track(today=None):
             )
             db.session.add(registration)
             db.session.flush()
+            _ensure_free_demo_ticket(event, registration)
             if event_index == 0 or (event_index == 1 and index < 3):
                 db.session.add(Inspection(event_registration_id=registration.id,
                                           inspected_by_employee_id=office.id,

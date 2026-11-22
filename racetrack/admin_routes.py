@@ -238,12 +238,18 @@ def demo_data():
     guard = require_admin()
     if guard:
         return guard
-    from .services.demo_data_service import DEMO_TRACK_NAME, create_demo_track, create_test_event
+    from .services.demo_data_service import DEMO_TRACK_NAME, create_demo_track, create_test_event, publish_demo_events
     from zoneinfo import ZoneInfo
     from sqlalchemy.exc import IntegrityError
 
     today = datetime.now(ZoneInfo(current_app.config.get("TRACK_TIMEZONE", "America/New_York"))).date()
     result = None
+    if request.method == "POST" and request.form.get("action") == "publish":
+        track = Track.query.filter_by(name=DEMO_TRACK_NAME).first_or_404()
+        count = publish_demo_events(track)
+        db.session.commit()
+        flash(f"Made {count} demo events public.", "success")
+        return redirect(url_for("admin.demo_data"))
     if request.method == "POST" and request.form.get("action") == "event":
         track = Track.query.filter_by(name=DEMO_TRACK_NAME).first_or_404()
         try:
