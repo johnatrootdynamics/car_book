@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="ui-page-header"><h1>Testing tools</h1><p>Fictional data for walkthroughs and testing on Track Ops.</p></header>
+<section class="card">
+  {% if track %}
+    <h2>{{ track.name }}</h2>
+    <p>{{ 'Demo track created.' if result and result.created else 'The demo track already exists. Generating again will not add duplicates or overwrite changes.' }}</p>
+    {% if result and result.created %}
+      <p>Save these demo sign-in details now. The password is shown only once.</p>
+      <dl><dt>Office staff email</dt><dd>{{ result.office_email }}</dd><dt>Driver email</dt><dd>{{ result.driver_email }}</dd><dt>Demo password</dt><dd><code>{{ result.password }}</code></dd></dl>
+    {% endif %}
+    <h3>Create a test event</h3>
+    <form method="post" data-enhanced>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="event">
+      <div class="form-grid two-col">
+        <label>Event name<input name="name" value="Workflow test" maxlength="150" required></label>
+        <label>Event date<input type="date" name="date" value="{{ today.isoformat() }}" required></label>
+        <label>Number of drivers<input type="number" name="drivers" value="4" min="1" max="8" required></label>
+        <label>Starting workflow stage<select name="workflow"><option value="registered">Registered — needs check-in</option><option value="checked_in">Checked in — needs inspection</option><option value="inspection_passed">Inspection passed — ready to drive</option><option value="inspection_failed">Inspection failed — needs attention</option></select></label>
+      </div>
+      <p>Uses the demo drivers and their vehicles. Events run 9 AM–5 PM, stay private, and have no payment or waiver requirements. Each submission creates a new event.</p>
+      <button class="btn" type="submit">Create test event</button>
+    </form>
+    <hr>
+    <form method="post" action="{{ url_for('admin.impersonate_track', track_id=track.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit">Open demo track</button>
+    </form>
+  {% else %}
+    <h2>Create sample data</h2>
+    <p>Creates one clearly labeled demo track, 8 fictional drivers and vehicles, 3 private events, 24 registrations, sample inspection results, and an office-staff account.</p>
+    <p>Demo events stay out of public ticket listings. No emails, charges, payment records, or signed waivers are generated. Demo accounts and activity will count toward enterprise-wide totals.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit">Generate demo track</button>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

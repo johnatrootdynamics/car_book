@@ -232,6 +232,48 @@ def dashboard():
     )
 
 
+@admin_bp.route("/demo-data", methods=["GET", "POST"])
+@login_required
+def demo_data():
+    guard = require_admin()
+    if guard:
+        return guard
+    from .services.demo_data_service import DEMO_TRACK_NAME, create_demo_track, create_test_event
+    from zoneinfo import ZoneInfo
+    from sqlalchemy.exc import IntegrityError
+
+    today = datetime.now(ZoneInfo(current_app.config.get("TRACK_TIMEZONE", "America/New_York"))).date()
+    result = None
+    if request.method == "POST" and request.form.get("action") == "event":
+        track = Track.query.filter_by(name=DEMO_TRACK_NAME).first_or_404()
+        try:
+            event = create_test_event(track, request.form.get("name", ""),
+                                      datetime.strptime(request.form.get("date", ""), "%Y-%m-%d").date(),
+                                      int(request.form.get("drivers", "0")), request.form.get("workflow"))
+            db.session.commit()
+            flash(f"Created {event.event_name} for {event.event_date:%b %d, %Y}.", "success")
+        except ValueError as error:
+            db.session.rollback()
+            flash(str(error), "error")
+        return redirect(url_for("admin.demo_data"))
+    if request.method == "POST":
+        try:
+            result = create_demo_track(today)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            # A simultaneous request may have created the unique demo track.
+            track = Track.query.filter_by(name=DEMO_TRACK_NAME).first()
+            if not track:
+                raise
+            result = {"track": track, "created": False, "password": None}
+    track = Track.query.filter_by(name=DEMO_TRACK_NAME).first()
+    response = current_app.make_response(render_template("admin/demo_data.html", track=track, result=result, today=today))
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 @admin_bp.route("/community-reports")
 @login_required
 def community_reports():
