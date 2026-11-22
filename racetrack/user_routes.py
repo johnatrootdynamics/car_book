@@ -1075,26 +1075,6 @@ def dashboard():
             elif start_dt <= now_dt <= end_dt:
                 slot_notice_by_event[event.id] = f"Your class ({driver_class}) is active now"
 
-    attended_count = EventRegistration.query.filter(
-        EventRegistration.user_id == current_user.id,
-        EventRegistration.checked_in_at.isnot(None),
-    ).count()
-    tracks_visited_count = (
-        db.session.query(func.count(func.distinct(Event.track_id)))
-        .join(EventRegistration, EventRegistration.event_id == Event.id)
-        .filter(
-            EventRegistration.user_id == current_user.id,
-            EventRegistration.checked_in_at.isnot(None),
-        )
-        .scalar()
-        or 0
-    )
-    driver_stats = {
-        "attended": attended_count,
-        "upcoming": len(events),
-        "tracks": tracks_visited_count,
-        "vehicles": len(cars),
-    }
     return render_template(
         "user/dashboard.html",
         cars=cars,
@@ -1104,7 +1084,6 @@ def dashboard():
         slot_notice_by_event=slot_notice_by_event,
         slot_time_by_event=slot_time_by_event,
         track_class_by_track_id=track_class_by_track_id,
-        driver_stats=driver_stats,
     )
 
 
