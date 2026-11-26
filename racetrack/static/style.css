@@ -9793,3 +9793,13 @@ button.rental-slot-pill.selected { outline: 2px solid var(--ui-primary); outline
 .event-header-vehicle-editor label { font-size: .8rem; }
 .event-header-vehicle-editor .btn { justify-self: start; }
 .event-header-vehicle-editor a { font-size: .75rem; }
+
+/* Schedule and staging share one row on wider event pages. */
+.event-hub-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.event-hub-info-grid > .event-hub-panel { min-width: 0; padding: 18px; }
+.event-hub-info-grid > .event-hub-panel:only-child { grid-column: 1 / -1; }
+.event-hub-info-grid .staging-road { overflow-x: auto; }
+@media (max-width: 800px) {
+  .event-hub-info-grid { grid-template-columns: minmax(0, 1fr); }
+  .event-hub-info-grid > .event-hub-panel { padding: 18px 16px; }
+}
