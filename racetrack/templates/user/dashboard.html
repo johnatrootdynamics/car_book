@@ -93,10 +93,9 @@
       {% endif %}
     </section>
 
-    <details class="card driver-garage-card" id="garage">
-      <summary>Garage <span>{{ cars|length }} vehicle{{ 's' if cars|length != 1 else '' }}</span></summary>
+    <aside class="card driver-garage-card" id="garage" aria-labelledby="garage-title">
       <div class="driver-dashboard-section-head">
-        <div><h3>Your vehicles</h3></div>
+        <div><h3 id="garage-title">Garage</h3><span>{{ cars|length }} vehicle{{ 's' if cars|length != 1 else '' }}</span></div>
         <a href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add</a>
       </div>
       {% if cars %}
@@ -116,7 +115,7 @@
         <div class="driver-dashboard-empty compact"><span><i class="bi bi-car-front" aria-hidden="true"></i></span><div><strong>Your garage is empty</strong><p>Add a vehicle before registering to drive.</p></div></div>
         <a class="driver-garage-add" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add your first vehicle</a>
       {% endif %}
-    </details>
+    </aside>
   </div>
 </div>
 {% endblock %}
