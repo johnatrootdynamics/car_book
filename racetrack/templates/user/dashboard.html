@@ -1,22 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="driver-dashboard">
+<div class="driver-dashboard driver-dashboard-simple">
   <header class="driver-dashboard-header">
     <div class="driver-dashboard-intro">
-      <span class="driver-dashboard-kicker">Driver workspace</span>
       <h2>Welcome back, {{ current_user.first_name }}</h2>
-      <p>Your next track day, garage, and inspection pass—all in one place.</p>
     </div>
-    <aside class="driver-dashboard-hero-qr" aria-label="Your inspection QR code">
+    <details class="driver-dashboard-qr-toggle">
+      <summary><i class="bi bi-qr-code" aria-hidden="true"></i> Show inspection QR</summary>
+      <div class="driver-dashboard-hero-qr" aria-label="Your inspection QR code">
       <div class="driver-hero-qr-image"><img src="{{ url_for('user.inspection_qr_image') }}" alt="Driver inspection QR code"></div>
       <div><strong>Inspection QR</strong><small>Show at check-in or tech inspection</small></div>
-    </aside>
+      </div>
+    </details>
   </header>
 
   <div class="driver-dashboard-primary-grid">
     <section class="card driver-next-event-card">
       <div class="driver-dashboard-section-head">
-        <div><span>Your schedule</span><h3>Upcoming events</h3></div>
+        <div><h3>Your next event</h3></div>
         <a href="{{ url_for('user.spectator_events') }}">All events <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       </div>
 
@@ -42,13 +43,9 @@
               {% if slot_time_by_event.get(next_event.id) %}<span><i class="bi bi-clock" aria-hidden="true"></i> {{ slot_time_by_event.get(next_event.id) }}</span>{% endif %}
             </div>
             {% if slot_notice_by_event.get(next_event.id) %}<p class="driver-event-notice"><i class="bi bi-megaphone" aria-hidden="true"></i> {{ slot_notice_by_event.get(next_event.id) }}</p>{% endif %}
-            <ol class="driver-compact-progress" aria-label="Event progress">
-              <li class="is-complete"><span><i class="bi bi-check-lg" aria-hidden="true"></i></span><small>Ticket</small></li>
-              <li class="{{ 'is-complete' if next_waiver_ready else 'is-current' }}"><span>{% if next_waiver_ready %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}2{% endif %}</span><small>Waiver</small></li>
-              <li class="{{ 'is-complete' if next_checked_in else ('is-current' if next_waiver_ready else '') }}"><span>{% if next_checked_in %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}3{% endif %}</span><small>Check-in</small></li>
-              <li class="{{ 'is-complete' if next_inspection and next_inspection.passed else ('has-issue' if next_inspection else ('is-current' if next_checked_in else '')) }}"><span>{% if next_inspection and next_inspection.passed %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% elif next_inspection %}<i class="bi bi-x-lg" aria-hidden="true"></i>{% else %}4{% endif %}</span><small>Inspection</small></li>
-            </ol>
+
             <div class="driver-featured-actions">
+              <a class="btn btn-sm" href="{{ url_for('user.event_hub', event_id=next_event.id) }}">Open event <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
               {% if not next_waiver_ready and next_waiver and next_waiver.boldsign_document_id %}<a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_sign_waiver', driver_waiver_id=next_waiver.id) }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Complete waiver</a>{% elif not next_waiver_ready and next_waiver %}<form class="driver-waiver-action-form" method="post" action="{{ url_for('waiver.send_driver_waiver', waiver_template_id=next_waiver.waiver_template_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="event_id" value="{{ next_event.id }}"><button class="btn btn-secondary btn-sm" type="submit"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Complete waiver</button></form>{% elif not next_waiver_ready %}<a class="btn btn-secondary btn-sm" href="{{ url_for('waiver.driver_waivers') }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Complete waiver</a>{% endif %}
               <details class="driver-registration-menu">
                 <summary aria-label="Registration options"><i class="bi bi-three-dots" aria-hidden="true"></i></summary>
@@ -62,8 +59,10 @@
         </article>
 
         {% if events|length > 1 %}
-          <div class="driver-registered-list">
-            {% for event in events[1:4] %}
+          <details class="driver-more-events">
+            <summary>{{ events|length - 1 }} more upcoming event{{ 's' if events|length > 2 else '' }}</summary>
+            <div class="driver-registered-list">
+            {% for event in events[1:] %}
               {% set ws = waiver_by_event.get(event.id, {}).get('status') %}
               {% set is_ready = ws == 'signed' or ws == 'not_required' %}
               <article>
@@ -82,7 +81,8 @@
                 </details>
               </article>
             {% endfor %}
-          </div>
+            </div>
+          </details>
         {% endif %}
       {% else %}
         <div class="driver-dashboard-empty">
@@ -93,14 +93,15 @@
       {% endif %}
     </section>
 
-    <aside class="card driver-garage-card" id="garage">
+    <details class="card driver-garage-card" id="garage">
+      <summary>Garage <span>{{ cars|length }} vehicle{{ 's' if cars|length != 1 else '' }}</span></summary>
       <div class="driver-dashboard-section-head">
-        <div><span>Your vehicles</span><h3>Garage</h3></div>
+        <div><h3>Your vehicles</h3></div>
         <a href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add</a>
       </div>
       {% if cars %}
         <div class="driver-garage-list">
-          {% for car in cars[:3] %}
+          {% for car in cars %}
             <a href="{{ url_for('user.car_edit', car_id=car.id) }}">
               {% if car.image_url %}
                 {% set car_image = asset_url(car.image_url) %}
@@ -111,12 +112,11 @@
             </a>
           {% endfor %}
         </div>
-        {% if cars|length > 3 %}<p class="driver-garage-more">And {{ cars|length - 3 }} more in your garage</p>{% endif %}
       {% else %}
         <div class="driver-dashboard-empty compact"><span><i class="bi bi-car-front" aria-hidden="true"></i></span><div><strong>Your garage is empty</strong><p>Add a vehicle before registering to drive.</p></div></div>
         <a class="driver-garage-add" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add your first vehicle</a>
       {% endif %}
-    </aside>
+    </details>
   </div>
 </div>
 {% endblock %}

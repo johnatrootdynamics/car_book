@@ -9738,3 +9738,27 @@ button.rental-slot-pill.selected { outline: 2px solid var(--ui-primary); outline
 .driver-checkout-vehicle label { display: block; margin-bottom: 8px; font-weight: 700; }
 .driver-checkout-vehicle select { width: 100%; min-width: 0; }
 .driver-checkout-vehicle p { margin: 8px 0 0; }
+
+/* Driver home keeps the next event visible and secondary tools expandable. */
+.driver-dashboard-simple .driver-dashboard-header {
+  display: flex; flex-wrap: wrap; min-height: 0; padding: 8px 0 16px;
+  background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible;
+}
+.driver-dashboard-simple .driver-dashboard-header::after { display: none; }
+.ui-system.account-driver .driver-dashboard-simple .driver-dashboard-header h2 { font-size: clamp(1.35rem, 3vw, 1.8rem); }
+.driver-dashboard-simple .driver-dashboard-primary-grid { grid-template-columns: minmax(0, 1fr); }
+.driver-dashboard-simple .driver-featured-event { padding: 18px; }
+.driver-dashboard-simple .driver-featured-event-copy h4 { white-space: normal; font-size: 1.15rem; }
+.driver-dashboard-simple .driver-featured-actions { position: static; flex-wrap: wrap; margin-top: 14px; }
+.driver-dashboard-simple .driver-featured-event-copy { padding-right: 0; }
+.driver-dashboard-qr-toggle summary,
+.driver-more-events summary,
+.driver-dashboard-simple .driver-garage-card > summary { cursor: pointer; color: var(--brand-accent); font-weight: 700; padding: 8px 0; }
+.driver-dashboard-qr-toggle .driver-dashboard-hero-qr { margin-top: 12px; }
+.driver-more-events { margin-top: 16px; border-top: 1px solid var(--ui-border); padding-top: 8px; }
+.driver-dashboard-simple .driver-garage-card > summary span { margin-left: 8px; color: var(--ui-muted); font-size: .85rem; font-weight: 400; }
+.driver-dashboard-simple .driver-garage-card[open] .driver-dashboard-section-head { margin-top: 16px; }
+@media (max-width: 600px) {
+  .driver-dashboard-simple .driver-dashboard-header { align-items: flex-start; }
+  .driver-dashboard-simple .driver-featured-event { padding: 12px; }
+}
