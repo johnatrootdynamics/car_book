@@ -12,7 +12,30 @@
 
   <header class="event-owned-header">
     <div class="spectator-detail-date"><span>{{ event.event_date.strftime('%b') }}</span><strong>{{ event.event_date.strftime('%-d') }}</strong><small>{{ event.event_date.strftime('%Y') }}</small></div>
-    <div class="event-owned-heading"><span class="event-page-kicker">My event · {{ event.track.name }}</span><h1>{{ event.event_name }}</h1><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}{% if event.event_start_time %} · {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}{% if event.event_end_time %}–{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}</p></div>
+    <div class="event-owned-heading"><span class="event-page-kicker">My event · {{ event.track.name }}</span><h1>{{ event.event_name }}</h1><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}{% if event.event_start_time %} · {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}{% if event.event_end_time %}–{{ event.event_end_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}</p>
+      {% if driver_event_status %}
+        {% set registered_car = driver_event_status.registration.car %}
+        <details class="event-header-vehicle" id="event-vehicle">
+          <summary><i class="bi bi-car-front" aria-hidden="true"></i><span>{{ registered_car.car_year }} {{ registered_car.make }} {{ registered_car.model }}</span><span class="event-vehicle-action">{{ 'Change' if vehicle_change_allowed else 'Details' }}</span></summary>
+          <div class="event-header-vehicle-editor">
+            {% if vehicle_change_allowed %}
+            <form method="post" action="{{ url_for('user.change_event_vehicle', event_id=event.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label for="event-car">Vehicle from your garage</label>
+              <select name="car_id" id="event-car" required>
+                {% for car in driver_cars %}<option value="{{ car.id }}" {% if car.id == registered_car.id %}selected{% endif %}>{{ car.car_year }} {{ car.make }} {{ car.model }}</option>{% endfor %}
+              </select>
+              <p>You can change your vehicle before check-in or inspection. Your ticket stays the same.</p>
+              <button class="btn" type="submit">Save vehicle</button>
+              <a href="{{ url_for('user.car_new') }}">Add a vehicle to your garage</a>
+            </form>
+            {% else %}
+              <p>Vehicle changes are closed after check-in, inspection, or the event date. Contact track staff if you need to bring a different car.</p>
+            {% endif %}
+          </div>
+        </details>
+      {% endif %}
+    </div>
     {% if driver_event_status %}
       <aside class="event-hero-checklist event-hub-section" id="event-status" aria-label="Event checklist: {{ completed_count }} of 4 complete">
         <header><strong>Checklist</strong><span>{{ completed_count }}/4</span></header>
@@ -38,32 +61,6 @@
     {% if driver_event_status %}<a href="#lineup-lanes"><i class="bi bi-signpost-split" aria-hidden="true"></i> Lineup lanes</a>{% endif %}
     <a href="#live-track"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Live track</a>
   </nav>
-
-  {% if driver_event_status %}
-    {% set registered_car = driver_event_status.registration.car %}
-    <section class="event-hub-panel event-hub-section" id="event-vehicle" aria-labelledby="event-vehicle-title">
-      <header class="event-hub-panel-head"><div><span class="event-page-kicker">Your vehicle</span><h3 id="event-vehicle-title">{{ registered_car.car_year }} {{ registered_car.make }} {{ registered_car.model }}</h3><p>The vehicle attached to your driver ticket for this event.</p></div></header>
-      <div class="driver-checkout-vehicle">
-        {% if vehicle_change_allowed %}
-          <details>
-            <summary>Change vehicle</summary>
-            <form method="post" action="{{ url_for('user.change_event_vehicle', event_id=event.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <label for="event-car">Vehicle from your garage</label>
-              <select name="car_id" id="event-car" required>
-                {% for car in driver_cars %}<option value="{{ car.id }}" {% if car.id == registered_car.id %}selected{% endif %}>{{ car.car_year }} {{ car.make }} {{ car.model }}</option>{% endfor %}
-              </select>
-              <p>You can change your vehicle before check-in or inspection. Your ticket stays the same.</p>
-              <button class="btn" type="submit">Save vehicle</button>
-              <a href="{{ url_for('user.car_new') }}">Add a vehicle to your garage</a>
-            </form>
-          </details>
-        {% else %}
-          <p>Vehicle changes are closed after check-in, inspection, or the event date. Contact track staff if you need to bring a different car.</p>
-        {% endif %}
-      </div>
-    </section>
-  {% endif %}
 
   {% if event_schedule_context %}
     <section class="event-hub-panel event-hub-section" id="run-schedule" aria-labelledby="schedule-title">

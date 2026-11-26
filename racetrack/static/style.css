@@ -9777,3 +9777,19 @@ button.rental-slot-pill.selected { outline: 2px solid var(--ui-primary); outline
   .driver-dashboard-simple .driver-dashboard-header { align-items: flex-start; }
   .driver-dashboard-simple .driver-featured-event { padding: 0; gap: 12px; }
 }
+
+
+/* The event vehicle is a compact header control, expanded only when needed. */
+.event-header-vehicle { margin-top: 10px; max-width: 460px; }
+.event-header-vehicle > summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; width: fit-content; max-width: 100%; cursor: pointer; list-style: none; color: var(--ui-text); font-size: .8rem; }
+.event-header-vehicle > summary::-webkit-details-marker { display: none; }
+.event-header-vehicle > summary > span:first-of-type { overflow-wrap: anywhere; }
+.event-header-vehicle > summary > i,
+.event-header-vehicle .event-vehicle-action { color: var(--brand-accent); }
+.event-header-vehicle .event-vehicle-action { text-decoration: underline; text-underline-offset: 3px; font-size: .75rem; }
+.event-header-vehicle-editor { margin-top: 12px; padding: 14px; border: 1px solid var(--ui-border); border-radius: 8px; background: var(--ui-surface); }
+.event-header-vehicle-editor form { display: grid; gap: 10px; }
+.event-header-vehicle-editor select { width: 100%; min-width: 0; }
+.event-header-vehicle-editor label { font-size: .8rem; }
+.event-header-vehicle-editor .btn { justify-self: start; }
+.event-header-vehicle-editor a { font-size: .75rem; }
