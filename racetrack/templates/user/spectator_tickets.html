@@ -44,12 +44,8 @@
           {% if driver_availability and driver_availability.sold_out %}
             <div class="ticket-capacity-state sold-out"><strong>Sold out</strong><span>{{ driver_availability.sold }} drivers registered</span></div>
           {% elif is_driver_account and driver_cars %}
-            <form method="post" action="{{ url_for('user.signup_event', event_id=event.id) }}" class="spectator-detail-buy-form driver-ticket-buy-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <label for="driver-car-{{ event.id }}">Vehicle</label>
-              <select id="driver-car-{{ event.id }}" name="car_id" required>{% for car in driver_cars %}<option value="{{ car.id }}">{{ car.car_year }} {{ car.make }} {{ car.model }}</option>{% endfor %}</select>
-              <button class="btn" type="submit"><i class="bi bi-arrow-right" aria-hidden="true"></i> Continue</button>
-            </form>
+            <a class="btn ticket-choice-full-button" href="{{ url_for('user.driver_event_checkout', event_id=event.id) }}"><i class="bi bi-arrow-right" aria-hidden="true"></i> Continue</a>
+            <p class="muted-line">Choose your vehicle at checkout.</p>
           {% elif is_driver_account %}
             <a class="btn ticket-choice-full-button" href="{{ url_for('user.car_new') }}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add a vehicle first</a>
           {% else %}

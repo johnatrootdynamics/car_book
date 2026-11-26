@@ -14,7 +14,7 @@
   </div>
 
   <header class="driver-checkout-header">
-    <div><span class="event-page-kicker">Driver admission</span><h2>Complete checkout</h2><p>Your account and selected vehicle are attached to this admission.</p></div>
+    <div><span class="event-page-kicker">Driver admission</span><h2>Complete checkout</h2><p>Choose the vehicle you’re bringing. It will be attached to your driver admission.</p></div>
   </header>
 
   <div class="checkout-account-card driver-checkout-account">
@@ -33,8 +33,13 @@
         <div><span>{{ event.track.name }}</span><h3>{{ event.event_name }}</h3><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ event.track.city }}, {{ event.track.state }}{% if event.event_start_time %} · {{ event.event_start_time.strftime('%I:%M %p').lstrip('0') }}{% endif %}</p></div>
       </div>
 
+      <div class="driver-checkout-vehicle">
+        {{ form.car_id.label }}
+        {{ form.car_id(aria_describedby='driver-vehicle-help', aria_invalid='true' if form.car_id.errors else 'false') }}
+        <p id="driver-vehicle-help" class="muted-line">Select a vehicle from your garage for this event.</p>
+        {% for error in form.car_id.errors %}<p class="error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
       <dl class="driver-checkout-details">
-        <div><dt><i class="bi bi-car-front" aria-hidden="true"></i> Driver vehicle</dt><dd>{{ selected_car.car_year }} {{ selected_car.make }} {{ selected_car.model }}</dd></div>
         <div><dt><i class="bi bi-ticket-perforated" aria-hidden="true"></i> Driver ticket</dt><dd>${{ '%.2f'|format((amount_cents or 0) / 100) }}</dd></div>
       </dl>
 

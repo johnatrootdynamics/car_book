@@ -277,6 +277,7 @@ class SpectatorCheckoutForm(FlaskForm):
 
 
 class DriverCheckoutForm(FlaskForm):
+    car_id = SelectField("Driver vehicle", coerce=int, validators=[DataRequired()])
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
     phone = StringField("Phone", validators=[DataRequired(), Length(max=30)])

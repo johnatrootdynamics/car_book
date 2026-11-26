@@ -6957,7 +6957,7 @@ details > summary { font-size: .92rem; }
 .driver-checkout-event > div > span { color: var(--brand-accent); font-size: .63rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
 .driver-checkout-event h3 { margin: 3px 0 5px; color: var(--ui-text); font-size: 1.08rem; }
 .driver-checkout-event p { margin: 0; color: var(--ui-muted); font-size: .68rem; }
-.driver-checkout-details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, .52fr); margin: 0; }
+.driver-checkout-details { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; }
 .driver-checkout-details > div { display: grid; gap: 4px; padding: 16px 17px; border-bottom: 1px solid var(--ui-border); }
 .driver-checkout-details > div + div { border-left: 1px solid var(--ui-border); }
 .driver-checkout-details dt { color: var(--ui-muted); font-size: .63rem; font-weight: 700; }
@@ -9732,3 +9732,9 @@ button.rental-slot-pill.selected { outline: 2px solid var(--ui-primary); outline
   .wallet-provider-head { grid-template-columns: auto minmax(0, 1fr); }
   .wallet-provider-head .payment-status-pill { grid-column: 2; justify-self: start; }
 }
+
+/* Vehicle selection belongs to driver checkout, with room for the full name. */
+.driver-checkout-vehicle { padding: 17px; border-bottom: 1px solid var(--ui-border); }
+.driver-checkout-vehicle label { display: block; margin-bottom: 8px; font-weight: 700; }
+.driver-checkout-vehicle select { width: 100%; min-width: 0; }
+.driver-checkout-vehicle p { margin: 8px 0 0; }

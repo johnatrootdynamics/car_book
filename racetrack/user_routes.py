@@ -1466,6 +1466,45 @@ def _event_detail_response(event_id):
     )
 
 
+def _vehicle_change_locked(event, registration):
+    return (
+        event.event_date < date.today()
+        or registration.checked_in_at is not None
+        or Inspection.query.filter_by(event_registration_id=registration.id).first() is not None
+    )
+
+
+@user_bp.route("/events/<int:event_id>/vehicle", methods=["POST"])
+@login_required
+def change_event_vehicle(event_id):
+    guard = require_user()
+    if guard:
+        return guard
+    event = Event.query.get_or_404(event_id)
+    registration = EventRegistration.query.filter_by(
+        event_id=event.id, user_id=current_user.id,
+    ).with_for_update().first_or_404()
+    if not driver_already_has_ticket(event.id, current_user.id):
+        return "A driver ticket is required.", 403
+    if _vehicle_change_locked(event, registration):
+        flash("Vehicle changes are closed after check-in, inspection, or the event date. Please contact track staff.", "error")
+        return redirect(url_for("user.event_hub", event_id=event.id))
+    cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
+    form = EventSignupForm()
+    form.car_id.choices = [(car.id, f"{car.car_year} {car.make} {car.model}") for car in cars]
+    if not form.validate_on_submit():
+        flash("Please choose a vehicle from your garage.", "error")
+        return redirect(url_for("user.event_hub", event_id=event.id))
+    registration.car_id = form.car_id.data
+    for order in DriverTicketOrder.query.filter_by(
+        event_id=event.id, user_id=current_user.id, payment_status="paid",
+    ).all():
+        order.car_id = form.car_id.data
+    db.session.commit()
+    flash("Your vehicle for this event has been updated.", "success")
+    return redirect(url_for("user.event_hub", event_id=event.id))
+
+
 @user_bp.route("/events/<int:event_id>/my-event")
 @login_required
 def event_hub(event_id):
@@ -1548,6 +1587,8 @@ def event_hub(event_id):
         driver_event_status=driver_event_status,
         event_schedule_context=event_schedule_context,
         event_live_context=_attendee_live_context(event),
+        vehicle_change_allowed=bool(registration and not _vehicle_change_locked(event, registration)),
+        driver_cars=(Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all() if registration else []),
         lineup_lanes=(EventLineupLane.query.filter_by(event_id=event.id).order_by(
             EventLineupLane.sort_order.asc(), EventLineupLane.id.asc()
         ).all() if registration else []),
@@ -3423,11 +3464,10 @@ def driver_event_checkout(event_id):
         flash("Driver tickets are sold out for this event.", "error")
         return redirect(url_for("user.event_detail", event_id=event.id))
 
-    car_id = session.get(f"driver_checkout_car_{event.id}")
-    selected_car = Car.query.filter_by(id=car_id, user_id=current_user.id).first() if car_id else None
-    if not selected_car:
-        flash("Choose a car before checkout.", "error")
-        return redirect(url_for("user.event_detail", event_id=event.id))
+    cars = Car.query.filter_by(user_id=current_user.id).order_by(Car.created_at.desc()).all()
+    if not cars:
+        flash("Add a vehicle before purchasing a driver ticket.", "error")
+        return redirect(url_for("user.car_new"))
 
     driver_amount_cents = max(0, event.driver_price_cents or 0)
     payment_choices = _configured_payment_choices(event.track, driver_amount_cents)
@@ -3436,14 +3476,22 @@ def driver_event_checkout(event_id):
         return redirect(url_for("user.event_detail", event_id=event.id))
 
     form = DriverCheckoutForm()
+    form.car_id.choices = [(car.id, f"{car.car_year} {car.make} {car.model}") for car in cars]
     form.payment_method.choices = payment_choices
     if request.method == "GET":
         form.full_name.data = f"{current_user.first_name} {current_user.last_name}".strip()
         form.email.data = current_user.email
         form.phone.data = current_user.phone
         form.payment_method.data = payment_choices[0][0]
+        saved_car_id = session.get(f"driver_checkout_car_{event.id}")
+        form.car_id.data = saved_car_id if saved_car_id in {car.id for car in cars} else cars[0].id
 
     if form.validate_on_submit():
+        selected_car = Car.query.filter_by(id=form.car_id.data, user_id=current_user.id).first()
+        if not selected_car:
+            flash("Please choose a vehicle from your garage.", "error")
+            return redirect(url_for("user.driver_event_checkout", event_id=event.id))
+        session[f"driver_checkout_car_{event.id}"] = selected_car.id
         if driver_already_has_ticket(event.id, current_user.id):
             flash("You already have a driver ticket for this event. Each driver may purchase only one.", "error")
             return redirect(url_for("user.event_detail", event_id=event.id))
@@ -3544,7 +3592,6 @@ def driver_event_checkout(event_id):
         "user/driver_event_checkout.html",
         form=form,
         event=event,
-        selected_car=selected_car,
         amount_cents=driver_amount_cents,
         payment_choices=payment_choices,
         availability=availability,
