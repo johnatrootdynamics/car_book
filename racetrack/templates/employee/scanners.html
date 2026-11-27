@@ -135,6 +135,7 @@ function zoneMeta(role) {
 }
 function resultMeta(result) {
   const normalized = String(result || 'unknown').toLowerCase()
+  if (normalized === 'unknown_tag') return { label: 'Unregistered Tag', className: 'warning', icon: 'bi-exclamation-circle-fill' }
   if (['accepted', 'success', 'processed'].includes(normalized)) return { label: result || 'Accepted', className: 'success', icon: 'bi-check-circle-fill' }
   if (['ignored', 'duplicate'].includes(normalized)) return { label: result || 'Ignored', className: 'neutral', icon: 'bi-dash-circle-fill' }
   return { label: result || 'Review', className: 'warning', icon: 'bi-exclamation-circle-fill' }
