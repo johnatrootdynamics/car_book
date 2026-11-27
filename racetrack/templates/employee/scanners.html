@@ -13,6 +13,7 @@
       <p>Assign each scanner to a zone, then monitor vehicle reads in real time.</p>
     </div>
     <nav class="scanner-page-nav" aria-label="Scanner page sections">
+      <a href="#registered-scanners"><i class="bi bi-broadcast-pin" aria-hidden="true"></i> Registered scanners</a>
       <a href="#scanner-zones"><i class="bi bi-diagram-3" aria-hidden="true"></i> Zones</a>
       {% if is_office_staff %}<a href="#pair-scanner"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add scanner</a>{% endif %}
       <a href="#scanner-activity"><i class="bi bi-activity" aria-hidden="true"></i> Activity</a>
@@ -21,7 +22,7 @@
 
   <section class="card scanner-zones-card" id="scanner-zones">
     <div class="scanner-section-head">
-      <div><span>Zone assignments</span><h2>Zones and scanners</h2><p>A scanner’s zone determines whether its reads mark a vehicle entering or exiting.</p></div>
+      <div><h2>Scanner zones</h2><p>A scanner’s zone determines whether its reads mark a vehicle entering or exiting.</p></div>
     </div>
 
     <div class="scanner-zone-grid">
@@ -34,32 +35,48 @@
             <strong>{{ zone_devices|length }}</strong>
           </header>
 
-          <div class="scanner-zone-devices">
-            {% for device in zone_devices %}
-              <article class="scanner-device-row">
-                <span class="scanner-device-icon"><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
-                <div class="scanner-device-copy">
-                  <strong>{{ device.name }}</strong>
-                  <span class="scanner-device-state {{ 'online' if device.reader_connected else 'offline' }}"><i></i>{{ 'Reader connected' if device.reader_connected else 'Reader offline' }}</span>
-                  <small>{% if device.last_seen_at %}Last seen {{ device.last_seen_at.strftime('%b %-d, %-I:%M %p') }}{% else %}No heartbeat received yet{% endif %}</small>
-                </div>
-                {% if is_office_staff %}
-                  <details class="scanner-device-settings">
-                    <summary aria-label="Edit {{ device.name }}"><i class="bi bi-pencil" aria-hidden="true"></i><span>Edit</span></summary>
-                    <form method="post" action="{{ url_for('employee.scanner_update', scanner_id=device.id) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <label><span>Scanner name</span><input name="name" value="{{ device.name }}" required></label>
-                      <label><span>Zone</span><select name="role"><option value="track_entrance" {% if device.role == 'track_entrance' %}selected{% endif %}>Entrance zone</option><option value="track_exit" {% if device.role == 'track_exit' %}selected{% endif %}>Exit zone</option><option value="unassigned" {% if device.role == 'unassigned' %}selected{% endif %}>Unassigned</option></select></label>
-                      <button class="btn btn-sm" type="submit">Save changes</button>
-                    </form>
-                  </details>
-                {% endif %}
-              </article>
-            {% else %}
-              <div class="scanner-zone-empty"><i class="bi {{ zone_icon }}" aria-hidden="true"></i><span>No scanner assigned</span></div>
-            {% endfor %}
-          </div>
         </section>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card scanner-zones-card" id="registered-scanners">
+    <div class="scanner-section-head"><div><h2>Registered scanners ({{ devices|length }})</h2></div></div>
+    <div class="scanner-zone-devices">
+      {% for device in devices %}
+        {% set zone = scanner_zones|selectattr(0, 'equalto', device.role)|first %}
+        <article class="scanner-device-row">
+          <span class="scanner-device-icon"><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
+          <div class="scanner-device-copy">
+            <strong>{{ device.name }}</strong>
+            <small>{{ zone[1] if zone else 'Unassigned' }}</small>
+            <span class="scanner-device-state {{ 'online' if device.reader_connected else 'offline' }}"><i></i>{{ 'Reader connected' if device.reader_connected else 'Reader offline' }}</span>
+            <small>{% if device.last_seen_at %}Last seen {{ device.last_seen_at.strftime('%b %-d, %-I:%M %p') }}{% else %}No heartbeat received yet{% endif %}</small>
+          </div>
+          {% if is_office_staff %}
+            <div class="scanner-device-actions">
+              <details class="scanner-device-settings">
+                <summary aria-label="Edit {{ device.name }}"><i class="bi bi-pencil" aria-hidden="true"></i><span>Edit</span></summary>
+                <form method="post" action="{{ url_for('employee.scanner_update', scanner_id=device.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <label><span>Scanner name</span><input name="name" value="{{ device.name }}" required></label>
+                  <label><span>Zone</span><select name="role">
+                    {% for choice in scanner_zones %}
+                      <option value="{{ choice[0] }}" {% if device.role == choice[0] %}selected{% endif %}>{{ choice[1] }}</option>
+                    {% endfor %}
+                  </select></label>
+                  <button class="btn btn-sm" type="submit">Save changes</button>
+                </form>
+              </details>
+              <form method="post" action="{{ url_for('employee.scanner_remove', scanner_id=device.id) }}" data-remove-scanner>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-danger btn-sm" type="submit" aria-label="Remove {{ device.name }}">Remove</button>
+              </form>
+            </div>
+          {% endif %}
+        </article>
+      {% else %}
+        <div class="scanner-zone-empty"><i class="bi bi-broadcast-pin" aria-hidden="true"></i><span>No scanners registered yet</span></div>
       {% endfor %}
     </div>
   </section>
@@ -97,6 +114,13 @@
 
 {% block scripts %}
 <script>
+document.querySelectorAll('[data-remove-scanner]').forEach((form) => {
+  form.addEventListener('submit', (event) => {
+    if (!window.confirm('Remove this scanner from the track? It will need to be paired again.')) {
+      event.preventDefault()
+    }
+  })
+})
 const feed = document.getElementById('scan-feed')
 const statusEl = document.getElementById('scan-status')
 function esc(value) {

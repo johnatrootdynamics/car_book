@@ -9034,6 +9034,7 @@ button.rental-slot-pill.selected { outline: 2px solid var(--ui-primary); outline
 .scanner-device-state.online i { background: var(--brand-success-soft); box-shadow: 0 0 0 3px #e1f5eb; }
 .scanner-device-state.offline { color: var(--ui-muted); }
 .scanner-device-state.offline i { background: var(--ui-surface-soft); }
+.scanner-device-actions { display: flex; align-items: center; gap: 8px; }
 .scanner-device-settings { position: relative; }
 .scanner-device-settings > summary {
   display: inline-flex;

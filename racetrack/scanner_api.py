@@ -28,15 +28,29 @@ def _token_serializer():
     return URLSafeSerializer(current_app.config["SECRET_KEY"], salt="scanner-device-v1")
 
 
+def _registration_token(device):
+    return _token_serializer().dumps([device.device_uuid, device.poll_token_hash])
+
+
 def _device_from_bearer():
     header = request.headers.get("Authorization", "")
     if not header.startswith("Bearer "):
         return None
+    token = header[7:].strip()
     try:
-        device_uuid = _token_serializer().loads(header[7:].strip())
+        payload = _token_serializer().loads(token)
     except BadSignature:
         return None
-    return ScannerDevice.query.filter_by(device_uuid=device_uuid, status="active").first()
+    if isinstance(payload, str):
+        # Existing agents keep their legacy token until the scanner is paired again.
+        device_uuid, token_hash = payload, None
+    elif isinstance(payload, list) and len(payload) == 2 and isinstance(payload[0], str):
+        device_uuid, token_hash = payload[0], hashlib.sha256(token.encode()).hexdigest()
+    else:
+        return None
+    return ScannerDevice.query.filter_by(
+        device_uuid=device_uuid, status="active", api_token_hash=token_hash
+    ).with_for_update().first()
 
 
 def _parse_datetime(value):
@@ -160,6 +174,7 @@ def registration_start():
     device.pairing_code_hash = generate_password_hash(pairing_code)
     device.pairing_expires_at = datetime.utcnow() + timedelta(minutes=20)
     device.poll_token_hash = hashlib.sha256(poll_token.encode()).hexdigest()
+    device.api_token_hash = hashlib.sha256(_registration_token(device).encode()).hexdigest()
     device.software_version = str(data.get("software_version") or "")[:60] or None
     db.session.commit()
     return jsonify(status="pending", poll_token=poll_token, expires_at=device.pairing_expires_at.isoformat() + "Z")
@@ -176,7 +191,7 @@ def registration_status(device_uuid):
         return jsonify(status=device.status)
     return jsonify(
         status="registered",
-        device_token=_token_serializer().dumps(device.device_uuid),
+        device_token=_registration_token(device) if device.api_token_hash else _token_serializer().dumps(device.device_uuid),
         scanner={"name": device.name, "role": device.role, "track_id": device.track_id},
     )
 

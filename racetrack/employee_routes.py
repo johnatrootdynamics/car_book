@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 import base64
+import secrets
 from io import BytesIO
 from decimal import Decimal
 
@@ -296,7 +297,7 @@ def scanners():
     if guard:
         return guard
     track_id = active_track_id()
-    devices = ScannerDevice.query.filter_by(track_id=track_id).order_by(ScannerDevice.name.asc()).all()
+    devices = ScannerDevice.query.filter_by(track_id=track_id, status="active").order_by(ScannerDevice.name.asc()).all()
     return render_template("employee/scanners.html", devices=devices)
 
 
@@ -333,13 +334,15 @@ def scanner_update(scanner_id):
     guard = require_office_staff()
     if guard:
         return guard
-    device = ScannerDevice.query.filter_by(id=scanner_id, track_id=active_track_id()).first_or_404()
+    track_id = active_track_id()
+    device = ScannerDevice.query.filter_by(id=scanner_id, track_id=track_id, status="active").first_or_404()
     role = (request.form.get("role") or "unassigned").strip()
     if role not in {"unassigned", "track_entrance", "track_exit"}:
         role = "unassigned"
     if role != "unassigned":
         ScannerDevice.query.filter(
-            ScannerDevice.track_id == active_track_id(),
+            ScannerDevice.track_id == track_id,
+            ScannerDevice.status == "active",
             ScannerDevice.role == role,
             ScannerDevice.id != device.id,
         ).update({"role": "unassigned"}, synchronize_session=False)
@@ -348,6 +351,28 @@ def scanner_update(scanner_id):
     db.session.commit()
     flash("Scanner settings saved.", "success")
     return redirect(url_for("employee.scanners"))
+
+
+@employee_bp.post("/scanners/<int:scanner_id>/remove")
+@login_required
+def scanner_remove(scanner_id):
+    guard = require_office_staff()
+    if guard:
+        return guard
+    device = ScannerDevice.query.filter_by(
+        id=scanner_id, track_id=active_track_id(), status="active"
+    ).with_for_update().first_or_404()
+    device.status = "removed"
+    # Keep the historical record at this track and free the hardware ID for a new pairing.
+    device.device_uuid = f"removed-{secrets.token_hex(24)}"
+    device.reader_connected = False
+    device.api_token_hash = None
+    device.poll_token_hash = None
+    device.pairing_code_hash = None
+    device.pairing_expires_at = None
+    db.session.commit()
+    flash(f"{device.name} was removed from this track.", "success")
+    return redirect(url_for("employee.scanners", _anchor="registered-scanners"))
 
 
 @employee_bp.get("/scanners/data")
