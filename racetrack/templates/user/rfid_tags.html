@@ -39,14 +39,41 @@
         <div class="ui-empty"><p>Add a car to your garage before activating a tag.</p></div>
       {% endif %}
     </section>
-    <section class="card">
+    <section class="card" id="activated-tags">
       <div class="ui-section-head"><div><h3>Activated tags</h3><p>Tags currently paired to your vehicles.</p></div></div>
       {% if tags %}
-        <div class="ui-list">{% for tag in tags %}<div class="ui-list-row"><div><strong>{{ tag.public_serial }}</strong><small>{{ tag.car.car_year }} {{ tag.car.make }} {{ tag.car.model }}</small></div><span class="ui-badge status-success">{{ tag.status|title }}</span></div>{% endfor %}</div>
+        <div class="ui-list">
+          {% for tag in tags %}
+            <div class="ui-list-row">
+              <div>
+                <strong>{{ tag.public_serial }}</strong>
+                <small>{% if tag.car %}{{ tag.car.car_year }} {{ tag.car.make }} {{ tag.car.model }}{% else %}No vehicle assigned{% endif %}</small>
+              </div>
+              <form class="ui-actions" method="post" action="{{ url_for('user.rfid_tag_remove', tag_id=tag.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <span class="ui-badge status-success">Active</span>
+                <button class="btn btn-secondary btn-sm" type="button" data-remove-rfid-tag="{{ tag.public_serial }}" aria-label="Remove RFID tag {{ tag.public_serial }}">Remove</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
       {% else %}
         <div class="ui-empty"><i class="bi bi-broadcast-pin" aria-hidden="true"></i><h3>No activated tags</h3><p>Your active vehicle tags will appear here.</p></div>
       {% endif %}
     </section>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-remove-rfid-tag]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const serial = button.dataset.removeRfidTag
+    if (!window.confirm(`Remove RFID tag ${serial} from your account?`)) return
+    if (!window.confirm('Permanently deactivate this tag? It will stop identifying your vehicle at the track and its activation code cannot be reused.')) return
+    button.form.requestSubmit()
+  })
+})
+</script>
 {% endblock %}

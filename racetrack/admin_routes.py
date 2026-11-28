@@ -10,6 +10,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.orm import selectinload
 from email_validator import EmailNotValidError, validate_email
 from werkzeug.security import generate_password_hash
 import secrets
@@ -19,6 +20,7 @@ from decimal import Decimal, InvalidOperation
 
 from .forms import TrackCreateForm, WaiverTemplateForm
 from .models import (
+    Car,
     CommunityReport,
     DriverTicketOrder,
     DriverWaiver,
@@ -109,10 +111,24 @@ def rfid_tags():
                                    activation_code_hash=generate_password_hash(issued_code)))
             db.session.commit()
             flash("Tag added to inventory. Record the activation code now; it cannot be shown again.", "success")
-    tags = RfidTag.query.order_by(RfidTag.created_at.desc()).limit(100).all()
+    tags = (
+        RfidTag.query.options(selectinload(RfidTag.car).selectinload(Car.owner))
+        .order_by(RfidTag.created_at.desc()).limit(100).all()
+    )
     settings = RfidTagSettings.query.get(1) or RfidTagSettings(price_cents=0)
     return render_template("admin/rfid_tags.html", tags=tags, issued_code=issued_code,
                            settings=settings, pending_orders=RfidTagOrder.query.filter_by(fulfillment_status="pending").count())
+
+
+@admin_bp.get("/drivers/<int:user_id>")
+@login_required
+def driver_profile(user_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    driver = User.query.filter_by(id=user_id, deleted_at=None).first_or_404()
+    cars = Car.query.filter_by(user_id=driver.id).order_by(Car.created_at.desc()).all()
+    return render_template("admin/driver_profile.html", driver=driver, cars=cars)
 
 
 @admin_bp.route("/rfid-tag-orders")

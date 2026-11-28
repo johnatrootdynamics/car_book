@@ -68,7 +68,17 @@
             <tr>
               <td><strong>{{ tag.public_serial }}</strong></td><td><code>{{ tag.epc }}</code></td>
               <td><span class="ui-badge">{{ tag.status|title }}</span></td>
-              <td>{% if tag.car %}{{ tag.car.car_year }} {{ tag.car.make }} {{ tag.car.model }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
+              <td>
+                {% if tag.car %}
+                  {% set driver = tag.car.owner %}
+                  {% if driver and not driver.deleted_at %}
+                    <a class="employee-text-link" href="{{ url_for('admin.driver_profile', user_id=driver.id) }}">{{ '@' ~ driver.username if driver.username else driver.first_name ~ ' ' ~ driver.last_name }}</a>
+                  {% endif %}
+                  <div>{{ tag.car.car_year }} {{ tag.car.make }} {{ tag.car.model }}</div>
+                {% else %}
+                  <span class="muted">Unassigned</span>
+                {% endif %}
+              </td>
             </tr>
           {% else %}
             <tr><td colspan="4"><div class="ui-empty"><i class="bi bi-broadcast-pin" aria-hidden="true"></i><h3>No tags provisioned</h3><p>Add a physical tag above to begin building inventory.</p></div></td></tr>

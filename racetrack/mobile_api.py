@@ -3261,6 +3261,7 @@ def driver_rfid():
             RfidTagOrder.user_id == user.id,
             RfidTagOrder.payment_status.in_(("pending", "paid")),
             RfidTagOrder.fulfillment_status != "cancelled",
+            ~RfidTagOrderItem.tag.has(status="removed"),
         )
         .all()
     )
@@ -3406,6 +3407,7 @@ def driver_rfid_order_create():
             RfidTagOrder.payment_status == "paid",
             RfidTagOrder.fulfillment_status != "cancelled",
             RfidTagOrderItem.car_id.in_(car_ids),
+            ~RfidTagOrderItem.tag.has(status="removed"),
         )
         .first()
     )

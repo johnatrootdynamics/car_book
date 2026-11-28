@@ -168,7 +168,7 @@ def rfid_tags():
             db.session.commit()
             flash("RFID tag activated and assigned to your car.", "success")
             return redirect(url_for("user.rfid_tags"))
-    tags = RfidTag.query.filter_by(activated_by_user_id=current_user.id).order_by(RfidTag.activated_at.desc()).all()
+    tags = RfidTag.query.filter_by(activated_by_user_id=current_user.id, status="active").order_by(RfidTag.activated_at.desc()).all()
     settings = RfidTagSettings.query.get(1)
     if not settings:
         settings = RfidTagSettings(id=1, price_cents=0)
@@ -178,10 +178,29 @@ def rfid_tags():
         item.car_id for item in RfidTagOrderItem.query.join(RfidTagOrder).filter(
             RfidTagOrder.user_id == current_user.id,
             RfidTagOrder.fulfillment_status != "cancelled",
+            ~RfidTagOrderItem.tag.has(status="removed"),
         ).all()
     }
     return render_template("user/rfid_tags.html", cars=cars, tags=tags, settings=settings,
                            ordered_car_ids=ordered_car_ids, money=_money)
+
+
+@user_bp.post("/rfid-tags/<int:tag_id>/remove")
+@login_required
+def rfid_tag_remove(tag_id):
+    guard = require_user()
+    if guard:
+        return guard
+    tag = RfidTag.query.filter_by(
+        id=tag_id, activated_by_user_id=current_user.id, status="active"
+    ).with_for_update().first_or_404()
+    # Keep the inventory and order record without making the old one-time code usable again.
+    tag.status = "removed"
+    tag.car_id = None
+    tag.activated_by_user_id = None
+    db.session.commit()
+    flash(f"RFID tag {tag.public_serial} was removed from your account.", "success")
+    return redirect(url_for("user.rfid_tags", _anchor="activated-tags"))
 
 
 @user_bp.route("/rfid-tags/cart/add/<int:car_id>", methods=["POST"])
@@ -198,6 +217,7 @@ def rfid_tag_cart_add(car_id):
         RfidTagOrderItem.car_id == car.id,
         RfidTagOrder.user_id == current_user.id,
         RfidTagOrder.fulfillment_status != "cancelled",
+        ~RfidTagOrderItem.tag.has(status="removed"),
     ).first()
     if existing_order:
         flash("A tag has already been ordered for that car.", "error")
