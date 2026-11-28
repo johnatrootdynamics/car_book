@@ -8093,6 +8093,9 @@ button.rental-slot-pill.selected { outline: 2px solid var(--ui-primary); outline
 .ui-section-head p { margin: 4px 0 0; color: var(--ui-muted); font-size: .72rem; }
 
 .ui-detail-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr); gap: 14px; align-items: start; }
+.issued-secret-details { margin: 0; }
+.issued-secret-details > div { display: grid; gap: 6px; }
+.issued-secret-details dd { margin: 0; }
 .ui-list { display: grid; border: 1px solid var(--ui-border); border-radius: var(--ui-radius); overflow: hidden; background: var(--ui-surface); }
 .ui-list-row {
   display: grid;

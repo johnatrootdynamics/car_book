@@ -22,10 +22,16 @@
         <div><h3>Save this activation label</h3><p>This private code is shown once and cannot be recovered later.</p></div>
         <span class="ui-badge status-warning"><i class="bi bi-key" aria-hidden="true"></i> One-time code</span>
       </div>
-      <div class="ui-detail-grid">
-        <div><small class="muted">Serial</small><strong>{{ tags[0].public_serial }}</strong></div>
-        <div><small class="muted">Activation code</small><strong>{{ issued_code }}</strong></div>
-      </div>
+      <dl class="ui-detail-grid issued-secret-details">
+        <div>
+          <dt class="muted">Serial</dt>
+          <dd><strong>{{ tags[0].public_serial }}</strong></dd>
+        </div>
+        <div>
+          <dt class="muted">Activation code</dt>
+          <dd><strong>{{ issued_code }}</strong></dd>
+        </div>
+      </dl>
     </section>
   {% endif %}
 
