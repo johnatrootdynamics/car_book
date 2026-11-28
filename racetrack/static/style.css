@@ -9133,7 +9133,7 @@ button.rental-slot-pill.selected { outline: 2px solid var(--ui-primary); outline
 .scanner-activity-columns,
 .scanner-activity-row {
   display: grid;
-  grid-template-columns: 86px 100px minmax(0, 1fr) 100px;
+  grid-template-columns: 86px 100px minmax(0, 22rem) 9rem;
   align-items: center;
   gap: 12px;
 }
@@ -9174,6 +9174,7 @@ button.rental-slot-pill.selected { outline: 2px solid var(--ui-primary); outline
 .scanner-activity-device > span { display: flex; min-width: 0; align-items: center; gap: 6px; color: var(--ui-muted); font-size: .61rem; }
 .scanner-activity-device small { overflow: hidden; color: var(--ui-muted); font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
 .scanner-activity-device small::before { content: "·"; margin-right: 6px; }
+.scanner-activity-result { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .scanner-activity-result.success { color: var(--brand-success); background: var(--brand-success-soft); border-color: var(--brand-success-border); }
 .scanner-activity-result.neutral { color: var(--ui-muted); background: var(--ui-surface-soft); border-color: var(--ui-border); }
 .scanner-activity-result.warning { color: var(--brand-warning); background: var(--brand-warning-soft); border-color: var(--brand-warning-border); }
